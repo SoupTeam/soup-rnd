@@ -18,11 +18,11 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Existing v2 analysis tests and summary CLI | **PASS**: 241 passed, no skips; synthetic paired summaries, NLL direction and same-size hash-tamper refusal verified |
 | Ordinary CI with Rich 14.0.0 | **PASS**: 732 passed; 50 CUDA skips plus one explicit scientific-stack skip; production admission still refuses the changed package |
 | Native/reference model comparison | **PASS**: exact ordered top-6 on all 64 tokens; max error `2.086162567138672e-7` ≤ `0.00011039664745330811` |
-| Moonlight quality, gated verdict | **NOT RUN — TECHNICAL STOP**: rented volume is MD RAID, not the required direct NVMe |
+| Moonlight quality, gated verdict | **NOT RUN — INFRASTRUCTURE BLOCKED**: first volume was RAID; replacement host could not provision its volume or start SSH |
 | Moonlight quality, statistical verdict | NOT RUN |
 | Moonlight numerical gate | **NOT RUN (0/6)**; A3, E1/E2/E3 and INT4 control have no Moonlight result |
 | Per-step loss and adapter-change norm | NOT RUN |
-| Moonlight paid resources and charges | **USD 0.037 provider-reported**; instance `60241118` and volume `60241117` deleted and independently confirmed absent |
+| Moonlight paid resources and charges | **USD 0.057 posted so far** across both attempts; all owned instances and volumes confirmed absent; replacement-volume charge not yet posted |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
@@ -179,3 +179,17 @@ The user selected «Разрешить ещё одну аренду» after veri
 Replacement [preparation ledger v2](preparation-ledger-v2.json), SHA256 `84c93d8e9c9a462912e85d42ecc253516d2500d438e5992a701f486ee494b660`, freezes RTX4090 offer `51365776`, matching volume `51365777`, machine `148949`: Ryzen 9 3900X, one GPU, advertised WD_BLACK SN850X 2TB. Combined price $0.58/hour. Upper replacement preparation cost $0.942145833, cumulative with the closed attempt **$0.979145833**; maximum replacement preparation duration 57 minutes. Actual mount topology is checked first, before packages or weights. The original scientific-settings SHA256 is unchanged; the new authorization supersedes only its one-rental count.
 
 Replacement offer51365776 was rejected as unavailable and created no resources. Before the replacement rental, ledger v3 SHA256 `4c457258dd79c94623c90010b8a281636aaa80483e19e5e3a6dc4584c478af6c` supersedes unrented v2: offer51950781, volume51950784, machine136748, RTX4090/Core Ultra9 285K, advertised MSI M482 2TB. Combined $0.486296296296/hour; ingress/egress $0.000130208333/GB. Upper replacement preparation $0.796371527778; cumulative including the closed $0.037 attempt $0.833371527778; hard90-minute replacement deadline. Provider reliability0.9531117 is disclosed, not execution evidence. Actual direct-NVMe verification is still first.
+
+## Replacement startup failed; all owned resources absent
+
+The explicitly authorized replacement created instance `60244148` and linked volume `60244147`. The host repeatedly reported **`Error: Requested volume does not exist: V.60244147`** and never exposed SSH. One start of the same stopped instance after the volume contract appeared did not resolve it; this was not another rental or a scientific retry. The final observed startup interval exceeded ten minutes.
+
+[Startup-stop receipt](moonlight-r-20261111t180727z/startup-stop.json), [provider daemon log](moonlight-r-20261111t180727z/daemon-startup-log.txt) and [same-instance recovery receipt](moonlight-r-20261111t180727z/same-instance-start.json) retain the failure. The quote advertised `MSI M482 2TB`; the rented-volume inventory instead reported `USB SanDisk`. Neither is native mount proof: **physical storage topology on this replacement was never verified**.
+
+Instance `60244148` was destroyed. The subsequent explicit volume-delete request returned 404 because volume `60244147` was already absent; this is not reported as a successful delete response. Fresh [provider listings](moonlight-r-20261111t180727z/resource-closeout.json) confirm that **both attempts' instances and volumes are absent**. Unrelated resources were untouched.
+
+[Cumulative posted charges](moonlight-r-20261111t180727z/charges-cumulative.json): first instance $0.047, first volume $0.008, replacement instance $0.002; **$0.057 posted so far**. The first attempt's earlier $0.037 snapshot increased due to billing lag. No charge row has yet appeared for replacement volume `60244147`; it is not asserted to cost zero. All resources are absent and the $1 preparation/$15 total caps remain unchanged.
+
+No paid model-weight download, package setup, cache/initial-adapter preparation, native smoke/calibration, numerical gate, training or quality evaluation ran. All accepted CPU/reference/tokenizer/aux proofs remain unchanged. Quality gated/statistical: **NOT RUN**; gate **0/6, NOT RUN**, not numerical FAIL; loss/adapter delta **NOT RUN**. Tiny E3 remains **FAIL 0.05028628354277727 > 0.05**; **DeepSeek-V3 671B: отложен**.
+
+Both authorized rental contracts have been closed. Continuation requires an actually usable direct-NVMe host and renewed rental authorization; no third rental or relaxed hardware/scientific criterion is assumed.

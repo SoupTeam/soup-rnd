@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\sydyk\AppData\Local\Programs\Python\Python314\Scripts\vastai.exe\__main__.py", line 5, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\sydyk\AppData\Local\Programs\Python\Python314\Lib\site-packages\vastai\cli\main.py", line 197, in main
+    run_command(args)
+    ~~~~~~~~~~~^^^^^^
+  File "C:\Users\sydyk\AppData\Local\Programs\Python\Python314\Lib\site-packages\vastai\cli\main.py", line 204, in run_command
+    res = args.func(args)
+  File "C:\Users\sydyk\AppData\Local\Programs\Python\Python314\Lib\site-packages\vastai\cli\commands\misc.py", line 119, in logs
+    rj = instances_api.logs(client, instance_id=args.INSTANCE_ID, tail=args.tail,
+                            filter=args.filter, daemon_logs=args.daemon_logs)
+  File "C:\Users\sydyk\AppData\Local\Programs\Python\Python314\Lib\site-packages\vastai\api\instances.py", line 426, in logs
+    return _poll_result_url(result_url)
+  File "C:\Users\sydyk\AppData\Local\Programs\Python\Python314\Lib\site-packages\vastai\api\instances.py", line 17, in _poll_result_url
+    raise TimeoutError(f"Result not ready after {retries * delay}s: {result_url}")
+TimeoutError: Result not ready after 9.0s: https://s3.amazonaws.com/public.vast.ai/instance_logs/d365fddb9965db2cabbd4f9a9e1c5ee675894385a6b1d67cbf4ab69fa832c2d2.log
