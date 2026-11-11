@@ -1607,7 +1607,6 @@ class StreamingSetupMixin:
         """
         from soup_cli.utils.layer_stream import decide_measured_fit
         from soup_cli.utils.layer_stream_runtime import measure_step_peak_bytes
-
         from soup_cli.utils.stream_chunked_ce import model_loss_fn, stream_loss_impl
 
         # ZERO: measure the step that will run (chunked CE or CCE), not the full-logits

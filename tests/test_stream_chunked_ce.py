@@ -146,7 +146,7 @@ def _fake_cce(monkeypatch):
     import sys
     import types
 
-    import torch.nn.functional as F
+    from torch.nn import functional as F  # noqa: N812
 
     calls = []
 
@@ -199,14 +199,19 @@ def test_head_weight_reads_a_streamed_slot() -> None:
 
 
 def test_stream_loss_impl_selection() -> None:
-    from types import SimpleNamespace as NS
+    from types import SimpleNamespace
 
     from soup_cli.utils.stream_chunked_ce import stream_loss_impl
 
-    assert stream_loss_impl(NS(stream_layers=False, use_cut_ce=True, stream_chunked_ce=False)) is None
-    assert stream_loss_impl(NS(stream_layers=True, use_cut_ce=True, stream_chunked_ce=False)) == "cce"
-    assert stream_loss_impl(NS(stream_layers=True, use_cut_ce=False, stream_chunked_ce=True)) == "chunked"
-    assert stream_loss_impl(NS(stream_layers=True, use_cut_ce=False, stream_chunked_ce=False)) is None
+    def impl(stream: bool, cce: bool, chunked: bool):
+        return stream_loss_impl(
+            SimpleNamespace(stream_layers=stream, use_cut_ce=cce, stream_chunked_ce=chunked)
+        )
+
+    assert impl(False, True, False) is None
+    assert impl(True, True, False) == "cce"
+    assert impl(True, False, True) == "chunked"
+    assert impl(True, False, False) is None
 
 
 def test_schema_refuses_both_losses() -> None:
@@ -215,8 +220,9 @@ def test_schema_refuses_both_losses() -> None:
 
 
 def test_schema_streamed_cce_refuses_l2l() -> None:
-    cfg_text = _BASE.format(task="sft", stream="true", l2l="true", extra="  use_cut_ce: true").replace(
-        "  stream_chunked_ce: true\n", "")
+    cfg_text = _BASE.format(
+        task="sft", stream="true", l2l="true", extra="  use_cut_ce: true"
+    ).replace("  stream_chunked_ce: true\n", "")
     with pytest.raises(Exception, match="use_cut_ce"):
         load_config_from_string(cfg_text)
 

@@ -31,7 +31,7 @@ def chunked_causal_lm_loss(
 ) -> Any:
     """Causal-LM loss from final hidden states without the full logits tensor."""
     import torch
-    import torch.nn.functional as F
+    from torch.nn import functional as F  # noqa: N812
     from torch.utils.checkpoint import checkpoint
 
     if chunk <= 0:
@@ -85,8 +85,8 @@ def cce_causal_lm_loss(
     is kept, so the gradient is CCE's, not bit-equal to the full-logits one.
     """
     import torch
-    import torch.nn.functional as F
     from cut_cross_entropy import linear_cross_entropy
+    from torch.nn import functional as F  # noqa: N812
 
     weight = _head_weight(lm_head)
     shift = F.pad(labels, (0, 1), value=IGNORE_INDEX)[..., 1:].to(hidden.device)
