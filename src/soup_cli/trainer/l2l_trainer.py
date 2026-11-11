@@ -114,10 +114,11 @@ def refuse_unsupported_l2l(
     """Refuse at launch what the schema cannot see: the model and the GPU count.
 
     ``expert_layout`` is ``training.stream_expert_layout``; DeepSeek-V3 needs ``per_expert``.
-    ``fp16`` is accepted: the step backpropagates ``accelerator.scaler.scale(loss)`` and leaves
-    unscaling, clipping and the inf skip to accelerate (the argument stays for callers).
+    ``fp16`` is accepted for the dense archs: the step backpropagates
+    ``accelerator.scaler.scale(loss)`` and leaves unscaling, clipping and the inf skip to
+    accelerate. The per-expert MoE path (DeepSeek-V3) keeps refusing fp16: it has not been
+    validated under a loss scale.
     """
-    del fp16
     arch = str(getattr(model_config, "model_type", ""))
     if arch in PER_EXPERT_ARCHS:
         if expert_layout != EXPERT_LAYOUT_PER_EXPERT:
@@ -125,6 +126,11 @@ def refuse_unsupported_l2l(
                 f"training.l2l with model_type {arch!r} requires "
                 f"training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}; "
                 f"got {expert_layout!r}."
+            )
+        if fp16:
+            raise ValueError(
+                f"training.l2l does not support fp16 for model_type {arch!r}: the per-expert "
+                f"path is not validated under the fp16 loss scale. Use bf16 or fp32."
             )
     elif arch not in PUBLIC_ARCHS:
         raise ValueError(

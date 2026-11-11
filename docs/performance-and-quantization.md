@@ -1023,7 +1023,8 @@ through the recompute's `grad_tensors`, and unscaling, gradient clipping and ski
 inf/NaN gradients stay with accelerate's optimizer step, as under gradient accumulation. A CPU test
 checks that with a scale of 1024 the L2L LoRA gradients equal accumulation's times 1024 bit for bit.
 Numerical agreement of L2L and accumulation in fp16 on a GPU has not been measured: the A3-07
-tolerance is calibrated for bf16, so fp16 needs its own noise floor.
+tolerance is calibrated for bf16, so fp16 needs its own noise floor. The per-expert MoE path (DeepSeek-V3) still
+refuses fp16.
 
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
