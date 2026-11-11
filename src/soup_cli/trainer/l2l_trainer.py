@@ -111,10 +111,13 @@ MAX_CACHED_SHAPES = 64
 def refuse_unsupported_l2l(
     model_config: Any, *, n_gpu: int, fp16: bool = False, expert_layout: str = "fused"
 ) -> None:
-    """Refuse at launch what the schema cannot see: the model, the GPU count, fp16.
+    """Refuse at launch what the schema cannot see: the model and the GPU count.
 
     ``expert_layout`` is ``training.stream_expert_layout``; DeepSeek-V3 needs ``per_expert``.
+    ``fp16`` is accepted: the step backpropagates ``accelerator.scaler.scale(loss)`` and leaves
+    unscaling, clipping and the inf skip to accelerate (the argument stays for callers).
     """
+    del fp16
     arch = str(getattr(model_config, "model_type", ""))
     if arch in PER_EXPERT_ARCHS:
         if expert_layout != EXPERT_LAYOUT_PER_EXPERT:
@@ -133,11 +136,6 @@ def refuse_unsupported_l2l(
         raise ValueError(
             f"training.l2l is single-GPU, but {n_gpu} GPUs are visible. Re-run with "
             f"one card visible, e.g. CUDA_VISIBLE_DEVICES=0."
-        )
-    if fp16:
-        raise ValueError(
-            "training.l2l does not support fp16: the L2L step runs backward itself, "
-            "so the fp16 grad scaler would never scale the loss. Use bf16 or fp32."
         )
 
 
@@ -561,8 +559,11 @@ def run_window(
     label_list: Any,
     n_items: Optional[int],
     device: Any,
+    scaler: Any = None,
 ) -> Tuple[List[Any], Any]:
     """One L2L step over the window; returns the losses and the step's load counters.
+
+    ``scaler`` is accelerate's fp16 ``GradScaler`` (``accelerator.scaler``; None otherwise).
 
     ``label_list`` is what the state's strategy read from the window besides the ids;
     ``n_items`` is HF's ``num_items_in_batch``, ``None`` for the preference trainers.
@@ -577,7 +578,9 @@ def run_window(
         # A pass over ids of its own (KTO's KL completions) takes calls of its own shapes.
         if extra.micro_batches is not None and extra.calls is None:
             extra.calls = _calls_for(state, model, extra.micro_batches)
-    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
+    losses = stepper.run(
+        ids_list, store, calls=calls, head=head, reference=reference, scaler=scaler
+    )
     return losses, stepper.counters
 
 
@@ -660,6 +663,7 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                     label_list,
                     None if num_items_in_batch is None else int(num_items_in_batch),
                     device,
+                    scaler=getattr(self.accelerator, "scaler", None),
                 )
             state.steps += 1
             state.totals.add(counters)
