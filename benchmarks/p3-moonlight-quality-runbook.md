@@ -85,7 +85,7 @@ export HF_HUB_DISABLE_TELEMETRY=1
 export WANDB_DISABLED=true
 mkdir -p "$ROOT/sources" "$ROOT/cache" "$ROOT/tokenizer" "$EXPORTS"
 mkdir -p "$EVIDENCE/setup"
-cd "$REPO"
+cd "$ROOT"
 python --version
 python -m pip freeze > "$EVIDENCE/setup/packages.txt"
 printf '%s  %s\n' "$SETTINGS_SHA256" "$SETTINGS" | sha256sum -c -
@@ -96,6 +96,8 @@ printf '%s  %s\n' \
 ```
 
 Do not enable shell `errexit` around a stage: inspect its exit code, preserve partial evidence, then stop on technical failure. Do not chain a failed stage into later scientific work. The process helper writes `stdout.log`, `result.json` and `manifest.json` in its `--output` directory. Inspect `result.json.status`, `returncode`, `cleanup.child_reaped`, `cleanup.errors` and `evidence_snapshot_only`. Require COMPLETE, a reaped child, no cleanup errors and no snapshot-only evidence. Exit 124 means timeout; 130 means interruption. A zero wrapper exit is process completion, not scientific admission.
+
+Run from `$ROOT`, not `$REPO`: the unchanged Soup shard writer permits output only under HOME, CWD or TMPDIR. The cache is a sibling of `$REPO`, inside `$ROOT`; `PYTHONPATH` already exposes the reviewed source. A launch rejected before creating any cache may be corrected with fresh process/conversion output directories; preserve the refused attempt and bind the initial adapter to the successful conversion path. This is not a scientific-gate retry.
 
 The admitted data artifact's source directory is `prelaunch-review-v1/data-v1/moonlight-preflight-evidence/data/`. Restore its `candidate-pack/` and `generated/476b36a473d4467f94469414bef6cee75c9c8172/` without regeneration, retaining the archive/member verification receipt. After verifying those exported bytes, deploy them once:
 

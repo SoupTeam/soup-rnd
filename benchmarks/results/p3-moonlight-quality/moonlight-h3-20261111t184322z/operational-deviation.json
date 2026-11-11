@@ -1,0 +1,33 @@
+{
+  "schema": "p3-moonlight-operational-deviation-v1",
+  "recorded_utc": "2026-11-11T19:40:22.431300+00:00",
+  "preparation_ledger_sha256": "1c269dd56ea31a9cd376de35b7b8fa724556dd8d53676ba8852160f00f4ae08a",
+  "pre_rental_ledger_preserved": true,
+  "deviation": "Operational wrapper deadline arguments exceeded the per-command allowances retained in ledger v4. Actual completed command durations stayed below those allowances and the aggregate90-minute/$1 envelope. This is disclosed, not retroactively backfilled.",
+  "ledger_seconds": {
+    "setup": 600,
+    "download": 900,
+    "convert": 600,
+    "technical_smoke": 300,
+    "each_calibration": 240
+  },
+  "observed_wrapper_deadlines_seconds": {
+    "download": 1800,
+    "convert_first": 1800,
+    "convert_corrected": 1783,
+    "smoke": 600,
+    "train_resource_cases": 900,
+    "inference_resource_cases": 600
+  },
+  "observed_wall_seconds": {
+    "download": 454.81865119410213,
+    "convert_first": 16.761745169991627,
+    "convert_corrected": 38.27173020108603,
+    "smoke": 34.96871469297912,
+    "train_resource_case_max": 186.78124583302997,
+    "all_resources_deleted_from_volume_creation": 3223.5149999999994
+  },
+  "scientific_gate_or_training_or_quality_run": false,
+  "interpretation": "Measured timings remain observations, not a claim of fully conforming execution; future launch must bind actual wrapper limits consistently.",
+  "other_inherited_wording": "allowance_rule says both attempts; the explicit authorization, prior-expense fields and owned-resource receipts cover all three. Historical superseded_unrented_ledger_sha256 still points to the old unrented v2 quote."
+}

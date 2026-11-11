@@ -18,11 +18,14 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Existing v2 analysis tests and summary CLI | **PASS**: 241 passed, no skips; synthetic paired summaries, NLL direction and same-size hash-tamper refusal verified |
 | Ordinary CI with Rich 14.0.0 | **PASS**: 732 passed; 50 CUDA skips plus one explicit scientific-stack skip; production admission still refuses the changed package |
 | Native/reference model comparison | **PASS**: exact ordered top-6 on all 64 tokens; max error `2.086162567138672e-7` ≤ `0.00011039664745330811` |
-| Moonlight quality, gated verdict | **NOT RUN — INFRASTRUCTURE BLOCKED**: first volume was RAID; replacement host could not provision its volume or start SSH |
+| Native source/cache/shared initializer | **PASS**: all 27 shards; NF4/noDQ/per-expert cache; one exported initial adapter; session closed |
+| CUDA technical smoke | **COMPLETE** on RTX4090; qualification fixture only, not Moonlight quality or historical tiny E3 |
+| Native resource measurements | **COMPLETE**: four no-update training windows and three unlabelled development-inference cases; immutable inputs and clean teardown verified |
+| Moonlight quality, gated verdict | **NOT RUN — BUDGET BLOCKED**: measured planning upper bound remains **$23.9493 > $15** after both permitted reductions |
 | Moonlight quality, statistical verdict | NOT RUN |
 | Moonlight numerical gate | **NOT RUN (0/6)**; A3, E1/E2/E3 and INT4 control have no Moonlight result |
-| Per-step loss and adapter-change norm | NOT RUN |
-| Moonlight paid resources and charges | **USD 0.057 posted so far** across both attempts; all owned instances and volumes confirmed absent; replacement-volume charge not yet posted |
+| Per-step training loss and adapter-change norm | **NOT RUN (0 optimizer steps)**; calibration adapter hashes stayed unchanged |
+| Moonlight paid resources and charges | **USD 0.537 posted so far** across three attempts; every owned instance and volume absent; second-attempt volume charge still has no posted row |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
@@ -193,3 +196,38 @@ Instance `60244148` was destroyed. The subsequent explicit volume-delete request
 No paid model-weight download, package setup, cache/initial-adapter preparation, native smoke/calibration, numerical gate, training or quality evaluation ran. All accepted CPU/reference/tokenizer/aux proofs remain unchanged. Quality gated/statistical: **NOT RUN**; gate **0/6, NOT RUN**, not numerical FAIL; loss/adapter delta **NOT RUN**. Tiny E3 remains **FAIL 0.05028628354277727 > 0.05**; **DeepSeek-V3 671B: отложен**.
 
 Both authorized rental contracts have been closed. Continuation requires an actually usable direct-NVMe host and renewed rental authorization; no third rental or relaxed hardware/scientific criterion is assumed.
+
+User authorized up to three additional technical host admissions with original $1/$15 caps unchanged. First additional attempt: offer43574919, separate volume offer43574924, machine18032, RTX4090/Samsung990PRO2TB. Ledger v4 SHA256 `1c269dd56ea31a9cd376de35b7b8fa724556dd8d53676ba8852160f00f4ae08a`; replacement upper $0.871927083333, cumulative posted-plus-upper $0.928927083333; 90-minute hard preparation allowance from volume creation. Native topology remains unverified until SSH; no guard is weakened.
+
+## Qualified third host; measured budget rejection
+
+The [bounded replacement authorization](host-replacements-authorization-v1.json) was used for one of three additional technical admissions. Volume `60246278` was created and registered separately, then linked to instance `60246341` on machine `18032`. Native proof found `/dev/nvme0n1p3`, XFS, PCIe NVMe, native-BF16 RTX4090 and a `97178877952`-byte cgroup memory limit. Neither RAID nor provider disk-label inference was accepted.
+
+The pinned environment was installed. Stage a verified all **31920879456 weight bytes**; checkpoint identity SHA256 `9ee008194916494d82ce5c2d95d2028300cafcdcbc1dc0050255f37a49a24815`. Stage b produced the NF4 cache and shared initial-adapter file SHA256 `d6c9191f724ec4ca2b49253329bb492edfb45ea5efcd6fd89c44e95b1debaff1`. The CUDA smoke and seven resource cases completed; no optimizer update, scientific gate or quality scoring occurred. [Native preparation summary](moonlight-h3-20261111t184322z/native-preparation-summary.json).
+
+Measured 4096-input-token resource windows, **not training runs**:
+
+| Arm | Length / accumulation | Window phase, seconds | CUDA allocated peak, GiB | Sampled process RSS peak, GiB |
+| --- | --- | ---: | ---: | ---: |
+| BF16 L2L | 1024 / 4 | 73.232 | 2.722 | 3.692 |
+| FP8 block64 + Oracle | 1024 / 4 | 96.029 | 2.722 | 3.506 |
+| BF16 L2L | 4096 / 1 | 21.745 | 8.339 | 3.677 |
+| FP8 block64 + Oracle | 4096 / 1 | 42.715 | 8.339 | 3.504 |
+
+These are whole-operation resource observations, not activation-only memory; RSS sampling can miss short peaks. Native development-inference calls took 3.726–5.718 seconds. One full-v2 adapter requires **20401 native forwards**, including 16429 for HellaSwag. Replanning used the unchanged frozen selection/batching functions, without model execution or retokenization.
+
+| Ordered budget scenario | Final adapters | Native forwards | Total planning upper, USD |
+| --- | ---: | ---: | ---: |
+| Full v2, both lengths | 4 | 81604 | 155.4878 |
+| HellaSwag prefix 1, both lengths | 4 | 15900 | 42.8255 |
+| Same prefix, omit complete L4096 pair | 2 | 7950 | 23.9493 |
+
+[Measured budget receipt](moonlight-h3-20261111t184322z/measured-budget-admission.json), SHA256 `6624e95cc81595e2a6e9e075a49087d6a6518a72525bb8bd40f91b207ffd0249`, separates observations from planning allowances: 2× measured workload time, additional larger-shape headroom, gate/readmission and operating overhead, cumulative preparation and closeout. This is **not an observed $23.95 bill or a proven minimum achievable cost**. Even before larger-shape headroom the smallest scenario estimates $19.8575. The single short development samples do not justify reducing the allowance merely to force admission.
+
+The prefix-1 scenarios are budget-feasibility checks, not an admitted scientific protocol. No artifact-bound final protocol was marked FROZEN; no gate FAIL was used to stop quality. The monetary stop applies first. Further rental for this budget rejection is not assumed; remaining technical-host replacement slots do not increase the financial authority.
+
+Two operational deviations are retained. The first conversion launch used CWD=`$REPO`, so the unchanged shard containment guard refused the sibling cache before creating it. A fresh conversion from owned `$ROOT` succeeded; the runbook now uses that directory. Wrapper timeout arguments also exceeded the per-command maxima inherited in ledger v4, although every completed command stayed inside its recorded duration and the complete attempt closed inside 90 minutes. [Deviation receipt](moonlight-h3-20261111t184322z/operational-deviation.json); the pre-rental ledger was not rewritten to conceal this.
+
+Complete evidence was exported before teardown: **465 files**, with **279 embedded manifest file hashes** verified; archive SHA256 `af72c58edee72213614ad4cbca7b92db8042e67eca1b9569611f4177e79e1d6b`. A [private Kaggle backup](https://www.kaggle.com/datasets/batyrkhan2131123/soup-moonlight-host3-evidence-20261111) was downloaded independently and all 465 expanded payload files matched. [Readback receipt](moonlight-h3-20261111t184322z/private-evidence-readback.json).
+
+[Closeout](moonlight-h3-20261111t184322z/resource-closeout.json) confirms all three attempts' six owned resource IDs absent; unrelated resources were untouched. Third-host creation through verified absence took **53.725 minutes**. [Posted charges](moonlight-h3-20261111t184322z/charges-cumulative.json): third instance $0.425 and volume $0.055, earlier attempts $0.057, cumulative **$0.537**; billing may still settle, and volume `60244147` has no posted row. Quality gated/statistical: **NOT RUN**. Scientific gate: **0/6, NOT RUN**. Training loss/adapter-change norm: **NOT RUN**. Historical tiny **FAIL unchanged**. **DeepSeek-V3 671B: отложен**.
