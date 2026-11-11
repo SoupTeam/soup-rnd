@@ -171,3 +171,11 @@ Run `moonlight-q-20261111t175332z` created the single authorized RTX 4090 rental
 Quality gated/statistical: **NOT RUN**. Numerical gate: **NOT RUN, 0/6**, not numerical FAIL. Per-step loss and adapter-change norm: **NOT RUN**. Historical tiny E3 remains **FAIL 0.05028628354277727 > 0.05**. **DeepSeek-V3 671B: отложен.**
 
 Continuation requires explicit authorization for another rental with verified direct NVMe, within the remaining original budget. The one-rental authorization has been consumed. The final artifact-bound protocol and whole-study measured cost bound do not exist.
+
+## Explicitly authorized replacement
+
+The user selected «Разрешить ещё одну аренду» after verified closeout. [Replacement authorization](replacement-authorization-v1.json) permits exactly one additional rental without raising any monetary/scientific limit. The existing $0.037 counts toward both the $1 preparation cap and $15 total; direct-NVMe admission remains mandatory.
+
+Replacement [preparation ledger v2](preparation-ledger-v2.json), SHA256 `84c93d8e9c9a462912e85d42ecc253516d2500d438e5992a701f486ee494b660`, freezes RTX4090 offer `51365776`, matching volume `51365777`, machine `148949`: Ryzen 9 3900X, one GPU, advertised WD_BLACK SN850X 2TB. Combined price $0.58/hour. Upper replacement preparation cost $0.942145833, cumulative with the closed attempt **$0.979145833**; maximum replacement preparation duration 57 minutes. Actual mount topology is checked first, before packages or weights. The original scientific-settings SHA256 is unchanged; the new authorization supersedes only its one-rental count.
+
+Replacement offer51365776 was rejected as unavailable and created no resources. Before the replacement rental, ledger v3 SHA256 `4c457258dd79c94623c90010b8a281636aaa80483e19e5e3a6dc4584c478af6c` supersedes unrented v2: offer51950781, volume51950784, machine136748, RTX4090/Core Ultra9 285K, advertised MSI M482 2TB. Combined $0.486296296296/hour; ingress/egress $0.000130208333/GB. Upper replacement preparation $0.796371527778; cumulative including the closed $0.037 attempt $0.833371527778; hard90-minute replacement deadline. Provider reliability0.9531117 is disclosed, not execution evidence. Actual direct-NVMe verification is still first.
