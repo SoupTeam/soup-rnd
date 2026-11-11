@@ -56,7 +56,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 
 #: Architectures whose top-level forward this step re-implements. ``training.l2l`` admits them
 #: at launch under the rules in ``trainer.l2l_trainer.refuse_unsupported_l2l``.
-SUPPORTED_ARCHS = ("llama", "mistral", "deepseek_v3")
+SUPPORTED_ARCHS = ("llama", "mistral", "deepseek_v3", "qwen3_5", "qwen3_5_text")
 
 
 @dataclass(frozen=True)
@@ -69,6 +69,17 @@ class LayerCall:
     draws: Tuple[Tuple[Any, ...], ...] = ()
     #: Dropouts the native output head draws after the decoder layers of each micro-batch.
     head_draws: Tuple[Any, ...] = ()
+    #: Hybrid decoders (``qwen3_5``: Gated DeltaNet + gated attention) pass each layer type
+    #: different arguments. ``layer_types[i]`` names layer ``i``'s type and ``typed`` holds the
+    #: ``(args, kwargs)`` captured at the first layer of each type; empty for uniform decoders.
+    layer_types: Tuple[str, ...] = ()
+    typed: Dict[str, Tuple[Tuple[Any, ...], Dict[str, Any]]] = field(default_factory=dict)
+
+    def for_layer(self, idx: int) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        """The ``(args, kwargs)`` HF passes to decoder layer ``idx``."""
+        if self.typed and self.layer_types:
+            return self.typed[self.layer_types[idx]]
+        return self.args, self.kwargs
 
 
 #: ``LoadCounters`` field -> the ``runtime.stats()`` key whose growth it counts.
@@ -218,15 +229,26 @@ def capture_layer_call(model: Any, input_ids: Any, *, draws: bool = True) -> Lay
     from soup_cli.utils.l2l_rng import record_draws
 
     causal, owner = model_parts(model)
+    layer_types = _layer_types(causal, len(owner.layers))
+    # The first layer of each type; a uniform decoder has one, layer 0.
+    firsts: Dict[str, int] = {}
+    for i, kind in enumerate(layer_types or ("layer",)):
+        firsts.setdefault(kind, i)
     seen: Dict[str, Any] = {}
 
-    def hook(_module: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
-        if "call" not in seen:
-            seen["call"] = (tuple(args[1:]), dict(kwargs))
-            if not draws:
-                raise _CapturedError
+    def make_hook(kind: str) -> Callable[..., None]:
+        def hook(_module: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+            if kind not in seen:
+                seen[kind] = (tuple(args[1:]), dict(kwargs))
+                if not draws and len(seen) == len(firsts):
+                    raise _CapturedError
 
-    handle = owner.layers[0].register_forward_pre_hook(hook, with_kwargs=True)
+        return hook
+
+    handles = [
+        owner.layers[i].register_forward_pre_hook(make_hook(kind), with_kwargs=True)
+        for kind, i in firsts.items()
+    ]
     # The capture forward runs in training mode, so NEFTune would draw noise from it.
     cuda = [input_ids.device] if input_ids.device.type == "cuda" else []
     plan: List[List[Any]] = []
@@ -241,17 +263,37 @@ def capture_layer_call(model: Any, input_ids: Any, *, draws: bool = True) -> Lay
                 except _CapturedError:
                     pass
     finally:
-        handle.remove()
-    if "call" not in seen:
-        raise RuntimeError("decoder layer 0 was never called by the forward")
-    args, kwargs = seen["call"]
-    kwargs.pop("num_items_in_batch", None)
+        for handle in handles:
+            handle.remove()
+    missing = [kind for kind in firsts if kind not in seen]
+    if missing:
+        layers = [firsts[k] for k in missing]
+        raise RuntimeError(f"decoder layer(s) {layers} never called by the forward")
+    for _args, kwargs in seen.values():
+        kwargs.pop("num_items_in_batch", None)
+    first_kind = (layer_types or ("layer",))[0]
+    args, kwargs = seen[first_kind]
+    typed = dict(seen) if layer_types and len(firsts) > 1 else {}
     return LayerCall(
         args=args,
         kwargs=kwargs,
         draws=tuple(tuple(layer) for layer in plan[:-1]),
         head_draws=tuple(plan[-1]) if plan else (),
+        layer_types=tuple(layer_types) if typed else (),
+        typed=typed,
     )
+
+
+def _layer_types(causal: Any, n_layers: int) -> Tuple[str, ...]:
+    """``config.layer_types`` of a hybrid decoder (text config for a VLM wrapper), else ()."""
+    config = getattr(causal, "config", None)
+    text = config.get_text_config() if hasattr(config, "get_text_config") else config
+    types = tuple(getattr(text, "layer_types", None) or ())
+    if types and len(types) < n_layers:
+        raise ValueError(
+            f"config.layer_types names {len(types)} layers, the decoder has {n_layers}"
+        )
+    return types[:n_layers]
 
 
 class RoutingGuard:
@@ -429,14 +471,15 @@ class L2LStep:
         #: Loads and restores of the last ``run``; ``None`` before the first.
         self.counters: Optional[LoadCounters] = None
 
-    def _layer(self, module: Any, hidden: Any, state: Any, call: LayerCall) -> Any:
+    def _layer(self, module: Any, hidden: Any, state: Any, call: LayerCall, idx: int = 0) -> Any:
         # ``state`` is where accumulation's stream stands before this (micro-batch, layer)
         # pair, so the forward and the recompute in the backward draw the same mask in any
         # visiting order. ``None`` without dropout.
         from soup_cli.utils import l2l_rng
 
         with l2l_rng.state_at(state) if state is not None else nullcontext():
-            out = module(hidden, *call.args, **call.kwargs)
+            args, kwargs = call.for_layer(idx)
+            out = module(hidden, *args, **kwargs)
         return out[0] if isinstance(out, tuple) else out
 
     @contextmanager
@@ -572,14 +615,17 @@ class L2LStep:
                     store.put(idx, mb, hidden[mb])
                     with guard.record(idx, mb):
                         hidden[mb] = self._layer(
-                            layer, hidden[mb], states[mb][idx] if states else None, calls[mb]
+                            layer, hidden[mb], states[mb][idx] if states else None, calls[mb],
+                            idx,
                         )
                 for spec, current, spec_calls in zip(passes, pass_hidden, pass_calls):
                     # Same loaded layer: nothing is stored, nothing loads. Outside
                     # ``guard.record``, so the routing guard sees the policy forward only.
                     with self._pass_adapters(spec):
                         for mb in range(k):
-                            current[mb] = self._layer(layer, current[mb], None, spec_calls[mb])
+                            current[mb] = self._layer(
+                                layer, current[mb], None, spec_calls[mb], idx
+                            )
             for spec, current in zip(passes, pass_hidden):
                 spec.outputs.clear()
                 with self._pass_adapters(spec):
@@ -613,7 +659,7 @@ class L2LStep:
                     inputs = store.get(idx, mb).requires_grad_(True)
                     with torch.enable_grad(), guard.check(idx, mb):
                         out = self._layer(
-                            layer, inputs, states[mb][idx] if states else None, calls[mb]
+                            layer, inputs, states[mb][idx] if states else None, calls[mb], idx
                         )
                     with self._backward_context(micro_batches[mb]):
                         torch.autograd.backward(out, grad_tensors=grads[mb])
