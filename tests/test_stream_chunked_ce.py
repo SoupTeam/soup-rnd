@@ -136,3 +136,94 @@ def test_probe_accepts_loss_fn_and_is_cpu_noop() -> None:
     model = _tiny_qwen35()
     assert measure_step_peak_bytes(model, rows=1, seq_len=8, vocab_size=300, device="cpu",
                                    loss_fn=chunked_model_loss) is None
+
+
+# --- streamed Cut Cross-Entropy (training.use_cut_ce with stream_layers) ---------------
+
+
+def _fake_cce(monkeypatch):
+    """A cut_cross_entropy stand-in with the same signature, exact in torch (CCE needs CUDA)."""
+    import sys
+    import types
+
+    import torch.nn.functional as F
+
+    calls = []
+
+    def linear_cross_entropy(e, c, targets, ignore_index=-100, softcap=None,
+                             reduction="mean", shift=False, filter_eps="high", impl="cce"):
+        calls.append({"dtype": (e.dtype, c.dtype), "reduction": reduction, "shift": shift})
+        logits = (e @ c.t()).float()
+        return F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1),
+                               ignore_index=ignore_index, reduction=reduction)
+
+    mod = types.ModuleType("cut_cross_entropy")
+    mod.linear_cross_entropy = linear_cross_entropy
+    monkeypatch.setitem(sys.modules, "cut_cross_entropy", mod)
+    return calls
+
+
+@pytest.mark.parametrize("with_items", [False, True])
+def test_cce_path_shift_and_normalisation(monkeypatch, with_items: bool) -> None:
+    from soup_cli.utils.stream_chunked_ce import cce_causal_lm_loss
+
+    calls = _fake_cce(monkeypatch)
+    model = _tiny_qwen35()
+    ids = torch.randint(0, 300, (2, 50), generator=torch.Generator().manual_seed(4))
+    labels = _labels(ids)
+    n_items = (labels[:, 1:] != IGNORE_INDEX).sum() + 3 if with_items else None
+    kwargs = {"num_items_in_batch": n_items} if with_items else {}
+    ref = model(input_ids=ids, labels=labels, **kwargs).loss
+    hidden = model.model(input_ids=ids).last_hidden_state
+    got = cce_causal_lm_loss(hidden, model.lm_head, labels, n_items)
+    assert torch.allclose(got, ref, rtol=1e-6, atol=0)
+    assert calls and calls[0]["reduction"] == "sum" and calls[0]["shift"] is False
+
+
+def test_head_weight_reads_a_streamed_slot() -> None:
+    from soup_cli.utils.stream_chunked_ce import _head_weight
+
+    w = torch.randn(5, 3)
+
+    class Pool:
+        def wait(self, key):
+            assert key == "lm_head"
+            return w
+
+    class Streamed:
+        pool, key = Pool(), "lm_head"
+
+    assert _head_weight(Streamed()) is w
+    lin = torch.nn.Linear(3, 5, bias=False)
+    assert _head_weight(lin) is lin.weight
+
+
+def test_stream_loss_impl_selection() -> None:
+    from types import SimpleNamespace as NS
+
+    from soup_cli.utils.stream_chunked_ce import stream_loss_impl
+
+    assert stream_loss_impl(NS(stream_layers=False, use_cut_ce=True, stream_chunked_ce=False)) is None
+    assert stream_loss_impl(NS(stream_layers=True, use_cut_ce=True, stream_chunked_ce=False)) == "cce"
+    assert stream_loss_impl(NS(stream_layers=True, use_cut_ce=False, stream_chunked_ce=True)) == "chunked"
+    assert stream_loss_impl(NS(stream_layers=True, use_cut_ce=False, stream_chunked_ce=False)) is None
+
+
+def test_schema_refuses_both_losses() -> None:
+    with pytest.raises(Exception, match="pick one"):
+        _cfg(extra="  use_cut_ce: true")
+
+
+def test_schema_streamed_cce_refuses_l2l() -> None:
+    cfg_text = _BASE.format(task="sft", stream="true", l2l="true", extra="  use_cut_ce: true").replace(
+        "  stream_chunked_ce: true\n", "")
+    with pytest.raises(Exception, match="use_cut_ce"):
+        load_config_from_string(cfg_text)
+
+
+def test_trainer_class_for_cce_names_itself() -> None:
+    class Base:
+        pass
+
+    cls = make_chunked_ce_trainer_class(Base, "cce")
+    assert cls.__name__ == "CutCEBase" and cls._soup_loss_impl == "cce"

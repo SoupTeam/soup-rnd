@@ -6584,6 +6584,21 @@ class SoupConfig(BaseModel):
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_chunked_ce and tcfg.use_cut_ce:
+            raise ValueError(
+                "training.stream_chunked_ce and training.use_cut_ce are two losses for the "
+                "same step; pick one"
+            )
+        if tcfg.use_cut_ce:
+            if self.task != "sft":
+                raise ValueError(
+                    "training.use_cut_ce with stream_layers runs only for task='sft'"
+                )
+            if tcfg.l2l:
+                raise ValueError(
+                    "training.use_cut_ce with stream_layers is not wired into training.l2l "
+                    "yet; drop one of them"
+                )
         if tcfg.stream_chunked_ce:
             if self.task != "sft":
                 raise ValueError("training.stream_chunked_ce requires task='sft'")

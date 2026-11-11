@@ -60,6 +60,63 @@ def chunked_causal_lm_loss(
     return total / denom
 
 
+def _head_weight(head: Any) -> Any:
+    """The output projection's weight, also when the head is a streamed large layer.
+
+    A streamed ``lm_head`` (``StreamedLargeLayer``) holds no parameter; its weight is a
+    view of the shared device slot, returned by ``pool.wait(key)`` once the copy landed.
+    """
+    pool, key = getattr(head, "pool", None), getattr(head, "key", None)
+    if pool is not None and key is not None:
+        return pool.wait(key)
+    return head.weight
+
+
+def cce_causal_lm_loss(
+    hidden: Any,
+    lm_head: Any,
+    labels: Any,
+    num_items_in_batch: Optional[Any] = None,
+) -> Any:
+    """Causal-LM loss through Apple's Cut Cross-Entropy kernel (``cut_cross_entropy``).
+
+    Same shift, ``-100`` ignore and normalisation as :func:`chunked_causal_lm_loss`; the
+    logits are never materialised. CCE's default gradient filtering (``filter_eps="high"``)
+    is kept, so the gradient is CCE's, not bit-equal to the full-logits one.
+    """
+    import torch
+    import torch.nn.functional as F
+    from cut_cross_entropy import linear_cross_entropy
+
+    weight = _head_weight(lm_head)
+    shift = F.pad(labels, (0, 1), value=IGNORE_INDEX)[..., 1:].to(hidden.device)
+    with torch.autocast(device_type=hidden.device.type, enabled=False):
+        total = linear_cross_entropy(
+            hidden.to(weight.dtype), weight, shift,
+            ignore_index=IGNORE_INDEX, reduction="sum",
+        ).float()
+    denom = (shift != IGNORE_INDEX).sum() if num_items_in_batch is None else num_items_in_batch
+    if torch.is_tensor(denom):
+        denom = denom.to(total.device)
+    return total / denom
+
+
+#: Streamed-SFT loss implementations: ``training.stream_chunked_ce`` -> "chunked",
+#: ``training.use_cut_ce`` with ``stream_layers`` -> "cce".
+LOSS_IMPLS = {"chunked": chunked_causal_lm_loss, "cce": cce_causal_lm_loss}
+
+
+def stream_loss_impl(tcfg: Any) -> Optional[str]:
+    """Which streamed-SFT loss a training config selects, or None for the model's own."""
+    if not getattr(tcfg, "stream_layers", False):
+        return None
+    if getattr(tcfg, "use_cut_ce", False):
+        return "cce"
+    if getattr(tcfg, "stream_chunked_ce", False):
+        return "chunked"
+    return None
+
+
 def _causal_parts(model: Any) -> tuple[Any, Any]:
     """(decoder, lm_head) of a possibly PEFT-wrapped causal LM."""
     base = model.get_base_model() if hasattr(model, "get_base_model") else model
@@ -76,25 +133,35 @@ def _causal_parts(model: Any) -> tuple[Any, Any]:
 _DECODER_KEYS = ("input_ids", "attention_mask", "position_ids")
 
 
+def model_loss_fn(impl: str = "chunked") -> Any:
+    """``(model, input_ids) -> loss`` through ``impl``: the VRAM probe's step shape."""
+    loss_impl = LOSS_IMPLS[impl]
+
+    def fn(model: Any, input_ids: Any) -> Any:
+        decoder, head = _causal_parts(model)
+        hidden = decoder(input_ids=input_ids, use_cache=False).last_hidden_state
+        return loss_impl(hidden, head, input_ids)
+
+    return fn
+
+
 def chunked_model_loss(model: Any, input_ids: Any) -> Any:
-    """Labels-equal-inputs causal-LM loss of ``model`` through the chunked path.
-
-    The shape of the VRAM probe's step (``measure_step_peak_bytes(loss_fn=...)``).
-    """
-    decoder, head = _causal_parts(model)
-    hidden = decoder(input_ids=input_ids, use_cache=False).last_hidden_state
-    return chunked_causal_lm_loss(hidden, head, input_ids)
+    """Labels-equal-inputs causal-LM loss of ``model`` through the chunked path."""
+    return model_loss_fn("chunked")(model, input_ids)
 
 
-def make_chunked_ce_trainer_class(base_cls: type) -> type:
-    """Subclass ``base_cls`` (TRL's SFTTrainer or a subclass) with a chunked-CE ``compute_loss``.
+def make_chunked_ce_trainer_class(base_cls: type, impl: str = "chunked") -> type:
+    """Subclass ``base_cls`` (TRL's SFTTrainer or a subclass) whose ``compute_loss`` uses ``impl``.
 
     Keeps TRL's ``num_tokens`` metric; skips ``entropy`` and ``mean_token_accuracy``,
     which need the full logits.
     """
 
+    loss_impl = LOSS_IMPLS[impl]
+
     class ChunkedCETrainer(base_cls):  # type: ignore[misc, valid-type]
         _soup_chunked_ce = True
+        _soup_loss_impl = impl
 
         def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
             mode = "train" if self.model.training else "eval"
@@ -103,7 +170,7 @@ def make_chunked_ce_trainer_class(base_cls: type) -> type:
             decoder, head = _causal_parts(self.accelerator.unwrap_model(model))
             kwargs = {k: inputs[k] for k in _DECODER_KEYS if k in inputs}
             hidden = decoder(**kwargs, use_cache=False).last_hidden_state
-            loss = chunked_causal_lm_loss(hidden, head, labels, num_items_in_batch)
+            loss = loss_impl(hidden, head, labels, num_items_in_batch)
             if (
                 num_items_in_batch is not None
                 and getattr(self.args, "average_tokens_across_devices", False)
@@ -119,6 +186,7 @@ def make_chunked_ce_trainer_class(base_cls: type) -> type:
                 self._metrics[mode]["num_tokens"] = [self._total_train_tokens]
             return (loss, None) if return_outputs else loss
 
-    ChunkedCETrainer.__name__ = f"ChunkedCE{base_cls.__name__}"
+    prefix = "ChunkedCE" if impl == "chunked" else "CutCE"
+    ChunkedCETrainer.__name__ = f"{prefix}{base_cls.__name__}"
     ChunkedCETrainer.__qualname__ = ChunkedCETrainer.__name__
     return ChunkedCETrainer

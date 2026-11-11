@@ -667,17 +667,32 @@ class SFTTrainerWrapper(StreamingSetupMixin):
 
     @staticmethod
     def _sft_trainer_base(tcfg: Any, sft_cls: Any) -> Any:
-        """SFTTrainer, or its chunked-CE subclass under training.stream_chunked_ce (ZERO)."""
-        if getattr(tcfg, "stream_chunked_ce", False):
-            from soup_cli.utils.stream_chunked_ce import CE_CHUNK, make_chunked_ce_trainer_class
+        """SFTTrainer, or its chunked-CE / CCE subclass for streamed SFT (ZERO)."""
+        from soup_cli.utils.stream_chunked_ce import (
+            CE_CHUNK,
+            make_chunked_ce_trainer_class,
+            stream_loss_impl,
+        )
 
+        impl = stream_loss_impl(tcfg)
+        if impl == "chunked":
             console.print(
                 f"[green]Chunked CE:[/] the loss runs through lm_head {CE_CHUNK} positions "
                 "at a time; the full logits are never held (entropy / token-accuracy "
                 "metrics are not logged)"
             )
-            return make_chunked_ce_trainer_class(sft_cls)
-        return sft_cls
+        elif impl == "cce":
+            import cut_cross_entropy  # noqa: F401 -- fail at setup, not at step 0
+
+            console.print(
+                "[green]Cut Cross-Entropy (streamed):[/] the loss runs through "
+                "cut_cross_entropy.linear_cross_entropy on the streamed lm_head; the "
+                "logits are never materialised (entropy / token-accuracy metrics are "
+                "not logged)"
+            )
+        else:
+            return sft_cls
+        return make_chunked_ce_trainer_class(sft_cls, impl)
 
     def _build_rewind_trainer(
         self,

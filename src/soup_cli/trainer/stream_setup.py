@@ -1478,8 +1478,11 @@ class StreamingSetupMixin:
         logits = estimate_logits_bytes(
             vocab_size=vocab, seq_len=seq_len, batch_size=rows, bytes_per_element=calibrated
         )
-        if getattr(tcfg, "stream_chunked_ce", False):
-            # ZERO: chunked CE holds the logits of one chunk of positions at a time,
+        from soup_cli.utils.stream_chunked_ce import stream_loss_impl
+
+        if stream_loss_impl(tcfg):
+            # ZERO: chunked CE holds the logits of one chunk of positions at a time
+            # (CCE holds less; charging one chunk keeps the forecast conservative),
             # so the logits term is charged for the chunk, not the sequence. The rest
             # of the estimate (activations, buffers, adapters) is unchanged.
             from soup_cli.utils.stream_chunked_ce import CE_CHUNK
@@ -1605,13 +1608,12 @@ class StreamingSetupMixin:
         from soup_cli.utils.layer_stream import decide_measured_fit
         from soup_cli.utils.layer_stream_runtime import measure_step_peak_bytes
 
-        loss_fn = None
-        if getattr(getattr(getattr(self, "config", None), "training", None), "stream_chunked_ce", False):
-            # ZERO: measure the step that will run, with the chunked loss, not the
-            # full-logits loss the flag exists to avoid.
-            from soup_cli.utils.stream_chunked_ce import chunked_model_loss
+        from soup_cli.utils.stream_chunked_ce import model_loss_fn, stream_loss_impl
 
-            loss_fn = chunked_model_loss
+        # ZERO: measure the step that will run (chunked CE or CCE), not the full-logits
+        # loss those settings exist to avoid.
+        impl = stream_loss_impl(getattr(getattr(self, "config", None), "training", None))
+        loss_fn = model_loss_fn(impl) if impl else None
         try:
             peak = measure_step_peak_bytes(
                 model,
