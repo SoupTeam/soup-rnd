@@ -2,7 +2,7 @@
 
 ## Execution authority
 
-The user approved the restored [plan](../../p3-moonlight-quality-plan.md) on 2026-11-11, including remote reference checks and one Vast rental within **USD 15 total**. An explicit [two-stage amendment](preparation-authorization-v1.json) now permits preparation and short resource measurements for **at most USD 1 inside that total**. Freeze scientific settings and a preparation upper bound before rental; freeze actual artifact hashes, the measured whole-workload upper bound and permitted scope cuts before numerical gate, training or evaluation. Compute stops at USD 14, preserving USD 1 for export/deletion. Reduce only HellaSwag under the frozen v2 rule, then omit the L4096 pair; keep 64 steps, thresholds and the decision rule unchanged. If the measured upper bound still exceeds USD 15, export and delete the preparation resources.
+Current authority is **USD 25 cumulative**, including previous charges, with a **USD 24 compute stop** and **USD 1 closeout reserve**. The original46-hour clock does not restart on host replacement. See the [resident-evaluator authorization](resident-evaluation-authorization-v1.json), [whole-machine amendment](whole-machine-authorization-v1.json) and [current plan](../../p3-moonlight-quality-plan.md). The third and final whole-machine attempt passed admission. The artifact-bound protocol retains both lengths and four64-step arms, reducing only the frozen HellaSwag prefix to9000. Earlier USD15/USD1 preparation records below are historical, not current permission.
 
 Work is on `research/p3-moonlight-quality`, based on the current reviewed parent `8bc5826d370b349993e790dcc7643aa7f4b489d4`. PR #61 and its branch are unchanged. The plan's older parenthetical `e6fa7136` predates the retained download/review fixes.
 
@@ -14,18 +14,19 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | DeepSeek-V3 671B | **отложен**; full-model weights, gate, training and evaluation were not run |
 | Fast tokenizer versus tiktoken | **PASS**: 348941 text checks, exact IDs/offsets, two byte-identical generations |
 | Native aux-field admission | **PASS v2**: no numerical consumer; exact FP32/BF16 loss, logits, expert IDs and all 24 LoRA gradients |
-| Final pinned CPU integration | **PASS**: 733 passed, 0 failed, 50 GPU cases skipped; all 14 original PR #61 test files unchanged |
+| Pre-residency pinned CPU packet | **PASS**: 733 passed, 0 failed, 50 GPU cases skipped; all 14 original PR #61 test files unchanged |
 | Existing v2 analysis tests and summary CLI | **PASS**: 241 passed, no skips; synthetic paired summaries, NLL direction and same-size hash-tamper refusal verified |
 | Ordinary CI with Rich 14.0.0 | **PASS**: 732 passed; 50 CUDA skips plus one explicit scientific-stack skip; production admission still refuses the changed package |
+| Resident NF4 integration | **PASS**: 79 focused tests, full remote Ruff, native8192 capacity and bitwise24-task/80-choice parity with disk |
 | Native/reference model comparison | **PASS**: exact ordered top-6 on all 64 tokens; max error `2.086162567138672e-7` ≤ `0.00011039664745330811` |
 | Native source/cache/shared initializer | **PASS**: all 27 shards; NF4/noDQ/per-expert cache; one exported initial adapter; session closed |
 | CUDA technical smoke | **COMPLETE** on RTX4090; qualification fixture only, not Moonlight quality or historical tiny E3 |
-| Native resource measurements | **COMPLETE**: four no-update training windows and three unlabelled development-inference cases; immutable inputs and clean teardown verified |
-| Moonlight quality, gated verdict | **NOT RUN — BUDGET BLOCKED**: measured planning upper bound remains **$23.9493 > $15** after both permitted reductions |
-| Moonlight quality, statistical verdict | NOT RUN |
-| Moonlight numerical gate | **NOT RUN (0/6)**; A3, E1/E2/E3 and INT4 control have no Moonlight result |
-| Per-step training loss and adapter-change norm | **NOT RUN (0 optimizer steps)**; calibration adapter hashes stayed unchanged |
-| Moonlight paid resources and charges | **USD 0.537 posted so far** across three attempts; every owned instance and volume absent; second-attempt volume charge still has no posted row |
+| Native resource measurements | **COMPLETE** on machine140544: four no-update training windows and resident dev measurements with valid F1; no timings transferred from another GPU |
+| Moonlight quality, gated verdict | **PENDING**: frozen study upper$24.5827 within$25; no quality result yet |
+| Moonlight quality, statistical verdict | **PENDING** |
+| Moonlight numerical gate | **PASS, 6/6**; complete raw closure independently readmitted and exported |
+| Per-step training loss and adapter-change norm | First BF16 L1024 arm running; final losses/norms pending |
+| Moonlight paid resources and charges | **USD2.244 posted at23:14UTC**, billing may lag; instance60261779 and volume60261770 active, earlier rejected resources deleted |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
@@ -37,7 +38,7 @@ All six numerical gate passes must complete unless a technical failure prevents 
 
 No paid execution before exact fast-tokenizer/tiktoken parity, the native aux-field no-consumer proof, and pinned native/reference model parity. Any specified mismatch stops before rental. Project execution and tests run remotely, never on the workstation. Native execution requires Ampere or newer, not Kaggle T4/P100.
 
-## Authorized continuation
+## Earlier auxiliary-field admission
 
 The user replaced the broad native-read stop with a no-numerical-consumer criterion. Generic initialization validation in `configuration_utils.py` and `modeling_rope_utils.py`, plus unchanged Oracle protective guards, is allowed. Native Transformers 5.19.0, Soup streaming/L2L and PEFT still require a source audit. Separate FP32 and BF16 tiny-model comparisons must show bitwise-equal loss, logits, selected experts and every LoRA gradient, without Oracle attached.
 
