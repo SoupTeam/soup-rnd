@@ -91,13 +91,16 @@ def _require_moonlight_budget(value: dict) -> None:
 
     upper = budget.get("upper_bound_total_usd")
     adjustments = budget.get("adjustments")
+    limit = budget.get("limit_usd")
+    compute_stop = budget.get("compute_stop_usd")
+    reserve = budget.get("closeout_reserve_usd")
     if (any(type(budget.get(name)) is not int for name in (
                 "limit_usd", "compute_stop_usd", "closeout_reserve_usd"))
-            or budget.get("limit_usd") != 15 or budget.get("compute_stop_usd") != 14
-            or budget.get("closeout_reserve_usd") != 1
-            or not finite_cost(upper) or upper > 15 or not isinstance(adjustments, list)):
+            or limit <= 0 or compute_stop < 0 or reserve <= 0
+            or compute_stop + reserve != limit
+            or not finite_cost(upper) or upper > limit or not isinstance(adjustments, list)):
         raise ValueError(
-            "Moonlight frozen budget must retain the $15 total and $1 closeout reserve")
+            "Moonlight frozen budget limits, reserve or upper estimate are inconsistent")
     lengths = value.get("training", {}).get("lengths")
     if lengths not in ([1024, 4096], [1024]):
         raise ValueError("Moonlight protocol must retain L1024 and only budget-omit the L4096 pair")
@@ -110,7 +113,7 @@ def _require_moonlight_budget(value: dict) -> None:
     previous = None
     for item in adjustments:
         before, after = item.get("upper_bound_before_usd"), item.get("upper_bound_after_usd")
-        if (not finite_cost(before) or not finite_cost(after) or before <= 15
+        if (not finite_cost(before) or not finite_cost(after) or before <= limit
                 or after > before or (previous is not None and before != previous)):
             raise ValueError("Moonlight budget adjustment estimates are missing or inconsistent")
         if item["action"] == "hellaswag_prefix":
@@ -118,7 +121,7 @@ def _require_moonlight_budget(value: dict) -> None:
             if (item.get("before_n") != 10042 or type(count) is not int or not 0 < count < 10042
                     or value.get("loglik", {}).get("hellaswag_n") != count):
                 raise ValueError("Moonlight HellaSwag prefix cut differs from frozen scoring count")
-        elif after > 15:
+        elif after > limit:
             raise ValueError("Moonlight omitted-length budget must fit the approved total")
         previous = after
     if previous is not None and upper != previous:

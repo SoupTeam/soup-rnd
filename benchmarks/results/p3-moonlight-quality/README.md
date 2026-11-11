@@ -231,3 +231,105 @@ Two operational deviations are retained. The first conversion launch used CWD=`$
 Complete evidence was exported before teardown: **465 files**, with **279 embedded manifest file hashes** verified; archive SHA256 `af72c58edee72213614ad4cbca7b92db8042e67eca1b9569611f4177e79e1d6b`. A [private Kaggle backup](https://www.kaggle.com/datasets/batyrkhan2131123/soup-moonlight-host3-evidence-20261111) was downloaded independently and all 465 expanded payload files matched. [Readback receipt](moonlight-h3-20261111t184322z/private-evidence-readback.json).
 
 [Closeout](moonlight-h3-20261111t184322z/resource-closeout.json) confirms all three attempts' six owned resource IDs absent; unrelated resources were untouched. Third-host creation through verified absence took **53.725 minutes**. [Posted charges](moonlight-h3-20261111t184322z/charges-cumulative.json): third instance $0.425 and volume $0.055, earlier attempts $0.057, cumulative **$0.537**; billing may still settle, and volume `60244147` has no posted row. Quality gated/statistical: **NOT RUN**. Scientific gate: **0/6, NOT RUN**. Training loss/adapter-change norm: **NOT RUN**. Historical tiny **FAIL unchanged**. **DeepSeek-V3 671B: отложен**.
+
+New resident-NF4 authorization:25USD total including prior0.537, compute stop24, reserve1,46h from first new resource. Available RTX A5000 offer55657856/volume55657862,machine53780, rate0.273333333333USD/h. Ledger SHA256 `a76d399431d2251afbe43ae8ec0cba6c771e3a95f5a37d24ee714184aa689600`. Actual direct NVMe required before setup. Measure A then B only if needed; C reference only. RTX4090 training timings are not portable: new no-update timings required on A5000. No monetary limit added to code.
+
+## Resident NF4 qualification — host admission blocked
+
+The two operational probe files are written; production scoring/training is unchanged. They have not executed on CUDA. Resident NF4 storage, fixed-8192 capacity, timings and C equivalence are **UNVERIFIED**, not PASS or FAIL.
+
+The new A5000 host exposed `/dev/loop22`, the next host could not start its container (`cloud.vast.ai:443` reset; proxy SSH refused), and the Intel-labelled host exposed `/dev/md0p2`. Neither loopback nor RAID meets the unchanged direct-NVMe admission. No weights were downloaded and no A/B/C model call ran in these attempts. The previously verified machine18032 was unavailable.
+
+All owned instances and volumes are confirmed absent in [fresh closeout evidence](moonlight-resident-20261111t201548z/intel-host/final-resource-absence.json). [Posted cumulative charges](moonlight-resident-20261111t201548z/intel-host/posted-charges.json): **$0.593**, subject to late billing. The $25 total/$24 compute/$1 reserve and original 46-hour clock were not reset between replacements.
+
+Quality gated/statistical: **NOT RUN**. Gate diagnostics: **0/6, NOT RUN**. Scientific step losses and adapter-change norm: **NOT RUN**. Tiny **FAIL unchanged**. **DeepSeek-V3 671B: отложен**.
+
+The user retained direct NVMe and authorized at most three new **whole single-GPU machine** rentals (`gpu_frac=1`, `num_gpus=1`), with a >=10 GB O_DIRECT read before weights and existing F1 on every timed block. No imposed32GiB cgroup or cross-machine timing transfer; this is Moonlight measurement, not a P3 x50 verdict.
+
+Whole-machine attempt1 (machine57401) rejected registered SSH keys on direct/proxy routes; attempt2 (machine31389) failed provider container construction (`docker_build() error writing dockerfile`). Both instances and volumes are confirmed absent in their closeout receipts. No native NVMe/O_DIRECT/model result was obtained.
+
+Before the final authorized rental: machine140544, RTX4090, WD_BLACK SN850X4000GB, full-machine quote59917583 plus volume59917588. Total quoted rate **$0.613333333333/hour**. Initial qualification envelope including conservative prior expenses, traffic and closeout: **$4.213333333333**, not a scientific-study estimate. [Ledger](moonlight-resident-20261111t201548z/whole-machine-3/rental-ledger.json) SHA256 `9395ace92da1c7ae8d966ad1e36a2f97788f7174752821d2d93cb21574ad6abb`. Original cumulative budget and absolute deadline retained; if admission fails, stop without a fourth whole-machine rental.
+
+### Whole-machine attempt3: native storage and direct read admitted
+
+Instance60261779/volume60261770 on machine140544 exposes `/dev/nvme0n1p3`, XFS, direct PCIe NVMe (`transport=pcie`, rotational0), not RAID/loopback. GPU RTX4090 reports24564MiB. Actual cgroup memory64644710400bytes (about60.2GiB), CPU quota23.04 cores and cpuset0–23; no32GiB cap was imposed. Provider allocation is `gpu_frac=1`, `num_gpus=1`.
+
+| Direct-I/O phase | Bytes | Seconds | GB/s, decimal | F1 suspend/power/foreign_reads |
+| --- | ---: | ---: | ---: | --- |
+| Preparation write | 10737418240 | 1.965375 | 5.463293 | ok / ok / ok |
+| Sequential read | 10737418240 | 1.535450 | 6.993011 | ok / ok / ok |
+
+The owned test file was removed. [Native/direct-read receipt](moonlight-resident-20261111t201548z/whole-machine-3/nvme-read-manifest.json); [independently verified export](moonlight-resident-20261111t201548z/whole-machine-3/admission-export.json). These are Moonlight-host observations, **not a P3 x50 verdict**.
+
+Pinned installation completed. The existing bounded weight-download stage was launched only after this qualification. Development inputs were prepared remotely without evaluation-task access; declaration SHA256 `c016d87e3b8ded06aea869d9605e4b4b259ee374c75d7ef64812112d2f3a6a91`. Remote fatal-code diagnostics passed for the four operational scripts. The unchanged precision helper confirms minimum n437 for a zero-discordance cell; that is not a power guarantee or a model result. Candidate fit/parity, scientific gate, training and quality remain unexecuted.
+
+### Resident NF4 qualified and integrated on machine140544
+
+Stages a+b completed. The shared initial adapter file SHA256 is `f863ccc832a66254a2089cbfc4eeb3c8f9e391539ca562607830e028708deaaf`; its parameter digest is `cf5b676c42dc0be973668d3adf6087d59a21d958bf6dca7dbc50361bfc5892ac`.
+
+A completed the fixed8192-token input without OOM or a smaller batch. CUDA allocated/reserved peaks were10926927360/11622416384 bytes. Routed weights remain7197425664 bytes of packed NF4 plus899678208 bytes of FP32 statistics. Shared experts remain224919552 packed bytes plus28114944 statistics bytes. The separate reusable BF16 expert scratch is17301504 bytes, overwritten for one expert; it is not persistent decoded expert storage. Full category/dtype/storage inventories are retained in the qualification evidence.
+
+B was not run because A fits. C ran only as the disk development reference. All24 task outcomes and80 choice log-probabilities match exactly, including bitwise FP32 equality and zero ULP distance. No tolerance was introduced.
+
+| Development endpoint | Requests | Input tokens | Forwards | Warm1 seconds | Warm2 seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HellaSwag | 32 | 1363 | 6 | 5.576303 | 5.606472 |
+| ARC | 32 | 777 | 4 | 3.431702 | 3.405737 |
+| BoolQ | 16 | 2136 | 2 | 1.937663 | 1.917636 |
+
+All A timing blocks and C reference blocks have F1 suspend/power/foreign_reads `ok`. These measurements belong only to this RTX4090 machine with its roughly60.2GiB cgroup allocation, not to a P3 x50 claim.
+
+| No-update training window | BF16 L2L seconds | FP8 block64+Oracle seconds |
+| --- | ---: | ---: |
+| L1024/k4 | 49.072033 | 64.396104 |
+| L4096/k1 | 14.731755 | 28.504821 |
+
+All four windows completed with unchanged adapters, cleanup and valid F1. No timing was transferred from an earlier host.
+
+Only after A/C qualification, the evaluator storage owner was integrated into `p3_deepseek_quality_residency.py`. It reuses the existing scoring restoration and reducers. Training still uses disk L2L. The protocol binds `evaluation_storage: resident_nf4`; monetary amounts are protocol metadata, not fixed implementation constants.
+
+Remote verification:79 evaluator/study tests passed; Ruff passed. The integrated native evaluator separately passed8192 capacity and matched the retained disk reference on all24 tasks/80 choices, with immutable inputs and complete cleanup. See [integration proof](moonlight-resident-20261111t201548z/whole-machine-3/resident-integrated-equivalence.json).
+
+Latest posted cumulative charges at22:22UTC: **$1.701**, with billing lag possible. Final measured scope/cost freeze is pending. Scientific gate remains0/6; the64-step training arms and quality verdicts have not run. Tiny FAIL remains unchanged. **DeepSeek-V3 671B: отложен**.
+
+### Frozen measured scope before scientific execution
+
+At 22:55 UTC, the native training and evaluation validators admitted protocol
+`d22871c398d29e25c614129a1a084903fbc0dce09a5bb5d2659c08d9102b2f82`.
+The [protocol](moonlight-resident-20261111t201548z/whole-machine-3/frozen-study-protocol.json)
+binds the executed source overlays, source/cache/tokenizer/initial-adapter identities,
+resident NF4 evaluation, unchanged v2 scoring, and the
+[measured budget](moonlight-resident-20261111t201548z/whole-machine-3/frozen-measured-budget.json).
+The protocol and qualification archive were exported and independently hash-checked
+before launching the diagnostic gate.
+
+| Scope | HellaSwag tasks | Final adapters | Planned evaluation forwards | Total planning upper, USD |
+| --- | ---: | ---: | ---: | ---: |
+| Full v2 | 10042 | 4 | 81604 | 26.2121 |
+| Selected frozen prefix | 9000 | 4 | 74808 | 24.5827 |
+
+Both L1024 and L4096 remain, with BF16 and FP8+Oracle independently trained for
+64 steps each. Only the frozen-order HellaSwag prefix is reduced. The analytical
+zero-discordance minimum is 437, not a power guarantee. All other endpoint counts,
+decision rules, thresholds and optimizer settings remain unchanged.
+
+The estimate uses this machine's measured training windows and resident dev forwards,
+with one multiplicative factor of 1.5. LAMBADA/GSM8K/MBPP use the slowest measured
+dev rate; full-evaluation throughput remains an extrapolation. Separate bounded
+allowances cover process cleanup, readmission, pairing, analysis and exports.
+The total includes a $2.20 accrued-cost allowance, intermediate traffic and the
+reserved $1 for closeout. Posted charges at 22:53 UTC were $2.019.
+Computation still stops at $24 and the original absolute deadline remains
+2026-11-13T18:15:48.490959Z. No fourth whole-machine rental is authorized.
+
+The six-pass gate completed once in 505.934 seconds. Its full closure was independently
+readmitted and exported with archive SHA256
+`d15b078492a8f483d0159590be0a2f535450b6dcacb7f44ed5bbc72543e6550b`.
+All three F1 checks were `ok`. Moonlight's diagnostic verdict is **PASS**:
+E1 RMS/worst maxima0.0251101/0.0269059, E2 maximum0.0409753,
+E3 global relative L2 error0.0457640 and minimum cosine0.9921371.
+See the [raw-derived gate result](moonlight-resident-20261111t201548z/whole-machine-3/d-gate-result.json)
+and [export receipt](moonlight-resident-20261111t201548z/whole-machine-3/d-export.json).
+BF16 L1024 training has started; final training and quality results are pending.
+Tiny E3 remains **FAIL, 0.05028628354277727 > 0.05**.
+**DeepSeek-V3 671B: отложен**.

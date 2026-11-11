@@ -10,9 +10,9 @@ It writes primary ``pairs.jsonl`` for p3_stage2_statistics.summarize_pairs and
 secondary ``nll-pairs.jsonl``. The manifest carries separate expected task maps.
 Incomplete endpoints, overlapping shards and changed identities/files are refused.
 
-The resident scorer's admission remains untouched. This wrapper admits one
-production StreamRuntime and reuses the frozen encoder, batch planner, native
-selected-logit reducer and metric functions, including response/EOS NLL labels.
+Moonlight retains the admitted NF4 payloads in CUDA memory for evaluation.
+Both storage paths reuse the frozen encoder, batch planner, native selected-logit
+reducer and metric functions, including response/EOS NLL labels.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from typing import Any, Callable, Iterator, Sequence
 from rich.console import Console
 
 from . import p3_deepseek_quality_attention as attention_policy
+from . import p3_deepseek_quality_residency as resident_storage
 from . import p3_stage2_generation as generation
 from . import p3_stage2v2_loglik as frozen
 from .p3_deepseek_quality_profiles import get_profile
@@ -130,6 +131,8 @@ def _source_files(*, profile_id: str = "deepseek-v3") -> dict:
         "benchmarks.harness.p3_deepseek_quality_train",
         "soup_cli.utils.expert_stream", "transformers.models.deepseek_v3.modeling_deepseek_v3",
     )
+    if profile_id == resident_storage.PROFILE:
+        names += (resident_storage.__name__,)
     sources = {name: _hash(Path(sys.modules[name].__file__)) for name in names
                if name in sys.modules and getattr(sys.modules[name], "__file__", None)}
     policy = attention_policy.policy_identity(profile_id)
@@ -173,6 +176,9 @@ def admit_protocol(
     _require(all(_digest(value.get(name)) for name in ("initial_adapter_sha256", "pack_sha256")),
              "frozen initial adapter and pack identities required")
     require_study_profile(value, profile_id=profile_id)
+    if profile_id == resident_storage.PROFILE:
+        _require(value.get("evaluation_storage") == "resident_nf4",
+                 "Moonlight evaluation requires the qualified resident NF4 storage")
     _require(_hash(path) == expected, "protocol changed during admission")
     return value
 
@@ -474,10 +480,14 @@ class _ScoringModel:
 def _scoring_session(
     session: Any, tokenizer: Any, *, test_fixture: bool = False,
     profile_id: str = "deepseek-v3",
+    resident: resident_storage.ResidentNF4 | None = None,
 ) -> Iterator[_ScoringModel]:
     import torch
 
-    identity = admit_runtime(session, tokenizer, test_fixture=test_fixture, profile_id=profile_id)
+    _require(resident is None or type(resident) is resident_storage.ResidentNF4,
+             "foreign resident evaluator owner")
+    admission = admit_runtime if resident is None else resident.admit_runtime
+    identity = admission(session, tokenizer, test_fixture=test_fixture, profile_id=profile_id)
     model = session.model
     flags = generation._precision_flags()
     warn_only = torch.is_deterministic_algorithms_warn_only_enabled()
@@ -525,7 +535,7 @@ def _scoring_session(
                    or torch.is_deterministic_algorithms_warn_only_enabled() != warn_only)
         if changed:
             frozen._restore_precision(flags, warn_only)
-        _require(admit_runtime(
+        _require(admission(
             session, tokenizer, test_fixture=test_fixture, profile_id=profile_id) == identity,
             "runtime identity changed during scoring")
         for name, value, counter, dtype, device, requires_grad in parameters:
@@ -541,10 +551,14 @@ def _score(
     test_fixture: bool = False, observer: Callable[[dict], None] | None = None,
     deadline: float | None = None,
     profile_id: str = "deepseek-v3",
+    resident: resident_storage.ResidentNF4 | None = None,
 ) -> list[dict]:
-    with _scoring_session(
+    _require(resident is None or (profile_id == resident_storage.PROFILE and not test_fixture),
+             "resident evaluation requires the native Moonlight profile")
+    context = (resident.scoring_context(tokenizer) if resident is not None else _scoring_session(
         session, tokenizer, test_fixture=test_fixture, profile_id=profile_id,
-    ) as model:
+    ))
+    with context as model:
         def observed_batch(event: dict) -> None:
             reports = model.attention_reports
             model.attention_reports = []
@@ -597,7 +611,7 @@ def run_endpoint(
     profile_id: str = "deepseek-v3",
     tokenizer_dir: Path | None = None,
 ) -> dict:
-    """Score once through BF16 streamed inference, with a failure manifest on refusal."""
+    """Score once through BF16 inference, with a failure manifest on refusal."""
     output.mkdir(parents=True, exist_ok=False)
     result: dict[str, Any] = {
         "schema": "p3-deepseek-quality-eval-v1", "status": "STARTED", "profile_id": profile_id,
@@ -605,7 +619,7 @@ def run_endpoint(
         "protocol_sha256": protocol_sha256, "fp8": False, "oracle": False,
         "include_base_model_evaluation": False,
     }
-    session = None
+    session = resident = None
     started = time.monotonic()
     stage = "freeze"
     try:
@@ -621,6 +635,8 @@ def run_endpoint(
         reference, reference_identity = _scoring_protocol(scoring_protocol)
         study = admit_protocol(protocol, protocol_sha256, reference, profile_id=profile_id)
         result["attention_policy"] = study["attention_policy"]
+        result["evaluation_storage"] = (
+            study["evaluation_storage"] if profile_id == resident_storage.PROFILE else "disk")
         _require(length in study["training"]["lengths"], "length not kept by frozen protocol")
         policy = study["loglik"]
         stage = "dataset"
@@ -666,11 +682,18 @@ def run_endpoint(
         result["adapter_identity"] = configure_adapter(
             session, adapter, adapter_sha256, profile_id=profile_id)
         result["arm"] = result["adapter_identity"].get("arm", "base")
+        if profile_id == resident_storage.PROFILE:
+            result["source_runtime"] = result["runtime"]
+            resident = resident_storage.prepare_resident(session)
+            result["runtime"] = resident.admit_runtime(
+                session, tokenizer, test_fixture=False, profile_id=profile_id)
+            _write_rows(output / "resident-storage-before.jsonl", [resident.inventory()])
         stage = "scoring"
         events = []
         common = {"max_tokens_per_batch": policy["max_tokens_per_batch"],
                   "observer": lambda event: events.append({**event, "endpoint": endpoint}),
-                  "deadline": started + policy["deadline_seconds"], "profile_id": profile_id}
+                  "deadline": started + policy["deadline_seconds"], "profile_id": profile_id,
+                  "resident": resident}
         try:
             if endpoint in SECONDARY:
                 scores = _score(
@@ -720,6 +743,12 @@ def run_endpoint(
         _require(_source_files(profile_id=profile_id) == result["source_files_sha256"],
                  "scoring source changed during execution")
         result["runtime_stats"] = session.runtime.stats()
+        if resident is not None:
+            inventory = resident.inventory()
+            _write_rows(output / "resident-storage-after.jsonl", [inventory])
+            result["runtime_stats"] = {name: inventory[name] for name in (
+                "resident_expert_leases", "measured_routed_host_or_disk_weight_bytes",
+                "unique_storage_bytes")}
         _write_rows(output / "rows.jsonl", scored_rows)
         result.update(status="COMPLETE", selected_shard_complete=True, row_count=len(scored_rows))
     except BaseException as error:
@@ -728,6 +757,13 @@ def run_endpoint(
         if not isinstance(error, Exception):
             raise
     finally:
+        if resident is not None:
+            try:
+                result["resident_cleanup"] = resident.close()
+            except BaseException as error:
+                result.update(status="FAILED", selected_shard_complete=False,
+                              resident_cleanup_failure={
+                                  "type": type(error).__name__, "message": str(error)})
         if session is not None:
             try:
                 session.close()
@@ -823,6 +859,12 @@ def _collect(
                      "Moonlight shard adapter must complete exactly 64 steps")
             _require(identity.get("tokenizer") == manifest.get("tokenizer"),
                      "Moonlight adapter/evaluation tokenizer identity differs")
+            _require(manifest.get("evaluation_storage") == "resident_nf4"
+                     and manifest.get("runtime", {}).get("tier") == "resident_nf4",
+                     "Moonlight shard used an unqualified evaluator storage")
+            _require(sources.get(resident_storage.__name__)
+                     == _hash(Path(resident_storage.__file__)),
+                     "resident evaluator source identity missing or changed")
         cells.setdefault(key, []).append((manifest, rows))
     complete = {}
     for key, shards in cells.items():

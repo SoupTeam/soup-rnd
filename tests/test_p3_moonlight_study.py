@@ -28,6 +28,7 @@ def _protocol(profile_id: str, *, steps: int = 64) -> dict:
         "schema": "p3-deepseek-quality-protocol-v1", "status": "FROZEN",
         "profile_id": profile_id, "include_base_model_evaluation": False,
         "numerical_gate_blocks_quality": False, "arms": list(train.ARMS),
+        "evaluation_storage": "resident_nf4" if profile_id == MOONLIGHT else "disk",
         "model": {"model_id": profile.model_id, "revision": profile.revision},
         "attention_policy": attention.policy_identity(profile_id),
         "initial_adapter_sha256": "a" * 64, "pack_sha256": "b" * 64,
@@ -81,6 +82,27 @@ def test_eval_protocol_rejects_moonlight_scope_conflicts(tmp_path: Path, damage:
             "scoring": {"truncation": False},
             "data": {"full_retained_evaluation_tasks": {"hellaswag": 10042}},
         }, profile_id=MOONLIGHT)
+
+
+def test_moonlight_evaluation_rejects_unqualified_storage(tmp_path: Path, monkeypatch) -> None:
+    admission = {"contract": {"sha256": "d" * 64}, "evidence": {"sha256": "e" * 64}}
+    monkeypatch.setattr(train.model_api, "native_aux_admission", lambda _profile: admission)
+    value = _protocol(MOONLIGHT)
+    value.update(
+        aux_admission=admission,
+        source={"profile_id": MOONLIGHT, "aux_admission": admission},
+        cache={"profile_id": MOONLIGHT}, tokenizer={"profile_id": MOONLIGHT},
+    )
+    reference = {
+        "loglik": value["loglik"], "scoring": value["scoring"],
+        "data": {"full_retained_evaluation_tasks": {"hellaswag": 10042}},
+    }
+    path = tmp_path / "protocol.json"
+    scoring.admit_protocol(path, _json(path, value), reference, profile_id=MOONLIGHT)
+    for storage in ("disk", "ram", None):
+        value["evaluation_storage"] = storage
+        with pytest.raises(ValueError):
+            scoring.admit_protocol(path, _json(path, value), reference, profile_id=MOONLIGHT)
 
 
 def test_gate_binding_cannot_reinterpret_missing_or_foreign_profile() -> None:
@@ -202,8 +224,12 @@ def test_numeric_diagnostic_policy_never_admits_incomplete_gate(
     assert result["quality_outcomes_computed"] is False
 
 
-def test_moonlight_budget_omission_requires_prior_prefix_cut() -> None:
+@pytest.mark.parametrize("limit", [9, 31])
+def test_moonlight_budget_omission_requires_prior_prefix_cut(limit: int) -> None:
     value = _protocol(MOONLIGHT)
+    value["budget"].update(
+        limit_usd=limit, compute_stop_usd=limit - 1, upper_bound_total_usd=limit - 0.5,
+    )
     train._require_moonlight_budget(value)
     value["training"]["lengths"] = [1024]
     with pytest.raises(ValueError, match="budget cuts"):
@@ -211,9 +237,9 @@ def test_moonlight_budget_omission_requires_prior_prefix_cut() -> None:
     value["loglik"]["hellaswag_n"] = 3000
     value["budget"]["adjustments"] = [
         {"action": "hellaswag_prefix", "before_n": 10042, "after_n": 3000,
-         "upper_bound_before_usd": 20, "upper_bound_after_usd": 17},
-        {"action": "omit_L4096_pair", "upper_bound_before_usd": 17,
-         "upper_bound_after_usd": 14.5},
+         "upper_bound_before_usd": limit + 5, "upper_bound_after_usd": limit + 2},
+        {"action": "omit_L4096_pair", "upper_bound_before_usd": limit + 2,
+         "upper_bound_after_usd": limit - 0.5},
     ]
     train._require_moonlight_budget(value)
     value["budget"]["adjustments"].reverse()

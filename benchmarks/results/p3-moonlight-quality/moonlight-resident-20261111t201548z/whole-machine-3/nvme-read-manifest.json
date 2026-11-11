@@ -1,0 +1,257 @@
+{
+  "status": "COMPLETE",
+  "bytes": 10737418240,
+  "storage": {
+    "path": "/data/p3-moonlight-quality",
+    "mountpoint": "/data",
+    "filesystem": "xfs",
+    "major_minor": "259:3",
+    "mount_source": "/dev/nvme0n1p3",
+    "sysfs_block": "/sys/devices/pci0000:00/0000:00:01.1/0000:01:00.0/nvme/nvme0/nvme0n1/nvme0n1p3",
+    "sysfs_controller": "/sys/devices/pci0000:00/0000:00:01.1/0000:01:00.0/nvme/nvme0",
+    "transport": "pcie",
+    "rotational": 0,
+    "subsystem": "nvme",
+    "provenance": "target st_dev + mountinfo major:minor + sysfs controller transport"
+  },
+  "phases": [
+    {
+      "phase": "prepare-write",
+      "command": [
+        "dd",
+        "if=/dev/zero",
+        "of=/data/p3-moonlight-quality/moonlight-owned-direct-io.bin",
+        "bs=16M",
+        "count=640",
+        "oflag=direct",
+        "conv=fsync,excl",
+        "status=none"
+      ],
+      "bytes": 10737418240,
+      "seconds": 1.9653747729898896,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "f1": {
+        "arm": "prepare-write",
+        "round": 1,
+        "run": 1,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1794431986.682676,
+          "ram_available_bytes": 63481917440,
+          "commit_charge": {
+            "used_bytes": 2197868544,
+            "limit_bytes": 42259476480
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 1,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1794431988.7341878,
+          "ram_available_bytes": 63448047616,
+          "commit_charge": {
+            "used_bytes": 2206375936,
+            "limit_bytes": 42259476480
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 1,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 210 to 210 MHz over 2 samples; clock event reasons seen: gpu_idle",
+          "samples": 2,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 210,
+            "median": 210.0,
+            "max": 210
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -4.199973773211241e-07,
+              "sleep_offset_end_s": -5.00003807246685e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 3 power samples, so on mains",
+            "evidence": {
+              "samples": 3,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "ok",
+            "reason": "at most 0 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+            "evidence": {
+              "model_path": "/data/p3-moonlight-quality",
+              "device": "nvme0n1",
+              "disk_read_bytes_start": 2510728711680,
+              "disk_read_bytes_end": 2510728785408,
+              "other_disk_read_bytes_start": 0,
+              "other_disk_read_bytes_end": 0,
+              "own_read_bytes": 73728,
+              "foreign_read_bytes": 0,
+              "foreign_read_bytes_min": 0,
+              "foreign_read_bytes_max": 0,
+              "uninspectable_processes": 0
+            },
+            "readers": [],
+            "unattributed_bytes": 0
+          }
+        }
+      },
+      "timing_valid": true,
+      "bytes_per_second": 5463293000.176937
+    },
+    {
+      "phase": "sequential-read",
+      "command": [
+        "dd",
+        "if=/data/p3-moonlight-quality/moonlight-owned-direct-io.bin",
+        "of=/dev/null",
+        "bs=16M",
+        "count=640",
+        "iflag=direct,fullblock",
+        "status=none"
+      ],
+      "bytes": 10737418240,
+      "seconds": 1.5354499880049843,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "f1": {
+        "arm": "sequential-read",
+        "round": 1,
+        "run": 1,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1794431988.7745478,
+          "ram_available_bytes": 63448322048,
+          "commit_charge": {
+            "used_bytes": 2206392320,
+            "limit_bytes": 42259476480
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 1,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1794431990.3953676,
+          "ram_available_bytes": 63395545088,
+          "commit_charge": {
+            "used_bytes": 2206375936,
+            "limit_bytes": 42259476480
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 1,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 210 to 210 MHz over 2 samples; clock event reasons seen: gpu_idle",
+          "samples": 2,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 210,
+            "median": 210.0,
+            "max": 210
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -1.9001890905201435e-07,
+              "sleep_offset_end_s": -1.8998980522155762e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 2 power samples, so on mains",
+            "evidence": {
+              "samples": 2,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "ok",
+            "reason": "at most 0 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+            "evidence": {
+              "model_path": "/data/p3-moonlight-quality",
+              "device": "nvme0n1",
+              "disk_read_bytes_start": 2510728785408,
+              "disk_read_bytes_end": 2521466203648,
+              "other_disk_read_bytes_start": 0,
+              "other_disk_read_bytes_end": 0,
+              "own_read_bytes": 10737418240,
+              "foreign_read_bytes": 0,
+              "foreign_read_bytes_min": 0,
+              "foreign_read_bytes_max": 0,
+              "uninspectable_processes": 0
+            },
+            "readers": [],
+            "unattributed_bytes": 0
+          }
+        }
+      },
+      "timing_valid": true,
+      "bytes_per_second": 6993010729.024894
+    }
+  ],
+  "owned_probe_file_absent": true
+}
