@@ -88,7 +88,7 @@ class AdapterRecorder:
         import torch
 
         squares = torch.zeros((), dtype=torch.float32)
-        with_grad = nonfinite = 0
+        with_grad = nonfinite = nonzero = 0
         for param in params.values():
             if param.grad is None:
                 continue
@@ -97,8 +97,11 @@ class AdapterRecorder:
             if not bool(torch.isfinite(grad).all()):
                 nonfinite += 1
             squares += torch.sum(grad * grad)
+            if bool((grad != 0).any()):
+                nonzero += 1
         self._pending = {"gradient_norm": float(squares.sqrt()), "gradient_tensors": with_grad,
                          "gradient_nonfinite_tensors": nonfinite,
+                         "gradient_nonzero_tensors": nonzero,
                          "trainable_tensors": len(params)}
 
     def step(self, step: int, loss: float, params: Mapping[str, Any], **extra: Any) -> None:
@@ -129,6 +132,11 @@ class AdapterRecorder:
         self._before = after
         self._pending = None
 
-    def reload(self, params: Mapping[str, Any]) -> None:
-        """The adapter read back from disk into a fresh model."""
-        self.event("reload", parameter_sha256=adapter_digest(params))
+    def reload(self, params: Mapping[str, Any], logits_equal: Optional[bool] = None) -> None:
+        """The adapter read back from disk into a fresh model.
+
+        ``logits_equal`` is written as ``equal`` only when the caller compared the logits of the
+        trained and the reloaded model. Without it the journal holds the parameter digest alone.
+        """
+        extra = {} if logits_equal is None else {"equal": logits_equal}
+        self.event("reload", parameter_sha256=adapter_digest(params), **extra)

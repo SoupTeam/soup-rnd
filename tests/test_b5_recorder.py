@@ -90,7 +90,7 @@ def test_the_reloaded_adapter_has_the_digest_of_the_trained_one(tiny_run: Dict[s
     assert reload_row["parameter_sha256"] == tiny_run["first_digest"]
 
 
-def test_the_journal_records_nonzero_gradients_on_every_trainable_tensor(
+def test_the_journal_records_a_finite_gradient_on_every_trainable_tensor(
     tiny_run: Dict[str, Any],
 ) -> None:
     rows = b5_judge.read_journal(tiny_run["journal"])
@@ -103,6 +103,32 @@ def test_the_journal_records_nonzero_gradients_on_every_trainable_tensor(
         assert row["gradient_nonfinite_tensors"] == 0
         assert row["gradient_norm"] > b5_judge.GRADIENT_NORM_MIN
     assert steps[-1]["distance_from_initial"] > 0
+
+
+def test_the_journal_counts_the_tensors_whose_gradient_is_not_all_zero(
+    tiny_run: Dict[str, Any],
+) -> None:
+    """A LoRA B matrix starts at zero, so some A gradients are exactly zero: the share is kept."""
+    rows = b5_judge.read_journal(tiny_run["journal"])
+    steps: List[Dict[str, Any]] = [row for row in rows if row["event"] == "step"]
+
+    for row in steps:
+        assert 0 < row["gradient_nonzero_tensors"] <= row["gradient_tensors"]
+
+
+def test_reload_writes_the_logit_comparison_only_when_it_is_given(tmp_path: Path) -> None:
+    import torch
+
+    params = {"w": torch.ones(2)}
+    journal = tmp_path / "events.jsonl"
+    recorder = b5_recorder.AdapterRecorder(journal)
+
+    recorder.reload(params)
+    recorder.reload(params, logits_equal=False)
+
+    rows = [row for row in b5_judge.read_journal(journal) if row["event"] == "reload"]
+    assert "equal" not in rows[0]
+    assert rows[1]["equal"] is False
 
 
 def test_a_save_that_is_not_loaded_back_fails_the_reload_check(tmp_path: Path) -> None:
