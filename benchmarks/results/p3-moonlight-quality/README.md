@@ -18,11 +18,11 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Existing v2 analysis tests and summary CLI | **PASS**: 241 passed, no skips; synthetic paired summaries, NLL direction and same-size hash-tamper refusal verified |
 | Ordinary CI with Rich 14.0.0 | **PASS**: 732 passed; 50 CUDA skips plus one explicit scientific-stack skip; production admission still refuses the changed package |
 | Native/reference model comparison | **PASS**: exact ordered top-6 on all 64 tokens; max error `2.086162567138672e-7` ≤ `0.00011039664745330811` |
-| Moonlight quality, gated verdict | **NOT RUN**; bounded preparation/measurement is authorized, final artifact and measured cost admission is pending |
+| Moonlight quality, gated verdict | **NOT RUN — TECHNICAL STOP**: rented volume is MD RAID, not the required direct NVMe |
 | Moonlight quality, statistical verdict | NOT RUN |
 | Moonlight numerical gate | **NOT RUN (0/6)**; A3, E1/E2/E3 and INT4 control have no Moonlight result |
 | Per-step loss and adapter-change norm | NOT RUN |
-| Moonlight paid resources and charges | **USD 0**; no instance or volume created by this run; one unrelated instance left untouched |
+| Moonlight paid resources and charges | **USD 0.037 provider-reported**; instance `60241118` and volume `60241117` deleted and independently confirmed absent |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
@@ -158,3 +158,16 @@ Deployment archive SHA256: `d0ff819e27bdcea710b0cdea6a4e16f3fb8121e3100d7271ecc3
 The original RTX 3090 offer became unavailable before creation. The frozen replacement is RTX 4090 offer `58143447`, machine `155543`, matching 220 GiB volume offer `59075301`, plus 32 GiB root. Combined hourly price is $0.526296296; ingress/egress $0.00390625/GB. The conservative preparation upper bound is **$0.952534722**, including at most 45 minutes from creation, 128 GB ingress, 2 GB egress and $0.05 contingency. Per-command maxima do not extend that absolute deadline. This is preparation admission only, not a whole-study estimate or quality result.
 
 The exact resource-probe SHA256 is `1aca198c7eceb81b9856f58351091e362635c9a64ebe4b7be539a12dc8905eed`. The existing OpenSSH/SCP client will pull evidence to persistent local storage and verify each archive SHA256; no new uploader, rental controller or automatic deleter is installed.
+
+## Paid hardware admission: technical stop, resources deleted
+
+Run `moonlight-q-20261111t175332z` created the single authorized RTX 4090 rental. Actual mount evidence showed `/data` on **`/dev/md0p2`**, xfs, major/minor `259:7`, with sysfs path **`/sys/devices/virtual/block/md0/md0p2`**. This is Linux MD RAID, explicitly disallowed by the direct-NVMe admission. The provider's Intel NVMe model/throughput description did not prove the mounted storage topology. No guard was weakened and no replacement rental was created.
+
+- [Hardware evidence](moonlight-q-20261111t175332z/initial-host-v2.txt) and [technical-stop receipt](moonlight-q-20261111t175332z/hardware-stop.json): actual RTX 4090, 24564 MiB VRAM; source-weight bytes downloaded **0**. Package setup, conversion, initial adapter, smoke, calibration, gate, training and quality evaluation were not executed.
+- [Deletion/absence proof](moonlight-q-20261111t175332z/resource-closeout.json): instance `60241118` and volume `60241117` are absent in fresh provider listings. Unrelated resources were untouched. The first instance-delete command received EOF at its confirmation and aborted; the explicit authorized confirmation then deleted the exact instance, followed by the exact volume.
+- [Provider charges](moonlight-q-20261111t175332z/charges.json): instance $0.032, volume $0.005, total **$0.037** at the recorded query. Provider reports mill precision and may post late adjustments; no resource remains billable. This is below the $1 preparation ceiling.
+- Free tokenizer-only workload inventory completed without loading a model: one final adapter requires 23795 tasks, 67831 requests, 19717 batches and **20401 native forward calls** before any permitted cuts/sharding. These are source-derived counts, not measured GPU timings. Archive SHA256 `8b88c669f28985daa7b4cb18bd1aa83c710d54d0592a4097711f2a77b4a571e8`; inventory-manifest SHA256 `38e8f989d3683a2159484b828b4ba94f5dc219ab8b7446373efc087b2812dc5b`.
+
+Quality gated/statistical: **NOT RUN**. Numerical gate: **NOT RUN, 0/6**, not numerical FAIL. Per-step loss and adapter-change norm: **NOT RUN**. Historical tiny E3 remains **FAIL 0.05028628354277727 > 0.05**. **DeepSeek-V3 671B: отложен.**
+
+Continuation requires explicit authorization for another rental with verified direct NVMe, within the remaining original budget. The one-rental authorization has been consumed. The final artifact-bound protocol and whole-study measured cost bound do not exist.
