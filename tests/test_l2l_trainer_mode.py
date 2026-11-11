@@ -106,9 +106,8 @@ def test_guard_refuses_several_gpus():
         _guard(n_gpu=2)
 
 
-def test_guard_refuses_fp16_because_the_grad_scaler_is_bypassed():
-    with pytest.raises(ValueError, match="fp16"):
-        _guard(fp16=True)
+def test_guard_accepts_fp16_now_that_the_step_scales_the_loss():
+    _guard(fp16=True)
 
 
 # --------------------------------------------------------------------------
@@ -658,3 +657,70 @@ def test_sft_wrapper_sizes_positions_from_the_window_not_max_length(tmp_path, mo
         assert state.spill_plan["chunk_bytes"] == 32 * hidden * 4
     finally:
         state.close()
+
+
+# --------------------------------------------------------------------------
+# fp16: the step scales the head loss with the Trainer's GradScaler
+# --------------------------------------------------------------------------
+class _Scaler:
+    """The one GradScaler method the step calls; a power of two keeps fp32 exact."""
+
+    def __init__(self, scale):
+        self.factor = scale
+        self.calls = 0
+
+    def scale(self, loss):
+        self.calls += 1
+        return loss * self.factor
+
+
+@pytest.mark.parametrize("k", [1, 2])
+def test_l2l_gradients_equal_scaled_accumulation_gradients(streamed, k):  # noqa: F811
+    """With scale 1024 the L2L LoRA gradients equal accumulation's times 1024, bit for bit."""
+    import torch
+
+    from soup_cli.utils.l2l_activations import ActivationStore
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+    from tests.test_l2l_probe_harness import _micro_batches
+
+    harness = _load("l2l_schedule")
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    mbs = _micro_batches(k)
+
+    harness.zero_grads(model)
+    ga_losses = harness.ga_step(model, mbs)
+    ga = harness.collect_grads(model)
+
+    scaler = _Scaler(1024.0)
+    store = ActivationStore(
+        n_layers=3, k=k, chunk_shape=(1, SEQ, 64), dtype=torch.float32, device="cpu", pin=False
+    )
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    harness.zero_grads(model)
+    l2l_losses = step.run(mbs, store, scaler=scaler)
+    l2l = harness.collect_grads(model)
+
+    assert scaler.calls == k
+    assert harness.losses_equal(ga_losses, l2l_losses)  # the returned losses are unscaled
+    for name, grad in ga.items():
+        assert torch.equal(l2l[name], grad * 1024.0), name
+
+
+def test_training_step_hands_the_accelerator_scaler_to_the_step(monkeypatch, streamed, tmp_path):  # noqa: F811,E501
+    """The trainer passes accelerate's GradScaler (None without fp16) to the window."""
+    from transformers import Trainer
+
+    from soup_cli.trainer import l2l_trainer
+
+    seen = []
+    real = l2l_trainer.run_window
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("scaler", "missing"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(l2l_trainer, "run_window", spy)
+    model, runtime = streamed
+    trainer, _steps = _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)
+    assert seen and all(s is trainer.accelerator.scaler for s in seen)

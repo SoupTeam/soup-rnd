@@ -972,6 +972,14 @@ See [the boundary and standalone smoke](expert-forward.md#b13-backward-and-l2l).
 
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
+**fp16 (pre-Ampere cards such as the T4).** The L2L step runs backward itself, so it backpropagates
+`accelerator.scaler.scale(loss)` from each micro-batch's head loss; the scale reaches every layer
+through the recompute's `grad_tensors`, and unscaling, gradient clipping and skipping a step with
+inf/NaN gradients stay with accelerate's optimizer step, as under gradient accumulation. A CPU test
+checks that with a scale of 1024 the L2L LoRA gradients equal accumulation's times 1024 bit for bit.
+Numerical agreement of L2L and accumulation in fp16 on a GPU has not been measured: the A3-07
+tolerance is calibrated for bf16, so fp16 needs its own noise floor.
+
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
 - `task` other than `sft`, `dpo`, `orpo`, `simpo` and `kto`. The four preference tasks have their
@@ -980,7 +988,6 @@ Refused when the config is read:
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
 - More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
-- `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
 - Rows with padding before real tokens. L2L needs right-padded rows.
 - `neftune_alpha` with a window whose micro-batches differ in shape. L2L runs each micro-batch at its own length, but NEFTune noise (it scales with `1 / sqrt(seq * hidden)`) has not been checked against gradient accumulation for rows of different lengths, so the combination stays refused. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
 - `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Rows of different lengths draw different masks, and the replay builds the generator states from one draw plan shared by all micro-batches. Use rows of one length or set the dropout to 0.
