@@ -129,6 +129,16 @@ def refuse_unsupported_l2l(
             f"{' and '.join(PUBLIC_ARCHS)}, and for {' and '.join(PER_EXPERT_ARCHS)} "
             f"with training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}."
         )
+    from soup_cli.utils.stream_ddp import distributed_world_size
+
+    world = distributed_world_size()
+    if world > 1:
+        raise ValueError(
+            f"training.l2l is single-GPU, but this is a distributed launch with {world} "
+            f"processes: the L2L step runs backward outside DDP's forward, so the adapter "
+            f"gradients would not be averaged across ranks. Drop --gpus (or set "
+            f"training.l2l: false to train data-parallel)."
+        )
     if n_gpu > 1:
         raise ValueError(
             f"training.l2l is single-GPU, but {n_gpu} GPUs are visible. Re-run with "

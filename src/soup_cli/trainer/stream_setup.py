@@ -526,10 +526,10 @@ def refuse_if_data_parallel(device) -> None:
         f"transformers wraps the model in nn.DataParallel whenever more than one "
         f"GPU is visible and the run is not distributed, and DataParallel requires "
         f"every parameter on cuda:0 — layer streaming keeps the decoder on 'meta' "
-        f"by design, so the two cannot be combined. Layer streaming is a "
-        f"single-GPU technique: re-run with one card visible, e.g. "
-        f"CUDA_VISIBLE_DEVICES=0, or set stream_layers=false to train resident "
-        f"across all {visible}."
+        f"by design, so the two cannot be combined. Re-run data-parallel with "
+        f"`soup train --gpus {visible}` (each rank streams onto its own card), with "
+        f"one card visible, e.g. CUDA_VISIBLE_DEVICES=0, or set stream_layers=false "
+        f"to train resident across all {visible}."
     )
 
 
@@ -644,6 +644,15 @@ class StreamingSetupMixin:
         # this configuration cannot work, and finding out minutes into disk I/O
         # is worse than finding out now.
         refuse_if_data_parallel(self.device)
+        from soup_cli.utils.stream_ddp import (
+            distributed_world_size,
+            ignore_frozen_for_ddp,
+            pin_rank_device,
+            shard_cache_lock,
+        )
+
+        # Under `soup train --gpus N` every rank streams onto its own card.
+        self.device = pin_rank_device(self.device)
         if (getattr(tcfg, "stream_expert_layout", "fused") == "per_expert"
                 and tcfg.quantization != "4bit"):
             raise ValueError(
@@ -917,22 +926,23 @@ class StreamingSetupMixin:
                 )
 
         console.print(f"[dim]Preparing layer shards -> {shard_dir}[/]")
-        index = shard_checkpoint(
-            weights_dir,
-            shard_dir,
-            dtype=dtype,
-            arch=arch,
-            quant=quant,
-            quant_suffixes=quant_suffixes,
-            layout=layout,
-            double_quant=double_quant,
-            # Quantise on the device that will run the model: CPU and CUDA agree
-            # on the packed nibbles but not on every float32 nested statistic.
-            quant_device=str(self.device),
-            stripe_roots=stripe_roots,
-            notify=console.print,
-            expert_layout=expert_layout,
-        )
+        with shard_cache_lock(shard_dir):
+            index = shard_checkpoint(
+                weights_dir,
+                shard_dir,
+                dtype=dtype,
+                arch=arch,
+                quant=quant,
+                quant_suffixes=quant_suffixes,
+                layout=layout,
+                double_quant=double_quant,
+                # Quantise on the device that will run the model: CPU and CUDA agree
+                # on the packed nibbles but not on every float32 nested statistic.
+                quant_device=str(self.device),
+                stripe_roots=stripe_roots,
+                notify=console.print,
+                expert_layout=expert_layout,
+            )
         # R4: decided once, from the roots the index actually carries (a reused cache keeps its
         # own), so the plan's staging figure, the host pre-flight and the reader all agree. Read
         # with getattr like `external_tensors` below: an index without the field is one root.
@@ -1226,6 +1236,9 @@ class StreamingSetupMixin:
         )
         self.model = model
         self._stream_runtime = runtime
+        if distributed_world_size() > 1:
+            # DDP would sync (and refuse) the frozen base on 'meta'; only the adapters differ.
+            ignore_frozen_for_ddp(model)
         self._stream_weight_dirs = tuple(
             stripe_dirs(shard_dir, tuple(getattr(index, "stripe_roots", None) or ()))
         )
