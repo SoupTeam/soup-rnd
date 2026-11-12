@@ -213,9 +213,13 @@ def test_wrapper_refuses_to_resume_with_another_effective_k(tmp_path, monkeypatc
 
 
 @pytest.mark.parametrize(
-    "available", [215_000, 120_000, None], ids=["fits", "too-small", "unknown"]
+    ("available", "expected_k"),
+    [(215_000, 2), (8_000_000, 64), (120_000, None), (None, None)],
+    ids=["shrinks-to-two", "keeps-64", "too-small", "unknown"],
 )
-def test_public_deepseek_auto_k_reserves_and_uses_one_window(tmp_path, monkeypatch, available):
+def test_public_deepseek_auto_k_reserves_and_uses_one_window(
+    tmp_path, monkeypatch, available, expected_k,
+):
     from transformers import TrainerCallback
 
     from benchmarks.harness.b13_moe_fixture import moe_weights_dir
@@ -249,10 +253,11 @@ def test_public_deepseek_auto_k_reserves_and_uses_one_window(tmp_path, monkeypat
             "lora": {"r": 2, "alpha": 4, "dropout": 0, "target_modules": ["q_a_proj"]},
         },
     })
+    row_count = 64 if expected_k == 64 else 5
     dataset = {"train": [
-        {"messages": [{"role": "user", "content": "hi " * (i + 1)},
+        {"messages": [{"role": "user", "content": "hi " * (row % 5 + 1)},
                       {"role": "assistant", "content": "hello world"}]}
-        for i in range(5)
+        for row in range(row_count)
     ]}
     wrapper = SFTTrainerWrapper(cfg, device="cpu")
     if available is None:
@@ -266,15 +271,17 @@ def test_public_deepseek_auto_k_reserves_and_uses_one_window(tmp_path, monkeypat
         assert wrapper._stream_runtime.source._closed
         return
 
+    assert expected_k is not None
+    expected_steps = (row_count + expected_k - 1) // expected_k
     try:
         wrapper.setup(dataset)
         recipe = wrapper._l2l_recipe
         plan = wrapper._c3_l2l_plan
         assert recipe.requested_k == cfg.training.gradient_accumulation_steps == 64
-        assert recipe.effective_k == plan.max_microbatches == 2
-        assert plan.activations.limit_bytes == 2 * 3 * 64 * 32 * 4
+        assert recipe.effective_k == plan.max_microbatches == expected_k
+        assert plan.activations.limit_bytes == expected_k * 3 * 64 * 32 * 4
         assert plan.weights.reserved_bytes <= available
-        assert wrapper.trainer.args.gradient_accumulation_steps == 2
+        assert wrapper.trainer.args.gradient_accumulation_steps == expected_k
         assert wrapper.trainer._soup_l2l.c3_plan is plan
         capacities = []
 
@@ -287,11 +294,11 @@ def test_public_deepseek_auto_k_reserves_and_uses_one_window(tmp_path, monkeypat
 
         wrapper.trainer.add_callback(ObserveStore())
         wrapper.train()
-        assert wrapper.trainer.state.global_step == 3
-        assert capacities == [2, 2, 2]
+        assert wrapper.trainer.state.global_step == expected_steps
+        assert capacities == [expected_k] * expected_steps
         assert plan.activations.used_bytes == 0
         assert load_recipe(wrapper._output_dir) == recipe
         rows = [row for row in wrapper.trainer.state.log_history if "loss" in row]
-        assert {row["l2l_effective_k"] for row in rows} == {2}
+        assert {row["l2l_effective_k"] for row in rows} == {expected_k}
     finally:
         wrapper._close_stream_runtime()
