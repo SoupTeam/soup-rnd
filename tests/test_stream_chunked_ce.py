@@ -233,3 +233,60 @@ def test_trainer_class_for_cce_names_itself() -> None:
 
     cls = make_chunked_ce_trainer_class(Base, "cce")
     assert cls.__name__ == "CutCEBase" and cls._soup_loss_impl == "cce"
+
+
+class _Wrapper(torch.nn.Module):
+    """Stands in for DistributedDataParallel: ``module`` + a forward that must be the entry."""
+
+    def __init__(self, module):
+        super().__init__()
+        self.module = module
+        self.calls = []
+
+    def forward(self, *args, **kwargs):
+        self.calls.append(sorted(kwargs))
+        return self.module(*args, **kwargs)
+
+
+def _trainer_for(model, num_processes):
+    from types import SimpleNamespace
+
+    class Base:
+        pass
+
+    cls = make_chunked_ce_trainer_class(Base)
+    trainer = cls()
+    trainer.model = model
+    trainer.args = SimpleNamespace(average_tokens_across_devices=True)
+    trainer.accelerator = SimpleNamespace(
+        num_processes=num_processes,
+        unwrap_model=lambda m: m.module if isinstance(m, _Wrapper) else m,
+    )
+    return trainer
+
+
+def test_compute_loss_enters_through_the_wrapper_under_ddp() -> None:
+    """Under DDP the decoder must run through the wrapper's forward: a direct call on the
+    unwrapped model skips DDP's forward bookkeeping, and the ranks' adapter gradients were not
+    averaged (Kaggle T4 x2: grad_norm 18.66 on two GPUs vs 17.79 on one, same rows)."""
+    model = _tiny_qwen35()
+    model.train()
+    wrapped = _Wrapper(model)
+    ids = torch.randint(0, 300, (2, 30))
+    inputs = {"input_ids": ids, "attention_mask": torch.ones_like(ids), "labels": _labels(ids)}
+    n_items = int((_labels(ids)[:, 1:] != IGNORE_INDEX).sum())
+
+    trainer = _trainer_for(wrapped, num_processes=2)
+    loss = trainer.compute_loss(wrapped, dict(inputs), num_items_in_batch=n_items)
+    assert wrapped.calls, "the decoder was not run through the DDP wrapper"
+    assert "logits_to_keep" in wrapped.calls[0]
+    loss.backward()
+    through = {n: p.grad.clone() for n, p in model.named_parameters() if p.grad is not None}
+
+    model.zero_grad(set_to_none=True)
+    direct = _trainer_for(model, num_processes=1)
+    ref = direct.compute_loss(model, dict(inputs), num_items_in_batch=n_items)
+    assert torch.allclose(loss, ref * 2, rtol=1e-12, atol=0)  # x num_processes, as HF does
+    ref.backward()
+    for name, grad in through.items():
+        torch.testing.assert_close(grad, 2 * model.get_parameter(name).grad, rtol=1e-12, atol=0)
