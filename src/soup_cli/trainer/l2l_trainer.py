@@ -181,6 +181,9 @@ class L2LState:
     c3_plan: Any = None
     #: The recipe's effective k (``soup_cli.utils.l2l_recipe``); None when the caller gave none.
     effective_k: Optional[int] = None
+    #: ``training.l2l_split_gpus``: the devices besides the runtime's that run a share of each
+    #: window (``soup_cli.utils.l2l_split``); empty for a single-GPU step.
+    split_devices: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.loss is None:
@@ -427,7 +430,9 @@ def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any
 
     calls = _calls_for(state, model, ids_list)
     if state.stepper is None:
-        state.stepper = L2LStep(model, state.runtime, calls[0])
+        state.stepper = L2LStep(
+            model, state.runtime, calls[0], split_devices=state.split_devices
+        )
     return state.stepper, calls
 
 
@@ -755,6 +760,7 @@ def attach_l2l_state(
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
     effective_k: Optional[int] = None,
+    split_devices: Sequence[str] = (),
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
@@ -769,6 +775,7 @@ def attach_l2l_state(
         loss=loss,
         c3_plan=c3_plan,
         effective_k=effective_k,
+        split_devices=tuple(split_devices),
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
         output_dir=getattr(args, "output_dir", None),

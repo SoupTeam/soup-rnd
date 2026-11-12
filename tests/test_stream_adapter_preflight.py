@@ -103,7 +103,7 @@ def test_setup_stops_before_weight_loading(tiny_config, monkeypatch, free_bytes,
     from soup_cli.utils import layer_shard, layer_stream, spectrum_scan, stripe_roots
 
     base, _ = tiny_config
-    monkeypatch.setattr(stream_setup, "refuse_if_data_parallel", lambda device: None)
+    monkeypatch.setattr(stream_setup, "refuse_if_data_parallel", lambda device, *_a: None)
     monkeypatch.setattr(AutoTokenizer, "from_pretrained", Mock(return_value=SimpleNamespace(
         pad_token="pad", eos_token="eos"
     )))
@@ -383,7 +383,7 @@ def test_refusal_apply_recommendation_then_real_cpu_setup(tmp_path, monkeypatch)
     cfg = load_config_from_string(yaml.safe_dump(raw))
     wrapper = stream_setup.StreamingSetupMixin()
     wrapper.device, wrapper._trust_remote_code = "cuda:0", False
-    monkeypatch.setattr(stream_setup, "refuse_if_data_parallel", lambda device: None)
+    monkeypatch.setattr(stream_setup, "refuse_if_data_parallel", lambda device, *_a: None)
     monkeypatch.setattr("soup_cli.utils.layer_stream.resolve_stream_dtype",
                         lambda device: "float32")
     monkeypatch.setattr(torch.cuda, "mem_get_info", lambda device: (120000, 120000))

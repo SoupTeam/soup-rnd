@@ -1043,6 +1043,30 @@ Numerical agreement of L2L and accumulation in fp16 on a GPU has not been measur
 tolerance is calibrated for bf16, so fp16 needs its own noise floor. The per-expert MoE path (DeepSeek-V3) still
 refuses fp16.
 
+**Several GPUs in one process (`training.l2l_split_gpus`, sft, experimental).** A data-parallel
+launch reads every layer once per process and holds one host staging per process; on a host with
+little RAM (Kaggle T4 x2: 32 GB for a 27B model) two processes do not fit. With
+`l2l_split_gpus: N` one process reads each layer once into the first GPU's pool, copies it to the
+other N-1 cards, and deals the window's micro-batches over the cards round robin. Each card runs
+its micro-batches through the layer forward, and in the backward one micro-batch per card at a
+time, so the cards compute in parallel. The embedding, the head and the activation store stay on
+the first card. The adapters are replicated on the other cards for the step, and their gradients
+are added into the first card's adapters before the optimizer step. HF is shown one GPU, so it does
+not wrap the model in `nn.DataParallel`. A CPU test runs the replica path with both devices on the
+CPU and checks the losses and gradients against the single-device step (tiny llama and qwen3_5,
+rtol 1e-5). Refused: fewer visible GPUs than `l2l_split_gpus`, a `--gpus` launch, a task other than
+`sft`, dropout, a trainable embedding and streamed routed experts. Each layer crosses to every
+other card twice per step (forward and backward), about the size of the layer as stored (for NF4,
+roughly a quarter of its bf16 size).
+
+```yaml
+training:
+  stream_layers: true
+  l2l: true
+  gradient_accumulation_steps: 4   # 2 micro-batches per card
+  l2l_split_gpus: 2
+```
+
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
 - `task` other than `sft`, `dpo`, `orpo`, `simpo` and `kto`. The four preference tasks have their
@@ -1050,8 +1074,9 @@ Refused when the config is read:
 
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
-- More than one visible GPU without a launcher. Use `CUDA_VISIBLE_DEVICES=0`, or launch
-  data-parallel with `soup train --gpus N` (see layer streaming above).
+- More than one visible GPU without a launcher. Use `CUDA_VISIBLE_DEVICES=0`, launch
+  data-parallel with `soup train --gpus N` (see layer streaming above), or split the window
+  over the cards with `training.l2l_split_gpus` (below).
 - Rows with padding before real tokens. L2L needs right-padded rows.
 - `neftune_alpha` with a window whose micro-batches differ in shape. L2L runs each micro-batch at its own length, but NEFTune noise (it scales with `1 / sqrt(seq * hidden)`) has not been checked against gradient accumulation for rows of different lengths, so the combination stays refused. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
 - `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Rows of different lengths draw different masks, and the replay builds the generator states from one draw plan shared by all micro-batches. Use rows of one length or set the dropout to 0.

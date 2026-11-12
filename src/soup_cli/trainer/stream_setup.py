@@ -494,7 +494,7 @@ def _distributed_launch() -> bool:
         return False
 
 
-def refuse_if_data_parallel(device) -> None:
+def refuse_if_data_parallel(device, split_gpus: int = 1) -> None:
     """Refuse layer streaming when HF Trainer would wrap the model in DataParallel.
 
     ``TrainingArguments`` sets ``_n_gpu = torch.cuda.device_count()`` for a
@@ -520,6 +520,10 @@ def refuse_if_data_parallel(device) -> None:
         return
     visible = torch.cuda.device_count()
     if visible <= 1 or _distributed_launch():
+        return
+    if int(split_gpus) > 1:
+        # training.l2l_split_gpus: one process owns the cards and HF is shown one
+        # (l2l_split.keep_hf_on_one_gpu), so DataParallel never wraps the model.
         return
     raise ValueError(
         f"training.stream_layers=true, but {visible} CUDA devices are visible. "
@@ -643,7 +647,7 @@ class StreamingSetupMixin:
         # BEFORE the tokenizer load, the weight resolve and the shard write:
         # this configuration cannot work, and finding out minutes into disk I/O
         # is worse than finding out now.
-        refuse_if_data_parallel(self.device)
+        refuse_if_data_parallel(self.device, getattr(tcfg, "l2l_split_gpus", 1))
         from soup_cli.utils.stream_ddp import (
             distributed_world_size,
             ignore_frozen_for_ddp,
@@ -1320,6 +1324,11 @@ class StreamingSetupMixin:
         if loss is None and stream_loss_impl(tcfg) == "chunked":
             # ZERO: the SFT window with the chunked head (schema: sft only, never with CCE).
             loss = SFT_CHUNKED_WINDOW_LOSS
+        from soup_cli.utils.l2l_split import check_split, keep_hf_on_one_gpu, split_devices
+
+        split_gpus = int(getattr(tcfg, "l2l_split_gpus", 1) or 1)
+        check_split(self.device, split_gpus)
+        keep_hf_on_one_gpu(training_args, split_gpus)
         refuse_unsupported_l2l(
             base.config,
             n_gpu=int(training_args.n_gpu),
@@ -1346,10 +1355,12 @@ class StreamingSetupMixin:
             weight_dirs=self._stream_weight_dirs,
             c3_plan=getattr(self, "_c3_l2l_plan", None),
             effective_k=effective_k,
+            split_devices=split_devices(self.device, split_gpus),
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
             f"{effective_k} micro-batch(es)"
+            + (f", split over {split_gpus} GPUs" if split_gpus > 1 else "")
         )
         return trainer
 

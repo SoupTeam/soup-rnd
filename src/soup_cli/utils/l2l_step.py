@@ -473,6 +473,7 @@ class L2LStep:
         model: Any,
         runtime: Any,
         call: LayerCall,
+        split_devices: Sequence[Any] = (),
     ) -> None:
         self.causal, self.owner = model_parts(model)
         self.model = model
@@ -489,6 +490,10 @@ class L2LStep:
         self.runtime = runtime
         #: Loads and restores of the last ``run``; ``None`` before the first.
         self.counters: Optional[LoadCounters] = None
+        #: ``training.l2l_split_gpus``: the devices besides the main one that run a share of
+        #: the micro-batches (``utils/l2l_split.py``); empty for a single-device step.
+        self.split_devices = tuple(split_devices)
+        self._replicas: Optional[List[Any]] = None
 
     def _layer(self, module: Any, hidden: Any, state: Any, call: LayerCall, idx: int = 0) -> Any:
         # ``state`` is where accumulation's stream stands before this (micro-batch, layer)
@@ -571,8 +576,9 @@ class L2LStep:
         """
         if head is not None and (labels is not None or n_items is not None):
             raise ValueError("a custom head owns its labels and scale: pass no labels or n_items")
+        run = self._run_split if self.split_devices else self._run
         with count_loads(self.runtime) as counters, RoutingGuard(self.layers) as guard:
-            losses = self._run(
+            losses = run(
                 micro_batches, store, n_items, labels, calls, guard, head, reference, scaler
             )
         self.counters = counters
@@ -715,4 +721,165 @@ class L2LStep:
         store.end_step()
         if replayed is not None:
             l2l_rng.leave_stream_at(replayed[1])
+        return losses
+
+    def _run_split(
+        self,
+        micro_batches: Sequence[Any],
+        store: Any,
+        n_items: Optional[int],
+        labels: Optional[Sequence[Any]],
+        calls: Optional[Sequence[LayerCall]],
+        guard: RoutingGuard,
+        head: Optional[LossHead],
+        reference: Union[ReferencePass, Sequence[ReferencePass], None] = None,
+        scaler: Any = None,
+    ) -> List[Any]:
+        """:meth:`_run` with the micro-batches dealt over the main device and
+        ``split_devices`` (``utils/l2l_split.py``). Each layer is read once, into the main
+        device's pool; the embedding, the head and the activation store stay there.
+
+        Supports what ZERO's SFT window needs; the rest is refused: reference passes,
+        dropout (its replay), a trainable embedding and streamed routed experts.
+        """
+        import torch
+
+        from soup_cli.utils import l2l_rng
+        from soup_cli.utils.l2l_split import DeviceReplica, assign, to_device
+
+        k = len(micro_batches)
+        if k < 1:
+            raise ValueError("an L2L step needs at least one micro-batch")
+        if k > store.k:
+            raise ValueError(f"{k} micro-batches, but the activation store holds {store.k}")
+        if calls is None:
+            calls = [self.call] * k
+        elif len(calls) != k:
+            raise ValueError(f"{len(calls)} layer calls for {k} micro-batches")
+        if as_passes(reference):
+            raise ValueError(
+                "training.l2l_split_gpus does not support a reference pass (dpo, kto, ...): "
+                "the split step runs the sft window only. Set l2l_split_gpus to 1."
+            )
+        if l2l_rng.has_draws((*self.call.draws, self.call.head_draws)):
+            raise ValueError(
+                "training.l2l_split_gpus does not support dropout (lora.dropout or "
+                "attention_dropout above 0): the split step does not replay its draws. Set "
+                "the dropout to 0 or l2l_split_gpus to 1."
+            )
+        if any(param.requires_grad for param in self.owner.embed_tokens.parameters()):
+            raise ValueError(
+                "training.l2l_split_gpus does not support a trainable embedding: the split "
+                "step does not backpropagate into it. Set l2l_split_gpus to 1."
+            )
+        if guard._handles:
+            raise ValueError(
+                "training.l2l_split_gpus does not support streamed routed experts. Set "
+                "l2l_split_gpus to 1."
+            )
+        if head is None:
+            if labels is None:
+                labels = micro_batches
+            elif len(labels) != k:
+                raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
+            total = label_tokens(micro_batches) if n_items is None else int(n_items)
+            head = sft_head(labels, total)
+
+        if self._replicas is None:
+            self._replicas = [DeviceReplica(self.layers, dev) for dev in self.split_devices]
+        replicas = self._replicas
+        for replica in replicas:
+            replica.refresh()
+        main = micro_batches[0].device
+        owner_of = assign(k, 1 + len(replicas))
+        # Each extra device's copy of every micro-batch's layer arguments, once per step.
+        moved_calls: Dict[Tuple[int, int, str], Tuple[Any, Any]] = {}
+
+        def call_on(mb: int, idx: int) -> Tuple[Any, Any]:
+            replica = replicas[owner_of[mb] - 1]
+            kind = calls[mb].layer_types[idx] if calls[mb].typed else ""
+            key = (id(calls[mb]), owner_of[mb], kind)
+            if key not in moved_calls:
+                moved_calls[key] = to_device(calls[mb].for_layer(idx), replica.device)
+            return moved_calls[key]
+
+        def load(idx: int, layer: Any) -> Dict[int, Any]:
+            # The layer's pool slot, and its weights copied to every extra device that has a
+            # micro-batch, before either device's compute for this layer is issued.
+            buffers = layer.pool.wait(layer.idx)
+            layer.prefetcher.advance(layer.idx)
+            return {
+                d: replicas[d - 1].weights(idx, layer, buffers)
+                for d in sorted(set(owner_of)) if d
+            }
+
+        def run_layer(idx: int, layer: Any, weights: Dict[int, Any], mb: int, hidden: Any) -> Any:
+            if owner_of[mb] == 0:
+                return self._layer(layer, hidden, None, calls[mb], idx)
+            args, kwargs = call_on(mb, idx)
+            return replicas[owner_of[mb] - 1].forward(
+                layer, weights[owner_of[mb]], hidden, args, kwargs
+            )
+
+        def device_of(mb: int) -> Any:
+            return main if owner_of[mb] == 0 else replicas[owner_of[mb] - 1].device
+
+        self._prime(self.owner, ())
+        with torch.no_grad():
+            hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
+            hidden = [h.to(device_of(mb), non_blocking=True) for mb, h in enumerate(hidden)]
+            for idx, layer in enumerate(self.layers):
+                weights = load(idx, layer)
+                for mb in range(k):
+                    store.put(idx, mb, hidden[mb].to(main, non_blocking=True))
+                for mb in range(k):
+                    hidden[mb] = run_layer(idx, layer, weights, mb, hidden[mb])
+                weights = None
+
+        losses: List[Any] = []
+        grads: List[Any] = []
+        for mb in range(k):
+            last = hidden[mb].to(main).detach().requires_grad_(True)
+            hidden[mb] = None
+            with torch.enable_grad():
+                loss = head(self.causal, self.owner, last, mb)
+            with self._backward_context(micro_batches[mb]):
+                (loss if scaler is None else scaler.scale(loss)).backward()
+            losses.append(loss.detach())
+            grads.append(last.grad.to(device_of(mb)))
+
+        # One micro-batch per device at a time: their graphs go to autograd together, so the
+        # engine's per-device threads run the backwards in parallel.
+        rounds: List[List[int]] = []
+        for mb in range(k):
+            for group in rounds:
+                if all(owner_of[other] != owner_of[mb] for other in group):
+                    group.append(mb)
+                    break
+            else:
+                rounds.append([mb])
+        store.begin_backward()
+        for idx in range(len(self.layers) - 1, -1, -1):
+            layer = self.layers[idx]
+            weights = load(idx, layer)
+            inputs = [
+                store.get(idx, mb).to(device_of(mb)).requires_grad_(True) for mb in range(k)
+            ]
+            saved = layer.use_checkpoint
+            layer.use_checkpoint = False
+            try:
+                for group in rounds:
+                    with torch.enable_grad():
+                        outs = [run_layer(idx, layer, weights, mb, inputs[mb]) for mb in group]
+                    with self._backward_context(micro_batches[group[0]]):
+                        torch.autograd.backward(outs, grad_tensors=[grads[mb] for mb in group])
+                    for mb in group:
+                        grads[mb] = inputs[mb].grad
+                        inputs[mb] = None
+            finally:
+                layer.use_checkpoint = saved
+            weights = None
+        store.end_step()
+        for replica in replicas:
+            replica.merge_grads()
         return losses

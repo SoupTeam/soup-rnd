@@ -3577,6 +3577,20 @@ class TrainingConfig(BaseModel):
         ),
     )
 
+    l2l_split_gpus: int = Field(
+        default=1,
+        ge=1,
+        le=8,
+        description=(
+            "BETA — split each L2L step over this many GPUs in one process (sft only). Each "
+            "streamed layer is read once, into the first GPU's pool, copied to the others, "
+            "and each GPU runs its share of the k micro-batches through it, so the compute "
+            "splits while the weight reads do not double (a data-parallel launch reads every "
+            "layer once per process). Needs that many visible GPUs and no `--gpus` launch; "
+            "refused with dropout, a trainable embedding and streamed routed experts. Only "
+            "valid with training.l2l=true."
+        ),
+    )
     l2l_activation_codec: Literal["none", "fp8_e4m3"] = Field(
         default="none",
         description=(
@@ -6541,6 +6555,7 @@ class SoupConfig(BaseModel):
         l2l_options = {
             "l2l_activation_codec": tcfg.l2l_activation_codec != "none",
             "l2l_auto_k": tcfg.l2l_auto_k,
+            "l2l_split_gpus": tcfg.l2l_split_gpus != 1,
         }
         for name, differs_from_default in l2l_options.items():
             if differs_from_default and not tcfg.l2l:
