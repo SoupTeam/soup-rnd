@@ -862,7 +862,7 @@ prints this advice when it sees you accumulating.
 - `lora.use_dora` / `lora.use_vera` / `lora.init_strategy` other than `random` → these initialise from the real base weight, which is on the meta device under streaming
 - `moe_expert_quant` → expert quantization runs only in the resident model-construction path and would otherwise be silently ignored
 - `unfrozen_parameters`, `lisa_enabled`, `packing`, `multipack`, `use_fsdp2_compile`, `train_router_only`, `expand_layers` → each independently rewrites or re-freezes the same layers
-- `stream_source` / `stream_ngram_source` / `stream_buffers` / `stream_read_ahead` / `stream_vram_override` / `stream_vram_probe` / `stream_expert_layout` / `stream_disk_kind` / `stream_pin` set to a non-default value while `stream_layers: false` → a footgun, refused
+- `stream_source` / `stream_ngram_source` / `stream_buffers` / `stream_read_ahead` / `stream_vram_override` / `stream_vram_probe` / `stream_expert_layout` / `stream_disk_kind` / `stream_pin` / `stream_chunked_ce` set to a non-default value while `stream_layers: false` → a footgun, refused
 - a non-default `stream_read_ahead` beside `stream_source: ram` → refused. The read-ahead reader belongs to the NVMe disk tier and `ram` never falls back to it, so the setting would validate, be documented, and reach nothing. The default is accepted, because a default is not a decision
 - a disk-tier run whose host staging (`stream_read_ahead` layers, plus one slot each for the embedding and an untied `lm_head`) plus the resident extras will not fit the free-RAM headroom → refused by name, naming the depth to lower. Refused rather than clamped: a depth you set is a decision, and silently lowering it would hand back a slower run than the one you configured
 - more than 8 distinct layer shapes in one shard index → refused. Staging is allocated per shape and a shape with one member takes a full slot at any depth, so an index whose every layer differed would hold most of the model in staging at once — page-locked when the box allows it and `stream_pin` is not false, a loud pageable fallback otherwise, and a refusal only under `stream_pin: true` on a CUDA target — which is what the disk tier exists to avoid. A real model has one to three
@@ -945,6 +945,51 @@ output: ./output
 - **The prediction is not equally trustworthy at every sequence length.** Measured on a 4 GB RTX 3050 with SmolLM2-135M streamed in bf16 at batch 1, the formula over-predicts by 8% at seq 4352 (safe) and then **under-predicts — 0.934x the real peak at seq 5120 and 0.787x at 6144**. The grid it was fitted on only ever varied batch size, at seq 256 and 512, so long-context streaming is exactly where it has the least evidence behind it. If you are streaming at multi-thousand-token sequences, turn on `stream_vram_probe`. Record: [`benchmarks/gate-v0.73.1-measured-vram-fit.md`](../benchmarks/gate-v0.73.1-measured-vram-fit.md).
 - **The pre-flight reports the whole card on a capped or shared GPU** — `torch.cuda.mem_get_info()` is a device-level driver query and cannot see `set_per_process_memory_fraction`, a MIG slice, or another process on the same card. Set `training.stream_vram_override` to what your process may actually use; the check then refuses configurations that would exceed *that*, which is also how you rehearse a 4 GB card on a 16 GB one.
 - **Slower than you expected** — layer streaming trades time for memory. If the model already fits resident on your card, do not enable it.
+
+### Large-vocabulary loss under streaming (`training.stream_chunked_ce`, `training.use_cut_ce`, experimental)
+
+On a large vocabulary the logits, not the weights, are the biggest VRAM term of a streamed
+step: the transformers causal-LM loss holds `batch x seq x vocab` logits and their fp32 copy.
+For Qwen3.5 / Qwen3.8 (248 320 tokens) at seq 2048 the pre-flight charges 7.12 GB for them.
+Two settings replace that loss for streamed SFT:
+
+```yaml
+training:
+  stream_layers: true
+  stream_chunked_ce: true      # chunks of 256 positions through lm_head, recomputed in backward
+  # use_cut_ce: true           # or: Apple's Cut Cross-Entropy kernel on the streamed lm_head
+```
+
+- **`stream_chunked_ce`** sums the loss over chunks of 256 positions; each chunk's logits are
+  built inside a non-reentrant checkpoint, so backward recomputes them instead of keeping them.
+  Same shift, `-100` ignore, fp32 logits and `num_items_in_batch` normalisation as the
+  transformers loss; on CPU the loss and every gradient match it to fp32 summation order.
+- **`use_cut_ce` with `stream_layers`** routes the loss through
+  `cut_cross_entropy.linear_cross_entropy` on the streamed `lm_head` (it used to be accepted
+  and silently ignored under streaming). CCE's default gradient filtering is kept. Its Triton
+  kernel needs 96 KiB of shared memory per block, so it does **not** run on a T4 / sm75 (64 KiB):
+  the run stops with `OutOfResources`. Use `stream_chunked_ce` there.
+- Both are mutually exclusive, need `task: sft`, and are not wired into `training.l2l` yet. TRL's
+  `entropy` and `mean_token_accuracy` metrics are not logged (they need the full logits);
+  `num_tokens` is. The pre-flight forecast and `stream_vram_probe` use the selected loss.
+
+**Measured (Kaggle T4, fp16, NF4, LoRA r 16 on 10 modules, batch 1, rows of ~1 750 tokens,
+max_length 2048, one run each, 2026-11-11):**
+
+| Model | Loss | VRAM cap | Steady tok/s | Peak allocated / reserved |
+| --- | --- | --- | --- | --- |
+| Qwen3.5-4B, RAM tier | transformers CE | none | 242 | 7.34 / 13.56 GiB |
+| Qwen3.5-4B, RAM tier | chunked | none | 221 | 3.16 / 4.25 GiB |
+| Qwen3.5-4B, RAM tier | chunked | 8 GiB | 221 | 3.15 / 4.26 GiB |
+| Qwen3.8-27B, disk tier | transformers CE | 8 GiB | refused: probe OOM | – |
+| Qwen3.8-27B, disk tier | transformers CE | none | 61 | whole card |
+| Qwen3.8-27B, disk tier | chunked | 8 GiB | 57 (20/20 steps) | 7.56 / 8.00 GiB |
+
+Chunked CE costs about 7-9% throughput (the recompute) and roughly halves the 4B peak. On 4B the
+logged loss matched the transformers-CE run at 3 decimals on 25 of 30 steps, the rest off by
+0.001. The 27B row under the cap has no headroom left at seq 2048, and needed
+`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` set before CUDA initialised (a first run
+with the default allocator ran 12 steps and then ran out of memory).
 
 ### L2L: load each layer once per optimizer step (`training.l2l`, BETA)
 

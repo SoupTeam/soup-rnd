@@ -2160,8 +2160,13 @@ def measure_step_peak_bytes(
     seq_len: int,
     vocab_size: int,
     device: str = "cuda",
+    loss_fn: Optional[Any] = None,
 ) -> Optional[StepPeak]:
     """Run one forward+backward at the configured shape and read the real peak.
+
+    ``loss_fn(model, ids) -> loss`` replaces the model's own loss when the run trains
+    with a different one (``training.stream_chunked_ce``), so the probe measures the
+    step that will actually run.
 
     This is the #349 instrument. The pre-flight's formula is fitted and, measured
     against the real training run, under-predicts past seq 4352 (0.934x the real
@@ -2210,8 +2215,12 @@ def measure_step_peak_bytes(
         torch.cuda.reset_peak_memory_stats(device)
         started = time.perf_counter()
         ids = torch.randint(0, vocab_size, (rows, seq_len), device=device)
-        out = model(input_ids=ids, labels=ids)
-        out.loss.backward()
+        if loss_fn is None:
+            out = model(input_ids=ids, labels=ids)
+            out.loss.backward()
+        else:
+            out = loss_fn(model, ids)
+            out.backward()
         torch.cuda.synchronize()
         elapsed = time.perf_counter() - started
         peak = int(torch.cuda.max_memory_allocated(device))

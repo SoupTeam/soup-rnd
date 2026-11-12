@@ -1491,6 +1491,21 @@ class StreamingSetupMixin:
         logits = estimate_logits_bytes(
             vocab_size=vocab, seq_len=seq_len, batch_size=rows, bytes_per_element=calibrated
         )
+        from soup_cli.utils.stream_chunked_ce import stream_loss_impl
+
+        if stream_loss_impl(tcfg):
+            # ZERO: chunked CE holds the logits of one chunk of positions at a time
+            # (CCE holds less; charging one chunk keeps the forecast conservative),
+            # so the logits term is charged for the chunk, not the sequence. The rest
+            # of the estimate (activations, buffers, adapters) is unchanged.
+            from soup_cli.utils.stream_chunked_ce import CE_CHUNK
+
+            chunk_logits = estimate_logits_bytes(
+                vocab_size=vocab, seq_len=min(CE_CHUNK, seq_len), batch_size=rows,
+                bytes_per_element=calibrated,
+            )
+            predicted -= logits - chunk_logits
+            logits = chunk_logits
         paired = (
             "" if rows == batch else f" ({rows} rows — chosen+rejected are one concatenated tensor)"
         )
@@ -1605,7 +1620,12 @@ class StreamingSetupMixin:
         """
         from soup_cli.utils.layer_stream import decide_measured_fit
         from soup_cli.utils.layer_stream_runtime import measure_step_peak_bytes
+        from soup_cli.utils.stream_chunked_ce import model_loss_fn, stream_loss_impl
 
+        # ZERO: measure the step that will run (chunked CE or CCE), not the full-logits
+        # loss those settings exist to avoid.
+        impl = stream_loss_impl(getattr(getattr(self, "config", None), "training", None))
+        loss_fn = model_loss_fn(impl) if impl else None
         try:
             peak = measure_step_peak_bytes(
                 model,
@@ -1613,6 +1633,7 @@ class StreamingSetupMixin:
                 seq_len=plan.seq_len,
                 vocab_size=plan.vocab_size,
                 device=str(self.device),
+                loss_fn=loss_fn,
             )
         except Exception:
             # measure_step_peak_bytes validates its own arguments and raises
