@@ -648,6 +648,20 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
 - **DeepSeek-V3** (`deepseek_v3`), `task: sft`, `backend: transformers`, `modality: text`. A tiny synthetic DeepSeek-V3 model streams bit-exact against a resident one in fp32 on an RTX 3050 (and on CPU, except NF4, which needs a GPU): forward, backward, NF4, the disk tier, LoRA on attention and `moe_lora` on the routed experts. NF4 quantizes the attention and shared-expert linears and leaves the routed experts at the base dtype. The sharder stacks per-expert checkpoint keys into fused experts, drops the MTP layer, and keeps the router bias in fp32. A DeepSeek-V3 model built from Hub code is refused, so drop `trust_remote_code: true`. `model_type=kimi_k2` (K2-Base and K2-Instruct, block FP8) is admitted as an alias: Soup reads its `config.json` without Hub code and registers the expert conversion transformers lacks for it, and a tiny `kimi_k2` checkpoint streams bit-exact. The Kimi K2 tokenizer is built natively from `tiktoken.model` for a local folder, with no Hub code. Its ids match Moonshot's own tokenizer for Kimi-K2-Instruct on a fixed text set, K2-Thinking and K2.5 (INT4) are refused, and one real K2 MoE layer is about 17 GB, which needs sub-layer streaming. `deepseek_v32`, `deepseek_v2` and `kimi_k25` are refused. No real DeepSeek-V3 or Kimi K2 checkpoint has been streamed. The [compatibility table and gate record](../benchmarks/gate-b2-deepseek-v3.md) list what is proven, refused and not tested.
 - **Heterogeneous layer keys are allowed only at the presence/absence level.** The sharder reads every layer's safetensors header and the runtime builds the RAM/disk source from those per-layer specs, then merges them into one VRAM buffer pool. A key that appears in multiple layers must keep the same stored shape and dtype everywhere; NF4 weights also keep one `NF4WeightSpec` per short key, validate every packed sidecar against the shard header, and share only the small code tables after proving they are equal.
 - **Batch sizes, gradient accumulation, `--resume` / `--hf-resume`** all now work (v0.72.3).
+- **Several GPUs: data-parallel streaming (`soup train --gpus N`, experimental).** Each rank
+  streams the frozen base onto its own card and trains a full copy of the LoRA adapters on its
+  share of the batch; DDP averages the adapter gradients. The frozen base (on `meta`) and the
+  buffers are put on DDP's ignore list, which it otherwise refuses; an unindexed `cuda` device
+  is pinned to `cuda:<LOCAL_RANK>`; the layer-shard cache is written under a file lock, so the
+  second rank reuses what the first wrote. A CPU test with two gloo ranks checks that the
+  adapter gradients equal one process accumulating both ranks' micro-batches. Every rank holds
+  its own host staging, so host RAM scales with the rank count. With `training.l2l` each rank
+  runs its share of the window layer-major and the trainer sums the adapter gradients across
+  ranks after the window (the L2L backward runs outside DDP's forward, where DDP's hooks do
+  nothing); the L2L activation budget is split over the ranks on the machine. A CPU test with
+  two gloo ranks checks that an L2L window split over two ranks gives the gradients of one
+  process running the whole window. Without a launcher, several visible GPUs are still refused
+  (HF would wrap the model in `nn.DataParallel`).
 - **Pre-Ampere cards (T4, P100, V100, GTX 16xx, RTX 20xx) now stream in fp16 instead of bf16.** Until this fix the store dtype was hardcoded to bf16 on every CUDA device, so the entire free notebook tier was streaming a dtype its GPU has no units for, and nothing said so — it could not fail on the Ampere card every number above was measured on. fp16 is bit-exact against a resident reference of matching numerics, `0.000000e+00` in both quantisations, exactly as bf16 is.
   **The capability question is asked as `torch.cuda.is_bf16_supported(including_emulation=False)`, and the keyword is load-bearing.** The bare call defaults to including emulation: when its compute-capability fast path fails it falls through to constructing a bf16 tensor, which software emulation satisfies, so **a T4 answers True**. The first version of this fix asked the bare question and was therefore a no-op on exactly the hardware it targeted — found by running the [proof notebook](../notebooks/proof-4gb.ipynb) on a real T4, not by reasoning. `get_compute_dtype` was a second copy of the same question and now delegates to the same helper.
   **Still not measured on a pre-Ampere card**: the fp16 exactness above was measured *using* fp16 on Ampere, so it establishes the plumbing, not the Turing/Pascal kernels — bitsandbytes NF4 on sm_75 in particular.
@@ -1036,7 +1050,8 @@ Refused when the config is read:
 
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
-- More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
+- More than one visible GPU without a launcher. Use `CUDA_VISIBLE_DEVICES=0`, or launch
+  data-parallel with `soup train --gpus N` (see layer streaming above).
 - Rows with padding before real tokens. L2L needs right-padded rows.
 - `neftune_alpha` with a window whose micro-batches differ in shape. L2L runs each micro-batch at its own length, but NEFTune noise (it scales with `1 / sqrt(seq * hidden)`) has not been checked against gradient accumulation for rows of different lengths, so the combination stays refused. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
 - `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Rows of different lengths draw different masks, and the replay builds the generator states from one draw plan shared by all micro-batches. Use rows of one length or set the dropout to 0.
