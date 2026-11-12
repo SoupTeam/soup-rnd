@@ -25,8 +25,8 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Moonlight quality, gated verdict | **PENDING**: frozen study upper$24.5827 within$25; no quality result yet |
 | Moonlight quality, statistical verdict | **PENDING** |
 | Moonlight numerical gate | **PASS, 6/6**; complete raw closure independently readmitted and exported |
-| Per-step training loss and adapter-change norm | BF16 L1024 completed64 steps; loss0.785269→0.725147, adapter delta L2=2.021128; its timing block is **VOID**. FP8+Oracle L1024 running |
-| Moonlight paid resources and charges | **USD2.794 posted at2026-11-12T00:07UTC**, billing may lag; instance60261779 and volume60261770 active, earlier rejected resources deleted |
+| Per-step training loss and adapter-change norm | **4/4 independent64-step arms complete**, all archives verified; BF16 L1024 timing VOID, other three blocks F1 ok |
+| Moonlight paid resources and charges | **USD4.041 posted at2026-11-12T02:08UTC**, billing may lag; instance60261779 and volume60261770 active for frozen quality evaluation |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
@@ -331,7 +331,7 @@ E1 RMS/worst maxima0.0251101/0.0269059, E2 maximum0.0409753,
 E3 global relative L2 error0.0457640 and minimum cosine0.9921371.
 See the [raw-derived gate result](moonlight-resident-20261111t201548z/whole-machine-3/d-gate-result.json)
 and [export receipt](moonlight-resident-20261111t201548z/whole-machine-3/d-export.json).
-BF16 L1024 completed64 optimizer steps; FP8+Oracle L1024 has started independently.
+All four independent64-step arms have completed; frozen endpoint evaluation is running.
 Tiny E3 remains **FAIL, 0.05028628354277727 > 0.05**.
 **DeepSeek-V3 671B: отложен**.
 
@@ -357,3 +357,23 @@ See the [training summary](moonlight-resident-20261111t201548z/whole-machine-3/t
 and [export verification](moonlight-resident-20261111t201548z/whole-machine-3/train-bf16_l2l-L1024-export.json).
 The optional new private Kaggle backup was refused by authentication; complete
 archives remain hash-verified on the workstation. No new private upload is claimed.
+
+### Four independent training arms complete
+
+Every arm started from the same initializer and completed64 steps without a retry.
+For each length, every step's input and label hashes matched across BF16 and FP8+Oracle.
+All four complete archives,804 manifest-listed files and256 per-step records were
+independently verified locally before evaluation. The first endpoint is ARC for
+the trained BF16 L1024 adapter; no base checkpoint is evaluated.
+
+| Arm | L | First → last loss | Adapter delta L2 | F1 | Valid wall seconds | CUDA peak allocated / reserved, GiB | Sampled process RSS peak, GiB |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| BF16 | 1024 | 0.785269 → 0.725147 | 2.021128 | void | VOID | VOID | VOID |
+| FP8+Oracle | 1024 | 0.785269 → 0.725904 | 2.017052 | ok | 3957.657 | 2.729 / 3.270 | 3.559 |
+| BF16 | 4096 | 0.683164 → 0.672251 | 1.815725 | ok | 895.675 | 8.377 / 10.223 | 3.760 |
+| FP8+Oracle | 4096 | 0.683164 → 0.673061 | 1.817330 | ok | 1756.099 | 8.377 / 10.221 | 3.572 |
+
+RSS sampling is a lower bound; it can miss short peaks. CUDA values are allocator
+observations, not activation-only memory. No performance ratio involving the
+BF16 L1024 void block is admitted. These losses and adapter changes are training
+results, **not quality verdicts**. See [the complete matrix and archive identities](moonlight-resident-20261111t201548z/whole-machine-3/training-comparison.json).
