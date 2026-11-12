@@ -109,5 +109,17 @@
     "question": "Continue after a negative probe, stricter probe, or stop and delete",
     "user_choice": "Continue anyway, stop at the first refusal",
     "effect": "The probe is informational. HellaSwag now runs first in every adapter cell so a refusal appears early; any refused piece still stops the run, packages the evidence and lets the watchdog delete the host."
+  },
+  "known_limits_of_the_running_code": [
+    "The probe marker is overwritten by a bare timestamp; the probe result is in evidence/h2-profiler-probe.json and the driver log. Cosmetic; not changed on the live host.",
+    "A short HellaSwag piece (about 1000 forwards) does not test the long-process hypothesis: no piece gets near 3510 forwards. A pass avoids the observed failure without explaining it.",
+    "The initial-adapter hash check confirms the seed/PEFT/torch environment, not NF4 payload equality; payload equality remains unproven.",
+    "The Windows task runs only while the user is logged in; sleep on AC is disabled, a reboot or logoff stops supervision."
+  ],
+  "driver_snapshot_check": {
+    "live_sha256": "4d5c2378cd6e355a555eccb913a361b18e52cfc2a51faf84c416aea5cc64a0ad",
+    "committed_blob_sha256": "4d5c2378cd6e355a555eccb913a361b18e52cfc2a51faf84c416aea5cc64a0ad",
+    "equal": true,
+    "note": "repo text uses CRLF for these files; the bytes equal the running files"
   }
 }
