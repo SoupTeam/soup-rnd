@@ -83,7 +83,7 @@
     "moonlight_watchdog.py": "ccda30fd5309568b3f0d4c4181eec99704ae0ab6ec5d9bcd87f42412997e02b3",
     "README-user.md": "303883ee95664b22aac0223a8bc889342a1f403923c333a6a043540b52ae4209",
     "remote/cross_check.py": "1334e8bd217cfb1b7911f635c5a2918238acc0cf872e239f927afa39330e44e0",
-    "remote/driver.py": "430089b3f4b0b5e90671d06836b5870299b3ab24f8b0c88557d9a5c77c1f7fae",
+    "remote/driver.py": "4d5c2378cd6e355a555eccb913a361b18e52cfc2a51faf84c416aea5cc64a0ad",
     "remote/dry_admission.py": "782a6b3a3dc50777bb139adcec4a73bc4493b4bdfb0e8a13f6ade46822882158",
     "remote/launch_driver.sh": "b343fe53b99d3080df4d866077731cd368008acdc38163892490a38980bac4b6",
     "remote/moonlight_measured_entry.py": "bb6b6c530103fe4117509a8997e0b9dc94b35f85f0cba6cbc2bceee0d54dc745",
@@ -92,5 +92,22 @@
     "remote/quality_summary.py": "8803f8033fc1b2f15dd34fd663992354ce1379fdf9131429c68a7fbdfbaf16b4",
     "remote/restore_mtimes.py": "59c66d9a869a256459b1e6126614561e8dba2c8dd60bb174f1623b229920aa6c",
     "remote/setup.sh": "b64f14eaa03b6b43179e3ab023d5daf6b0770a4bdfcaab5f48fb3d18ea536e1d"
+  },
+  "recorded_utc_updated": "2026-11-12T08:27:38.818240+00:00",
+  "probe_result": {
+    "status": "NEGATIVE",
+    "cycles": 5000,
+    "first_empty_kernels_cycle": null,
+    "wall_seconds": 10.28,
+    "dtype": "torch.bfloat16",
+    "torch": "2.11.0+cu130",
+    "limits_of_the_probe": "No model, one attention call per cycle, about 2 ms per profiler session, so it did not run the evaluator conditions (resident NF4 model, 27 attention calls per forward, LoRA, 3270 s wall time). It does not show that the real evaluator would not refuse.",
+    "driver_stopped_as_designed": "The driver refused with PROBE_NOT_REPRODUCED at 08:21:39 UTC, before any weights were downloaded."
+  },
+  "user_waiver_probe_gate": {
+    "asked_utc": "2026-11-12T08:25Z (approx.)",
+    "question": "Continue after a negative probe, stricter probe, or stop and delete",
+    "user_choice": "Continue anyway, stop at the first refusal",
+    "effect": "The probe is informational. HellaSwag now runs first in every adapter cell so a refusal appears early; any refused piece still stops the run, packages the evidence and lets the watchdog delete the host."
   }
 }

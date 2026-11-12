@@ -65,13 +65,13 @@ ADAPTER_MANIFEST_SHA256 = {
 # (= forwards) after which the earlier HellaSwag runs refused. ARC runs whole (1381, the
 # size that already completed and that the reused BF16 L1024 shard used, so batch
 # composition stays identical for that pair). Exact counts are verified by plan_shards.py.
-SHARDS = {
+SHARDS = {  # HellaSwag first: it is the endpoint that failed, so a refusal shows up early
+    "hellaswag": [(start, start + 600) for start in range(0, 9000, 600)],
     "boolq": [(0, 3270)],
     "lambada": [(0, 5153)],
     "mbpp": [(0, 494)],
     "arc": [(0, 3548)],
     "gsm8k": [(0, 644), (644, 1288)],
-    "hellaswag": [(start, start + 600) for start in range(0, 9000, 600)],
 }
 FORWARD_LIMIT = 1400
 # Completed COMPLETE shards from the first host under the same protocol; uploaded, not rerun.
@@ -237,9 +237,14 @@ def step_probe() -> None:
         raise Failed("profiler probe did not complete")
     value = json.loads(result.read_text())
     first = value["first_empty_kernels_cycle"]
+    # User decision 2026-11-12: a probe that does not reproduce is information, not a gate. The
+    # toy loop (no model, one attention call per cycle, ~2 ms per session) does not run the
+    # evaluator's real conditions. The first real HellaSwag piece is the test; a refused piece
+    # stops the run. A reproduction BELOW twice the piece size would still refuse here.
     if first is None:
-        raise Failed("PROBE_NOT_REPRODUCED: kernel names never went empty; "
-                     "sharding is not justified")
+        log("PROBE_NOT_REPRODUCED: informational only (user decision); continuing")
+        mark("probe", {**value, "gate": "informational"})
+        return
     if first < 2 * MAX_SESSIONS_PER_PROCESS:
         raise Failed(f"PROBE_LIMIT_TOO_LOW: first empty cycle {first}")
     mark("probe", value)
