@@ -722,10 +722,11 @@ class StreamingSetupMixin:
         # fail on the Ampere card every published measurement came from.
         dtype = resolve_stream_dtype(str(self.device))
         auto_k = getattr(tcfg, "l2l_auto_k", False)
-        if auto_k:
-            expected = "bfloat16" if on_cuda else "float32"
-            if dtype != expected or not (on_cuda or str(self.device) == "cpu"):
-                raise ValueError("training.l2l_auto_k requires CPU FP32 or CUDA BF16 streaming")
+        if auto_k and not (
+            (on_cuda and dtype == "bfloat16")
+            or (str(self.device) == "cpu" and dtype == "float32")
+        ):
+            raise ValueError("training.l2l_auto_k requires CPU FP32 or CUDA BF16 streaming")
 
         # v0.72.2 — NF4. The decoder linears ship as packed nibbles + per-block
         # absmax, so the RAM store is ~0.26x its bf16 size; embeddings, norms and
