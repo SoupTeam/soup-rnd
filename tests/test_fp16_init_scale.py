@@ -80,10 +80,9 @@ def test_replaces_the_scaler_with_the_start_scale_and_keeps_its_policy(monkeypat
                     "backoff_factor": 0.25, "growth_interval": 7, "enabled": True}
 
 
+@pytest.mark.gpu(reason="GradScaler.get_scale needs CUDA")
 def test_real_scaler_starts_at_the_given_scale():
     torch = pytest.importorskip("torch")
-    if not torch.cuda.is_available():
-        pytest.skip("GradScaler.get_scale needs CUDA")
     from soup_cli.utils.mixed_precision import apply_fp16_init_scale
 
     trainer = _trainer(torch.amp.GradScaler("cuda"))
