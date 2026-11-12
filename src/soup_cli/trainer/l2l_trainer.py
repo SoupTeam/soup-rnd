@@ -718,7 +718,13 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                 )
             state.steps += 1
             state.totals.add(counters)
-            return torch.stack(losses).sum().to(self.args.device)
+            total = torch.stack(losses).sum().to(self.args.device)
+            if distributed and getattr(self.args, "average_tokens_across_devices", False):
+                # Each rank's losses are its share of the global token mean; HF averages
+                # the returned loss over ranks for the log, as it does after scaling the
+                # ordinary step's loss by the process count.
+                total = total * distributed_world_size()
+            return total
 
         def log(self, logs, *args, **kwargs):  # type: ignore[override]
             state = self._soup_l2l
