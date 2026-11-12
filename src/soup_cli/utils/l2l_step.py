@@ -745,7 +745,13 @@ class L2LStep:
         import torch
 
         from soup_cli.utils import l2l_rng
-        from soup_cli.utils.l2l_split import DeviceReplica, assign, to_device
+        from soup_cli.utils.l2l_split import (
+            DeviceReplica,
+            Transfers,
+            assign,
+            copy_weights,
+            to_device,
+        )
 
         k = len(micro_batches)
         if k < 1:
@@ -792,6 +798,8 @@ class L2LStep:
             replica.refresh()
         main = micro_batches[0].device
         owner_of = assign(k, 1 + len(replicas))
+        used = sorted(set(owner_of) - {0})
+        xfer = Transfers(main, [replicas[d - 1].device for d in used])
         # Each extra device's copy of every micro-batch's layer arguments, once per step.
         moved_calls: Dict[Tuple[int, int, str], Tuple[Any, Any]] = {}
 
@@ -803,15 +811,49 @@ class L2LStep:
                 moved_calls[key] = to_device(calls[mb].for_layer(idx), replica.device)
             return moved_calls[key]
 
+        # Layer -> {device: WeightCopy}, copied ahead while the previous layer computes.
+        ahead: Dict[int, Dict[int, Any]] = {}
+
+        def copy_layer(idx: int, layer: Any, buffers: Any, ready: Any) -> Dict[int, Any]:
+            return {d: copy_weights(xfer, buffers, replicas[d - 1].device, ready) for d in used}
+
+        def prefetch(idx: int) -> None:
+            # The next layer in walk order, once the prefetcher has queued it into the pool.
+            if not xfer.enabled or not used or not 0 <= idx < len(self.layers) or idx in ahead:
+                return
+            pool = self.layers[idx].pool
+            slot = pool.slot_for(idx)
+            if pool.owner[slot] != idx:
+                return
+            buffers = pool.buffers[slot]
+            ahead[idx] = copy_layer(idx, self.layers[idx], buffers, pool.events[slot])
+
         def load(idx: int, layer: Any) -> Dict[int, Any]:
-            # The layer's pool slot, and its weights copied to every extra device that has a
-            # micro-batch, before either device's compute for this layer is issued.
+            # The layer's pool slot, and its weights on every extra device that has a
+            # micro-batch. Without overlap they are copied here, before either device's
+            # compute for this layer is issued (a cross-device copy waits on both).
             buffers = layer.pool.wait(layer.idx)
             layer.prefetcher.advance(layer.idx)
-            return {
-                d: replicas[d - 1].weights(idx, layer, buffers)
-                for d in sorted(set(owner_of)) if d
-            }
+            copies = ahead.pop(idx, None)
+            if copies is None:
+                ready = None
+                if xfer.enabled:
+                    ready = torch.cuda.Event()
+                    ready.record(torch.cuda.current_stream(main))
+                copies = copy_layer(idx, layer, buffers, ready)
+            weights = {}
+            for d, copy in copies.items():
+                if copy.src_done is not None:
+                    # The slot is reloaded only after the main stream passes this point; the
+                    # device computes with the copy only once it has landed, and the
+                    # allocator keeps it until that compute is done.
+                    compute = torch.cuda.current_stream(replicas[d - 1].device)
+                    torch.cuda.current_stream(main).wait_event(copy.src_done)
+                    compute.wait_event(copy.dst_done)
+                    for tensor in copy.moved.values():
+                        tensor.record_stream(compute)
+                weights[d] = replicas[d - 1].weights(idx, layer, copy.moved)
+            return weights
 
         def run_layer(idx: int, layer: Any, weights: Dict[int, Any], mb: int, hidden: Any) -> Any:
             if owner_of[mb] == 0:
@@ -824,29 +866,39 @@ class L2LStep:
         def device_of(mb: int) -> Any:
             return main if owner_of[mb] == 0 else replicas[owner_of[mb] - 1].device
 
+        acts_main = xfer.side("acts", main)
+        # The store's copies of the extra devices' activations run on the main activation
+        # side stream, so the main compute stream does not wait for the other device.
+        on_acts = (lambda: torch.cuda.stream(acts_main)) if acts_main is not None else nullcontext
+
         self._prime(self.owner, ())
         with torch.no_grad():
             hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
-            hidden = [h.to(device_of(mb), non_blocking=True) for mb, h in enumerate(hidden)]
+            hidden = [xfer.act(h, device_of(mb)) for mb, h in enumerate(hidden)]
             for idx, layer in enumerate(self.layers):
                 weights = load(idx, layer)
                 for mb in range(k):
-                    store.put(idx, mb, hidden[mb].to(main, non_blocking=True))
+                    if owner_of[mb] == 0:
+                        store.put(idx, mb, hidden[mb])
+                    else:
+                        with on_acts():
+                            store.put(idx, mb, xfer.act(hidden[mb], main, acts_main))
                 for mb in range(k):
                     hidden[mb] = run_layer(idx, layer, weights, mb, hidden[mb])
                 weights = None
+                prefetch(idx + 1)
 
         losses: List[Any] = []
         grads: List[Any] = []
         for mb in range(k):
-            last = hidden[mb].to(main).detach().requires_grad_(True)
+            last = xfer.act(hidden[mb], main).detach().requires_grad_(True)
             hidden[mb] = None
             with torch.enable_grad():
                 loss = head(self.causal, self.owner, last, mb)
             with self._backward_context(micro_batches[mb]):
                 (loss if scaler is None else scaler.scale(loss)).backward()
             losses.append(loss.detach())
-            grads.append(last.grad.to(device_of(mb)))
+            grads.append(xfer.act(last.grad, device_of(mb)))
 
         # One micro-batch per device at a time: their graphs go to autograd together, so the
         # engine's per-device threads run the backwards in parallel.
@@ -862,9 +914,17 @@ class L2LStep:
         for idx in range(len(self.layers) - 1, -1, -1):
             layer = self.layers[idx]
             weights = load(idx, layer)
-            inputs = [
-                store.get(idx, mb).to(device_of(mb)).requires_grad_(True) for mb in range(k)
-            ]
+            inputs: List[Any] = []
+            for mb in range(k):
+                if owner_of[mb] == 0:
+                    inputs.append(store.get(idx, mb).requires_grad_(True))
+                else:
+                    # Read and sent from the side stream that read it: ``act`` orders the copy
+                    # after the work queued on the main device's current stream.
+                    with on_acts():
+                        moved = xfer.act(store.get(idx, mb), device_of(mb))
+                    inputs.append(moved.requires_grad_(True))
+            prefetch(idx - 1)
             saved = layer.use_checkpoint
             layer.use_checkpoint = False
             try:
@@ -879,6 +939,7 @@ class L2LStep:
             finally:
                 layer.use_checkpoint = saved
             weights = None
+        ahead.clear()
         store.end_step()
         for replica in replicas:
             replica.merge_grads()

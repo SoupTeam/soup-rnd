@@ -16,17 +16,24 @@ the compute splits, the reads do not double.
 * The replicas are refreshed from the adapters at every step and their gradients are added
   into the main adapters' ``.grad`` at its end, before the optimizer (and the GradScaler's
   unscale) sees them.
-* A cross-device copy in torch waits on both devices' streams, so every copy of a layer is
-  issued before either device's compute for it; the two devices then compute in parallel.
+* A cross-device copy in torch is a two-way barrier between the two devices' current streams.
+  :class:`Transfers` runs every copy on side streams instead and hands each result over with
+  an event, so a copy waits only for what it reads and blocks only what reads it: layer i+1
+  crosses to the extra devices while layer i computes, and the activations cross without
+  stalling the other device. ``SOUP_L2L_SPLIT_OVERLAP=0`` turns that off (copies on the
+  compute streams, issued when the layer starts), for an A/B against the overlap.
 """
 
 from __future__ import annotations
 
+import os
 from contextlib import nullcontext
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 #: Upper bound of ``training.l2l_split_gpus``.
 MAX_SPLIT_GPUS = 8
+#: ``0`` keeps every cross-device copy on the compute streams (no overlap); for experiments.
+OVERLAP_ENV = "SOUP_L2L_SPLIT_OVERLAP"
 
 
 def assign(k: int, n_devices: int) -> List[int]:
@@ -165,13 +172,12 @@ class DeviceReplica:
             self._codes[key] = codes
         return codes
 
-    def weights(self, idx: int, layer: Any, buffers: Dict[str, Any]) -> Dict[str, Any]:
-        """Layer ``idx``'s weights on this device: the pool's buffers copied over (NF4 ones
-        rebuilt as ``Params4bit`` views of the copies) plus the resident replicas."""
+    def weights(self, idx: int, layer: Any, moved: Dict[str, Any]) -> Dict[str, Any]:
+        """Layer ``idx``'s weights on this device: the pool's buffers already copied here
+        (:func:`copy_weights`; NF4 ones rebuilt as ``Params4bit`` views of the copies) plus
+        the resident replicas."""
         from soup_cli.utils.layer_stream_runtime import rebuild_params4bit
 
-        moved = {name: tensor.to(self.device, non_blocking=True)
-                 for name, tensor in buffers.items()}
         out: Dict[str, Any] = {}
         codes = self._codes_for(layer) if layer.quant_specs else {}
         for meta, ckpt in layer.name_map.items():
@@ -191,3 +197,103 @@ class DeviceReplica:
         with _device_context(self.device):
             out = functional_call(layer.inner, weights, (hidden, *args), kwargs)
         return out[0] if isinstance(out, tuple) else out
+
+
+def overlap_enabled(main: Any) -> bool:
+    """Side-stream copies: on CUDA, unless ``SOUP_L2L_SPLIT_OVERLAP=0``."""
+    import torch
+
+    return torch.device(main).type == "cuda" and os.environ.get(OVERLAP_ENV, "1") != "0"
+
+
+class Transfers:
+    """Cross-device copies on side streams, handed over with events.
+
+    Two side streams per device, one for weights and one for activations, so a weight
+    prefetch never queues behind an activation that waits for the other device. Without
+    overlap (CPU, or ``SOUP_L2L_SPLIT_OVERLAP=0``) every method is the plain ``.to``.
+    """
+
+    def __init__(self, main: Any, devices: Sequence[Any]) -> None:
+        import torch
+
+        self.main = torch.device(main)
+        self.enabled = overlap_enabled(self.main)
+        self._side: Dict[Tuple[str, Any], Any] = {}
+        if self.enabled:
+            for dev in (self.main, *[torch.device(d) for d in devices]):
+                for purpose in ("weights", "acts"):
+                    self._side[(purpose, dev)] = torch.cuda.Stream(dev)
+
+    def side(self, purpose: str, device: Any) -> Any:
+        """The side stream of ``purpose`` on ``device`` (None without overlap)."""
+        import torch
+
+        return self._side.get((purpose, torch.device(device)))
+
+    def _copy(self, tensor: Any, dst: Any, purpose: str, ready: Any) -> Tuple[Any, Any, Any]:
+        """Copy ``tensor`` to ``dst`` on the side streams after ``ready`` (an event on the
+        source device). Returns (copy, done-on-source event, done-on-destination event)."""
+        import torch
+
+        s_src, s_dst = self.side(purpose, tensor.device), self.side(purpose, dst)
+        if ready is not None:
+            s_src.wait_event(ready)
+        with torch.cuda.stream(s_src), torch.cuda.stream(s_dst):
+            out = tensor.to(dst, non_blocking=True)
+            src_done = torch.cuda.Event()
+            src_done.record(s_src)
+            dst_done = torch.cuda.Event()
+            dst_done.record(s_dst)
+        tensor.record_stream(s_src)
+        return out, src_done, dst_done
+
+    def act(self, tensor: Any, dst: Any, consumer: Optional[Any] = None) -> Any:
+        """``tensor`` on ``dst``, ready for ``consumer`` (default: ``dst``'s current stream).
+
+        The copy waits for the work queued so far on the source's current stream, which is
+        what produced ``tensor``; nothing else on either device waits for it."""
+        import torch
+
+        dst = torch.device(dst)
+        if not self.enabled or tensor.device == dst:
+            return tensor.to(dst, non_blocking=True)
+        ready = torch.cuda.Event()
+        ready.record(torch.cuda.current_stream(tensor.device))
+        out, _src_done, dst_done = self._copy(tensor, dst, "acts", ready)
+        consumer = consumer if consumer is not None else torch.cuda.current_stream(dst)
+        consumer.wait_event(dst_done)
+        out.record_stream(consumer)
+        return out
+
+
+class WeightCopy:
+    """One layer's pool buffers on one extra device, and when the copy is done."""
+
+    def __init__(self, moved: Dict[str, Any], src_done: Any = None, dst_done: Any = None) -> None:
+        self.moved = moved
+        self.src_done = src_done
+        self.dst_done = dst_done
+
+
+def copy_weights(
+    transfers: Transfers, buffers: Dict[str, Any], device: Any, ready: Any = None
+) -> WeightCopy:
+    """The pool buffers of a layer copied to ``device``.
+
+    With overlap the copies run on the weight side streams after ``ready`` (the pool slot's
+    load event); the caller makes the main compute stream wait ``src_done`` before the slot
+    can be reloaded and the device's compute stream wait ``dst_done`` before using it."""
+    import torch
+
+    if not transfers.enabled:
+        return WeightCopy({n: t.to(device, non_blocking=True) for n, t in buffers.items()})
+    moved: Dict[str, Any] = {}
+    src_done = dst_done = None
+    s_src = transfers.side("weights", transfers.main)
+    if ready is not None:
+        s_src.wait_event(ready)
+    for name, tensor in buffers.items():
+        moved[name], src_done, dst_done = transfers._copy(tensor, torch.device(device),
+                                                          "weights", None)
+    return WeightCopy(moved, src_done, dst_done)

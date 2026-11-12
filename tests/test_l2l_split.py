@@ -292,3 +292,25 @@ def test_trainer_state_builds_a_split_step(qwen35_streamed):
     state.has_dropout = False
     stepper, _calls = _l2l_step_for(state, model, _micro_batches(2))
     assert stepper.split_devices == ("cpu",)
+
+
+def test_overlap_is_cuda_only_and_can_be_turned_off(monkeypatch):
+    from soup_cli.utils.l2l_split import OVERLAP_ENV, Transfers, overlap_enabled
+
+    assert not overlap_enabled("cpu")
+    assert overlap_enabled("cuda:0")
+    monkeypatch.setenv(OVERLAP_ENV, "0")
+    assert not overlap_enabled("cuda:0")
+    xfer = Transfers("cpu", ["cpu"])
+    assert not xfer.enabled and xfer.side("acts", "cpu") is None
+
+
+def test_weight_copy_without_overlap_is_a_plain_copy():
+    import torch
+
+    from soup_cli.utils.l2l_split import Transfers, copy_weights
+
+    buffers = {"w": torch.arange(4.0)}
+    copy = copy_weights(Transfers("cpu", ["cpu"]), buffers, "cpu")
+    assert torch.equal(copy.moved["w"], buffers["w"])
+    assert copy.src_done is None and copy.dst_done is None
