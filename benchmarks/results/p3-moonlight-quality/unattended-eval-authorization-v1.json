@@ -1,0 +1,96 @@
+{
+  "schema": "p3-moonlight-unattended-eval-authorization-v1",
+  "recorded_utc": "2026-11-12T08:22:06.695236+00:00",
+  "user_decisions": {
+    "plan": "Full study, same protocol, cap $30 (user chose this option in answer to the plan-change question)",
+    "pc_stays_on": "Yes: a local watchdog (Windows scheduled task) supervises, downloads and closes",
+    "agent_budget": "The user has no agent limit for roughly the next 20 hours and asked for an unattended run with a status command and a way to download results afterwards",
+    "rental_approval": "The user approved the rental and asked for Sonnet reviews of the code before it"
+  },
+  "limits": {
+    "total_usd": 30,
+    "watchdog_stop_request_usd": 29.0,
+    "watchdog_hard_cap_usd": 29.8,
+    "original_deadline_utc": "2026-11-13T18:15:48.490959+00:00",
+    "extended_deadline_stated_to_user_utc": "2026-11-13T22:00:00+00:00",
+    "watchdog_no_new_scoring_after_utc": "2026-11-13T20:30:00+00:00",
+    "watchdog_stop_request_utc": "2026-11-13T21:00:00+00:00",
+    "watchdog_hard_close_utc": "2026-11-13T21:45:00+00:00",
+    "prior_spend_usd_assumed": 7.44,
+    "hourly_usd_assumed": 0.62,
+    "traffic_usd_assumed": 0.6
+  },
+  "scientific_protocol": {
+    "protocol_sha256": "d22871c398d29e25c614129a1a084903fbc0dce09a5bb5d2659c08d9102b2f82",
+    "changed": false,
+    "adapters_manifest_sha256": {
+      "bf16_l2l-L1024": "7f78f7020e4ec3f5e1a5a51c3f722ed664dac197cf727fbdfc51fca012edbd9c",
+      "oracle_block64_e4m3-L1024": "aee6c2dfadeeaa93587b2522608b52b48356829f2a8ec99300c1a43b214c2aec",
+      "bf16_l2l-L4096": "968a8b2198bd90c7b90634fe2895b527e27b950d7adb3adc6522c66510a2e187",
+      "oracle_block64_e4m3-L4096": "86e07e75df5f2ed8e17fa7fca1e39da0b5154bb85ace8de51a109836633110ed"
+    },
+    "hellaswag_prefix": 9000,
+    "endpoints": [
+      "hellaswag",
+      "arc",
+      "boolq",
+      "lambada",
+      "gsm8k",
+      "mbpp"
+    ],
+    "lengths": [
+      1024,
+      4096
+    ]
+  },
+  "deviation_from_frozen_layout": {
+    "what": "Each endpoint runs as contiguous --start/--stop pieces, each in a fresh process (84 pieces: HellaSwag 15x600, GSM8K 2x644, others whole). The protocol shards field is not read by any admission or pairing code; protocol hash and scoring are unchanged.",
+    "why": "The earlier HellaSwag scoring refused on three adapters after about 3510 per-forward torch.profiler sessions in one process. The cause is consistent with a per-process session limit but not proven.",
+    "guards": [
+      "driver probe reproduces the empty-kernel-name condition before any weights are downloaded and refuses if it does not appear before 2800 cycles",
+      "exact CPU forward count per piece must be at most 1400 (plan step)",
+      "a refused piece is never retried; the run stops and packages its evidence"
+    ]
+  },
+  "reuse_and_fallback": {
+    "reused_from_first_host": [
+      "bf16_l2l L1024 arc 0-3548",
+      "bf16_l2l L1024 boolq 0-3270"
+    ],
+    "fallback": "After the first new piece (oracle L1024 BoolQ) a CPU check pairs it with the old BoolQ piece. If it cannot pair, the two old pieces are moved aside and scored again on this host."
+  },
+  "identity_restoration": "The 27 shard mtime_ns values are restored from the frozen protocol between download and convert; a dry admission with the resident evaluator and all four adapters must pass before any scoring.",
+  "workstation_deviation": "Runbook line 38 forbids a watchdog/automatic deleter; the user explicitly asked for an unattended run and approved it. The watchdog only touches the recorded instance and volume.",
+  "private_backup": "Kaggle credential refused; results are downloaded to the workstation instead",
+  "resources": {
+    "instance_id": 60329118,
+    "volume_id": 60329113,
+    "machine_id": 140544,
+    "gpu": "RTX 4090",
+    "image": "ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d",
+    "created_utc": "2026-11-12T08:14:18.963947+00:00"
+  },
+  "reviews": [
+    "IdentityReview (Claude Sonnet 5.5)",
+    "ShardPairReview (Claude Sonnet 5.5)",
+    "DriverReview (Claude Sonnet 5.5)",
+    "WatchdogReview (Claude Sonnet 5.5)"
+  ],
+  "smoke_evidence": "watchdog destroy() was run against a real 1 GB throwaway volume and verified absent; driver success/failure/STOP/crash/packaging-failure/lock paths and every watchdog tick branch were exercised with stubs; none of this ran on the host",
+  "first_launch_failure": "setup.sh failed after 22 s because the venv python3 on PATH has no uv; fixed by calling /usr/bin/python3 explicitly; the watchdog task was disabled during the repair, setup was relaunched, no scientific command had run",
+  "code_sha256": {
+    "launch.py": "6d1853cd1cabe1899aa5895d14c437896d732295346a04f2f7fb06a8b8b1016a",
+    "moonlight_watchdog.py": "ccda30fd5309568b3f0d4c4181eec99704ae0ab6ec5d9bcd87f42412997e02b3",
+    "README-user.md": "303883ee95664b22aac0223a8bc889342a1f403923c333a6a043540b52ae4209",
+    "remote/cross_check.py": "1334e8bd217cfb1b7911f635c5a2918238acc0cf872e239f927afa39330e44e0",
+    "remote/driver.py": "430089b3f4b0b5e90671d06836b5870299b3ab24f8b0c88557d9a5c77c1f7fae",
+    "remote/dry_admission.py": "782a6b3a3dc50777bb139adcec4a73bc4493b4bdfb0e8a13f6ade46822882158",
+    "remote/launch_driver.sh": "b343fe53b99d3080df4d866077731cd368008acdc38163892490a38980bac4b6",
+    "remote/moonlight_measured_entry.py": "bb6b6c530103fe4117509a8997e0b9dc94b35f85f0cba6cbc2bceee0d54dc745",
+    "remote/plan_shards.py": "20256f792272b8efed2af0f30b8e931ee52377ce8956190abb601162df723078",
+    "remote/profiler_session_probe.py": "57684c05b5ec94171faed7135218240c4e374d447d76e847515e610e1a19cb98",
+    "remote/quality_summary.py": "8803f8033fc1b2f15dd34fd663992354ce1379fdf9131429c68a7fbdfbaf16b4",
+    "remote/restore_mtimes.py": "59c66d9a869a256459b1e6126614561e8dba2c8dd60bb174f1623b229920aa6c",
+    "remote/setup.sh": "b64f14eaa03b6b43179e3ab023d5daf6b0770a4bdfcaab5f48fb3d18ea536e1d"
+  }
+}

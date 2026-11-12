@@ -2,7 +2,7 @@
 
 ## Execution authority
 
-Current authority is **USD 25 cumulative**, including previous charges, with a **USD 24 compute stop** and **USD 1 closeout reserve**. The original46-hour clock does not restart on host replacement. See the [resident-evaluator authorization](resident-evaluation-authorization-v1.json), [whole-machine amendment](whole-machine-authorization-v1.json) and [current plan](../../p3-moonlight-quality-plan.md). The third and final whole-machine attempt passed admission. The artifact-bound protocol retains both lengths and four64-step arms, reducing only the frozen HellaSwag prefix to9000. Earlier USD15/USD1 preparation records below are historical, not current permission.
+Current authority is **USD 30 cumulative**, including previous charges, for one more unattended whole-machine evaluation on machine140544; see the [unattended-evaluation authorization](unattended-eval-authorization-v1.json), which records the user's answers, the watchdog limits (stop request at $29, deletion at $29.8, no new scoring after 2026-11-13 20:30 UTC) and the unchanged protocol `d22871c3…`. The earlier $25 records below are historical. Earlier USD15/USD1 preparation records are not current permission.
 
 Work is on `research/p3-moonlight-quality`, based on the current reviewed parent `8bc5826d370b349993e790dcc7643aa7f4b489d4`. PR #61 and its branch are unchanged. The plan's older parenthetical `e6fa7136` predates the retained download/review fixes.
 
@@ -22,11 +22,11 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Native source/cache/shared initializer | **PASS**: all 27 shards; NF4/noDQ/per-expert cache; one exported initial adapter; session closed |
 | CUDA technical smoke | **COMPLETE** on RTX4090; qualification fixture only, not Moonlight quality or historical tiny E3 |
 | Native resource measurements | **COMPLETE** on machine140544: four no-update training windows and resident dev measurements with valid F1; no timings transferred from another GPU |
-| Moonlight quality, gated verdict | **NOT REACHED: evaluator defect.** HellaSwag scoring refused on 3 of 3 adapters after ~3510 profiler cycles; no valid pair at either length. Not a degradation verdict |
-| Moonlight quality, statistical verdict | **NOT REACHED**; same cause. No subset replaces the frozen study |
+| Moonlight quality, gated verdict | **RUNNING, not reached**: the first run was blocked by an evaluator defect (HellaSwag refused on 3 of 3 adapters after about 3510 profiler cycles). A second, unattended evaluation of all four adapters is in progress with smaller pieces. Not a degradation verdict |
+| Moonlight quality, statistical verdict | **RUNNING, not reached**; no subset replaces the frozen study |
 | Moonlight numerical gate | **PASS, 6/6**; complete raw closure independently readmitted and exported |
 | Per-step training loss and adapter-change norm | **4/4 independent64-step arms complete**, all archives verified; BF16 L1024 timing VOID, other three blocks F1 ok |
-| Moonlight paid resources and charges | **USD7.189 posted at2026-11-12T07:18UTC**, billing may lag; instance60261779 and volume60261770 deleted and verified absent; all owned resources absent |
+| Moonlight paid resources and charges | First host: **USD7.189 posted** by 2026-11-12T07:18UTC, deleted and verified absent. Second host (instance60329118, volume60329113) was created at 08:14UTC and is **active**; the watchdog closes it after the results download. Charges there are not yet posted |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
