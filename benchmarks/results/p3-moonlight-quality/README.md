@@ -22,8 +22,8 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Native source/cache/shared initializer | **PASS**: all 27 shards; NF4/noDQ/per-expert cache; one exported initial adapter; session closed |
 | CUDA technical smoke | **COMPLETE** on RTX4090; qualification fixture only, not Moonlight quality or historical tiny E3 |
 | Native resource measurements | **COMPLETE** on machine140544: four no-update training windows and resident dev measurements with valid F1; no timings transferred from another GPU |
-| Moonlight quality, gated verdict | **PENDING**: frozen study upper$24.5827 within$25; no quality result yet |
-| Moonlight quality, statistical verdict | **PENDING** |
+| Moonlight quality, gated verdict | **BLOCKED: incomplete frozen coverage** after BF16 L1024 HellaSwag technical failure; not a degradation verdict |
+| Moonlight quality, statistical verdict | **BLOCKED: incomplete frozen coverage**; remaining independent arms continue, no subset replaces the study |
 | Moonlight numerical gate | **PASS, 6/6**; complete raw closure independently readmitted and exported |
 | Per-step training loss and adapter-change norm | **4/4 independent64-step arms complete**, all archives verified; BF16 L1024 timing VOID, other three blocks F1 ok |
 | Moonlight paid resources and charges | **USD4.041 posted at2026-11-12T02:08UTC**, billing may lag; instance60261779 and volume60261770 active for frozen quality evaluation |
@@ -377,3 +377,32 @@ RSS sampling is a lower bound; it can miss short peaks. CUDA values are allocato
 observations, not activation-only memory. No performance ratio involving the
 BF16 L1024 void block is admitted. These losses and adapter changes are training
 results, **not quality verdicts**. See [the complete matrix and archive identities](moonlight-resident-20261111t201548z/whole-machine-3/training-comparison.json).
+
+### Frozen evaluation: BF16 L1024 technical stop
+
+ARC3548 and BoolQ3270 completed and were fully exported with payload hashes verified.
+ARC's timing block is VOID (6,336,720,896 unattributed NVMe read bytes); BoolQ's
+F1 checks were all `ok`. Neither endpoint alone supplies a quality comparison.
+
+The frozen HellaSwag9000 shard then failed during scoring:
+`ValueError: attention forward lacks executed operators/CUDA kernel names`.
+The unchanged attention admission guard refused absent/invalid executed-forward
+operator or CUDA-kernel evidence. The underlying profiler cause is not established.
+A profiler-cycle event-clearing warning is retained in the log, not asserted to be
+the cause. No fallback, profiler change, threshold change or retry was applied.
+
+The failed archive preserves3510 completed raw batch records, the incomplete
+manifest, process log and cleanup/F1 receipts. It has no completed task-result shard.
+SHA256:`594a2f8023b3781ef7dbc537e5a32092af1fdff3b376b07d56cf991417b2b473`.
+Its timing block is also VOID. All resident ownership cleanup checks passed.
+
+The affected BF16 L1024 evaluation stops; the L1024 pair is invalid and the frozen
+whole-study gated/statistical decisions are blocked by incomplete coverage.
+Other independent adapters continue, starting with HellaSwag for FP8+Oracle L1024.
+The frozen matrix is not narrowed and no partial prefix or pair will be presented
+as its result. All four training completions and diagnostic gate PASS remain
+separate facts. See the [preserved technical-failure receipt](moonlight-resident-20261111t201548z/whole-machine-3/eval-bf16_l2l-L1024-hellaswag-0-9000-failure.json).
+
+Full verified archives and the exact executed source overlay are also retained
+outside temporary storage at
+`C:\Users\sydyk\Downloads\moonlight-quality-evidence-20261111-whole3`.
