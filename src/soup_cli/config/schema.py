@@ -3362,6 +3362,29 @@ class TrainingConfig(BaseModel):
             "Overrides manual --bf16 / --fp16 trainer flags."
         ),
     )
+    fp16_init_scale: Optional[int] = Field(
+        default=None,
+        description=(
+            "Starting loss scale of the fp16 GradScaler, a power of two from 1 to 65536 "
+            "(unset: torch's 65536). The scaler halves on every step whose gradients "
+            "overflow and skips that step, so a model that overflows well below 65536 "
+            "trains only after several skipped steps: Qwen3.5 / Qwen3.8 on a T4 overflow "
+            "in the first Gated DeltaNet layer from 1024, which skips ~7 steps; 256 trains "
+            "from the first step. task='sft' with the transformers backend only; ignored "
+            "(with a note) when the run is not fp16."
+        ),
+    )
+    @field_validator("fp16_init_scale")
+    @classmethod
+    def _validate_fp16_init_scale(cls, value: Optional[int]) -> Optional[int]:
+        if value is None:
+            return value
+        if value < 1 or value > 65536 or value & (value - 1):
+            raise ValueError(
+                f"training.fp16_init_scale must be a power of two from 1 to 65536, got {value}"
+            )
+        return value
+
     # Live grad-accum monitoring (v0.32.0 Part B)
     grad_accum_auto_tune: bool = Field(
         default=False,
@@ -8255,6 +8278,20 @@ class SoupConfig(BaseModel):
             "'tts', which trains through the SFT trainer) freezes layers, so this run "
             f"would train every layer. Use task: sft, or remove {keys}."
         )
+
+    @model_validator(mode="after")
+    def _validate_fp16_init_scale_task(self) -> "SoupConfig":
+        """ZERO — ``training.fp16_init_scale`` is applied by the transformers SFT wrapper
+        only; elsewhere it would be accepted and never reach the scaler."""
+        if self.training.fp16_init_scale is None:
+            return self
+        if self.task != "sft" or self.backend != "transformers":
+            raise ValueError(
+                "training.fp16_init_scale is applied only with task='sft' and "
+                f"backend='transformers' (got task={self.task!r}, backend={self.backend!r}); "
+                "drop it here."
+            )
+        return self
 
     @model_validator(mode="after")
     def _validate_unsloth_has_a_setup(self) -> "SoupConfig":

@@ -1297,6 +1297,18 @@ class SFTTrainerWrapper(StreamingSetupMixin):
 
             attach_empty_param_group_guard(self.trainer)
 
+        if tcfg.fp16_init_scale is not None:
+            from soup_cli.utils.mixed_precision import apply_fp16_init_scale
+
+            if apply_fp16_init_scale(self.trainer, tcfg.fp16_init_scale):
+                console.print(
+                    f"[green]fp16 GradScaler:[/] starts at {tcfg.fp16_init_scale}"
+                )
+            else:
+                console.print(
+                    "[yellow]training.fp16_init_scale ignored:[/] this run is not fp16"
+                )
+
         self._output_dir = str(output_dir)
         self._batch_size = batch_size
 
