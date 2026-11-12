@@ -22,11 +22,11 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Native source/cache/shared initializer | **PASS**: all 27 shards; NF4/noDQ/per-expert cache; one exported initial adapter; session closed |
 | CUDA technical smoke | **COMPLETE** on RTX4090; qualification fixture only, not Moonlight quality or historical tiny E3 |
 | Native resource measurements | **COMPLETE** on machine140544: four no-update training windows and resident dev measurements with valid F1; no timings transferred from another GPU |
-| Moonlight quality, gated verdict | **BLOCKED: incomplete frozen coverage** after BF16 L1024 HellaSwag technical failure; not a degradation verdict |
-| Moonlight quality, statistical verdict | **BLOCKED: incomplete frozen coverage**; remaining independent arms continue, no subset replaces the study |
+| Moonlight quality, gated verdict | **NOT REACHED: evaluator defect.** HellaSwag scoring refused on 3 of 3 adapters after ~3510 profiler cycles; no valid pair at either length. Not a degradation verdict |
+| Moonlight quality, statistical verdict | **NOT REACHED**; same cause. No subset replaces the frozen study |
 | Moonlight numerical gate | **PASS, 6/6**; complete raw closure independently readmitted and exported |
 | Per-step training loss and adapter-change norm | **4/4 independent64-step arms complete**, all archives verified; BF16 L1024 timing VOID, other three blocks F1 ok |
-| Moonlight paid resources and charges | **USD4.041 posted at2026-11-12T02:08UTC**, billing may lag; instance60261779 and volume60261770 active for frozen quality evaluation |
+| Moonlight paid resources and charges | **USD7.189 posted at2026-11-12T07:18UTC**, billing may lag; instance60261779 and volume60261770 deleted and verified absent; all owned resources absent |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
@@ -331,7 +331,7 @@ E1 RMS/worst maxima0.0251101/0.0269059, E2 maximum0.0409753,
 E3 global relative L2 error0.0457640 and minimum cosine0.9921371.
 See the [raw-derived gate result](moonlight-resident-20261111t201548z/whole-machine-3/d-gate-result.json)
 and [export receipt](moonlight-resident-20261111t201548z/whole-machine-3/d-export.json).
-All four independent64-step arms have completed; frozen endpoint evaluation is running.
+All four independent64-step arms completed; frozen evaluation stopped on an evaluator defect (see final stop below).
 Tiny E3 remains **FAIL, 0.05028628354277727 > 0.05**.
 **DeepSeek-V3 671B: отложен**.
 
@@ -398,7 +398,7 @@ Its timing block is also VOID. All resident ownership cleanup checks passed.
 
 The affected BF16 L1024 evaluation stops; the L1024 pair is invalid and the frozen
 whole-study gated/statistical decisions are blocked by incomplete coverage.
-Other independent adapters continue, starting with HellaSwag for FP8+Oracle L1024.
+Other independent adapters were then evaluated without retries; see below.
 The frozen matrix is not narrowed and no partial prefix or pair will be presented
 as its result. All four training completions and diagnostic gate PASS remain
 separate facts. See the [preserved technical-failure receipt](moonlight-resident-20261111t201548z/whole-machine-3/eval-bf16_l2l-L1024-hellaswag-0-9000-failure.json).
@@ -406,3 +406,30 @@ separate facts. See the [preserved technical-failure receipt](moonlight-resident
 Full verified archives and the exact executed source overlay are also retained
 outside temporary storage at
 `C:\Users\sydyk\Downloads\moonlight-quality-evidence-20261111-whole3`.
+
+### Final stop: the same refusal three times, closeout
+
+FP8+Oracle L1024 and BF16 L4096 HellaSwag failed with the same error. The failures
+came at batch indices 3510 and 3510; BF16 L1024 failed at 3509. FP8+Oracle L4096
+and the remaining endpoints were not launched: no valid pair could be completed.
+
+All three failed batches have Q/K shape `[2,16,106,192]`. Each recorded the efficient-SDPA
+operators, but `cuda_kernel_names` was empty. In two runs, the immediately preceding
+batch had the **same shape** and recorded the native `fmha_cutlassF` kernel. The
+evaluator resets its attention observer per forward, so each batch opens a new
+`torch.profiler` session. All refusals fall after3509–3511 sessions in one process.
+Completed ARC used1381 sessions and BoolQ162. The refusal depends on that count,
+not on data, adapter or length. The CUPTI/Kineto-level mechanism is inferred, not proven.
+
+An evaluator change is required before any verdict: profile each signature once
+per process, or freeze smaller shards. Either needs user authorization; the second
+changes the protocol hash. No retry, guard relaxation or protocol change was made.
+[Root-cause record](moonlight-resident-20261111t201548z/whole-machine-3/hellaswag-attention-evidence-root-cause.json).
+
+The remaining remote evidence, excluding training checkpoints already archived per arm,
+was exported as1607 files and hash-verified locally. Archive SHA256:
+`cfcbd405588718dd3dcf3efa717080357672801e35e99ec6f72ec42db9c74d11`.
+Instance60261779 and volume60261770 were then deleted. All18 owned resource IDs
+across attempts were verified absent. See [closeout](moonlight-resident-20261111t201548z/whole-machine-3/resource-closeout.json).
+Posted cumulative charges:**USD7.189**, within the $25 limit; billing may lag.
+Tiny E3 remains **FAIL 0.05028628354277727 > 0.05**. **DeepSeek-V3 671B: отложен**.
