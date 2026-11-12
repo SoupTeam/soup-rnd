@@ -214,13 +214,145 @@ def test_shard_cache_lock_serialises_ranks(monkeypatch, tmp_path):
     assert overlap == [1, 1]
 
 
-def test_l2l_is_refused_in_a_distributed_launch(monkeypatch):
+def test_l2l_is_admitted_in_a_distributed_launch(monkeypatch):
+    """The window's gradients are summed across ranks by the trainer, so a data-parallel
+    launch no longer refuses training.l2l; several GPUs without a launcher still do."""
     from types import SimpleNamespace
 
     from soup_cli.trainer.l2l_trainer import refuse_unsupported_l2l
 
     monkeypatch.setenv("WORLD_SIZE", "2")
-    with pytest.raises(ValueError, match="distributed launch"):
-        refuse_unsupported_l2l(SimpleNamespace(model_type="llama"), n_gpu=1)
-    monkeypatch.setenv("WORLD_SIZE", "1")
     refuse_unsupported_l2l(SimpleNamespace(model_type="llama"), n_gpu=1)
+    with pytest.raises(ValueError, match="2 GPU"):
+        refuse_unsupported_l2l(SimpleNamespace(model_type="llama"), n_gpu=2)
+
+
+# --------------------------------------------------------------------------
+# training.l2l under a data-parallel launch: each rank runs its share of the window
+# layer-major, then the adapter gradients are summed across ranks (the head divides by
+# the global label count, as HF's num_items_in_batch is under average_tokens_across_devices).
+# --------------------------------------------------------------------------
+def _llama_streamed(tmp):
+    import pathlib
+
+    import torch
+    from peft import LoraConfig, TaskType
+    from safetensors.torch import save_file
+    from transformers import AutoConfig, AutoModelForCausalLM
+
+    from soup_cli.utils.layer_shard import shard_checkpoint
+    from soup_cli.utils.layer_stream_runtime import build_streamed_model
+
+    torch.manual_seed(11)
+    config = AutoConfig.for_model(
+        "llama", vocab_size=64, hidden_size=32, intermediate_size=64, num_hidden_layers=3,
+        num_attention_heads=4, num_key_value_heads=2, tie_word_embeddings=False,
+        max_position_embeddings=64,
+    )
+    model = AutoModelForCausalLM.from_config(config).to(torch.float32).eval()
+    weights = pathlib.Path(tmp) / "model"
+    weights.mkdir(parents=True, exist_ok=True)
+    save_file({k: v.contiguous() for k, v in model.state_dict().items()},
+              str(weights / "model.safetensors"))
+    config.save_pretrained(str(weights))
+    shards = os.path.join(tmp, "shards")
+    index = shard_checkpoint(str(weights), shards, dtype="float32", arch="llama")
+    lora = LoraConfig(r=4, lora_alpha=8, lora_dropout=0.0, bias="none",
+                      target_modules=["q_proj", "v_proj", "down_proj"],
+                      task_type=TaskType.CAUSAL_LM)
+    streamed, runtime = build_streamed_model(
+        model_id=str(weights), shard_dir=shards, index=index, lora_config=lora,
+        device="cpu", dtype="float32", buffers=2, pin=False, seed=3,
+    )
+    gen = torch.Generator().manual_seed(23)
+    with torch.no_grad():
+        for name, param in sorted(streamed.named_parameters()):
+            if "lora_B" in name:
+                param.copy_(torch.randn(param.shape, generator=gen) * 0.02)
+    return streamed, runtime
+
+
+def _l2l_window(model, runtime, mbs, n_items):
+    import torch
+
+    from soup_cli.utils.l2l_activations import ActivationStore
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call, sft_head
+
+    store = ActivationStore(n_layers=3, k=len(mbs), chunk_shape=(1, 8, 32),
+                            dtype=torch.float32, device="cpu", pin=False)
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    return step.run(mbs, store, head=sft_head(mbs, n_items))
+
+
+def _l2l_rank(rank, world, tmp, port):
+    import torch
+    import torch.distributed as dist
+
+    from soup_cli.trainer.l2l_trainer import all_reduce_adapter_grads
+
+    os.environ.update(MASTER_ADDR="127.0.0.1", MASTER_PORT=str(port))
+    dist.init_process_group("gloo", rank=rank, world_size=world)
+    try:
+        model, runtime = _llama_streamed(os.path.join(tmp, f"rank{rank}"))
+        batch = _batch(2 * world)
+        total = sum(ids.shape[1] - 1 for ids in batch)
+        _l2l_window(model, runtime, batch[rank::world], total)
+        reduced = all_reduce_adapter_grads(model, average=False)
+        grads = {n: p.grad.detach().clone() for n, p in model.named_parameters() if p.requires_grad}
+        torch.save((reduced, grads), os.path.join(tmp, f"l2l_rank{rank}.pt"))
+        runtime.close()
+    finally:
+        dist.destroy_process_group()
+
+
+def test_l2l_window_split_across_two_ranks_equals_one_process(tmp_path):
+    pytest.importorskip("peft")
+    import socket
+
+    import torch
+    import torch.multiprocessing as mp
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    mp.spawn(_l2l_rank, args=(2, str(tmp_path), port), nprocs=2, join=True)
+    (n0, rank0), (n1, rank1) = (
+        torch.load(tmp_path / f"l2l_rank{r}.pt", weights_only=False) for r in range(2))
+    assert n0 == n1 == len(rank0) > 0
+    assert all(torch.equal(rank0[n], rank1[n]) for n in rank0)
+
+    model, runtime = _llama_streamed(str(tmp_path / "single"))
+    try:
+        batch = _batch(4)
+        _l2l_window(model, runtime, batch, sum(ids.shape[1] - 1 for ids in batch))
+        single = {n: p.grad for n, p in model.named_parameters() if p.requires_grad}
+    finally:
+        runtime.close()
+    assert any(float(g.abs().sum()) > 0 for g in single.values())
+    for name in single:
+        torch.testing.assert_close(rank0[name], single[name], rtol=1e-5, atol=1e-7)
+
+
+def test_all_reduce_adapter_grads_is_a_noop_outside_a_process_group():
+    torch = pytest.importorskip("torch")
+    from soup_cli.trainer.l2l_trainer import all_reduce_adapter_grads
+
+    layer = torch.nn.Linear(2, 2)
+    layer(torch.ones(1, 2)).sum().backward()
+    before = layer.weight.grad.clone()
+    assert all_reduce_adapter_grads(layer, average=False) == 0
+    assert torch.equal(layer.weight.grad, before)
+
+
+def test_l2l_activation_budget_is_shared_by_the_ranks_on_a_machine(monkeypatch):
+    from soup_cli.trainer.l2l_trainer import per_rank_budget
+    from soup_cli.utils.l2l_spill import RamBudget
+
+    budget = RamBudget(available_bytes=10 << 30, budget_bytes=7 << 30, limiting_level="psutil",
+                       limiting_numbers={}, psutil_available=10 << 30)
+    monkeypatch.setenv("WORLD_SIZE", "2")
+    monkeypatch.setenv("LOCAL_WORLD_SIZE", "2")
+    assert per_rank_budget(budget).budget_bytes == (7 << 30) // 2
+    monkeypatch.setenv("WORLD_SIZE", "1")
+    monkeypatch.delenv("LOCAL_WORLD_SIZE")
+    assert per_rank_budget(budget).budget_bytes == 7 << 30

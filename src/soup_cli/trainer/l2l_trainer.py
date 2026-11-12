@@ -129,16 +129,8 @@ def refuse_unsupported_l2l(
             f"{' and '.join(PUBLIC_ARCHS)}, and for {' and '.join(PER_EXPERT_ARCHS)} "
             f"with training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}."
         )
-    from soup_cli.utils.stream_ddp import distributed_world_size
-
-    world = distributed_world_size()
-    if world > 1:
-        raise ValueError(
-            f"training.l2l is single-GPU, but this is a distributed launch with {world} "
-            f"processes: the L2L step runs backward outside DDP's forward, so the adapter "
-            f"gradients would not be averaged across ranks. Drop --gpus (or set "
-            f"training.l2l: false to train data-parallel)."
-        )
+    # A distributed launch (`soup train --gpus N`) is admitted: every rank runs its share of
+    # the window and the trainer sums the adapter gradients (all_reduce_adapter_grads).
     if n_gpu > 1:
         raise ValueError(
             f"training.l2l is single-GPU, but {n_gpu} GPUs are visible. Re-run with "
@@ -440,6 +432,48 @@ def _spill_line(plan: Dict[str, Any], budget: Any) -> str:
     )
 
 
+def per_rank_budget(budget: Any) -> Any:
+    """The activation budget of one rank: the machine's split over the ranks on it.
+
+    Every rank of a data-parallel launch measures the same free host RAM; without the split
+    each would plan to fill it.
+    """
+    import dataclasses
+
+    from soup_cli.utils.stream_ddp import distributed_world_size
+
+    if distributed_world_size() <= 1 or budget.budget_bytes is None:
+        return budget
+    try:
+        local = int(os.environ.get("LOCAL_WORLD_SIZE", "") or distributed_world_size())
+    except (TypeError, ValueError):
+        local = distributed_world_size()
+    if local <= 1:
+        return budget
+    return dataclasses.replace(budget, budget_bytes=budget.budget_bytes // local)
+
+
+def all_reduce_adapter_grads(model: Any, *, average: bool) -> int:
+    """Sum (or average) every trainable gradient of ``model`` across the process group.
+
+    An L2L window runs backward outside DDP's forward, where DDP's hooks do nothing, so the
+    trainer reduces the adapter gradients itself once the window is done. ``average=False``
+    sums: right when the head divided by the global label count (HF's ``num_items_in_batch``
+    under ``average_tokens_across_devices``). Returns how many tensors were reduced; 0
+    outside an initialised group of more than one process.
+    """
+    import torch.distributed as dist
+
+    if not (dist.is_available() and dist.is_initialized()) or dist.get_world_size() <= 1:
+        return 0
+    grads = [p.grad for p in model.parameters() if p.requires_grad and p.grad is not None]
+    for grad in grads:
+        dist.all_reduce(grad, op=dist.ReduceOp.SUM)
+        if average:
+            grad.div_(dist.get_world_size())
+    return len(grads)
+
+
 def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) -> Any:
     """The activation store for the window, grown only when a micro-batch does not fit.
 
@@ -509,7 +543,7 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
             pin=pin,
         )
         return state.store
-    budget = l2l_spill.ram_budget()
+    budget = per_rank_budget(l2l_spill.ram_budget())
     logger.info(
         "training.l2l activation budget: %s [limiting level %s: %s]",
         budget.describe(), budget.limiting_level, budget.limiting_numbers,
@@ -654,6 +688,12 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                     "neftune_alpha off or set the dropout to 0."
                 )
             device = state.runtime.device
+            from soup_cli.utils.stream_ddp import distributed_world_size
+
+            distributed = distributed_world_size() > 1
+            if distributed:
+                # The window bypasses DDP's forward; it runs on the module DDP wraps.
+                model = self.accelerator.unwrap_model(model)
             ids_list, label_list = state.loss.read_window(
                 window,
                 device,
@@ -670,6 +710,11 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                     label_list,
                     None if num_items_in_batch is None else int(num_items_in_batch),
                     device,
+                )
+            if distributed:
+                all_reduce_adapter_grads(
+                    model,
+                    average=not getattr(self.args, "average_tokens_across_devices", False),
                 )
             state.steps += 1
             state.totals.add(counters)
