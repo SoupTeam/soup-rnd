@@ -150,6 +150,32 @@ def chunked_model_loss(model: Any, input_ids: Any) -> Any:
     return model_loss_fn("chunked")(model, input_ids)
 
 
+def _hidden_through_wrapper(model: Any, decoder: Any, kwargs: dict) -> Any:
+    """The decoder's last hidden state, from a forward through ``model``'s own wrapper.
+
+    A wrapped model (DDP) must be entered through its ``forward``: calling the unwrapped
+    decoder directly skips DDP's forward bookkeeping, so the ranks' adapter gradients are not
+    averaged. The wrapper runs the full causal LM with ``logits_to_keep=1`` (one position of
+    logits, not the whole vocabulary row per token); a hook on the decoder hands back its
+    output, still in the graph.
+    """
+    captured: dict = {}
+
+    def keep(_module: Any, _args: Any, output: Any) -> None:
+        captured["hidden"] = getattr(output, "last_hidden_state", None)
+        if captured["hidden"] is None:
+            captured["hidden"] = output[0]
+
+    handle = decoder.register_forward_hook(keep)
+    try:
+        model(**kwargs, use_cache=False, logits_to_keep=1)
+    finally:
+        handle.remove()
+    if "hidden" not in captured:
+        raise RuntimeError("training.stream_chunked_ce: the wrapped forward never ran the decoder")
+    return captured["hidden"]
+
+
 def make_chunked_ce_trainer_class(base_cls: type, impl: str = "chunked") -> type:
     """Subclass ``base_cls`` (TRL's SFTTrainer or a subclass) whose ``compute_loss`` uses ``impl``.
 
@@ -167,9 +193,13 @@ def make_chunked_ce_trainer_class(base_cls: type, impl: str = "chunked") -> type
             mode = "train" if self.model.training else "eval"
             inputs.pop("_prediction_loss_only", None)
             labels = inputs["labels"]
-            decoder, head = _causal_parts(self.accelerator.unwrap_model(model))
+            unwrapped = self.accelerator.unwrap_model(model)
+            decoder, head = _causal_parts(unwrapped)
             kwargs = {k: inputs[k] for k in _DECODER_KEYS if k in inputs}
-            hidden = decoder(**kwargs, use_cache=False).last_hidden_state
+            if model is unwrapped:
+                hidden = decoder(**kwargs, use_cache=False).last_hidden_state
+            else:
+                hidden = _hidden_through_wrapper(model, decoder, kwargs)
             loss = loss_impl(hidden, head, labels, num_items_in_batch)
             if (
                 num_items_in_batch is not None
