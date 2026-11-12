@@ -418,12 +418,27 @@ operators, but `cuda_kernel_names` was empty. In two runs, the immediately prece
 batch had the **same shape** and recorded the native `fmha_cutlassF` kernel. The
 evaluator resets its attention observer per forward, so each batch opens a new
 `torch.profiler` session. All refusals fall after3509–3511 sessions in one process.
-Completed ARC used1381 sessions and BoolQ162. The refusal depends on that count,
-not on data, adapter or length. The CUPTI/Kineto-level mechanism is inferred, not proven.
+Completed ARC used1381 sessions and BoolQ162. The failing request indices differ
+between runs (17893 versus 18016). Together with the same-shape success, the evidence is
+**consistent with a per-process profiler-session limit**. It is correlation from three
+failures and two shorter successful runs, not a demonstrated cause. The
+CUPTI/Kineto-level mechanism is unproven.
 
-An evaluator change is required before any verdict: profile each signature once
-per process, or freeze smaller shards. Either needs user authorization; the second
-changes the protocol hash. No retry, guard relaxation or protocol change was made.
+An evaluator change is required before any verdict, and either option needs user
+authorization. Profiling each signature once per process does **not** work: the observer
+admits at most `_MAX_SIGNATURES = 16` signatures. Evaluation shapes vary per batch, which
+is why the evaluator resets the observer per forward. One retained observer would raise
+"signature limit exceeded" within a few batches. Workable options:
+
+- Keep per-forward observers and the unchanged per-forward guard. Cache admitted
+  kernel evidence per signature across forwards, under its own explicit bound. Profile
+  only signatures not yet in the cache. This changes the evaluator and needs remote
+  re-qualification.
+- Freeze smaller contiguous shards, each run in a fresh process far below ~3500 batches.
+  This must cover **every** endpoint. LAMBADA's5153 tasks may exceed the limit, and
+  GSM8K/MBPP batch counts are unmeasured. It changes the shard layout and the protocol hash.
+
+No retry, guard relaxation or protocol change was made.
 [Root-cause record](moonlight-resident-20261111t201548z/whole-machine-3/hellaswag-attention-evidence-root-cause.json).
 
 The remaining remote evidence, excluding training checkpoints already archived per arm,
