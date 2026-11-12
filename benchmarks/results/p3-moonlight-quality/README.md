@@ -25,8 +25,8 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Moonlight quality, gated verdict | **PENDING**: frozen study upper$24.5827 within$25; no quality result yet |
 | Moonlight quality, statistical verdict | **PENDING** |
 | Moonlight numerical gate | **PASS, 6/6**; complete raw closure independently readmitted and exported |
-| Per-step training loss and adapter-change norm | First BF16 L1024 arm running; final losses/norms pending |
-| Moonlight paid resources and charges | **USD2.244 posted at23:14UTC**, billing may lag; instance60261779 and volume60261770 active, earlier rejected resources deleted |
+| Per-step training loss and adapter-change norm | BF16 L1024 completed64 steps; loss0.785269→0.725147, adapter delta L2=2.021128; its timing block is **VOID**. FP8+Oracle L1024 running |
+| Moonlight paid resources and charges | **USD2.794 posted at2026-11-12T00:07UTC**, billing may lag; instance60261779 and volume60261770 active, earlier rejected resources deleted |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
 
@@ -331,6 +331,29 @@ E1 RMS/worst maxima0.0251101/0.0269059, E2 maximum0.0409753,
 E3 global relative L2 error0.0457640 and minimum cosine0.9921371.
 See the [raw-derived gate result](moonlight-resident-20261111t201548z/whole-machine-3/d-gate-result.json)
 and [export receipt](moonlight-resident-20261111t201548z/whole-machine-3/d-export.json).
-BF16 L1024 training has started; final training and quality results are pending.
+BF16 L1024 completed64 optimizer steps; FP8+Oracle L1024 has started independently.
 Tiny E3 remains **FAIL, 0.05028628354277727 > 0.05**.
 **DeepSeek-V3 671B: отложен**.
+
+### First training arm: numerical completion, invalid timing block
+
+BF16 L1024 completed64 steps from the shared initializer without a numerical or
+technical refusal. First/last losses:0.7852686047554016/0.7251471132040024.
+The adapter's global delta L2 is2.021127873234605, relative L2=0.12007677717314157.
+All64 step records and201 manifest-listed files, including every checkpoint,
+step-one raw gradients and the final adapter, were independently verified locally.
+Archive SHA256:`9487acdd615ec2118cb83a6dab2363af673d268f52ee2df4eaa1e6357397094e`.
+
+**The entire training timing block is VOID.** F1 reported18,014,482,432 bytes of
+unattributed/foreign NVMe reads against its unchanged1,000,000,000-byte limit;
+no foreign reader process was identified. Suspend and power were `ok`.
+The raw2951.743-second observation is retained, not a valid performance result
+or a calibration input. No retry, threshold change, host replacement or scientific
+protocol change was made. Numeric completion is retained separately while the
+other independent frozen arms continue.
+
+See the [training summary](moonlight-resident-20261111t201548z/whole-machine-3/train-bf16_l2l-L1024-summary.json),
+[all step records](moonlight-resident-20261111t201548z/whole-machine-3/train-bf16_l2l-L1024-steps.jsonl)
+and [export verification](moonlight-resident-20261111t201548z/whole-machine-3/train-bf16_l2l-L1024-export.json).
+The optional new private Kaggle backup was refused by authentication; complete
+archives remain hash-verified on the workstation. No new private upload is claimed.
