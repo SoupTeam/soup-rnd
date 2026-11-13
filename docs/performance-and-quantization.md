@@ -1054,7 +1054,10 @@ the first card. The adapters are replicated on the other cards for the step, and
 are added into the first card's adapters before the optimizer step. `SOUP_L2L_SPLIT_OVERLAP=1` runs the
 cross-device copies on side streams (layer i+1 crosses while layer i computes); on Kaggle T4 x2 it
 did not change the step time, which the disk reads set, and held ~6 GB more on the second card,
-so it is off by default. HF is shown one GPU, so it does not wrap the model in `nn.DataParallel`. A CPU test runs the replica path with both devices on the
+so it is off by default. Diagnostics: with `SOUP_L2L_PROFILE=<file>`
+every split step appends one JSON line with each card's wall time, its time per phase (embedding,
+layer loads, forward, head, recompute, backward, activation store, cross-card copies) from CUDA
+events, the idle remainder, and the host's time per phase. It synchronises the cards once per step. HF is shown one GPU, so it does not wrap the model in `nn.DataParallel`. A CPU test runs the replica path with both devices on the
 CPU and checks the losses and gradients against the single-device step (tiny llama and qwen3_5,
 rtol 1e-5). Refused: fewer visible GPUs than `l2l_split_gpus`, a `--gpus` launch, a task other than
 `sft`, dropout, a trainable embedding and streamed routed experts. Each layer crosses to every

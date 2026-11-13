@@ -298,3 +298,115 @@ def copy_weights(
         moved[name], src_done, dst_done = transfers._copy(tensor, torch.device(device),
                                                           "weights", None)
     return WeightCopy(moved, src_done, dst_done)
+
+
+#: A file path: every split step appends one JSON line with where each device's time went.
+PROFILE_ENV = "SOUP_L2L_PROFILE"
+
+
+class SplitProfile:
+    """Where a split step's time goes, per device, from CUDA events (``SOUP_L2L_PROFILE``).
+
+    A span records an event on each named device's current stream when it opens and when it
+    closes; the elapsed time between the two is that stream's time on the span's work,
+    including any wait for the other device the work carries (a cross-device copy waits on
+    both). The step's wall time per device runs from :meth:`start` to :meth:`finish`; what no
+    span covers is idle (or side-stream work). Host time per span is summed too: it shows
+    blocking the GPU timeline hides, such as the wait for the disk reader inside a layer load.
+    :meth:`finish` synchronises the devices once per step to read the events, so a profiled
+    run is not a timing run without a comparison against an unprofiled one. Off (no
+    variable, or a CPU step) every method costs a call and records nothing.
+    """
+
+    def __init__(self, devices: Sequence[Any]) -> None:
+        import torch
+
+        self.path = os.environ.get(PROFILE_ENV) or ""
+        self.devices = [torch.device(d) for d in devices]
+        self.enabled = bool(self.path) and all(d.type == "cuda" for d in self.devices)
+        self._spans: List[Tuple[int, str, Any, Any]] = []
+        self._host: Dict[str, float] = {}
+        self._begin: Dict[int, Any] = {}
+        self._t0 = 0.0
+        self._wall0 = 0.0
+
+    def _event(self, device: Any) -> Any:
+        import torch
+
+        event = torch.cuda.Event(enable_timing=True)
+        event.record(torch.cuda.current_stream(device))
+        return event
+
+    def start(self) -> None:
+        if not self.enabled:
+            return
+        import time
+
+        self._spans.clear()
+        self._host.clear()
+        self._t0, self._wall0 = time.perf_counter(), time.time()
+        self._begin = {i: self._event(d) for i, d in enumerate(self.devices)}
+
+    def span(self, label: str, *devices: Any) -> Any:
+        """A context that times ``label`` on ``devices`` (all of the step's when none)."""
+        if not self.enabled:
+            return nullcontext()
+        return self._span(label, devices)
+
+    def _span(self, label: str, devices: Sequence[Any]) -> Any:
+        import time
+        from contextlib import contextmanager
+
+        import torch
+
+        wanted = [torch.device(d) for d in devices] or self.devices
+        index = {d: i for i, d in enumerate(self.devices)}
+
+        @contextmanager
+        def timed() -> Any:
+            t = time.perf_counter()
+            opened = [(index[d], self._event(d)) for d in wanted]
+            try:
+                yield
+            finally:
+                for i, start in opened:
+                    self._spans.append((i, label, start, self._event(self.devices[i])))
+                self._host[label] = self._host.get(label, 0.0) + time.perf_counter() - t
+
+        return timed()
+
+    def finish(self, k: int) -> Optional[Dict[str, Any]]:
+        """Write and return the step's record (None when off)."""
+        if not self.enabled:
+            return None
+        import json
+        import time
+
+        import torch
+
+        end = {i: self._event(d) for i, d in enumerate(self.devices)}
+        for d in self.devices:
+            torch.cuda.synchronize(d)
+        per_device: Dict[str, Any] = {}
+        for i, d in enumerate(self.devices):
+            busy: Dict[str, float] = {}
+            for j, label, start, stop in self._spans:
+                if j == i:
+                    busy[label] = busy.get(label, 0.0) + start.elapsed_time(stop)
+            wall = self._begin[i].elapsed_time(end[i])
+            per_device[str(d)] = {
+                "wall_ms": wall,
+                "busy_ms": busy,
+                "idle_ms": wall - sum(busy.values()),
+            }
+        record = {
+            "time": self._wall0,
+            "host_s": time.perf_counter() - self._t0,
+            "k": int(k),
+            "devices": per_device,
+            "host_ms": {label: s * 1000.0 for label, s in self._host.items()},
+        }
+        with open(self.path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record) + "\n")
+        self._spans.clear()
+        return record

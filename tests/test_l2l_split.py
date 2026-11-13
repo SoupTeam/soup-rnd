@@ -338,3 +338,76 @@ def test_backward_hands_autograd_one_device_at_a_time(qwen35_streamed, monkeypat
     monkeypatch.setattr(torch.autograd, "backward", spy)
     step.run(mbs, _store(4))
     assert sizes and set(sizes) == {1}
+
+
+def test_profile_is_off_without_the_variable_and_on_cpu(monkeypatch, tmp_path):
+    from soup_cli.utils.l2l_split import PROFILE_ENV, SplitProfile
+
+    monkeypatch.delenv(PROFILE_ENV, raising=False)
+    assert not SplitProfile(["cuda:0", "cuda:1"]).enabled
+    path = tmp_path / "profile.jsonl"
+    monkeypatch.setenv(PROFILE_ENV, str(path))
+    assert SplitProfile(["cuda:0", "cuda:1"]).enabled
+    cpu = SplitProfile(["cpu", "cpu"])
+    assert not cpu.enabled
+    cpu.start()
+    with cpu.span("fwd", "cpu"):
+        pass
+    assert cpu.finish(4) is None and not path.exists()
+
+
+def test_profiled_split_step_on_cpu_still_matches(qwen35_streamed, monkeypatch, tmp_path):
+    """The spans are no-ops off CUDA: the split step's result is unchanged with the variable."""
+    from soup_cli.utils.l2l_split import PROFILE_ENV
+
+    harness = _load("l2l_schedule")
+    model, runtime, _config = qwen35_streamed
+    harness.make_non_vacuous(model)
+    mbs = _micro_batches(4)
+    harness.zero_grads(model)
+    _run(model, runtime, mbs, _store(4), split=("cpu",))
+    plain = harness.collect_grads(model)
+    monkeypatch.setenv(PROFILE_ENV, str(tmp_path / "p.jsonl"))
+    harness.zero_grads(model)
+    _run(model, runtime, mbs, _store(4), split=("cpu",))
+    _assert_close(plain, harness.collect_grads(model))
+
+
+def test_profile_sums_spans_per_device(monkeypatch, tmp_path):
+    """The record's arithmetic, with fake events whose times the test sets."""
+    import json
+
+    import torch
+
+    from soup_cli.utils.l2l_split import PROFILE_ENV, SplitProfile
+
+    class Ev:
+        def __init__(self, t):
+            self.t = t
+
+        def elapsed_time(self, other):
+            return other.t - self.t
+
+    clock = {"cuda:0": 0.0, "cuda:1": 0.0}
+
+    def fake_event(self, device):
+        key = str(device)
+        clock[key] += 10.0
+        return Ev(clock[key])
+
+    path = tmp_path / "p.jsonl"
+    monkeypatch.setenv(PROFILE_ENV, str(path))
+    monkeypatch.setattr(SplitProfile, "_event", fake_event)
+    monkeypatch.setattr(torch.cuda, "synchronize", lambda *_a: None)
+    prof = SplitProfile(["cuda:0", "cuda:1"])
+    prof.start()                       # begin: 10 on both
+    with prof.span("fwd", "cuda:1"):   # cuda:1 20 -> 30
+        pass
+    with prof.span("load"):            # both: 20/40 -> 30/50
+        pass
+    record = prof.finish(4)            # end: 40 / 60
+    dev0, dev1 = record["devices"]["cuda:0"], record["devices"]["cuda:1"]
+    assert dev0 == {"wall_ms": 30.0, "busy_ms": {"load": 10.0}, "idle_ms": 20.0}
+    assert dev1 == {"wall_ms": 50.0, "busy_ms": {"fwd": 10.0, "load": 10.0}, "idle_ms": 30.0}
+    assert record["k"] == 4 and set(record["host_ms"]) == {"fwd", "load"}
+    assert json.loads(path.read_text().splitlines()[0])["devices"]["cuda:1"]["wall_ms"] == 50.0

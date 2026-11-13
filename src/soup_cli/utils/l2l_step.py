@@ -747,6 +747,7 @@ class L2LStep:
         from soup_cli.utils import l2l_rng
         from soup_cli.utils.l2l_split import (
             DeviceReplica,
+            SplitProfile,
             Transfers,
             assign,
             copy_weights,
@@ -800,6 +801,7 @@ class L2LStep:
         owner_of = assign(k, 1 + len(replicas))
         used = sorted(set(owner_of) - {0})
         xfer = Transfers(main, [replicas[d - 1].device for d in used])
+        prof = SplitProfile([main, *[replicas[d - 1].device for d in used]])
         # Each extra device's copy of every micro-batch's layer arguments, once per step.
         moved_calls: Dict[Tuple[int, int, str], Tuple[Any, Any]] = {}
 
@@ -856,6 +858,10 @@ class L2LStep:
             return weights
 
         def run_layer(idx: int, layer: Any, weights: Dict[int, Any], mb: int, hidden: Any) -> Any:
+            with prof.span("fwd" if not torch.is_grad_enabled() else "recompute", device_of(mb)):
+                return _run_layer(idx, layer, weights, mb, hidden)
+
+        def _run_layer(idx: int, layer: Any, weights: Dict[int, Any], mb: int, hidden: Any) -> Any:
             if owner_of[mb] == 0:
                 return self._layer(layer, hidden, None, calls[mb], idx)
             args, kwargs = call_on(mb, idx)
@@ -871,17 +877,22 @@ class L2LStep:
         # side stream, so the main compute stream does not wait for the other device.
         on_acts = (lambda: torch.cuda.stream(acts_main)) if acts_main is not None else nullcontext
 
-        self._prime(self.owner, ())
+        prof.start()
+        with prof.span("embed"):
+            self._prime(self.owner, ())
+            with torch.no_grad():
+                hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
+                hidden = [xfer.act(h, device_of(mb)) for mb, h in enumerate(hidden)]
         with torch.no_grad():
-            hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
-            hidden = [xfer.act(h, device_of(mb)) for mb, h in enumerate(hidden)]
             for idx, layer in enumerate(self.layers):
-                weights = load(idx, layer)
+                with prof.span("load"):
+                    weights = load(idx, layer)
                 for mb in range(k):
                     if owner_of[mb] == 0:
-                        store.put(idx, mb, hidden[mb])
+                        with prof.span("put", main):
+                            store.put(idx, mb, hidden[mb])
                     else:
-                        with on_acts():
+                        with prof.span("put_cross"), on_acts():
                             store.put(idx, mb, xfer.act(hidden[mb], main, acts_main))
                 for mb in range(k):
                     hidden[mb] = run_layer(idx, layer, weights, mb, hidden[mb])
@@ -891,14 +902,15 @@ class L2LStep:
         losses: List[Any] = []
         grads: List[Any] = []
         for mb in range(k):
-            last = xfer.act(hidden[mb], main).detach().requires_grad_(True)
-            hidden[mb] = None
-            with torch.enable_grad():
-                loss = head(self.causal, self.owner, last, mb)
-            with self._backward_context(micro_batches[mb]):
-                (loss if scaler is None else scaler.scale(loss)).backward()
-            losses.append(loss.detach())
-            grads.append(xfer.act(last.grad, device_of(mb)))
+            with prof.span("head_cross" if owner_of[mb] else "head", *{main, device_of(mb)}):
+                last = xfer.act(hidden[mb], main).detach().requires_grad_(True)
+                hidden[mb] = None
+                with torch.enable_grad():
+                    loss = head(self.causal, self.owner, last, mb)
+                with self._backward_context(micro_batches[mb]):
+                    (loss if scaler is None else scaler.scale(loss)).backward()
+                losses.append(loss.detach())
+                grads.append(xfer.act(last.grad, device_of(mb)))
 
         # One micro-batch per device at a time, each through its own ``autograd.backward``
         # call. One call with both devices' graphs would run them on autograd's two device
@@ -918,15 +930,17 @@ class L2LStep:
         store.begin_backward()
         for idx in range(len(self.layers) - 1, -1, -1):
             layer = self.layers[idx]
-            weights = load(idx, layer)
+            with prof.span("load"):
+                weights = load(idx, layer)
             inputs: List[Any] = []
             for mb in range(k):
                 if owner_of[mb] == 0:
-                    inputs.append(store.get(idx, mb).requires_grad_(True))
+                    with prof.span("get", main):
+                        inputs.append(store.get(idx, mb).requires_grad_(True))
                 else:
                     # Read and sent from the side stream that read it: ``act`` orders the copy
                     # after the work queued on the main device's current stream.
-                    with on_acts():
+                    with prof.span("get_cross"), on_acts():
                         moved = xfer.act(store.get(idx, mb), device_of(mb))
                     inputs.append(moved.requires_grad_(True))
             prefetch(idx - 1)
@@ -937,7 +951,8 @@ class L2LStep:
                     with torch.enable_grad():
                         outs = [run_layer(idx, layer, weights, mb, inputs[mb]) for mb in group]
                     for out, mb in zip(outs, group):
-                        with self._backward_context(micro_batches[mb]):
+                        with prof.span("bwd", device_of(mb)), \
+                                self._backward_context(micro_batches[mb]):
                             torch.autograd.backward(out, grad_tensors=grads[mb])
                     for mb in group:
                         grads[mb] = inputs[mb].grad
@@ -947,6 +962,8 @@ class L2LStep:
             weights = None
         ahead.clear()
         store.end_step()
-        for replica in replicas:
-            replica.merge_grads()
+        with prof.span("merge"):
+            for replica in replicas:
+                replica.merge_grads()
+        prof.finish(k)
         return losses
