@@ -314,3 +314,25 @@ def test_weight_copy_without_overlap_is_a_plain_copy():
     copy = copy_weights(Transfers("cpu", ["cpu"]), buffers, "cpu")
     assert torch.equal(copy.moved["w"], buffers["w"])
     assert copy.src_done is None and copy.dst_done is None
+
+
+def test_backward_hands_autograd_one_device_at_a_time(qwen35_streamed, monkeypatch):
+    """One micro-batch per autograd call: two devices' graphs in one call run on two engine
+    threads, and Triton's autotuner is not safe to tune one kernel from both (part E)."""
+    import torch
+
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+
+    model, runtime, _config = qwen35_streamed
+    mbs = _micro_batches(4)
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), split_devices=("cpu",))
+    sizes = []
+    real = torch.autograd.backward
+
+    def spy(tensors, *args, **kwargs):
+        sizes.append(len(tensors) if isinstance(tensors, (list, tuple)) else 1)
+        return real(tensors, *args, **kwargs)
+
+    monkeypatch.setattr(torch.autograd, "backward", spy)
+    step.run(mbs, _store(4))
+    assert sizes and set(sizes) == {1}

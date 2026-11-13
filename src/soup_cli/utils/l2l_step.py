@@ -900,8 +900,13 @@ class L2LStep:
             losses.append(loss.detach())
             grads.append(xfer.act(last.grad, device_of(mb)))
 
-        # One micro-batch per device at a time: their graphs go to autograd together, so the
-        # engine's per-device threads run the backwards in parallel.
+        # One micro-batch per device at a time, each through its own ``autograd.backward``
+        # call. One call with both devices' graphs would run them on autograd's two device
+        # threads at once, and Triton's autotuner (fla's Gated DeltaNet kernels) keeps its
+        # benchmarking state on the shared kernel object: two threads tuning one kernel
+        # crash (``'NoneType' object is not a mapping``, ZERO part E). Separate calls
+        # launch from this thread in turn; the launches are asynchronous, so the two
+        # devices still compute at the same time.
         rounds: List[List[int]] = []
         for mb in range(k):
             for group in rounds:
@@ -931,8 +936,9 @@ class L2LStep:
                 for group in rounds:
                     with torch.enable_grad():
                         outs = [run_layer(idx, layer, weights, mb, inputs[mb]) for mb in group]
-                    with self._backward_context(micro_batches[group[0]]):
-                        torch.autograd.backward(outs, grad_tensors=[grads[mb] for mb in group])
+                    for out, mb in zip(outs, group):
+                        with self._backward_context(micro_batches[mb]):
+                            torch.autograd.backward(out, grad_tensors=grads[mb])
                     for mb in group:
                         grads[mb] = inputs[mb].grad
                         inputs[mb] = None
