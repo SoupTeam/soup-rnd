@@ -1,0 +1,25 @@
+# B5 report 1: Moonlight-16B-A3B on the per_expert path, one 8 GB card, four steps.
+# The run itself goes through benchmarks/harness/b5_real_moe.py, which writes the journal for
+# the judge. This file holds the same settings; tests/test_b5_real_moe.py validates it.
+base: moonshotai/Moonlight-16B-A3B
+task: sft
+backend: transformers
+data:
+  train: benchmarks/protocols/b5-moonlight-20261109/data.json
+  format: plaintext
+  max_length: 512
+training:
+  quantization: 4bit
+  epochs: 1
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  lr: 1.0e-4
+  optimizer: adamw_torch
+  stream_layers: true
+  stream_source: disk
+  stream_expert_layout: per_expert
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0.0
+    target_modules: [q_proj, kv_a_proj_with_mqa, kv_b_proj, o_proj]

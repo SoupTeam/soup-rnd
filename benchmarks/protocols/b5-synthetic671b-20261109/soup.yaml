@@ -1,0 +1,26 @@
+# B5 report 3: synthetic DeepSeek-V3-shaped store (671B parameters, random NF4 weights) on the
+# per_expert path, one 8 GB card, three steps from a cold page cache. All numbers it produces
+# are synthetic. The run goes through benchmarks/harness/b5_real_moe.py --store ... --cold;
+# tests/test_b5_cold_acceptance.py validates this file against the rule.
+base: synthetic-deepseek-v3-671b
+task: sft
+backend: transformers
+data:
+  train: synthetic-random-token-ids
+  format: plaintext
+  max_length: 128
+training:
+  quantization: 4bit
+  epochs: 1
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  lr: 1.0e-4
+  optimizer: adamw_torch
+  stream_layers: true
+  stream_source: disk
+  stream_expert_layout: per_expert
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0.0
+    target_modules: [q_a_proj, q_b_proj, kv_a_proj_with_mqa, kv_b_proj, o_proj]

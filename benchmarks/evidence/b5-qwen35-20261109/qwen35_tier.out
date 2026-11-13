@@ -1,0 +1,9 @@
+limit 34359738368 B (34.36 GB); headroom free 0.7, physical 0.55; physical ceiling 18.90 GB
+resident extras (embedding, lm_head, norms): 2.03 GB
+early check: coarse NF4 estimate 20.22 GB vs free*0.7 24.05 GB -> passes
+as built today (routed experts bf16): store 65.26 GB + extras, disk nvme: tier=disk
+as built today (routed experts bf16): store 65.26 GB + extras, disk hdd: ValueError: layer streaming needs NVMe or more RAM: the base needs 65.3 GB plus 2.0 GB of resident extras, only 33.7 GB of RAM is free; the store plus resident extras need 
+as built today (routed experts bf16): physical RAM needed for the RAM tier >= 122.4 GB (114.0 GiB)
+hypothetical, routed experts NF4: store 18.96 GB + extras, disk nvme: tier=disk
+hypothetical, routed experts NF4: store 18.96 GB + extras, disk hdd: ValueError: layer streaming needs NVMe or more RAM: the base needs 19.0 GB plus 2.0 GB of resident extras, only 33.7 GB of RAM is free; the store plus resident extras need 
+hypothetical, routed experts NF4: physical RAM needed for the RAM tier >= 38.2 GB (35.5 GiB)
