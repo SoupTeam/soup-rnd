@@ -294,13 +294,15 @@ def test_trainer_state_builds_a_split_step(qwen35_streamed):
     assert stepper.split_devices == ("cpu",)
 
 
-def test_overlap_is_cuda_only_and_can_be_turned_off(monkeypatch):
+def test_overlap_is_opt_in_and_cuda_only(monkeypatch):
     from soup_cli.utils.l2l_split import OVERLAP_ENV, Transfers, overlap_enabled
 
+    monkeypatch.delenv(OVERLAP_ENV, raising=False)
     assert not overlap_enabled("cpu")
-    assert overlap_enabled("cuda:0")
-    monkeypatch.setenv(OVERLAP_ENV, "0")
     assert not overlap_enabled("cuda:0")
+    monkeypatch.setenv(OVERLAP_ENV, "1")
+    assert overlap_enabled("cuda:0")
+    assert not overlap_enabled("cpu")
     xfer = Transfers("cpu", ["cpu"])
     assert not xfer.enabled and xfer.side("acts", "cpu") is None
 

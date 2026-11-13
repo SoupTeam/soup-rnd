@@ -20,8 +20,9 @@ the compute splits, the reads do not double.
   :class:`Transfers` runs every copy on side streams instead and hands each result over with
   an event, so a copy waits only for what it reads and blocks only what reads it: layer i+1
   crosses to the extra devices while layer i computes, and the activations cross without
-  stalling the other device. ``SOUP_L2L_SPLIT_OVERLAP=0`` turns that off (copies on the
-  compute streams, issued when the layer starts), for an A/B against the overlap.
+  stalling the other device. It is opt-in (``SOUP_L2L_SPLIT_OVERLAP=1``): on Kaggle T4 x2
+  (ZERO part E) it did not change the step time, which the disk reads set, and it held ~6 GB
+  more on the second GPU. Off, the copies run on the compute streams when the layer starts.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 #: Upper bound of ``training.l2l_split_gpus``.
 MAX_SPLIT_GPUS = 8
-#: ``0`` keeps every cross-device copy on the compute streams (no overlap); for experiments.
+#: ``1`` runs the cross-device copies on side streams (overlap); off by default.
 OVERLAP_ENV = "SOUP_L2L_SPLIT_OVERLAP"
 
 
@@ -200,10 +201,10 @@ class DeviceReplica:
 
 
 def overlap_enabled(main: Any) -> bool:
-    """Side-stream copies: on CUDA, unless ``SOUP_L2L_SPLIT_OVERLAP=0``."""
+    """Side-stream copies: on CUDA with ``SOUP_L2L_SPLIT_OVERLAP=1``."""
     import torch
 
-    return torch.device(main).type == "cuda" and os.environ.get(OVERLAP_ENV, "1") != "0"
+    return torch.device(main).type == "cuda" and os.environ.get(OVERLAP_ENV, "0") == "1"
 
 
 class Transfers:
@@ -211,7 +212,7 @@ class Transfers:
 
     Two side streams per device, one for weights and one for activations, so a weight
     prefetch never queues behind an activation that waits for the other device. Without
-    overlap (CPU, or ``SOUP_L2L_SPLIT_OVERLAP=0``) every method is the plain ``.to``.
+    overlap (CPU, or ``SOUP_L2L_SPLIT_OVERLAP`` not ``1``) every method is the plain ``.to``.
     """
 
     def __init__(self, main: Any, devices: Sequence[Any]) -> None:
