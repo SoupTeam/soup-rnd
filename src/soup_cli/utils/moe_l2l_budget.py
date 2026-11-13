@@ -18,10 +18,14 @@ class MoEL2LMemoryPlan:
     routing_record_bytes: int
     routing_comparison_bytes: int
     saved_expert_input_bytes: int | None = None
+    window_host_bytes: int = 0
 
     @property
     def host_bytes(self) -> int:
-        return self.activation_bytes + self.routing_record_bytes + self.routing_comparison_bytes
+        return (
+            self.activation_bytes + self.routing_record_bytes
+            + self.routing_comparison_bytes + self.window_host_bytes
+        )
 
 
 def plan_moe_l2l(
@@ -35,6 +39,7 @@ def plan_moe_l2l(
     dtype: str,
     pin: bool,
     expert_input_dtype: str | None = None,
+    host_workspace_bytes_per_batch: int = 0,
 ) -> MoEL2LMemoryPlan:
     """Select the largest RAM-fitting ``k`` for a fixed upper bound on micro-batch shape.
 
@@ -49,7 +54,8 @@ def plan_moe_l2l(
     The host k limit uses host allocations. The plan reports the saved expert inputs
     separately as compute-device bytes.
 
-    The caller accounts for other host consumers and safety headroom in ``host_budget``.
+    The caller can charge additional host workspace that grows with k, and accounts
+    for fixed host consumers and safety headroom in ``host_budget``.
     Other device workspace and process memory need separate bounds. Planning reads
     the available budget once; allocations still acquire leases through ``HostMemoryBudget``.
     """
@@ -63,6 +69,8 @@ def plan_moe_l2l(
 
     if expert_input_dtype is not None and expert_input_dtype not in SUPPORTED_STREAM_DTYPES:
         raise ValueError(f"unsupported saved expert input dtype {expert_input_dtype!r}")
+    if type(host_workspace_bytes_per_batch) is not int or host_workspace_bytes_per_batch < 0:
+        raise ValueError("MoE L2L window workspace must be non-negative integer bytes")
 
     batch_size, sequence_length, hidden_size = max_shape
     tokens = batch_size * sequence_length
@@ -76,13 +84,15 @@ def plan_moe_l2l(
     )
     comparison_bytes = tokens * experts_per_token * 8  # one int64 top-k index tensor
     routing_bytes_per_batch = n_moe_layers * comparison_bytes
-    host_bytes_per_batch = activation_bytes_per_batch + routing_bytes_per_batch
+    host_bytes_per_batch = (
+        activation_bytes_per_batch + routing_bytes_per_batch + host_workspace_bytes_per_batch
+    )
     available = host_budget.available_bytes
     effective_k = min(requested_k, (available - comparison_bytes) // host_bytes_per_batch)
     if effective_k < 1:
         raise MemoryError(
             f"MoE L2L k=1 needs {host_bytes_per_batch + comparison_bytes} host bytes "
-            f"for activations and routing, but only {available} available"
+            f"for activations, routing and window workspace, but only {available} available"
         )
 
     saved_expert_input_bytes = None
@@ -99,4 +109,5 @@ def plan_moe_l2l(
         routing_record_bytes=effective_k * routing_bytes_per_batch,
         routing_comparison_bytes=comparison_bytes,
         saved_expert_input_bytes=saved_expert_input_bytes,
+        window_host_bytes=effective_k * host_workspace_bytes_per_batch,
     )

@@ -18,9 +18,6 @@ RECIPE_NAME = "l2l_recipe.json"
 #: Codecs the launch accepts. ``fp8_e4m3`` joins when the FP8 store exists.
 AVAILABLE_CODECS = ("none",)
 
-#: True once the memory planner can pick k at launch.
-AUTO_K_AVAILABLE = False
-
 
 @dataclass(frozen=True)
 class L2LRecipe:
@@ -30,29 +27,38 @@ class L2LRecipe:
     auto_k: bool
 
 
-def resolve_l2l_recipe(tcfg: Any) -> L2LRecipe:
-    """The recipe for ``tcfg`` (a ``TrainingConfig`` with ``l2l=true``).
-
-    Raises ``ValueError`` for a codec or for ``l2l_auto_k`` the launch cannot honour yet. It
-    never falls back to another value: the user asked for that one.
-    """
+def validate_l2l_options(tcfg: Any) -> None:
+    """Check options that can be refused before loading the model."""
     codec = str(tcfg.l2l_activation_codec)
     if codec not in AVAILABLE_CODECS:
         raise ValueError(
             f"training.l2l_activation_codec={codec!r} is not available yet: the launch "
             f"supports {', '.join(repr(c) for c in AVAILABLE_CODECS)}. Set it to 'none'."
         )
-    if tcfg.l2l_auto_k and not AUTO_K_AVAILABLE:
+    if not tcfg.l2l_auto_k:
+        return
+    if tcfg.stream_expert_layout != "per_expert" or type(tcfg.batch_size) is not int:
         raise ValueError(
-            "training.l2l_auto_k is not available yet: the memory planner is not wired "
-            "into the launch. Set l2l_auto_k=false and choose gradient_accumulation_steps."
+            "training.l2l_auto_k requires DeepSeek-V3 per_expert streaming and a fixed batch_size"
         )
+    if tcfg.l2l_spill_dir is not None:
+        raise ValueError("training.l2l_auto_k uses RAM only; unset training.l2l_spill_dir")
+
+
+def resolve_l2l_recipe(tcfg: Any, *, effective_k: int | None = None) -> L2LRecipe:
+    """Use the automatic plan when requested, otherwise keep the configured k."""
+    validate_l2l_options(tcfg)
     requested = int(tcfg.gradient_accumulation_steps)
+    auto_k = bool(tcfg.l2l_auto_k)
+    if not auto_k:
+        effective_k = requested
+    if type(effective_k) is not int or not 1 <= effective_k <= requested:
+        raise ValueError("training.l2l_auto_k requires a resolved, RAM-fitting effective k")
     return L2LRecipe(
         requested_k=requested,
-        effective_k=requested,
-        activation_codec=codec,
-        auto_k=bool(tcfg.l2l_auto_k),
+        effective_k=effective_k,
+        activation_codec=str(tcfg.l2l_activation_codec),
+        auto_k=auto_k,
     )
 
 

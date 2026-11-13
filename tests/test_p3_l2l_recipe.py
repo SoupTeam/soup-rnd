@@ -40,11 +40,12 @@ def test_unavailable_codec_is_refused_at_launch_by_name():
         resolve_l2l_recipe(_tcfg(l2l_activation_codec="fp8_e4m3"))
 
 
-def test_auto_k_is_refused_at_launch_until_the_planner_is_wired():
+@pytest.mark.parametrize("effective_k", [None, 0, 5])
+def test_auto_k_requires_a_resolved_window_within_the_requested_limit(effective_k):
     from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
 
-    with pytest.raises(ValueError, match="l2l_auto_k.*not available"):
-        resolve_l2l_recipe(_tcfg(l2l_auto_k=True))
+    with pytest.raises(ValueError, match="l2l_auto_k.*requires a resolved"):
+        resolve_l2l_recipe(_tcfg(l2l_auto_k=True), effective_k=effective_k)
 
 
 def test_recipe_is_written_and_read_back(tmp_path, monkeypatch):
@@ -105,8 +106,8 @@ def test_resume_with_another_codec_is_refused(tmp_path, monkeypatch):
 def _force_effective_k(monkeypatch, k):
     """Make the recipe's effective k differ from gradient_accumulation_steps.
 
-    Nothing in the launch can do that yet (``l2l_auto_k`` is refused), and the point of the
-    recipe is that every consumer reads the effective value, not the requested one.
+    Exercise the existing dense Llama path and its C3 reservation independently
+    of the automatic selector, which only supports DeepSeek.
     """
     from dataclasses import replace
 
@@ -182,8 +183,8 @@ def test_wrapper_writes_the_recipe_before_training(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("change, name", [
-    ({"l2l_activation_codec": "fp8_e4m3"}, "fp8_e4m3"),
-    ({"l2l_auto_k": True}, "l2l_auto_k"),
+    ({"l2l_activation_codec": "fp8_e4m3"}, "fp8_e4m3.*not available"),
+    ({"l2l_auto_k": True}, "l2l_auto_k.*requires DeepSeek"),
 ])
 def test_wrapper_refuses_unavailable_options_before_loading_the_model(
     tmp_path, monkeypatch, change, name
@@ -195,7 +196,7 @@ def test_wrapper_refuses_unavailable_options_before_loading_the_model(
         raise AssertionError("the model load started before the refusal")
 
     monkeypatch.setattr(StreamingSetupMixin, "_setup_streaming_transformers", loaded)
-    with pytest.raises(ValueError, match=f"{name}.*not available"):
+    with pytest.raises(ValueError, match=name):
         _wrapper(tmp_path, monkeypatch, **change)
 
 
@@ -209,3 +210,95 @@ def test_wrapper_refuses_to_resume_with_another_effective_k(tmp_path, monkeypatc
     write_recipe(wrapper._output_dir, replace(wrapper._l2l_recipe, effective_k=3))
     with pytest.raises(ValueError, match="cannot resume.*effective_k=3.*effective_k=2"):
         wrapper.train(resume_from_checkpoint=str(tmp_path / "out" / "checkpoint-1"))
+
+
+@pytest.mark.parametrize(
+    ("available", "expected_k"),
+    [(215_000, 2), (8_000_000, 64), (120_000, None), (None, None)],
+    ids=["shrinks-to-two", "keeps-64", "too-small", "unknown"],
+)
+def test_public_deepseek_auto_k_reserves_and_uses_one_window(
+    tmp_path, monkeypatch, available, expected_k,
+):
+    from transformers import TrainerCallback
+
+    from benchmarks.harness.b13_moe_fixture import moe_weights_dir
+    from soup_cli.config.schema import SoupConfig
+    from soup_cli.trainer.sft import SFTTrainerWrapper
+    from soup_cli.utils import l2l_spill
+    from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+    from soup_cli.utils.l2l_recipe import load_recipe
+    from tests.test_l2l_probe_harness import hermetic_ram
+    from tests.test_v07201 import _write_tiny_tokenizer
+
+    weights = moe_weights_dir(tmp_path)
+    _write_tiny_tokenizer(weights)
+    hermetic_ram(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        l2l_spill, "ram_budget",
+        lambda: l2l_spill.RamBudget(None, available, None, {}, None),
+    )
+    monkeypatch.setenv("SOUP_LAYER_STREAM_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("ACCELERATE_USE_CPU", "true")
+    monkeypatch.chdir(tmp_path)
+    cfg = SoupConfig.model_validate({
+        "base": str(weights), "output": str(tmp_path / "out"),
+        "data": {"train": "train.jsonl", "max_length": 64, "chat_template": "chatml"},
+        "training": {
+            "stream_layers": True, "stream_expert_layout": "per_expert", "stream_source": "disk",
+            "stream_disk_kind": "nvme", "stream_pin": False, "quantization": "4bit",
+            "bnb_4bit_use_double_quant": False,
+            "l2l": True, "l2l_auto_k": True, "batch_size": 1, "gradient_accumulation_steps": 64,
+            "epochs": 1, "logging_steps": 1, "save_steps": 1000,
+            "lora": {"r": 2, "alpha": 4, "dropout": 0, "target_modules": ["q_a_proj"]},
+        },
+    })
+    row_count = 64 if expected_k == 64 else 5
+    dataset = {"train": [
+        {"messages": [{"role": "user", "content": "hi " * (row % 5 + 1)},
+                      {"role": "assistant", "content": "hello world"}]}
+        for row in range(row_count)
+    ]}
+    wrapper = SFTTrainerWrapper(cfg, device="cpu")
+    if available is None:
+        with pytest.raises(ValueError, match="could not establish a safe host RAM budget"):
+            wrapper.setup(dataset)
+        assert wrapper._stream_runtime.source._closed
+        return
+    if available == 120_000:
+        with pytest.raises(MemoryError, match="k=1 needs"):
+            wrapper.setup(dataset)
+        assert wrapper._stream_runtime.source._closed
+        return
+
+    assert expected_k is not None
+    expected_steps = (row_count + expected_k - 1) // expected_k
+    try:
+        wrapper.setup(dataset)
+        recipe = wrapper._l2l_recipe
+        plan = wrapper._c3_l2l_plan
+        assert recipe.requested_k == cfg.training.gradient_accumulation_steps == 64
+        assert recipe.effective_k == plan.max_microbatches == expected_k
+        assert plan.activations.limit_bytes == expected_k * 3 * 64 * 32 * 4
+        assert plan.weights.reserved_bytes <= available
+        assert wrapper.trainer.args.gradient_accumulation_steps == expected_k
+        assert wrapper.trainer._soup_l2l.c3_plan is plan
+        capacities = []
+
+        class ObserveStore(TrainerCallback):
+            def on_step_end(self, args, state, control, **kwargs):
+                store = wrapper.trainer._soup_l2l.store
+                assert isinstance(store, BudgetedActivationStore)
+                assert 0 < plan.activations.used_bytes <= plan.activations.limit_bytes
+                capacities.append(store.k)
+
+        wrapper.trainer.add_callback(ObserveStore())
+        wrapper.train()
+        assert wrapper.trainer.state.global_step == expected_steps
+        assert capacities == [expected_k] * expected_steps
+        assert plan.activations.used_bytes == 0
+        assert load_recipe(wrapper._output_dir) == recipe
+        rows = [row for row in wrapper.trainer.state.log_history if "loss" in row]
+        assert {row["l2l_effective_k"] for row in rows} == {expected_k}
+    finally:
+        wrapper._close_stream_runtime()

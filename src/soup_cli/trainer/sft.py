@@ -746,13 +746,16 @@ class SFTTrainerWrapper(StreamingSetupMixin):
         # draws `lora_A` before there is a Trainer to run `set_seed(args.seed)`.
         apply_training_seed(tcfg)
 
-        # Before any model load: an option the launch cannot honour yet fails here, and the
-        # effective k is fixed once for the HF arguments, the C3 reservation and the log.
+        # Refuse unsupported options before any model load. For auto-k, streaming setup
+        # resolves the recipe once the fixed weight buffers are live.
         self._l2l_recipe = None
         if tcfg.l2l:
-            from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
+            from soup_cli.utils.l2l_recipe import resolve_l2l_recipe, validate_l2l_options
 
-            self._l2l_recipe = resolve_l2l_recipe(tcfg)
+            if tcfg.l2l_auto_k:
+                validate_l2l_options(tcfg)
+            else:
+                self._l2l_recipe = resolve_l2l_recipe(tcfg)
 
         use_unsloth = cfg.backend == "unsloth"
         use_vision = cfg.modality == "vision"

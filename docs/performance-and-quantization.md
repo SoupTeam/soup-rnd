@@ -1246,13 +1246,21 @@ training:
 
 `training.l2l_activation_codec` (`none` or `fp8_e4m3`, default `none`) and `training.l2l_auto_k`
 (default `false`) are valid only with `l2l: true`, `stream_layers: true` and `task: sft`; the
-config is refused otherwise. The schema accepts `fp8_e4m3` and `l2l_auto_k: true`, but the
-launch refuses both with a clear error until the FP8 store and the memory planner exist. The
-defaults change nothing.
+config is refused otherwise. The launch currently refuses `fp8_e4m3`.
+
+For DeepSeek-V3 with `stream_expert_layout: per_expert` and a fixed `batch_size`, enable
+`l2l_auto_k: true` to select the largest RAM-fitting window up to
+`gradient_accumulation_steps`. The planner reads cgroup-aware available RAM after the
+streaming buffers are live and reserves room for the uncompressed activations, routing
+records and window workspace. Auto-k supports CPU FP32 or CUDA BF16 with a known optimizer
+memory profile. It uses RAM only and refuses an explicit `l2l_spill_dir`.
+If the available RAM is unknown or one micro-batch will not fit, setup stops.
+This admission covers the host allocation plan. CUDA workspace and peak VRAM need
+separate measurement.
 
 The effective k is the one number the run uses for the HF training arguments, the loss scale,
-the activation store capacity, the C3 reservation and the log (`l2l_effective_k`). Today it
-equals `gradient_accumulation_steps`. The run writes it and the codec to
+the activation store capacity, the C3 reservation and the log (`l2l_effective_k`). With
+auto-k off it equals `gradient_accumulation_steps`. The run writes it and the codec to
 `<output>/l2l_recipe.json` before training. Resuming a checkpoint with another effective k or
 codec is refused; a run with no saved recipe resumes as before.
 
