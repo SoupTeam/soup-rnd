@@ -1057,7 +1057,9 @@ did not change the step time, which the disk reads set, and held ~6 GB more on t
 so it is off by default. Diagnostics: with `SOUP_L2L_PROFILE=<file>`
 every split step appends one JSON line with each card's wall time, its time per phase (embedding,
 layer loads, forward, head, recompute, backward, activation store, cross-card copies) from CUDA
-events, the idle remainder, and the host's time per phase. It synchronises the cards once per step. HF is shown one GPU, so it does not wrap the model in `nn.DataParallel`. A CPU test runs the replica path with both devices on the
+events, the idle remainder, and the host's time per phase. It synchronises the cards once per step. The step queues each layer's compute on every card before it
+asks the prefetcher for the next layer, which blocks the host until the disk reader has it: in the
+other order (`SOUP_L2L_SPLIT_DEFER_READ=0`) both T4s waited ~27 s of a ~91 s step (ZERO part G). HF is shown one GPU, so it does not wrap the model in `nn.DataParallel`. A CPU test runs the replica path with both devices on the
 CPU and checks the losses and gradients against the single-device step (tiny llama and qwen3_5,
 rtol 1e-5). Refused: fewer visible GPUs than `l2l_split_gpus`, a `--gpus` launch, a task other than
 `sft`, dropout, a trainable embedding and streamed routed experts. Each layer crosses to every

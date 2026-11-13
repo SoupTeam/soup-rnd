@@ -35,6 +35,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 MAX_SPLIT_GPUS = 8
 #: ``1`` runs the cross-device copies on side streams (overlap); off by default.
 OVERLAP_ENV = "SOUP_L2L_SPLIT_OVERLAP"
+#: ``0`` asks the prefetcher for the next layer before this layer's compute is queued (the
+#: order of ZERO parts D-G); on by default.
+DEFER_READ_ENV = "SOUP_L2L_SPLIT_DEFER_READ"
 
 
 def assign(k: int, n_devices: int) -> List[int]:
@@ -410,3 +413,14 @@ class SplitProfile:
             handle.write(json.dumps(record) + "\n")
         self._spans.clear()
         return record
+
+
+def defer_read_enabled() -> bool:
+    """Queue a layer's compute before waiting for the next layer's read, unless
+    ``SOUP_L2L_SPLIT_DEFER_READ=0``.
+
+    ZERO part G (Kaggle T4 x2, 27B): the step asked the prefetcher for layer i+1 before
+    queuing layer i, and the prefetcher blocks the host until the disk reader has layer i+1,
+    so both GPUs waited ~27 s of a ~91 s step. Deferred, the host waits while they compute.
+    """
+    return os.environ.get(DEFER_READ_ENV, "1") != "0"

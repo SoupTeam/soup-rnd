@@ -411,3 +411,55 @@ def test_profile_sums_spans_per_device(monkeypatch, tmp_path):
     assert dev1 == {"wall_ms": 50.0, "busy_ms": {"fwd": 10.0, "load": 10.0}, "idle_ms": 30.0}
     assert record["k"] == 4 and set(record["host_ms"]) == {"fwd", "load"}
     assert json.loads(path.read_text().splitlines()[0])["devices"]["cuda:1"]["wall_ms"] == 50.0
+
+
+@pytest.mark.parametrize("defer", ["1", "0"])
+def test_split_step_equals_single_device_in_both_read_orders(qwen35_streamed, monkeypatch, defer):
+    from soup_cli.utils.l2l_split import DEFER_READ_ENV
+
+    harness = _load("l2l_schedule")
+    model, runtime, _config = qwen35_streamed
+    harness.make_non_vacuous(model)
+    mbs = _micro_batches(4)
+    harness.zero_grads(model)
+    single_step, single_losses = _run(model, runtime, mbs, _store(4))
+    single = harness.collect_grads(model)
+    monkeypatch.setenv(DEFER_READ_ENV, defer)
+    harness.zero_grads(model)
+    split_step, split_losses = _run(model, runtime, mbs, _store(4), split=("cpu",))
+    _assert_close(single, harness.collect_grads(model))
+    assert harness.losses_equal(single_losses, split_losses)
+    # The same layer loads either way: deferring moves the read, it does not add one.
+    assert split_step.counters.layer_loads == single_step.counters.layer_loads
+
+
+def test_deferred_read_comes_after_the_layer_is_queued(qwen35_streamed, monkeypatch):
+    """With the deferred order the prefetcher's step for layer i follows every micro-batch's
+    call of layer i; with the old order it precedes them (part G)."""
+    from soup_cli.utils.l2l_split import DEFER_READ_ENV
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+
+    model, runtime, _config = qwen35_streamed
+    mbs = _micro_batches(2)
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), split_devices=("cpu",))
+    events = []
+    prefetcher = step.layers[0].prefetcher
+    real_advance = prefetcher.advance
+    monkeypatch.setattr(prefetcher, "advance",
+                        lambda idx: (events.append(("advance", idx)), real_advance(idx))[1])
+    handles = [layer.inner.register_forward_pre_hook(
+        lambda _m, _a, i=i: events.append(("call", i))) for i, layer in enumerate(step.layers)]
+    try:
+        for defer, check in (("1", lambda a, c: a > c), ("0", lambda a, c: a < c)):
+            events.clear()
+            monkeypatch.setenv(DEFER_READ_ENV, defer)
+            step.run(mbs, _store(2))
+            n = len(step.layers)
+            forward = events[: events.index(("advance", n - 1)) + 3]
+            first_advance = forward.index(("advance", 1))
+            last_call = max(i for i, e in enumerate(forward) if e == ("call", 1))
+            first_call = forward.index(("call", 1))
+            assert check(first_advance, last_call if defer == "1" else first_call), (defer, forward)
+    finally:
+        for handle in handles:
+            handle.remove()

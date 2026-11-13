@@ -751,6 +751,7 @@ class L2LStep:
             Transfers,
             assign,
             copy_weights,
+            defer_read_enabled,
             to_device,
         )
 
@@ -802,6 +803,14 @@ class L2LStep:
         used = sorted(set(owner_of) - {0})
         xfer = Transfers(main, [replicas[d - 1].device for d in used])
         prof = SplitProfile([main, *[replicas[d - 1].device for d in used]])
+        # Ask the prefetcher for the next layer only once this layer's compute is queued on
+        # every device (``defer_read_enabled``): ``advance`` blocks the host until the disk
+        # reader has that layer, and before the compute is queued the GPUs wait with it.
+        # The main device then runs the layer's module directly (``_body`` would advance),
+        # which a wrapper with hooks of its own would skip, so such a layer keeps the order.
+        defer = defer_read_enabled() and not any(
+            layer._forward_pre_hooks or layer._forward_hooks for layer in self.layers
+        )
         # Each extra device's copy of every micro-batch's layer arguments, once per step.
         moved_calls: Dict[Tuple[int, int, str], Tuple[Any, Any]] = {}
 
@@ -835,7 +844,8 @@ class L2LStep:
             # micro-batch. Without overlap they are copied here, before either device's
             # compute for this layer is issued (a cross-device copy waits on both).
             buffers = layer.pool.wait(layer.idx)
-            layer.prefetcher.advance(layer.idx)
+            if not defer:
+                layer.prefetcher.advance(layer.idx)
             copies = ahead.pop(idx, None)
             if copies is None:
                 ready = None
@@ -855,7 +865,15 @@ class L2LStep:
                     for tensor in copy.moved.values():
                         tensor.record_stream(compute)
                 weights[d] = replicas[d - 1].weights(idx, layer, copy.moved)
+            if defer:
+                weights[0] = layer._substituted_weights(buffers)
             return weights
+
+        def read_next(layer: Any) -> None:
+            # With ``defer``: the prefetcher's step for this layer, after its compute is queued.
+            if defer:
+                with prof.span("read"):
+                    layer.prefetcher.advance(layer.idx)
 
         def run_layer(idx: int, layer: Any, weights: Dict[int, Any], mb: int, hidden: Any) -> Any:
             with prof.span("fwd" if not torch.is_grad_enabled() else "recompute", device_of(mb)):
@@ -863,7 +881,13 @@ class L2LStep:
 
         def _run_layer(idx: int, layer: Any, weights: Dict[int, Any], mb: int, hidden: Any) -> Any:
             if owner_of[mb] == 0:
-                return self._layer(layer, hidden, None, calls[mb], idx)
+                if not defer:
+                    return self._layer(layer, hidden, None, calls[mb], idx)
+                from torch.func import functional_call
+
+                args, kwargs = calls[mb].for_layer(idx)
+                out = functional_call(layer.inner, weights[0], (hidden, *args), kwargs)
+                return out[0] if isinstance(out, tuple) else out
             args, kwargs = call_on(mb, idx)
             return replicas[owner_of[mb] - 1].forward(
                 layer, weights[owner_of[mb]], hidden, args, kwargs
@@ -897,6 +921,7 @@ class L2LStep:
                 for mb in range(k):
                     hidden[mb] = run_layer(idx, layer, weights, mb, hidden[mb])
                 weights = None
+                read_next(layer)
                 prefetch(idx + 1)
 
         losses: List[Any] = []
@@ -943,7 +968,8 @@ class L2LStep:
                     with prof.span("get_cross"), on_acts():
                         moved = xfer.act(store.get(idx, mb), device_of(mb))
                     inputs.append(moved.requires_grad_(True))
-            prefetch(idx - 1)
+            if not defer:
+                prefetch(idx - 1)
             saved = layer.use_checkpoint
             layer.use_checkpoint = False
             try:
@@ -960,6 +986,9 @@ class L2LStep:
             finally:
                 layer.use_checkpoint = saved
             weights = None
+            if defer:
+                read_next(layer)
+                prefetch(idx - 1)
         ahead.clear()
         store.end_step()
         with prof.span("merge"):
