@@ -1,0 +1,635 @@
+{
+  "gpu_uuid": "GPU-c9be3615-9506-8d23-de1c-77e24caa21ad",
+  "driver_version": "580.95.05",
+  "source_sha256": "12063cfc2a3326b0c6cb4020758733b3a02168e8b1d8e3b3dc041f4b60784968",
+  "packages": {
+    "jinja2": "3.1.6",
+    "markupsafe": "3.0.4",
+    "pyyaml": "6.0.3",
+    "pygments": "2.21.0",
+    "accelerate": "1.14.0",
+    "aiohappyeyeballs": "2.7.1",
+    "aiohttp": "3.14.5",
+    "aiosignal": "1.4.0",
+    "annotated-types": "0.8.0",
+    "anyio": "4.15.1",
+    "attrs": "26.1.0",
+    "bitsandbytes": "0.50.2",
+    "certifi": "2026.10.18",
+    "cffi": "2.1.1",
+    "charset-normalizer": "3.5.2",
+    "click": "8.4.2",
+    "coverage": "7.16.2",
+    "cryptography": "50.0.2",
+    "datasets": "5.1.0",
+    "dill": "0.4.1",
+    "einops": "0.8.2",
+    "filelock": "4.2.4",
+    "frozenlist": "1.8.0",
+    "fsspec": "2026.7.0",
+    "h11": "0.16.0",
+    "hf-xet": "1.7.0",
+    "httpcore": "1.0.9",
+    "httpx": "0.28.1",
+    "huggingface_hub": "1.33.0",
+    "idna": "3.20",
+    "iniconfig": "2.3.1",
+    "markdown-it-py": "4.2.0",
+    "mdurl": "0.1.2",
+    "mpmath": "1.3.0",
+    "multidict": "7.1.0",
+    "multiprocess": "0.70.19",
+    "networkx": "3.7",
+    "numpy": "2.5.4",
+    "nvidia-cublas-cu12": "12.8.4.1",
+    "nvidia-cuda-cupti-cu12": "12.8.90",
+    "nvidia-cuda-nvrtc-cu12": "12.8.93",
+    "nvidia-cuda-runtime-cu12": "12.8.90",
+    "nvidia-cudnn-cu12": "9.10.2.21",
+    "nvidia-cufft-cu12": "11.3.3.83",
+    "nvidia-cufile-cu12": "1.13.1.3",
+    "nvidia-curand-cu12": "10.3.9.90",
+    "nvidia-cusolver-cu12": "11.7.3.90",
+    "nvidia-cusparse-cu12": "12.5.8.93",
+    "nvidia-cusparselt-cu12": "0.7.1",
+    "nvidia-nccl-cu12": "2.27.3",
+    "nvidia-nvjitlink-cu12": "12.8.93",
+    "nvidia-nvtx-cu12": "12.8.90",
+    "packaging": "26.3",
+    "pandas": "3.0.6",
+    "peft": "0.20.0",
+    "pip": "26.2.1",
+    "plotext": "6.1.0",
+    "pluggy": "1.7.0",
+    "propcache": "0.5.4",
+    "protobuf": "7.36.2",
+    "psutil": "7.2.2",
+    "pyarrow": "26.0.0",
+    "pycparser": "3.11",
+    "pydantic": "2.14.1",
+    "pydantic_core": "2.50.1",
+    "pytest": "9.1.1",
+    "pytest-cov": "7.1.0",
+    "python-dateutil": "2.9.0.post0",
+    "regex": "2026.9.29",
+    "requests": "2.34.2",
+    "rich": "15.0.0",
+    "safetensors": "0.8.0",
+    "sentencepiece": "0.2.2",
+    "setuptools": "84.0.0",
+    "shellingham": "1.5.4",
+    "six": "1.17.0",
+    "soup-cli": "0.76.0",
+    "sympy": "1.14.0",
+    "tokenizers": "0.23.3",
+    "torch": "2.8.0+cu128",
+    "tqdm": "4.70.1",
+    "transformers": "5.17.0",
+    "triton": "3.4.0",
+    "trl": "0.29.1",
+    "typer": "0.20.0",
+    "typing-inspection": "0.4.4",
+    "typing_extensions": "4.16.0",
+    "urllib3": "2.8.0",
+    "xxhash": "4.0.2",
+    "yarl": "1.25.1"
+  },
+  "qualified_state": {
+    "status": "TIMING_REUSES_RETAINED_EXACT_GPU_NUMERICAL_PROOF",
+    "stages": [
+      {
+        "name": "target-regressions",
+        "exit_code": 0,
+        "seconds": 66.50618314743042
+      },
+      {
+        "name": "prepare",
+        "exit_code": 0,
+        "seconds": 110.54033970832825
+      }
+    ],
+    "arms": {
+      "resident": {
+        "indices": [
+          16,
+          17,
+          18,
+          19
+        ],
+        "capture": {
+          "passed": true,
+          "loss_three_decimals": true,
+          "groups": {
+            "batch": {
+              "tensors": 16,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "loss": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "final": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "gradient": {
+              "tensors": 1008,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "initial": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "logits": {
+              "tensors": 4,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            }
+          },
+          "rtol": 0.01,
+          "atol": 1e-05,
+          "bitwise_equal": true,
+          "tensor_count": 2037
+        },
+        "semantics": {
+          "passed": true,
+          "loss_three_decimals": true,
+          "groups": {
+            "batch": {
+              "tensors": 4,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "loss": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "gradient": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "initial": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "diagnostic": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "logits": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            }
+          },
+          "rtol": 0.01,
+          "atol": 1e-05,
+          "bitwise_equal": true,
+          "tensor_count": 1015
+        },
+        "status": "QUALIFIED_FOR_TIMING"
+      },
+      "retained": {
+        "indices": [
+          17
+        ],
+        "capture": {
+          "passed": true,
+          "loss_three_decimals": true,
+          "groups": {
+            "batch": {
+              "tensors": 16,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "loss": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "final": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "gradient": {
+              "tensors": 1008,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "initial": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "logits": {
+              "tensors": 4,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            }
+          },
+          "rtol": 0.01,
+          "atol": 1e-05,
+          "bitwise_equal": true,
+          "tensor_count": 2037
+        },
+        "semantics": {
+          "passed": true,
+          "loss_three_decimals": true,
+          "groups": {
+            "batch": {
+              "tensors": 4,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "loss": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "gradient": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "initial": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "diagnostic": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "logits": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            }
+          },
+          "rtol": 0.01,
+          "atol": 1e-05,
+          "bitwise_equal": true,
+          "tensor_count": 1015
+        },
+        "status": "QUALIFIED_FOR_TIMING"
+      },
+      "both": {
+        "indices": [
+          17
+        ],
+        "capture": {
+          "passed": true,
+          "loss_three_decimals": true,
+          "groups": {
+            "batch": {
+              "tensors": 16,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "loss": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "final": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "gradient": {
+              "tensors": 1008,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "initial": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "logits": {
+              "tensors": 4,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            }
+          },
+          "rtol": 0.01,
+          "atol": 1e-05,
+          "bitwise_equal": true,
+          "tensor_count": 2037
+        },
+        "semantics": {
+          "passed": true,
+          "loss_three_decimals": true,
+          "groups": {
+            "batch": {
+              "tensors": 4,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "loss": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "gradient": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "initial": {
+              "tensors": 504,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "diagnostic": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            },
+            "logits": {
+              "tensors": 1,
+              "failed_tensors": 0,
+              "max_abs": 0.0,
+              "failures": []
+            }
+          },
+          "rtol": 0.01,
+          "atol": 1e-05,
+          "bitwise_equal": true,
+          "tensor_count": 1015
+        },
+        "status": "QUALIFIED_FOR_TIMING"
+      }
+    },
+    "comparisons": [],
+    "current_stage": "prepare",
+    "model": {
+      "size_b": 8,
+      "model_id": "Qwen/Qwen3-8B",
+      "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+      "weight_bytes": 16381470720,
+      "config": {
+        "architectures": [
+          "Qwen3ForCausalLM"
+        ],
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "bos_token_id": 151643,
+        "eos_token_id": 151645,
+        "head_dim": 128,
+        "hidden_act": "silu",
+        "hidden_size": 4096,
+        "initializer_range": 0.02,
+        "intermediate_size": 12288,
+        "max_position_embeddings": 40960,
+        "max_window_layers": 36,
+        "model_type": "qwen3",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 36,
+        "num_key_value_heads": 8,
+        "rms_norm_eps": 1e-06,
+        "rope_scaling": null,
+        "rope_theta": 1000000,
+        "sliding_window": null,
+        "tie_word_embeddings": false,
+        "torch_dtype": "bfloat16",
+        "transformers_version": "4.51.0",
+        "use_cache": true,
+        "use_sliding_window": false,
+        "vocab_size": 151936
+      }
+    },
+    "layer_count": 36,
+    "baseline_capacity": {
+      "arm": "baseline",
+      "indices": [],
+      "physical_gpu_bytes": 8184397824,
+      "allocator_budget_bytes": 7516192768,
+      "torch": "2.8.0+cu128",
+      "pid": 1653,
+      "started_unix": 1792650188.5858078,
+      "baseline_metadata_compatibility": {
+        "metadata_only": true,
+        "production_arithmetic_changed": false
+      },
+      "layer_count": 36,
+      "per_layer_bytes": 385892864,
+      "host_memory_after_setup": {
+        "VmLck_bytes": 0,
+        "VmPin_bytes": 0,
+        "VmHWM_bytes": 19796357120,
+        "VmRSS_bytes": 18606043136
+      },
+      "attention_backend": "sdpa",
+      "residency": {
+        "indices": [],
+        "dedicated_slots": {},
+        "rotating_slots": 2,
+        "resident_bytes": 0,
+        "preload_loads": 0,
+        "resident_load_calls_skipped": 0,
+        "dynamic_loads": 274,
+        "dynamic_logical_bytes": 105734644736,
+        "arithmetic_changed": false,
+        "host_store_retained": true,
+        "preload_seconds": 7.606111466884613e-05
+      },
+      "per_update": [
+        {
+          "step": 1,
+          "decoder_loads": 138,
+          "decoder_logical_bytes": 53253215232,
+          "inner_forward_calls": 144
+        },
+        {
+          "step": 2,
+          "decoder_loads": 136,
+          "decoder_logical_bytes": 52481429504,
+          "inner_forward_calls": 144
+        }
+      ],
+      "inner_forward_calls": {
+        "0": 8,
+        "1": 8,
+        "2": 8,
+        "3": 8,
+        "4": 8,
+        "5": 8,
+        "6": 8,
+        "7": 8,
+        "8": 8,
+        "9": 8,
+        "10": 8,
+        "11": 8,
+        "12": 8,
+        "13": 8,
+        "14": 8,
+        "15": 8,
+        "16": 8,
+        "17": 8,
+        "18": 8,
+        "19": 8,
+        "20": 8,
+        "21": 8,
+        "22": 8,
+        "23": 8,
+        "24": 8,
+        "25": 8,
+        "26": 8,
+        "27": 8,
+        "28": 8,
+        "29": 8,
+        "30": 8,
+        "31": 8,
+        "32": 8,
+        "33": 8,
+        "34": 8,
+        "35": 8
+      },
+      "whole_run_peak_allocated_bytes": 4447119872,
+      "whole_run_peak_reserved_bytes": 5056233472,
+      "host_memory_at_exit": {
+        "VmLck_bytes": 0,
+        "VmPin_bytes": 0,
+        "VmHWM_bytes": 22892052480,
+        "VmRSS_bytes": 21772161024
+      },
+      "peak_allocated_bytes": 4447119872,
+      "peak_reserved_bytes": 5056233472,
+      "status": "COMPLETED_REQUIRES_INDEPENDENT_COMPARISON",
+      "whole_process_seconds": 111.37263464927673
+    },
+    "selection": {
+      "indices": {
+        "resident": [
+          16,
+          17,
+          18,
+          19
+        ],
+        "retained": [
+          17
+        ],
+        "both": [
+          17
+        ]
+      },
+      "available_bytes": 1654652928,
+      "activation_allowance_bytes_per_layer": 536870912,
+      "reserve_bytes": 805306368
+    },
+    "bundles": [],
+    "verified_acknowledged_bundles": [],
+    "qualification_reference": {
+      "original_instance": 57170199,
+      "all_raw_files_already_verified": 140,
+      "archive_sha256": "ae05ff6e6c969df21e962a9ee3eba4f8bb32fec56dc48cfcf76c134bb83cf5ec",
+      "same_gpu_uuid": "GPU-c9be3615-9506-8d23-de1c-77e24caa21ad",
+      "same_driver": "580.95.05",
+      "same_source_and_packages": true
+    }
+  },
+  "accuracy_sha256": "ae05ff6e6c969df21e962a9ee3eba4f8bb32fec56dc48cfcf76c134bb83cf5ec",
+  "data_sha256": "313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9",
+  "initial_adapter_sha256": "4b0bffec36ae011fe0aab9779d2ec9d0c8c63a13770ac048a0be46550dc64d89",
+  "model_manifest": {
+    "model_id": "Qwen/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "files": {
+      "config.json": {
+        "bytes": 728,
+        "sha256": "f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30"
+      },
+      "generation_config.json": {
+        "bytes": 239,
+        "sha256": "2325da0f15bb848e018c5ae071b7943332e9f871d6b60e2ed22ca97d4cb993d2"
+      },
+      "merges.txt": {
+        "bytes": 1671853,
+        "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+      },
+      "model-00001-of-00005.safetensors": {
+        "bytes": 3996250744,
+        "sha256": "31d6a825ae35f11fb85b195b4c42c146c051e446433125a215336abdf95cbf5f"
+      },
+      "model-00002-of-00005.safetensors": {
+        "bytes": 3993160032,
+        "sha256": "5991236cea6fe21f3d43cab0f0e84448734fbbe0789816202989f2ddc9d18282"
+      },
+      "model-00003-of-00005.safetensors": {
+        "bytes": 3959604768,
+        "sha256": "c5185c4794be2d8a9784d5753c9922db38df478ce11f9ed0b415b7304d896836"
+      },
+      "model-00004-of-00005.safetensors": {
+        "bytes": 3187841392,
+        "sha256": "b5ee7de71fbf17db3d5704e0c8f2bc7d005ca9e1d7ca2aeb19827b0cfcaa917a"
+      },
+      "model-00005-of-00005.safetensors": {
+        "bytes": 1244659840,
+        "sha256": "20c2d6366ab85c90786ccdd829cd2b9e7d30ef3b2ebbb998280e7e4014b542ff"
+      },
+      "model.safetensors.index.json": {
+        "bytes": 32878,
+        "sha256": "f9fdbcb91c23971c13ec5d5f2573d2349e8f61f2f049371ec699281748fdb1bc"
+      },
+      "tokenizer.json": {
+        "bytes": 11422654,
+        "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+      },
+      "tokenizer_config.json": {
+        "bytes": 9732,
+        "sha256": "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101"
+      },
+      "vocab.json": {
+        "bytes": 2776833,
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+      }
+    }
+  }
+}

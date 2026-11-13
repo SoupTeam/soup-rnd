@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+trap 'touch /root/stream8-cache-resume/setup.exited' EXIT
+mkdir -p /root/stream8-cache-resume/repo /root/stream8-cache-resume/results /root/stream8-cache-resume/exports
+cd /root/stream8-cache-resume
+python3 -c "import json,hashlib;from pathlib import Path;p=json.loads(Path('policy.json').read_text());assert hashlib.sha256(Path('source.tar.gz').read_bytes()).hexdigest()==p['source_sha256']"
+tar -xzf source.tar.gz -C repo
+python3 -m pip install uv
+uv venv --python 3.12 /root/stream8-cache-resume/venv
+uv pip install --python /root/stream8-cache-resume/venv/bin/python --constraint /root/stream8-cache-resume/constraints.txt --index-strategy unsafe-best-match \
+  --extra-index-url https://download.pytorch.org/whl/cu128 \
+  'torch==2.8.0' 'transformers==5.17.0' 'peft==0.20.0' 'trl==0.29.1' 'accelerate==1.14.0' \
+  -e '/root/stream8-cache-resume/repo[train]' pytest pytest-cov cryptography pip sentencepiece protobuf einops
+uv pip check --python /root/stream8-cache-resume/venv/bin/python
+export PYTHONPATH=/root/stream8-cache-resume:/root/stream8-cache-resume/repo:/root/stream8-cache-resume/repo/src
+export CUDA_VISIBLE_DEVICES=0 PYTHONHASHSEED=0 USE_TF=0
+export TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+export CUBLAS_WORKSPACE_CONFIG=:4096:8 WANDB_DISABLED=true
+export TORCHINDUCTOR_CACHE_DIR=/root/stream8-cache-resume/compiler-cache
+export SOUP_LAYER_STREAM_CACHE_DIR=/root/stream8-cache-resume/shards
+nohup /root/stream8-cache-resume/venv/bin/python /root/stream8-cache-resume/telemetry.py > /root/stream8-cache-resume/telemetry.log 2>&1 < /dev/null &
+cd /root/stream8-cache-resume/repo
+/root/stream8-cache-resume/venv/bin/python /root/stream8-cache-resume/pin_entry.py /root/stream8-cache-resume/timing_worker.py

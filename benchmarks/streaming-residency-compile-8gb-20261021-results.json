@@ -1,0 +1,138 @@
+{
+  "status": "BLOCKED_BEFORE_MODEL_WORK",
+  "accuracy_verdict": null,
+  "performance_verdict": null,
+  "model_capacity_verdict": null,
+  "gpu_tests_run": 0,
+  "training_updates": 0,
+  "timing_processes": 0,
+  "primary_planned_models": [
+    "Qwen/Qwen3-8B",
+    "Qwen/Qwen3-14B",
+    "Qwen/Qwen3-32B"
+  ],
+  "fallback_planned_models": [
+    "Qwen/Qwen3-8B",
+    "Qwen/Qwen3-14B",
+    "mistralai/Mistral-Small-24B-Base-2501"
+  ],
+  "attempts": [
+    {
+      "attempt": "A",
+      "instance_id": 57086947,
+      "physical_hardware": {
+        "gpu": "NVIDIA GeForce RTX 3070, 8192, GPU-8b141d1d-7249-6521-0485-70d5100e5622",
+        "available_ram_lower_bound_bytes": 176126320640,
+        "passed": true
+      },
+      "verified_deleted": true,
+      "model_work_executed": false,
+      "model_weights_downloaded": false,
+      "gpu_tests_run": 0,
+      "training_updates": 0,
+      "timing_processes": 0,
+      "network_preflight": {
+        "route": "authenticated-direct-port-encrypted-payloads",
+        "bytes": 8388608,
+        "seconds": 16.661613699994632,
+        "aggregate_mib_per_second": 0.48014556957364685,
+        "minimum_mib_per_second": 2,
+        "passed": false,
+        "unix": 1792603183.6050358
+      },
+      "blocker": "result transport below unchanged2MiB/s preflight threshold"
+    },
+    {
+      "attempt": "D",
+      "instance_id": 57088446,
+      "physical_hardware": {
+        "gpu": "NVIDIA GeForce RTX 3060 Ti, 8192, GPU-72f1f8b8-6875-712e-9ed7-97bd231370ef",
+        "available_ram_lower_bound_bytes": 62784217088,
+        "passed": true
+      },
+      "verified_deleted": true,
+      "model_work_executed": false,
+      "model_weights_downloaded": false,
+      "gpu_tests_run": 0,
+      "training_updates": 0,
+      "timing_processes": 0,
+      "blocker": "fresh HTTPS relay hostname could not be resolved by local DNS"
+    },
+    {
+      "attempt": "E",
+      "instance_id": 57089132,
+      "physical_hardware": {
+        "gpu": "NVIDIA GeForce RTX 3070, 8192, GPU-8b141d1d-7249-6521-0485-70d5100e5622",
+        "available_ram_lower_bound_bytes": 175379169280,
+        "passed": true
+      },
+      "verified_deleted": true,
+      "model_work_executed": false,
+      "model_weights_downloaded": false,
+      "gpu_tests_run": 0,
+      "training_updates": 0,
+      "timing_processes": 0,
+      "network_preflight": {
+        "route": "authenticated-https-relay-encrypted-payloads",
+        "bytes": 8388608,
+        "seconds": 34.959587399993325,
+        "aggregate_mib_per_second": 0.22883565267711162,
+        "minimum_mib_per_second": 2,
+        "passed": false,
+        "unix": 1792604086.0944505
+      },
+      "blocker": "result transport below unchanged2MiB/s preflight threshold"
+    },
+    {
+      "attempt": "F",
+      "instance_id": 57089727,
+      "physical_hardware": {
+        "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU, 8188, GPU-f43c240f-3d75-5270-4ee4-0b2deaa514c8",
+        "available_ram_lower_bound_bytes": 59698827264,
+        "passed": true
+      },
+      "verified_deleted": true,
+      "model_work_executed": false,
+      "model_weights_downloaded": false,
+      "gpu_tests_run": 0,
+      "training_updates": 0,
+      "timing_processes": 0,
+      "blocker": "single SSH stream did not finish32MiB probe within90seconds",
+      "ssh_probe_expected_bytes": 33554432,
+      "ssh_probe_timeout_seconds": 90,
+      "ssh_probe_exact_rate_mib_per_second": null
+    }
+  ],
+  "budget": {
+    "series_cap_usd": 10,
+    "prior_conservative_usd": 4.276317333412491,
+    "new_preflight_conservative_usd": 0.7194629215890584,
+    "new_preflight_provider_observed_usd": 0.142,
+    "cumulative_conservative_usd": 4.9957802550015495,
+    "remaining_conservative_usd": 5.0042197449984505,
+    "settlement_can_lag": true,
+    "conservative_estimate_includes_time_margins_and_per_attempt_reserves": true,
+    "balance_difference_not_used": true
+  },
+  "final_cleanup": {
+    "unix": 1792604812.2714148,
+    "checked_task_instance_ids": [
+      57086947,
+      57088446,
+      57089132,
+      57089727
+    ],
+    "active_task_instance_ids": [],
+    "unrelated_instances_untouched": true
+  },
+  "preparation": {
+    "production_files_unchanged": 602,
+    "comparator_ast_unchanged": true,
+    "capture_count_assertion": "448 ->14*actual_decoder_layers",
+    "local_cpu_tests_passed": 14,
+    "local_cuda_tests_skipped": 2,
+    "upstream": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b",
+    "planned_source_sha256": "2b3ce103921a5713849d120b6bd3d74fc5c895124b65bbea93f06a2658bc3f6a",
+    "planned_source_not_executed_on_gpu": true
+  }
+}

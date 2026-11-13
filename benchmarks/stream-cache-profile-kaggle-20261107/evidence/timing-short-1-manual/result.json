@@ -1,0 +1,61 @@
+{
+  "status": "passed",
+  "policy": "manual",
+  "phase": "timing",
+  "updates": 8,
+  "placement": {
+    "ram_indices": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      16,
+      17,
+      18,
+      19
+    ],
+    "gpu_indices": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "retained_layers": 0
+  },
+  "messages": [
+    "training.stream_resident_layers=8: measured resident candidate fits the shared cap; resident layers [8, 9, 10, 11, 12, 13, 14, 15], payload 56289504 bytes, cap 8589934592 bytes, setup reserve 90701824 bytes (optimizer state estimated; setup forward/backward, no optimizer step)."
+  ],
+  "setup_seconds": 2.4947233890000007,
+  "train_seconds": 9.721634782999956,
+  "full_seconds": 12.216360705999989,
+  "step_seconds_after_2": 1.1680185203333242,
+  "peak_vram_allocated_bytes": 230107648,
+  "peak_vram_reserved_bytes": 255852544,
+  "peak_rss_bytes": 1649250304,
+  "losses": [
+    7.786526203155518,
+    7.822332859039307,
+    7.881069183349609,
+    7.838099479675293,
+    7.79380464553833,
+    7.8489179611206055,
+    7.813292503356934,
+    7.777803421020508,
+    7.844970703125,
+    7.844526767730713,
+    7.804714202880859,
+    7.812043190002441,
+    7.884367942810059,
+    7.875136375427246,
+    7.835472106933594,
+    7.856574058532715
+  ],
+  "comparisons": [],
+  "adapter_tensors": 336,
+  "profile_identity": null
+}

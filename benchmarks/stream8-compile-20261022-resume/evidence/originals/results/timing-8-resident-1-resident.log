@@ -1,0 +1,69 @@
+Loading tokenizer: /root/liger/model-8
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 16.38 GB                                                    │
+│ Soup materialized copy: 0.00 GB (no write required)                          │
+│ Layer-shard cache: 16.38 GB (reusable)                                       │
+│ Projected total on disk: 32.76 GB                                            │
+│ Additional writes before training: 0.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> /root/liger/shards/root__liger__model-8
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch qwen3, tier ram                                  │
+│   base store   16.38 GB across 36 layers (pinned)                            │
+│   VRAM buffers 2 x 386 MB + 1 x 1245 MB large-layer slot = 2016 MB           │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~4.71 GB at batch 1 x seq 1024 (logits 2.18 GB)               │
+│   free VRAM    8.05 GB                                                       │
+│   forecast     422-620 tok/s — a compute-bound bound, not a promise          │
+│                (from 30.48 TFLOPS measured on this card now using bfloat16 @ │
+│ 1665 MHz)                                                                    │
+│   ! accumulating 2x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 2 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+│   ! training.stream_pin=true forces page-locked host memory — the base store │
+│ on the RAM tier, the async reader's staging on the disk tier. On a CUDA      │
+│ target the run refuses, on either tier, rather than falling back to pageable │
+│ memory if the box cannot page-lock it; on a non-CUDA target there is no CUDA │
+│ pinning to force, so the request is announced as inapplicable and the run    │
+│ proceeds with pageable host memory.                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Layer streaming ready: 36 layers, 16.38 GB pinned RAM store (17.18 GB 
+page-locked), 2 x 386 MB decoder buffers + 1 x 1245 MB large-layer slot
+LoRA applied: 10,911,744 trainable / 8,190,735,360 total (0.13%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/32 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map:  25%|██▌       | 8/32 [00:00<00:00, 72.09 examples/s]Map:  50%|█████     | 16/32 [00:00<00:00, 69.93 examples/s]Map:  75%|███████▌  | 24/32 [00:00<00:00, 68.82 examples/s]Map: 100%|██████████| 32/32 [00:00<00:00, 68.38 examples/s]Map: 100%|██████████| 32/32 [00:00<00:00, 65.48 examples/s]
+Map:   0%|          | 0/32 [00:00<?, ? examples/s]Map: 100%|██████████| 32/32 [00:00<00:00, 1963.19 examples/s]
+Gradient checkpointing: handled per-layer by layer streaming (HF's own is left 
+off to avoid double recompute)
+Truncating train dataset:   0%|          | 0/32 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 32/32 [00:00<00:00, 8173.04 examples/s]
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+Rewind log: 
+/root/liger/results/model-8/timing-resident-pair-1-resident/adapter/rewind.jsonl
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+  0%|          | 0/14 [00:00<?, ?it/s]  7%|▋         | 1/14 [00:06<01:21,  6.30s/it]                                              {'loss': '0.08662', 'grad_norm': '0.1485', 'learning_rate': '2e-05', 'entropy': '0.06033', 'num_tokens': '2048', 'mean_token_accuracy': '0.9881', 'epoch': '0.0625'}
+  7%|▋         | 1/14 [00:06<01:21,  6.30s/it] 14%|█▍        | 2/14 [00:12<01:11,  5.98s/it]                                              {'loss': '0.08813', 'grad_norm': '0.1552', 'learning_rate': '1.975e-05', 'entropy': '0.06067', 'num_tokens': '4096', 'mean_token_accuracy': '0.9881', 'epoch': '0.125'}
+ 14%|█▍        | 2/14 [00:12<01:11,  5.98s/it] 21%|██▏       | 3/14 [00:17<01:04,  5.91s/it]                                              {'loss': '0.08545', 'grad_norm': '0.1525', 'learning_rate': '1.901e-05', 'entropy': '0.05958', 'num_tokens': '6144', 'mean_token_accuracy': '0.9881', 'epoch': '0.1875'}
+ 21%|██▏       | 3/14 [00:17<01:04,  5.91s/it] 29%|██▊       | 4/14 [00:23<00:58,  5.88s/it]                                              {'loss': '0.08349', 'grad_norm': '0.1185', 'learning_rate': '1.782e-05', 'entropy': '0.05665', 'num_tokens': '8192', 'mean_token_accuracy': '0.9901', 'epoch': '0.25'}
+ 29%|██▊       | 4/14 [00:23<00:58,  5.88s/it] 36%|███▌      | 5/14 [00:29<00:52,  5.87s/it]                                              {'loss': '0.07857', 'grad_norm': '0.1585', 'learning_rate': '1.623e-05', 'entropy': '0.06081', 'num_tokens': '1.024e+04', 'mean_token_accuracy': '0.9886', 'epoch': '0.3125'}
+ 36%|███▌      | 5/14 [00:29<00:52,  5.87s/it] 43%|████▎     | 6/14 [00:35<00:46,  5.86s/it]                                              {'loss': '0.07651', 'grad_norm': '0.1391', 'learning_rate': '1.434e-05', 'entropy': '0.05845', 'num_tokens': '1.229e+04', 'mean_token_accuracy': '0.9896', 'epoch': '0.375'}
+ 43%|████▎     | 6/14 [00:35<00:46,  5.86s/it] 50%|█████     | 7/14 [00:41<00:41,  5.86s/it]                                              {'loss': '0.07894', 'grad_norm': '0.147', 'learning_rate': '1.223e-05', 'entropy': '0.05973', 'num_tokens': '1.434e+04', 'mean_token_accuracy': '0.9896', 'epoch': '0.4375'}
+ 50%|█████     | 7/14 [00:41<00:41,  5.86s/it] 57%|█████▋    | 8/14 [00:47<00:35,  5.86s/it]                                              {'loss': '0.07376', 'grad_norm': '0.1702', 'learning_rate': '1e-05', 'entropy': '0.06028', 'num_tokens': '1.638e+04', 'mean_token_accuracy': '0.9896', 'epoch': '0.5'}
+ 57%|█████▋    | 8/14 [00:47<00:35,  5.86s/it] 64%|██████▍   | 9/14 [00:52<00:29,  5.86s/it]                                              {'loss': '0.07296', 'grad_norm': '0.1418', 'learning_rate': '7.775e-06', 'entropy': '0.06003', 'num_tokens': '1.843e+04', 'mean_token_accuracy': '0.9901', 'epoch': '0.5625'}
+ 64%|██████▍   | 9/14 [00:53<00:29,  5.86s/it] 71%|███████▏  | 10/14 [00:58<00:23,  5.85s/it]                                               {'loss': '0.07326', 'grad_norm': '0.1512', 'learning_rate': '5.661e-06', 'entropy': '0.05928', 'num_tokens': '2.048e+04', 'mean_token_accuracy': '0.9896', 'epoch': '0.625'}
+ 71%|███████▏  | 10/14 [00:58<00:23,  5.85s/it] 79%|███████▊  | 11/14 [01:04<00:17,  5.85s/it]                                               {'loss': '0.08386', 'grad_norm': '0.1565', 'learning_rate': '3.765e-06', 'entropy': '0.05991', 'num_tokens': '2.253e+04', 'mean_token_accuracy': '0.9896', 'epoch': '0.6875'}
+ 79%|███████▊  | 11/14 [01:04<00:17,  5.85s/it] 86%|████████▌ | 12/14 [01:10<00:11,  5.85s/it]                                               {'loss': '0.07623', 'grad_norm': '0.1498', 'learning_rate': '2.182e-06', 'entropy': '0.05751', 'num_tokens': '2.458e+04', 'mean_token_accuracy': '0.9896', 'epoch': '0.75'}
+ 86%|████████▌ | 12/14 [01:10<00:11,  5.85s/it] 93%|█████████▎| 13/14 [01:16<00:05,  5.85s/it]                                               {'loss': '0.07387', 'grad_norm': '0.1846', 'learning_rate': '9.903e-07', 'entropy': '0.06135', 'num_tokens': '2.662e+04', 'mean_token_accuracy': '0.9886', 'epoch': '0.8125'}
+ 93%|█████████▎| 13/14 [01:16<00:05,  5.85s/it]100%|██████████| 14/14 [01:22<00:00,  5.85s/it]                                               {'loss': '0.07354', 'grad_norm': '0.1587', 'learning_rate': '2.507e-07', 'entropy': '0.06172', 'num_tokens': '2.867e+04', 'mean_token_accuracy': '0.9891', 'epoch': '0.875'}
+100%|██████████| 14/14 [01:22<00:00,  5.85s/it]                                               {'train_runtime': '82.68', 'train_samples_per_second': '0.339', 'train_steps_per_second': '0.169', 'train_loss': '0.07894', 'epoch': '0.875'}
+100%|██████████| 14/14 [01:22<00:00,  5.85s/it]100%|██████████| 14/14 [01:22<00:00,  5.91s/it]

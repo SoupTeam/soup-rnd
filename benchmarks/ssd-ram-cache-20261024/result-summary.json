@@ -1,0 +1,360 @@
+{
+  "study": "ssd-ram-cache-20261024",
+  "status": "INDEPENDENT_REPLAY_COMPLETE",
+  "model": {
+    "model_id": "Qwen/Qwen3-32B",
+    "size_b": 32,
+    "revision": "9216db5781bf21249d130ec9da846c4624c16137",
+    "config": {
+      "architectures": [
+        "Qwen3ForCausalLM"
+      ],
+      "attention_bias": false,
+      "attention_dropout": 0.0,
+      "bos_token_id": 151643,
+      "eos_token_id": 151645,
+      "head_dim": 128,
+      "hidden_act": "silu",
+      "hidden_size": 5120,
+      "initializer_range": 0.02,
+      "intermediate_size": 25600,
+      "max_position_embeddings": 40960,
+      "max_window_layers": 64,
+      "model_type": "qwen3",
+      "num_attention_heads": 64,
+      "num_hidden_layers": 64,
+      "num_key_value_heads": 8,
+      "rms_norm_eps": 1e-06,
+      "rope_scaling": null,
+      "rope_theta": 1000000,
+      "sliding_window": null,
+      "tie_word_embeddings": false,
+      "torch_dtype": "bfloat16",
+      "transformers_version": "4.51.0",
+      "use_cache": true,
+      "use_sliding_window": false,
+      "vocab_size": 151936
+    },
+    "weight_bytes": 65524246528,
+    "weight_files": [
+      "model-00001-of-00017.safetensors",
+      "model-00002-of-00017.safetensors",
+      "model-00003-of-00017.safetensors",
+      "model-00004-of-00017.safetensors",
+      "model-00005-of-00017.safetensors",
+      "model-00006-of-00017.safetensors",
+      "model-00007-of-00017.safetensors",
+      "model-00008-of-00017.safetensors",
+      "model-00009-of-00017.safetensors",
+      "model-00010-of-00017.safetensors",
+      "model-00011-of-00017.safetensors",
+      "model-00012-of-00017.safetensors",
+      "model-00013-of-00017.safetensors",
+      "model-00014-of-00017.safetensors",
+      "model-00015-of-00017.safetensors",
+      "model-00016-of-00017.safetensors",
+      "model-00017-of-00017.safetensors"
+    ]
+  },
+  "batch": 1,
+  "accumulation": 2,
+  "context": 512,
+  "lora_rank_alpha": 4,
+  "dtype": "bfloat16",
+  "quantization": "none",
+  "results": {
+    "performance": {
+      "paired_step_time_reduction_percent": [
+        17.15482870474294,
+        17.11095324328489,
+        17.20947579390778,
+        17.277799166762065
+      ],
+      "median_paired_step_time_reduction_percent": 17.182152249325362,
+      "bootstrap95_percent": [
+        17.11095324328489,
+        17.277799166762065
+      ],
+      "positive_pair_fraction": 1.0,
+      "practical_speed_gate_passed": true,
+      "bootstrap_unit": "entire fresh process pair",
+      "resamples": 20000,
+      "seed": 792,
+      "measured_updates_per_process": 4,
+      "processed_input_positions_per_update": 1024,
+      "baseline_tokens_per_second": 14.275398254499871,
+      "auto_tokens_per_second": 17.23459101397374
+    },
+    "roles": {
+      "baseline": {
+        "median_step_seconds": 71.7317991235177,
+        "median_whole_setup_seconds": 45.02864882501308,
+        "median_whole_entry_seconds": 485.87617674598005,
+        "peak_allocated_vram_bytes": 5400779264,
+        "peak_reserved_vram_bytes": 5897191424,
+        "peak_process_rss_bytes": 8494837760,
+        "max_observed_process_swap_bytes": 0,
+        "median_pinned_bytes_total": 6442450944.0,
+        "median_cache_allocated_bytes": 0.0,
+        "median_cache_payload_bytes": 0.0,
+        "median_cache_preload_seconds": 0.0,
+        "median_timed_update_physical_read_bytes": 241849663488.0,
+        "timed_decoder_gpu_loads": [
+          250
+        ],
+        "timed_large_gpu_loads": [
+          4
+        ]
+      },
+      "candidate": {
+        "median_step_seconds": 59.41539309924701,
+        "median_whole_setup_seconds": 58.8357604064513,
+        "median_whole_entry_seconds": 427.33285289350897,
+        "peak_allocated_vram_bytes": 5400779264,
+        "peak_reserved_vram_bytes": 5897191424,
+        "peak_process_rss_bytes": 23527579648,
+        "max_observed_process_swap_bytes": 0,
+        "median_pinned_bytes_total": 21474836480.0,
+        "median_cache_allocated_bytes": 15032385536.0,
+        "median_cache_payload_bytes": 13652753408.0,
+        "median_cache_preload_seconds": 12.451930873910896,
+        "median_timed_update_physical_read_bytes": 187238449152.0,
+        "timed_decoder_gpu_loads": [
+          250
+        ],
+        "timed_large_gpu_loads": [
+          4
+        ]
+      }
+    },
+    "allocated_vram_delta_bytes": 0,
+    "reserved_vram_delta_bytes": 0,
+    "decoder_gpu_load_counts_unchanged": true,
+    "large_gpu_load_counts_unchanged": true,
+    "median_extra_setup_seconds": 13.530113014392555,
+    "break_even_extra_setup_updates": 2,
+    "break_even_scope": "Estimate from paired setup overhead and median steady step saving",
+    "median_whole_six_update_entry_reduction_percent": 12.207444102592207,
+    "median_physical_read_reduction_percent": 22.580645161290324
+  },
+  "qualified_selection": {
+    "indices": [
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38
+    ],
+    "allocated_bytes": 15032385536,
+    "payload_bytes": 13652753408
+  },
+  "accuracy": {
+    "primary": {
+      "passed": true,
+      "tensor_count": 3605,
+      "checked_elements": 445388808,
+      "bitwise_equal": true,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    },
+    "semantics": {
+      "passed": true,
+      "tensor_count": 1799,
+      "checked_elements": 72274817,
+      "bitwise_equal": true,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    }
+  },
+  "profile": {
+    "trace_gzip_sha256": "4fdcb6b7b3f8d83e342ca19d06dd7654b7c61420f91c8a866d2328b98b28303d",
+    "trace_original_sha256": "ace9b453e3ab74266cab297b7d4e2097a25ae40222afd284fad7c14727eb4a65",
+    "diagnostic_only_no_unprofiled_speed_claim": true,
+    "active_step_seconds": 71.89127871801757,
+    "gpu_kernel_union_seconds": 6.889110677001953,
+    "gpu_memcpy_union_seconds": 23.608861294189452,
+    "gpu_union_seconds": 23.841620861328124,
+    "source_get_cpu_union_seconds": 59.542883880615236,
+    "source_get_overlapping_gpu_seconds": 11.8800051328125,
+    "source_get_without_gpu_activity_seconds": 47.662878747802736,
+    "interpretation": "CPU source.get without observed kernel/copy activity is exposed source waiting plus get overhead, not pure SSD hardware service time. Nested CPU or overlapping GPU durations are never summed as wall time."
+  },
+  "cleanup": {
+    "unix": 1792802753.7708535,
+    "instance_id": "57424635",
+    "volume_id": "57424634",
+    "instance_verified_absent": true,
+    "volume_verified_absent": true,
+    "verified_absent": true,
+    "method": "fresh read-only account listings, independent of deletion receipts",
+    "account_instance_count": 0,
+    "account_volume_count": 0
+  },
+  "cost": {
+    "conservative_total_usd_including_failed_preflights": 2.5299722239428704,
+    "stage_cap_usd": 7.65,
+    "invoice_claim": false,
+    "previous_separate_study_usd": 2.3458502827155305
+  },
+  "validation": {
+    "actual_gpu_source_controls": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "final_marker_and_cache_cpu": {
+      "tests": 82,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    "final_consumer_integration": {
+      "tests": 251,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 3
+    },
+    "full_cpu_suite": {
+      "tests": 35712,
+      "failures": 16,
+      "errors": 13,
+      "skipped": 254
+    },
+    "full_cpu_coverage": {
+      "required_percent": 77.0,
+      "measured_percent": 86.56
+    },
+    "full_cpu_failure_baseline_comparison": {
+      "full_cpu_suite_clean": false,
+      "full_failure_error_count": 29,
+      "clean_head_reproduced_failure_error_count": 23,
+      "all_failed_case_names_reproduced_on_unchanged_head": false,
+      "all_remaining_failures_reproduced_on_unchanged_head": true,
+      "all_remaining_failure_signatures_match_unchanged_head": false,
+      "feature_fixture_failures_fixed_and_rerun": [
+        "test_issue602_qwen4_ple_streaming::test_planner_fingerprints_config_json_for_qwen4_but_not_for_llama",
+        "test_issue602_qwen4_ple_streaming::test_setup_passes_total_ram_to_qwen4_planner_and_refusal",
+        "test_issue602_qwen4_ple_streaming::test_setup_reaches_every_qwen4_fail_closed_policy",
+        "test_issue621_recipe_snapshot.TestBaselineMatchesTheLiveSchema::test_baseline_matches_committed_snapshot",
+        "test_issue803_lora_patterns_all_trainers::test_layer_streaming_builds_the_lora_config_with_its_patterns",
+        "test_qwen35_streaming.TestQwen35StreamingSetup::test_stream_setup_threads_moe_targets_and_union_budget"
+      ],
+      "fixed_fixture_count": 6,
+      "missing_clean_head_cases": [],
+      "different_failure_signatures": [
+        "test_issue204_langfuse_pull::test_control_the_leak_scan_sees_a_token_rich_highlighted_and_folded"
+      ],
+      "signature_difference_note": "issue204 fails the same planted-token Rich-folding assertion in both runs; pytest displays different surrounding/truncated rendered text. The exact message mismatch is retained, not normalized away.",
+      "case_names": [
+        "test_issue1265_ab_nig.TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control0-treatment0-1.0]",
+        "test_issue1265_ab_nig.TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control1-treatment1-0.5]",
+        "test_issue1265_ab_nig.TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control2-treatment2-4.0]",
+        "test_issue1265_ab_nig.TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control3-treatment3-0.05]",
+        "test_issue1267_auth_status_classification::test_urllib_http_error_401_gets_the_authentication_hint",
+        "test_issue1267_auth_status_classification::test_wrapped_urllib_error_uses_its_code",
+        "test_issue1361_auth_status_text_chain::test_a_wrapped_code_only_error_is_still_read_from_its_code",
+        "test_issue1550_numeric_host::test_a_long_run_of_zeros_before_a_valid_number_still_reads",
+        "test_issue1550_numeric_host::test_a_number_longer_than_int_converts_is_no_address_and_no_error[first-part-5000-digits]",
+        "test_issue1550_numeric_host::test_a_number_longer_than_int_converts_is_no_address_and_no_error[last-part-5000-digits]",
+        "test_issue1550_numeric_host::test_a_number_longer_than_int_converts_is_no_address_and_no_error[one-part-20000-digits]",
+        "test_issue1550_numeric_host::test_a_number_longer_than_int_converts_is_no_address_and_no_error[one-part-4301-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_does_not_raise_in_the_callers[first-part-5000-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_does_not_raise_in_the_callers[last-part-5000-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_does_not_raise_in_the_callers[one-part-20000-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_does_not_raise_in_the_callers[one-part-4301-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_is_refused_like_any_other[first-part-5000-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_is_refused_like_any_other[last-part-5000-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_is_refused_like_any_other[one-part-20000-digits]",
+        "test_issue1550_numeric_host::test_a_very_long_numeric_host_is_refused_like_any_other[one-part-4301-digits]",
+        "test_issue204_langfuse_pull::test_control_the_leak_scan_sees_a_token_rich_highlighted_and_folded",
+        "test_issue602_qwen4_ple_streaming::test_planner_fingerprints_config_json_for_qwen4_but_not_for_llama",
+        "test_issue602_qwen4_ple_streaming::test_setup_passes_total_ram_to_qwen4_planner_and_refusal",
+        "test_issue602_qwen4_ple_streaming::test_setup_reaches_every_qwen4_fail_closed_policy",
+        "test_issue621_recipe_snapshot.TestBaselineMatchesTheLiveSchema::test_baseline_matches_committed_snapshot",
+        "test_issue803_lora_patterns_all_trainers::test_layer_streaming_builds_the_lora_config_with_its_patterns",
+        "test_issue819_plugin_discovery::test_disable_survives_a_fresh_process",
+        "test_issue885_langfuse_error_ansi::test_stripped_body_renders_on_a_colour_console",
+        "test_qwen35_streaming.TestQwen35StreamingSetup::test_stream_setup_threads_moe_targets_and_union_budget"
+      ],
+      "unchanged_source_head": "20124f085a0be4297884c1b5116d3ad2ac181003",
+      "failing_original_invocation_is_not_relabelled_as_clean": true
+    },
+    "full_cpu_suite_clean": false,
+    "unchanged_head_environment_recheck": {
+      "tests": 88,
+      "failures": 6,
+      "errors": 0,
+      "skipped": 0
+    },
+    "unchanged_head_more_environment_recheck": {
+      "tests": 391,
+      "failures": 2,
+      "errors": 13,
+      "skipped": 0
+    },
+    "unchanged_head_final_environment_recheck": {
+      "tests": 13,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "production_source_sha256": {
+    "src/soup_cli/utils/async_disk_source.py": "384391a1c0f601803a0d8d6b4800e1a7d22eb34cb4dff26f4b0be1f27f841928",
+    "src/soup_cli/utils/stream_ram_cache.py": "5e6edc68851e7d7b2c54103b0923b44537b07ab4bbda92b705c847373dba2f5c",
+    "src/soup_cli/utils/layer_stream_runtime.py": "03f1c5dae5eda74eee6869b3ca4068d8b7bb340b0f489e1519edeb3e40fc38e2",
+    "src/soup_cli/trainer/stream_setup.py": "41130a1c6ef3b60a8930ec52d169ae0eb9f3e24e741feeb422a8bb9b4b03c14d",
+    "src/soup_cli/config/schema.py": "5671bde98671ce5c42369147928a9cfe784cfdcff719cfc4ad7a742ca5827a17"
+  },
+  "source_identity": {
+    "baseline_archive_sha256": "adfc15617878f3592f3bd49c37fd69ef7b94f8e4e2d5b177e409a2e42f7e1bb7",
+    "candidate_archive_sha256": "b5807b491dc74161018ea35cfb89e2780bdc44ea3f018ff411d36cfeab15cee4",
+    "only_source_overrides_declared": [
+      "src/soup_cli/utils/async_disk_source.py",
+      "src/soup_cli/utils/stream_ram_cache.py",
+      "src/soup_cli/utils/layer_stream_runtime.py",
+      "src/soup_cli/trainer/stream_setup.py",
+      "src/soup_cli/config/schema.py",
+      "tests/test_stream_ram_cache.py",
+      "tests/test_stream_ram_cache_memory.py",
+      "tests/test_stream_ram_cache_config.py",
+      "docs/performance-and-quantization.md",
+      "changelog.d/0.75.1/5.added.md"
+    ],
+    "test_marker_adjustment": {
+      "path": "tests/test_stream_ram_cache.py",
+      "as_executed_sha256": "abf9da623ae8ffeefb1e611a35165a550f310ad56c263eb328f82760bc830b67",
+      "published_sha256": "6518549df23e67618471c8f12ac48cd15af5c691d75948a7a62bb3749dd6234e",
+      "only_change": "Use repository gpu marker instead of private skipif CUDA probe",
+      "before_decorator_ast": "Call(func=Attribute(value=Attribute(value=Name(id='pytest', ctx=Load()), attr='mark', ctx=Load()), attr='skipif', ctx=Load()), args=[UnaryOp(op=Not(), operand=Call(func=Attribute(value=Attribute(value=Name(id='torch', ctx=Load()), attr='cuda', ctx=Load()), attr='is_available', ctx=Load()), args=[], keywords=[]))], keywords=[keyword(arg='reason', value=Constant(value='requires real CUDA DMA'))])",
+      "after_decorator_ast": "Attribute(value=Attribute(value=Name(id='pytest', ctx=Load()), attr='mark', ctx=Load()), attr='gpu', ctx=Load())",
+      "all_test_bodies_and_other_ast_unchanged": true,
+      "all_five_production_sources_match_tested_archive": true,
+      "production_source_sha256": {
+        "src/soup_cli/utils/async_disk_source.py": "384391a1c0f601803a0d8d6b4800e1a7d22eb34cb4dff26f4b0be1f27f841928",
+        "src/soup_cli/utils/stream_ram_cache.py": "5e6edc68851e7d7b2c54103b0923b44537b07ab4bbda92b705c847373dba2f5c",
+        "src/soup_cli/utils/layer_stream_runtime.py": "03f1c5dae5eda74eee6869b3ca4068d8b7bb340b0f489e1519edeb3e40fc38e2",
+        "src/soup_cli/trainer/stream_setup.py": "41130a1c6ef3b60a8930ec52d169ae0eb9f3e24e741feeb422a8bb9b4b03c14d",
+        "src/soup_cli/config/schema.py": "5671bde98671ce5c42369147928a9cfe784cfdcff719cfc4ad7a742ca5827a17"
+      },
+      "original_as_executed_archive_preserved": true
+    }
+  },
+  "full_raw_files_retained_locally": 750,
+  "full_raw_logical_bytes": 15556732283,
+  "scope": "Short matched BF16 LoRA fixture; no downstream convergence-quality claim"
+}

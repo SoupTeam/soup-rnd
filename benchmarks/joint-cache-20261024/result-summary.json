@@ -1,0 +1,410 @@
+{
+  "study": "joint-cache-20261024",
+  "status": "INDEPENDENT_REPLAY_COMPLETE",
+  "model_id": "Qwen/Qwen3-32B",
+  "dtype": "bfloat16",
+  "quantization": "none",
+  "training": "LoRA SFT; frozen base, rank/alpha4, seven decoder projections",
+  "batch": 1,
+  "accumulation": 2,
+  "selection": {
+    "context": 512,
+    "ram_ceiling_mib": 14336,
+    "resident_indices": [
+      31
+    ],
+    "arms": {
+      "baseline": {
+        "resident_indices": [],
+        "ram_cache": {
+          "indices": [],
+          "allocated_bytes": 0,
+          "payload_bytes": 0
+        }
+      },
+      "ram": {
+        "resident_indices": [],
+        "ram_cache": {
+          "indices": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 13652753408
+        }
+      },
+      "vram": {
+        "resident_indices": [
+          31
+        ],
+        "ram_cache": {
+          "indices": [],
+          "allocated_bytes": 0,
+          "payload_bytes": 0
+        }
+      },
+      "both": {
+        "resident_indices": [
+          31
+        ],
+        "ram_cache": {
+          "indices": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 13652753408
+        }
+      }
+    }
+  },
+  "performance": {
+    "contrasts": {
+      "baseline_to_ram": {
+        "paired_step_time_reduction_percent": [
+          17.284013463610904,
+          17.179621093652674,
+          17.199400448802272,
+          17.26978985018378
+        ],
+        "median_paired_step_time_reduction_percent": 17.234595149493025,
+        "bootstrap95_percent": [
+          17.179621093652674,
+          17.284013463610904
+        ],
+        "positive_block_fraction": 1.0,
+        "practical_speed_gate_passed": true,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      },
+      "baseline_to_vram": {
+        "paired_step_time_reduction_percent": [
+          1.6719215521546427,
+          1.460435271543048,
+          1.4233283631368776,
+          1.5599115899260885
+        ],
+        "median_paired_step_time_reduction_percent": 1.5101734307345682,
+        "bootstrap95_percent": [
+          1.4233283631368776,
+          1.6719215521546427
+        ],
+        "positive_block_fraction": 1.0,
+        "practical_speed_gate_passed": false,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      },
+      "baseline_to_both": {
+        "paired_step_time_reduction_percent": [
+          18.75774526905851,
+          18.618945793121288,
+          18.652132383471333,
+          18.718648138647907
+        ],
+        "median_paired_step_time_reduction_percent": 18.68539026105962,
+        "bootstrap95_percent": [
+          18.618945793121288,
+          18.75774526905851
+        ],
+        "positive_block_fraction": 1.0,
+        "practical_speed_gate_passed": true,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      },
+      "ram_to_both": {
+        "paired_step_time_reduction_percent": [
+          1.7816771184845592,
+          1.7378871220767866,
+          1.7544944632566395,
+          1.751304977758894
+        ],
+        "median_paired_step_time_reduction_percent": 1.7528997205077668,
+        "bootstrap95_percent": [
+          1.7378871220767866,
+          1.7816771184845592
+        ],
+        "positive_block_fraction": 1.0,
+        "practical_speed_gate_passed": false,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      }
+    },
+    "roles": {
+      "baseline": {
+        "median_step_seconds": 71.72121146449354,
+        "processed_input_positions_per_second_including_padding": 14.27750562338094,
+        "median_whole_entry_seconds": 486.5622588315746,
+        "median_whole_setup_seconds": 44.97711871901993,
+        "peak_allocated_vram_bytes": 5400779264,
+        "peak_reserved_vram_bytes": 5897191424,
+        "peak_process_rss_bytes": 8495738880,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          250
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 241849663488.0,
+        "ram_cache_allocated_bytes": 0,
+        "ram_cache_payload_bytes": 0,
+        "resident_indices": [],
+        "resident_bytes": 0
+      },
+      "ram": {
+        "median_step_seconds": 59.37925714533776,
+        "processed_input_positions_per_second_including_padding": 17.245079329531503,
+        "median_whole_entry_seconds": 429.7019935705466,
+        "median_whole_setup_seconds": 59.75290035852231,
+        "peak_allocated_vram_bytes": 5400779264,
+        "peak_reserved_vram_bytes": 5897191424,
+        "peak_process_rss_bytes": 23527813120,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          250
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 187238449152.0,
+        "ram_cache_allocated_bytes": 15032385536,
+        "ram_cache_payload_bytes": 13652753408,
+        "resident_indices": [],
+        "resident_bytes": 0
+      },
+      "vram": {
+        "median_step_seconds": 70.63649582053768,
+        "processed_input_positions_per_second_including_padding": 14.496755368522548,
+        "median_whole_entry_seconds": 555.2135189669207,
+        "median_whole_setup_seconds": 120.77131688396912,
+        "peak_allocated_vram_bytes": 6378073600,
+        "peak_reserved_vram_bytes": 6903824384,
+        "peak_process_rss_bytes": 8535969792,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          246
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 237948862464.0,
+        "ram_cache_allocated_bytes": 0,
+        "ram_cache_payload_bytes": 0,
+        "resident_indices": [
+          31
+        ],
+        "resident_bytes": 975196672
+      },
+      "both": {
+        "median_step_seconds": 58.32938107551308,
+        "processed_input_positions_per_second_including_padding": 17.555475150239154,
+        "median_whole_entry_seconds": 497.62944458355196,
+        "median_whole_setup_seconds": 136.23413130745757,
+        "peak_allocated_vram_bytes": 6378073600,
+        "peak_reserved_vram_bytes": 6903824384,
+        "peak_process_rss_bytes": 23589089280,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          246
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 183337648128.0,
+        "ram_cache_allocated_bytes": 15032385536,
+        "ram_cache_payload_bytes": 13652753408,
+        "resident_indices": [
+          31
+        ],
+        "resident_bytes": 975196672
+      }
+    },
+    "primary_incremental_contrast": "ram_to_both",
+    "warmup": 2,
+    "measured_updates_per_process": 4,
+    "processes": 16,
+    "processed_input_positions_per_update_including_padding": 1024
+  },
+  "paired_whole_six_update_entry_time_cut_percent": {
+    "baseline_to_ram": 11.900311023184129,
+    "baseline_to_vram": -14.091322837721709,
+    "baseline_to_both": -2.0048884188691996,
+    "ram_to_both": -15.271313383343266
+  },
+  "incremental_both_vs_ram_setup_overhead_seconds": 74.23687977192458,
+  "incremental_both_vs_ram_estimated_break_even_updates": 71,
+  "break_even_scope": "Estimate from measured setup overhead and steady step saving",
+  "accuracy": {
+    "ram-primary": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 3605,
+      "checked_elements": 445388808,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    },
+    "ram-semantics": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1799,
+      "checked_elements": 72274817,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    },
+    "vram-primary": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 3605,
+      "checked_elements": 445388808,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    },
+    "vram-semantics": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1799,
+      "checked_elements": 72274817,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    },
+    "both-primary": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 3605,
+      "checked_elements": 445388808,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    },
+    "both-semantics": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1799,
+      "checked_elements": 72274817,
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "maximum_slice_elements": 131072
+    }
+  },
+  "actual_training_parameter_changes": {
+    "baseline": {
+      "initial_final_tensor_pairs": 896,
+      "changed_tensors": 896,
+      "max_abs_training_update": 3.003329038619995e-05,
+      "passed": true
+    },
+    "ram": {
+      "initial_final_tensor_pairs": 896,
+      "changed_tensors": 896,
+      "max_abs_training_update": 3.003329038619995e-05,
+      "passed": true
+    },
+    "vram": {
+      "initial_final_tensor_pairs": 896,
+      "changed_tensors": 896,
+      "max_abs_training_update": 3.003329038619995e-05,
+      "passed": true
+    },
+    "both": {
+      "initial_final_tensor_pairs": 896,
+      "changed_tensors": 896,
+      "max_abs_training_update": 3.003329038619995e-05,
+      "passed": true
+    }
+  },
+  "validation": {
+    "actual_gpu_host_controls": {
+      "tests": 144,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "full_cpu_invocation": {
+      "tests": 35732,
+      "failures": 10,
+      "errors": 13,
+      "skipped": 255
+    },
+    "cpu_failure_baseline_comparison": {
+      "full_invocation_clean": false,
+      "failure_error_count": 23,
+      "all_failed_cases_reproduced_on_unchanged_head": true,
+      "unreproduced_cases": [],
+      "exact_message_differences": [
+        "test_issue204_langfuse_pull::test_control_the_leak_scan_sees_a_token_rich_highlighted_and_folded"
+      ],
+      "unchanged_recheck_head": "20124f085a0be4297884c1b5116d3ad2ac181003",
+      "exact_differences_not_normalized_or_hidden": true
+    }
+  },
+  "cost": {
+    "conservative_stage_usd": 1.2299159621448492,
+    "stage_cap_usd": 5.12,
+    "invoice_claim": false,
+    "previous_stage_separate_usd": 2.5299722239428704
+  },
+  "cleanup": {
+    "unix": 1792838137.107498,
+    "instance_id": "57478767",
+    "volume_id": "57478766",
+    "instance_verified_absent": true,
+    "volume_verified_absent": true,
+    "verified_absent": true,
+    "method": "fresh read-only account listings, independent of deletion receipts",
+    "account_instance_count": 0,
+    "account_volume_count": 0
+  },
+  "production_source_sha256": {
+    "src/soup_cli/config/schema.py": "ee76222288f82ebe35d65637eb0cf1f1ae3eb494cc6f9dd903290dcdfd74d3c6",
+    "src/soup_cli/trainer/stream_setup.py": "b169bc04f5d3d1bd5be9099897c588ad4b193857a649d9a86919c1fc65de7d9e",
+    "src/soup_cli/utils/async_disk_source.py": "ee2b18575f85aa8724c91778fc503533e59bf7a2bf0a884535d50b2f20f5c5a2",
+    "src/soup_cli/utils/layer_stream_runtime.py": "03f1c5dae5eda74eee6869b3ca4068d8b7bb340b0f489e1519edeb3e40fc38e2",
+    "src/soup_cli/utils/stream_ram_cache.py": "05e004ee05ff4a162e9811daf0d119ba3a046e1ce457f7e59d54dfd59531c6b0",
+    "src/soup_cli/utils/stream_residency.py": "4f5898e35f537a8989be7f3be5b06b63e91da1df7c79fc95a245469681a9870b"
+  },
+  "full_raw_files_retained_locally": 940,
+  "full_raw_logical_bytes": 28766229427,
+  "scope": "Four blocked fresh-process runs per arm; short fixed fixture, no full-convergence claim"
+}

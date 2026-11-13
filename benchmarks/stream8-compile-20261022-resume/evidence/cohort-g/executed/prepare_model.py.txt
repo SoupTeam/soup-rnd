@@ -1,0 +1,57 @@
+"""Download one pinned BF16 snapshot, hash it, prepare identical finite inputs."""
+
+import hashlib
+import json
+import shutil
+import sys
+from pathlib import Path
+
+from huggingface_hub import snapshot_download
+from rich.console import Console
+import yaml
+
+ROOT = Path("/root/liger")
+size = int(sys.argv[1])
+protocol = json.loads((ROOT / "protocol.json").read_text())
+model = next(row for row in protocol["models"] if row["size_b"] == size)
+base = ROOT / f"model-{size}"
+required = model["weight_bytes"] * 2 + 8 * 2**30
+assert shutil.disk_usage(ROOT).free >= required, "insufficient disk for snapshot plus layer shards"
+snapshot_download(model["model_id"], revision=model["revision"], local_dir=str(base),
+                  allow_patterns=["*.json", "*.model", "*.txt", "*.jinja"] + model.get("weight_files", ["model-*.safetensors"]))
+manifest = {"model_id": model["model_id"], "revision": model["revision"], "files": {}}
+for path in sorted(base.iterdir()):
+    if not path.is_file():
+        continue
+    hashed = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(8 * 1024 * 1024), b""):
+            hashed.update(chunk)
+    manifest["files"][path.name] = {"bytes": path.stat().st_size, "sha256": hashed.hexdigest()}
+(ROOT / "results" / f"model-{size}-manifest.json").write_text(json.dumps(manifest, indent=2))
+data = ROOT / "train.jsonl"
+with data.open("w") as handle:
+    for number in range(32):
+        handle.write(json.dumps({"messages": [
+            {"role": "user", "content": f"Calculate {number} + 1 and explain briefly."},
+            {"role": "assistant", "content": (
+                f"{number} + 1 = {number + 1}. Add one to the number. " * 160)},
+        ]}) + "\n")
+config = {
+    "base": str(base), "task": "sft", "backend": "transformers",
+    "data": {"train": str(data), "format": "chatml", "chat_template": "chatml",
+             "val_split": 0, "max_length": 1024},
+    "training": {"seed": 792, "batch_size": 1, "gradient_accumulation_steps": 2,
+                 "epochs": 1, "lr": .00002, "warmup_ratio": 0,
+                 "quantization": "none", "stream_layers": True, "stream_source": "ram",
+                 "stream_buffers": 2, "stream_read_ahead": 2, "stream_pin": True,
+                 "stream_vram_probe": False, "gradient_checkpointing": True,
+                 "fast_lora": False,
+                 "lora": {"r": 4, "alpha": 4, "dropout": 0,
+                          "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj",
+                                             "gate_proj", "up_proj", "down_proj"]}},
+}
+(ROOT / f"model-{size}.yaml").write_text(yaml.safe_dump(config))
+(ROOT / "results" / f"model-{size}.yaml").write_text(yaml.safe_dump(config))
+(ROOT / "results" / "train.jsonl").write_bytes(data.read_bytes())
+Console().print({"prepared_model": size, "data_sha256": hashlib.sha256(data.read_bytes()).hexdigest()})

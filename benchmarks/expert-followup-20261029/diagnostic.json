@@ -1,0 +1,214 @@
+{
+  "actual_learning_cache_counts": {
+    "device_hits": 1553,
+    "host_hits": 23064,
+    "logical_fetches": 40786,
+    "storage_reads": 16169
+  },
+  "bounded_cuda_timeline": {
+    "cpu_phase_envelope_us_excluding_final_sync": null,
+    "cpu_scalar_counts": {
+      "aten::_local_scalar_dense": 0,
+      "aten::is_nonzero": 0,
+      "aten::item": 0,
+      "aten::nonzero": 0,
+      "aten::where": 0
+    },
+    "decoded_json_metadata": {
+      "baseTimeNanoseconds": 1790857026000000000,
+      "cuda_driver_version": 13020,
+      "cuda_runtime_version": 13000,
+      "cupti_version": 130001,
+      "deviceProperties": [
+        {
+          "computeMajor": 8,
+          "computeMinor": 9,
+          "id": 0,
+          "maxThreadsPerBlock": 1024,
+          "maxThreadsPerMultiprocessor": 1536,
+          "name": "NVIDIA GeForce RTX 4060 Ti",
+          "numSms": 34,
+          "regsPerBlock": 65536,
+          "regsPerMultiprocessor": 65536,
+          "sharedMemPerBlock": 49152,
+          "sharedMemPerBlockOptin": 101376,
+          "sharedMemPerMultiprocessor": 102400,
+          "totalGlobalMem": 8186822656,
+          "warpSize": 32
+        }
+      ],
+      "displayTimeUnit": "ms",
+      "parsed_events": 6207,
+      "schemaVersion": 1,
+      "traceName": "/root/liger/results/followup-probe/diagnostic/trace.json",
+      "trace_id": "5873CF2A628F4A0A9279D3D3F4B9F75A"
+    },
+    "devices": {
+      "0": {
+        "busy_union_us": 4287.8828125,
+        "event_span_us": 15520.11474609375,
+        "events": 566,
+        "first_event_us": 2363583621140.473,
+        "gaps_inside_observed_device_span_us": 11232.23193359375,
+        "last_event_end_us": 2363583636660.588,
+        "union_us_by_kind": {
+          "gpu_memcpy": 2940.83349609375,
+          "gpu_memset": 0.0,
+          "h2d": 2940.83349609375,
+          "kernel": 1347.04931640625
+        }
+      }
+    },
+    "event_category_counts": {
+      "": 62,
+      "Trace": 1,
+      "ac2g": 1397,
+      "cpu_op": 3061,
+      "cuda_driver": 22,
+      "cuda_runtime": 809,
+      "gpu_memcpy": 16,
+      "gpu_user_annotation": 80,
+      "kernel": 550,
+      "overhead": 1,
+      "user_annotation": 208
+    },
+    "gpu_complete_events": 566,
+    "interpretation": "GPU busy is an interval union across streams. Gaps are inside first-to-last recorded GPU activity only, not a whole-step idle percentage or proof of a particular bottleneck. CPU phase annotations end before the final CUDA sync. All durations include profiler overhead.",
+    "maximum_gpu_intervals": 1000000,
+    "microbatch_cpu_phase_annotations": {},
+    "soup_marker_counts": {
+      "soup.expert.fetch": 16,
+      "soup.expert.file_identity": 16,
+      "soup.followup.fetch": 16,
+      "soup.followup.nf4_dequant": 32,
+      "soup.followup.packing_layout": 16,
+      "soup.followup.transfer_stage": 16,
+      "soup.nf4.dequantize_4bit": 32,
+      "soup.nf4.dequantize_blockwise": 32,
+      "soup.nf4.quant_state": 32
+    },
+    "status": "parsed"
+  },
+  "cpu_spans": {
+    "actual_forward_and_backward": true,
+    "profiler_cuda_scope": {
+      "fetches": 16,
+      "microbatch": 0,
+      "phase": "forward",
+      "skip_fetches": 1024
+    },
+    "scope": "CPU wall spans, including enqueue/waits; nested and overlapping durations are not additive; not GPU service times or speed verdicts",
+    "spans": {
+      "context/fetch": {
+        "calls": 18704,
+        "seconds": 7.887298574554734
+      },
+      "context/nf4_dequant": {
+        "calls": 36968,
+        "seconds": 1.988478725310415
+      },
+      "context/packing_layout": {
+        "calls": 17812,
+        "seconds": 0.5502902317093685
+      },
+      "context/storage_read": {
+        "calls": 5048,
+        "seconds": 1.6673178985947743
+      },
+      "context/transfer_stage": {
+        "calls": 17812,
+        "seconds": 3.1898672573734075
+      },
+      "profile_update/fetch": {
+        "calls": 17624,
+        "seconds": 8.305270292563364
+      },
+      "profile_update/nf4_dequant": {
+        "calls": 34812,
+        "seconds": 2.437762308982201
+      },
+      "profile_update/packing_layout": {
+        "calls": 16734,
+        "seconds": 0.2789484793320298
+      },
+      "profile_update/storage_read": {
+        "calls": 4406,
+        "seconds": 1.4693080245051533
+      },
+      "profile_update/transfer_stage": {
+        "calls": 16734,
+        "seconds": 2.909809577045962
+      },
+      "setup/fetch": {
+        "calls": 21236,
+        "seconds": 33.204004638362676
+      },
+      "setup/nf4_dequant": {
+        "calls": 43362,
+        "seconds": 2.8278740780660883
+      },
+      "setup/storage_read": {
+        "calls": 17481,
+        "seconds": 20.70679270941764
+      },
+      "warmup/fetch": {
+        "calls": 40786,
+        "seconds": 25.812263353378512
+      },
+      "warmup/nf4_dequant": {
+        "calls": 81154,
+        "seconds": 4.653083340730518
+      },
+      "warmup/packing_layout": {
+        "calls": 39233,
+        "seconds": 0.7225506925024092
+      },
+      "warmup/storage_read": {
+        "calls": 16169,
+        "seconds": 11.166066901641898
+      },
+      "warmup/transfer_stage": {
+        "calls": 39233,
+        "seconds": 6.942964650806971
+      }
+    }
+  },
+  "dequant_named_kernels": {
+    "void kDequantizeBlockwise<__nv_bfloat16, 512, 64, 8, 2>(float*, unsigned char*, float*, __nv_bfloat16*, int, int)": {
+      "duration_sum_us": 346.172,
+      "events": 32
+    },
+    "void kDequantizeBlockwise<float, 512, 64, 8, 0>(float*, unsigned char*, float*, float*, int, int)": {
+      "duration_sum_us": 45.536,
+      "events": 32
+    }
+  },
+  "frozen_plan_summaries": {
+    "2147483648": {
+      "budget_bytes": 2147483648,
+      "candidate_count": 5713,
+      "payload_bytes": 2142240768,
+      "policy": "frequency_transfer_bytes_per_dense_byte",
+      "recorded_request_coverage_percent": 4.452508213602707,
+      "saved_transfer_bytes_proxy": 4420478144,
+      "selected_key_count": 227,
+      "selected_requests": 1816,
+      "total_requests": 40786
+    },
+    "2281701376": {
+      "budget_bytes": 2281701376,
+      "candidate_count": 5713,
+      "payload_bytes": 2274361344,
+      "policy": "frequency_transfer_bytes_per_dense_byte",
+      "recorded_request_coverage_percent": 4.7271122443975875,
+      "saved_transfer_bytes_proxy": 4693106752,
+      "selected_key_count": 241,
+      "selected_requests": 1928,
+      "total_requests": 40786
+    }
+  },
+  "learning_updates": 2,
+  "scope": "CPU spans cover a complete instrumented update. CUDA events cover only the declared 16-fetch forward window. Nested/overlapping durations are not additive and neither scope is an unprofiled speed denominator.",
+  "trace_sha256": "6f661f72a485b4ac2b32335497d2e0226982827f2aff29fc6deff1090fcbee69",
+  "usage_profile_sha256": "6294849c3ff723ea03dcc992b92c6f3b77a84fadc5475681173653b8ef3d0b4e"
+}

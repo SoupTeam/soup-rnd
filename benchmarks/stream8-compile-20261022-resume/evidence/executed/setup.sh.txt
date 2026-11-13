@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+trap 'touch /root/liger/setup.exited' EXIT
+mkdir -p /root/liger/repo /root/liger/results /root/liger/exports
+cd /root/liger
+tar -xzf source.tar.gz -C repo
+python3 -m pip install uv
+uv venv --python 3.12 /root/liger/venv
+uv pip install --python /root/liger/venv/bin/python --constraint /root/liger/constraints.txt --index-strategy unsafe-best-match \
+  --extra-index-url https://download.pytorch.org/whl/cu128 \
+  'torch==2.8.0' 'transformers==5.17.0' 'peft==0.20.0' 'trl==0.29.1' 'accelerate==1.14.0' \
+  -e '/root/liger/repo[train]' pytest pytest-cov cryptography pip sentencepiece protobuf einops
+uv pip check --python /root/liger/venv/bin/python
+export PYTHONPATH=/root/liger:/root/liger/repo:/root/liger/repo/src
+export CUDA_VISIBLE_DEVICES=0 PYTHONHASHSEED=0 USE_TF=0
+export TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+export CUBLAS_WORKSPACE_CONFIG=:4096:8 WANDB_DISABLED=true
+export TORCHINDUCTOR_CACHE_DIR=/root/liger/compiler-cache
+export SOUP_LAYER_STREAM_CACHE_DIR=/root/liger/shards
+nohup /root/liger/venv/bin/python /root/liger/telemetry.py > /root/liger/telemetry.log 2>&1 < /dev/null &
+cd /root/liger/repo
+/root/liger/venv/bin/python /root/liger/pin_entry.py /root/liger/worker.py

@@ -307,6 +307,118 @@ def _checkpoint_visible_nf4_function():
     return CheckpointVisibleNF4Matmul
 
 
+_PACKED_DEQUANT_NF4_FUNCTION = None
+
+
+def _packed_dequant_nf4_function():
+    """Lazy autograd Function: dense-dequant forward, PACKED-only saved state.
+
+    For a streamed layer that runs WITHOUT checkpoint recompute. ``F.linear`` on
+    a dequantised weight would save the dense bf16 weight for the backward (437 MB
+    per Mistral-7B layer); this saves only the packed bytes and the quantisation
+    tensors through ``save_for_backward`` and dequantises again for ``grad_x``.
+    The forward arithmetic is the compatibility path's (dequantise + ``F.linear``)
+    and the backward's ``grad_y @ W`` is the same GEMM ``F.linear``'s backward
+    issues, so outputs and gradients stay bit-identical to the recompute path.
+    """
+    global _PACKED_DEQUANT_NF4_FUNCTION
+    if _PACKED_DEQUANT_NF4_FUNCTION is not None:
+        return _PACKED_DEQUANT_NF4_FUNCTION
+
+    import bitsandbytes.functional as bnb_functional
+    import torch
+    import torch.nn.functional as functional
+
+    def _state(ctx, absmax, state2_absmax, state2_code, offset):
+        state2 = None
+        q_offset = None
+        if ctx.nested:
+            state2 = bnb_functional.QuantState(
+                absmax=state2_absmax,
+                code=state2_code,
+                blocksize=ctx.state2_blocksize,
+                dtype=torch.float32,
+            )
+            q_offset = offset
+        return bnb_functional.QuantState(
+            absmax=absmax,
+            shape=torch.Size(ctx.shape),
+            code=ctx.code,
+            dtype=ctx.weight_dtype,
+            blocksize=ctx.blocksize,
+            quant_type=ctx.quant_type,
+            offset=q_offset,
+            state2=state2,
+        )
+
+    class PackedDequantNF4Linear(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, x, packed, absmax, state2_absmax, state2_code, offset, bias, meta):
+            shape, weight_dtype, blocksize, quant_type, nested, state2_blocksize, code = meta
+            ctx.shape = tuple(int(dim) for dim in shape)
+            ctx.weight_dtype = weight_dtype
+            ctx.blocksize = int(blocksize)
+            ctx.quant_type = str(quant_type)
+            ctx.nested = bool(nested)
+            ctx.state2_blocksize = int(state2_blocksize)
+            ctx.code = code
+            ctx.bias_dtype = None if bias is None else bias.dtype
+            ctx.owner_check = getattr(packed, "_soup_stream_owner_check", None)
+            weight = bnb_functional.dequantize_4bit(
+                packed, _state(ctx, absmax, state2_absmax, state2_code, offset)
+            ).to(x.dtype)
+            ctx.save_for_backward(packed, absmax, state2_absmax, state2_code, offset)
+            return functional.linear(x, weight, bias)
+
+        @staticmethod
+        def backward(ctx, grad_output):
+            packed, absmax, state2_absmax, state2_code, offset = ctx.saved_tensors
+            if ctx.owner_check is not None:
+                ctx.owner_check()
+            grad_x = None
+            if ctx.needs_input_grad[0]:
+                weight = bnb_functional.dequantize_4bit(
+                    packed, _state(ctx, absmax, state2_absmax, state2_code, offset)
+                ).to(grad_output.dtype)
+                grad_x = torch.matmul(grad_output, weight)
+            grad_bias = None
+            if ctx.needs_input_grad[6] and ctx.bias_dtype is not None:
+                grad_bias = grad_output.reshape(-1, grad_output.shape[-1]).sum(
+                    dim=0, dtype=ctx.bias_dtype
+                )
+            return grad_x, None, None, None, None, None, grad_bias, None
+
+    _PACKED_DEQUANT_NF4_FUNCTION = PackedDequantNF4Linear
+    return PackedDequantNF4Linear
+
+
+def packed_dequant_nf4_linear(x: Any, packed: Any, quant_state: Any, bias: Any = None) -> Any:
+    """Dense-dequant NF4 linear that saves only packed state for its backward
+    (training.stream_recompute 'off' / 'auto')."""
+    empty = packed.new_empty((0,))
+    state2_absmax = empty
+    state2_code = empty
+    offset = empty
+    state2_blocksize = 0
+    if quant_state.nested:
+        state2_absmax = quant_state.state2.absmax
+        state2_code = quant_state.state2.code
+        offset = quant_state.offset
+        state2_blocksize = int(quant_state.state2.blocksize)
+    meta = (
+        tuple(quant_state.shape),
+        quant_state.dtype,
+        int(quant_state.blocksize),
+        str(quant_state.quant_type),
+        bool(quant_state.nested),
+        state2_blocksize,
+        quant_state.code,
+    )
+    return _packed_dequant_nf4_function().apply(
+        x, packed, quant_state.absmax, state2_absmax, state2_code, offset, bias, meta
+    )
+
+
 def checkpoint_visible_nf4_linear(
     x: Any, packed: Any, quant_state: Any, bias: Any = None
 ) -> Any:
@@ -417,6 +529,7 @@ def install_dequant_forward(module: Any) -> int:
     import types
 
     import bitsandbytes as bnb
+    import torch
     import torch.nn.functional as functional
     from bitsandbytes.functional import dequantize_4bit
 
@@ -444,6 +557,10 @@ def install_dequant_forward(module: Any) -> int:
             return checkpoint_visible_nf4_linear(
                 x, self.weight, quant_state, bias
             ).to(inp_dtype)
+
+        if getattr(self, "_soup_packed_backward", False) and torch.is_grad_enabled():
+            # Retained layers save the packed pool views for backward.
+            return packed_dequant_nf4_linear(x, self.weight, quant_state, bias).to(inp_dtype)
 
         # Compatibility path: dequantise inside the checkpointed region and let
         # F.linear save the dense weight properly.
@@ -1074,6 +1191,9 @@ class LayerBufferPool:
         ]
         self.events = [torch.cuda.Event() for _ in range(self.n)] if self.is_cuda else []
         self.owner: list = [None] * self.n
+        self.resident_slots: Dict[int, int] = {}
+        self.resident_bytes = 0
+        self._resident_generation: Dict[int, int] = {}
         if active_keys_by_layer is None:
             shared = tuple(layer_spec)
             self.active_keys_by_layer = [shared]
@@ -1087,37 +1207,169 @@ class LayerBufferPool:
         )
 
     def slot_for(self, idx: int) -> int:
-        return idx % self.n
+        return self.resident_slots.get(idx, idx % self.n)
 
-    def load_async(self, idx: int, source: RamSource, stream: Any = None) -> int:
+    def resident_slot_bytes(self, idx: int) -> int:
+        """Exact private-slot payload, including quantisation sidecars."""
+        keys = (
+            self.active_keys_by_layer[0]
+            if len(self.active_keys_by_layer) == 1
+            else self.active_keys_by_layer[idx]
+        )
+        return sum(
+            self.buffers[0][name].numel() * self.buffers[0][name].element_size()
+            for name in keys
+        )
+
+    def reserve_layers(
+        self, indices: Sequence[int], source: Any, stream: Any = None
+    ) -> Dict[str, Any]:
+        """Preload immutable private slots, then publish them atomically.
+
+        Call only between completed steps, before a live autograd graph exists.
+        Rotating slots retain their original modulo and source-release ordering.
+        A failed allocation or preload leaves the original pool usable.
+        """
         import torch
 
-        slot = self.slot_for(idx)
+        chosen = tuple(indices)
+        if self.resident_slots:
+            raise ValueError("resident layers already reserved; clear them before changing them")
+        if len(self.buffers) != self.n or len(self.owner) != self.n:
+            raise ValueError("cannot reserve layers in an externally modified pool")
+        if any(type(idx) is not int or idx < 0 for idx in chosen):
+            raise ValueError("resident layer indices must be non-negative integers")
+        if tuple(sorted(set(chosen))) != chosen:
+            raise ValueError("resident layer indices must be unique and sorted")
+        layer_count = len(self.active_keys_by_layer)
+        if layer_count == 1:
+            store = getattr(source, "store", None)
+            layer_count = len(store) if store is not None else 0
+        if layer_count and any(idx >= layer_count for idx in chosen):
+            raise ValueError("resident layer index outside the source")
+        if not chosen:
+            return {"indices": [], "bytes": 0, "resident_bytes": 0}
+        if self.is_cuda:
+            torch.cuda.synchronize(self.device)
+        pending = []
+        events = []
+        total_bytes = 0
+        copying = None
+        try:
+            for idx in chosen:
+                keys = (
+                    self.active_keys_by_layer[0]
+                    if len(self.active_keys_by_layer) == 1
+                    else self.active_keys_by_layer[idx]
+                )
+                buffers = {}
+                pending.append(buffers)
+                for name in keys:
+                    buffers[name] = torch.empty_like(self.buffers[0][name])
+                events.append(torch.cuda.Event() if self.is_cuda else None)
+                total_bytes += sum(buf.numel() * buf.element_size() for buf in buffers.values())
+            for idx, buffers, event in zip(chosen, pending, events):
+                copying = idx
+                self._copy_layer(idx, buffers, event, source, stream)
+            if self.is_cuda:
+                torch.cuda.synchronize(self.device)
+        except BaseException:
+            # A partial non-blocking copy must drain before its temporary device
+            # tensors or a staging source's host buffers can be recycled.
+            try:
+                if self.is_cuda and copying is not None:
+                    torch.cuda.synchronize(self.device)
+                if copying is not None:
+                    _release_source(source, copying, None)
+            except Exception:
+                logger.warning("failed to drain a resident preload during cleanup", exc_info=True)
+            # A caller may catch the OOM and run the baseline while the exception
+            # traceback is still alive. Empty the dictionaries held by its frames
+            # so failed trial allocations do not remain live during that fallback.
+            for held in pending:
+                held.clear()
+            pending.clear()
+            events.clear()
+            raise
+        start = len(self.buffers)
+        self.buffers.extend(pending)
+        self.owner.extend(chosen)
+        if self.is_cuda:
+            self.events.extend(events)
+        # Old runtimes did not expose generations. Create them only for this
+        # native feature; external research wrappers keep their historical API.
+        if not hasattr(self, "generation"):
+            self.generation = [0] * start
+        self.generation.extend([1] * len(chosen))
+        self.resident_slots = {idx: start + offset for offset, idx in enumerate(chosen)}
+        self._resident_generation = {idx: 1 for idx in chosen}
+        self.resident_bytes = total_bytes
+        self.nbytes += total_bytes
+        self.loads += len(chosen)
+        return {
+            "indices": list(chosen), "bytes": total_bytes, "resident_bytes": total_bytes
+        }
+
+    def clear_resident_layers(self) -> None:
+        """Release private slots between completed steps; safe to call repeatedly.
+
+        Call ``clear_stream_substitution_cache(model)`` first when wrappers have
+        visited these slots, otherwise their cached views still hold storage.
+        """
+        if not self.resident_slots:
+            return
+        if self.is_cuda:
+            import torch
+
+            torch.cuda.synchronize(self.device)
+        del self.buffers[self.n :]
+        del self.owner[self.n :]
+        if self.is_cuda:
+            del self.events[self.n :]
+        if hasattr(self, "generation"):
+            del self.generation[self.n :]
+        self.nbytes -= self.resident_bytes
+        self.resident_bytes = 0
+        self.resident_slots.clear()
+        self._resident_generation.clear()
+
+    def _copy_layer(
+        self, idx: int, buffers: Dict[str, Any], event: Any, source: Any, stream: Any
+    ) -> None:
+        """The shared dynamic/preload copy path and source lifetime contract."""
+        import torch
+
         keys = (
             self.active_keys_by_layer[0]
             if len(self.active_keys_by_layer) == 1
             else self.active_keys_by_layer[idx]
         )
         if self.is_cuda and stream is not None:
-            # The slot's previous owner may still be in flight on the compute
-            # stream; the prefetch must not clobber it (plan P1).
             stream.wait_stream(torch.cuda.current_stream())
             with torch.cuda.stream(stream):
                 for name in keys:
-                    dst = self.buffers[slot][name]
-                    dst.copy_(source.get(idx, name), non_blocking=True)
-                self.events[slot].record(stream)
-            _release_source(source, idx, self.events[slot])
+                    buffers[name].copy_(source.get(idx, name), non_blocking=True)
+                event.record(stream)
+            _release_source(source, idx, event)
         else:
             for name in keys:
-                dst = self.buffers[slot][name]
-                dst.copy_(source.get(idx, name))
-            # No event: this branch's copy has already finished when `copy_`
-            # returns, so the source's buffer is free NOW rather than when a
-            # stream drains. Saying so is not decoration — a source that stages
-            # into a small reusable pool refills sooner for it.
+                buffers[name].copy_(source.get(idx, name))
             _release_source(source, idx, None)
+
+    def load_async(self, idx: int, source: RamSource, stream: Any = None) -> int:
+        slot = self.slot_for(idx)
+        if idx in self.resident_slots:
+            if self.owner[slot] != idx:
+                raise RuntimeError(f"resident layer {idx} slot owner changed")
+            if self.generation[slot] != self._resident_generation[idx]:
+                raise RuntimeError(f"resident layer {idx} slot generation changed")
+            return slot
+        self._copy_layer(
+            idx, self.buffers[slot], self.events[slot] if self.is_cuda else None, source, stream
+        )
         self.owner[slot] = idx
+        if hasattr(self, "generation"):
+            self.generation[slot] += 1
         self.loads += 1
         return slot
 
@@ -1137,9 +1389,36 @@ class LayerBufferPool:
                 f"{self.owner[slot]}, but layer {idx} was requested. Raise "
                 f"training.stream_buffers (currently {self.n}) or report this."
             )
+        if idx in self.resident_slots:
+            if self.generation[slot] != self._resident_generation[idx]:
+                raise RuntimeError(f"resident layer {idx} slot generation changed")
         if self.is_cuda:
             torch.cuda.current_stream().wait_event(self.events[slot])
         return self.buffers[slot]
+
+
+def clear_stream_substitution_cache(model: Any) -> None:
+    """Drop decoder views before changing private slots between completed steps.
+
+    A no-recompute runtime can also cache the storage pointers by slot number;
+    clear those when present so a reallocated slot cannot inherit stale pointers.
+    This cannot release tensors held by a live autograd graph: callers must have
+    completed its backward before reconfiguring residency.
+    """
+    pending = [model]
+    seen = set()
+    while pending:
+        module = pending.pop()
+        if id(module) in seen:
+            continue
+        seen.add(id(module))
+        pending.extend(child for child in module._modules.values() if child is not None)
+        if "_cached_substitution_buffers" in vars(module):
+            module._cached_substitution_buffers = None
+            module._cached_substitution_weights = None
+        pointers = vars(module).get("_slot_ptrs")
+        if pointers is not None:
+            pointers.clear()
 
 
 class LargeLayerBufferPool:
@@ -1373,6 +1652,12 @@ def _build_streamed_layer_class():
             self.prefetcher = prefetcher
             self.name_map = dict(name_map or {})
             self.use_checkpoint = bool(use_checkpoint)
+            # Retained graphs revisit the layer at their first backward unpack.
+            self.recompute = True
+            self._bwd_visited = True
+            self._bwd_generation = None
+            self._slot_ptrs: Dict[int, frozenset] = {}
+            self._retained_probe = None
             self.quant_specs = dict(quant_specs or {})
             self.codes = dict(codes or {})
             # #841 — each wrapper returns to the same pool slot on every visit.
@@ -1599,8 +1884,76 @@ def _build_streamed_layer_class():
 
         def forward(self, hidden_states: Any, *args: Any, **kwargs: Any) -> Any:
             if self.use_checkpoint and torch.is_grad_enabled():
+                if not self.recompute:
+                    return self._body_retained(hidden_states, *args, **kwargs)
                 return checkpoint(self._body, hidden_states, *args, use_reentrant=False, **kwargs)
             return self._body(hidden_states, *args, **kwargs)
+
+        def _pool_ptrs(self) -> frozenset:
+            slot = self.pool.slot_for(self.idx)
+            ptrs = self._slot_ptrs.get(slot)
+            if ptrs is None:
+                ptrs = frozenset(
+                    buf.untyped_storage().data_ptr() for buf in self.pool.buffers[slot].values()
+                )
+                self._slot_ptrs[slot] = ptrs
+            return ptrs
+
+        def _backward_visit(self) -> None:
+            # The first unpack of this layer's pool tensors in the backward is
+            # where the recompute used to run: same wait + prefetch, same order.
+            slot = self.pool.slot_for(self.idx)
+            if not self._bwd_visited:
+                self._bwd_visited = True
+                self.pool.wait(self.idx)
+                # Recorded after the wait (the slot holds this layer now) and
+                # before the prefetch, which loads a DIFFERENT slot.
+                self._bwd_generation = self.pool.generation[slot]
+                self.prefetcher.advance(self.idx)
+                return
+            if self.pool.owner[slot] != self.idx:
+                raise RuntimeError(
+                    f"streamed backward (no recompute) found slot {slot} holding layer "
+                    f"{self.pool.owner[slot]} while layer {self.idx} still unpacks from it"
+                )
+            if self.pool.generation[slot] != self._bwd_generation:
+                raise RuntimeError(
+                    f"streamed backward (no recompute) found slot {slot} reloaded "
+                    f"(load generation {self._bwd_generation} -> "
+                    f"{self.pool.generation[slot]}) while layer {self.idx} still unpacks "
+                    "from it"
+                )
+
+        def _body_retained(self, hidden_states: Any, *args: Any, **kwargs: Any) -> Any:
+            ptrs = self._pool_ptrs()
+            token = _POOL_TOKEN
+
+            def pack(tensor: Any) -> Any:
+                try:
+                    ptr = tensor.untyped_storage().data_ptr()
+                except (AttributeError, RuntimeError):
+                    return tensor
+                if ptr in ptrs:
+                    return (token, tensor)
+                return tensor
+
+            def unpack(obj: Any) -> Any:
+                if type(obj) is tuple and len(obj) == 2 and obj[0] is token:
+                    self._backward_visit()
+                    return obj[1]
+                return obj
+
+            self._bwd_visited = False
+            probe = self._retained_probe
+            if probe is not None:
+                # One forward only: the probe restores the recompute after it.
+                self._retained_probe = None
+                probe.start(self)
+            with torch.autograd.graph.saved_tensors_hooks(pack, unpack):
+                out = self._body(hidden_states, *args, **kwargs)
+            if probe is not None:
+                probe.finish(self, out)
+            return out
 
         def _substituted_weights(self, buffers: Any) -> Any:
             # Weights arrive with requires_grad=False, so autograd allocates no
@@ -1657,6 +2010,389 @@ def _build_streamed_layer_class():
 
 
 _STREAMED_LAYER_CLASS = None
+_POOL_TOKEN = object()
+
+
+def set_stream_recompute(model: Any, enabled: bool, *, retain: Optional[int] = None) -> int:
+    """training.stream_recompute — switch every streamed decoder layer between the
+    checkpoint recompute (True, the default) and retained activations (False).
+    Returns the number of streamed layers found.
+
+    ``retain`` (only with ``enabled=False``): how many layers skip the recompute
+    (the LAST ``retain`` layers); the rest keep the checkpoint recompute.
+    ``None`` = all layers. Peak VRAM grows by one layer's activations per
+    retained layer, whichever layers they are. A retained layer's NF4 linears
+    save only the packed bytes for the backward (``packed_dequant_nf4_linear``)."""
+    if retain is not None and (
+        isinstance(retain, bool) or not isinstance(retain, int) or retain < 0
+    ):
+        raise ValueError(f"retain must be None or an int >= 0; got {retain!r}")
+    streamed = streamed_decoder_layers(model)
+    order = [module.idx for module in streamed]
+    kept = set(order if retain is None else (order[-retain:] if retain > 0 else []))
+    for module in streamed:
+        skip = not enabled and module.idx in kept
+        _set_layer_recompute(module, skip=skip)
+        module._bwd_visited = True
+    return len(streamed)
+
+
+def streamed_decoder_layers(model: Any) -> list:
+    """Every ``StreamedDecoderLayer`` under ``model``, sorted by layer index.
+
+    The wrapper is transparent to ``named_modules()`` (it yields only its inner
+    layer's modules), so it is reached through its parent's ``_modules``.
+    """
+    cls = _streamed_layer_class()
+    streamed = []
+    seen = set()
+    for parent in model.modules():
+        for child in parent._modules.values():
+            if isinstance(child, cls) and id(child) not in seen:
+                seen.add(id(child))
+                streamed.append(child)
+    return sorted(streamed, key=lambda module: module.idx)
+
+
+def _linear4bit_class() -> Any:
+    """``bitsandbytes.nn.Linear4bit``. Only reached for a layer whose NF4
+    linears were patched, which already required bitsandbytes."""
+    import bitsandbytes as bnb
+
+    return bnb.nn.Linear4bit
+
+
+def _set_layer_recompute(module: Any, *, skip: bool) -> None:
+    """One streamed layer: ``skip`` = no checkpoint recompute. Its NF4 linears
+    then save the packed bytes, not the dense weight, for the backward. A layer
+    with no patched NF4 linear (``n_dequant_forward == 0``) has none to flag, and
+    bitsandbytes is not imported for it."""
+    if skip and not hasattr(module.pool, "generation"):
+        # A rotating pool needs ownership generations only while a retained
+        # graph can unpack a saved pool view.
+        module.pool.generation = [0] * len(module.pool.buffers)
+    module.recompute = not skip
+    if not getattr(module, "n_dequant_forward", 0):
+        return
+    linear4bit = _linear4bit_class()
+    for child in module.inner.modules():
+        if isinstance(child, linear4bit):
+            child._soup_packed_backward = skip
+
+
+def _output_nbytes(output: Any) -> int:
+    """Bytes of every tensor in a layer's output (a tensor, or nested containers)."""
+    if hasattr(output, "untyped_storage") and hasattr(output, "element_size"):
+        return int(output.numel() * output.element_size())
+    if isinstance(output, Mapping):
+        return sum(_output_nbytes(value) for value in output.values())
+    if isinstance(output, (tuple, list)):
+        return sum(_output_nbytes(value) for value in output)
+    return 0
+
+
+class RetainedLayerProbe:
+    """training.stream_recompute='auto' — what ONE streamed layer keeps allocated
+    when it skips the checkpoint recompute.
+
+    ``arm(model)`` switches the LAST streamed layer to no-recompute for its next
+    grad-enabled forward only, and that forward reads the allocator before and
+    after the layer's body: ``after - before - output bytes`` is what the layer
+    holds for its backward. The input was allocated before and is saved by the
+    recompute path too, so it is not counted; pool-slot tensors are saved as
+    tokens and cost nothing. Bytes the NF4 scale cache fills during that forward
+    are persistent, not retained, and are subtracted. Allocated memory is read,
+    never a difference of peaks: peaks are not additive, and a peak difference
+    under-estimated a Mistral-7B layer 3x at 1024 tokens (benchmarks/exp-1c-
+    streaming-without-recompute.md, section 6). The layer's mode is restored
+    right after the measured forward; its backward still runs the no-recompute
+    path, bit-identical to the recompute.
+
+    ``allocated`` reads the allocator; None = ``torch.cuda.memory_allocated`` on
+    the layer's device, which needs a CUDA pool. Every failure is recorded in
+    ``error`` instead of being raised into the training step.
+    """
+
+    def __init__(self, allocated: Optional[Callable[[], int]] = None):
+        self._allocated = allocated
+        self.per_layer_bytes: Optional[int] = None
+        self.layer_idx: Optional[int] = None
+        self.error: Optional[str] = None
+        self._before: Optional[int] = None
+        self._cache_before = 0
+
+    def arm(self, model: Any) -> Optional[int]:
+        """Arm the last streamed layer; returns its index, or None (``error`` says why)."""
+        layers = streamed_decoder_layers(model)
+        if not layers:
+            self.error = "the model has no streamed decoder layers"
+            return None
+        last = layers[-1]
+        if self._allocated is None:
+            pool = getattr(last, "pool", None)
+            if not getattr(pool, "is_cuda", False):
+                self.error = "no CUDA device to measure the retained bytes on"
+                return None
+            import torch
+
+            device = pool.device
+            self._allocated = lambda: int(torch.cuda.memory_allocated(device))
+        _set_layer_recompute(last, skip=True)
+        last._retained_probe = self
+        self.error = None
+        return last.idx
+
+    def disarm(self, model: Any) -> None:
+        """Drop an armed probe whose forward never ran, restoring that layer."""
+        for layer in streamed_decoder_layers(model):
+            if layer._retained_probe is self:
+                layer._retained_probe = None
+                _set_layer_recompute(layer, skip=False)
+
+    @staticmethod
+    def _cache_bytes(layer: Any) -> int:
+        return int(getattr(getattr(layer, "scale_cache", None), "nbytes", 0) or 0)
+
+    def start(self, layer: Any) -> None:
+        try:
+            self._cache_before = self._cache_bytes(layer)
+            self._before = int(self._allocated())
+        except Exception as exc:  # noqa: BLE001 — a measurement must not stop training
+            self._before = None
+            self.error = f"the measurement raised {type(exc).__name__}: {exc}"
+
+    def finish(self, layer: Any, output: Any) -> None:
+        try:
+            if self._before is not None:
+                after = int(self._allocated())
+                filled = self._cache_bytes(layer) - self._cache_before
+                self.per_layer_bytes = after - self._before - filled - _output_nbytes(output)
+                self.layer_idx = layer.idx
+        except Exception as exc:  # noqa: BLE001 — a measurement must not stop training
+            self.per_layer_bytes = None
+            self.error = f"the measurement raised {type(exc).__name__}: {exc}"
+        finally:
+            # The flags are read in the forward, so restoring them now leaves this
+            # step's backward on the no-recompute path it was recorded for.
+            _set_layer_recompute(layer, skip=False)
+
+
+def _fmt_bytes(count: int) -> str:
+    if abs(count) >= 10**9:
+        return f"{count / 1e9:.2f} GB"
+    if abs(count) >= 10**6:
+        return f"{count / 1e6:.1f} MB"
+    return f"{count} bytes"
+
+
+class CudaMemoryReader:
+    """The allocator figures ``stream_recompute='auto'`` reads, on one CUDA device."""
+
+    def __init__(self, device: Any):
+        self.device = device
+
+    def reset_peak(self) -> None:  # pragma: no cover - CUDA only
+        import torch
+
+        torch.cuda.synchronize(self.device)
+        torch.cuda.reset_peak_memory_stats(self.device)
+
+    def synchronize(self) -> None:  # pragma: no cover - CUDA only
+        import torch
+
+        torch.cuda.synchronize(self.device)
+
+    def allocated(self) -> int:  # pragma: no cover - CUDA only
+        import torch
+
+        return int(torch.cuda.memory_allocated(self.device))
+
+    def peak_allocated(self) -> int:  # pragma: no cover - CUDA only
+        import torch
+
+        return int(torch.cuda.max_memory_allocated(self.device))
+
+    def peak_reserved(self) -> int:  # pragma: no cover - CUDA only
+        import torch
+
+        return int(torch.cuda.max_memory_reserved(self.device))
+
+    def reserved(self) -> int:  # pragma: no cover - CUDA only
+        import torch
+
+        return int(torch.cuda.memory_reserved(self.device))
+
+    def free(self) -> int:  # pragma: no cover - CUDA only
+        import torch
+
+        return int(torch.cuda.mem_get_info(self.device)[0])
+
+    def total(self) -> int:  # pragma: no cover - CUDA only
+        import torch
+
+        return int(torch.cuda.get_device_properties(self.device).total_memory)
+
+    def release(self) -> None:  # pragma: no cover - CUDA only
+        import torch
+
+        torch.cuda.empty_cache()
+
+
+def _synthetic_step(model: Any, *, rows: int, seq_len: int, vocab_size: int, device: Any) -> None:
+    """One forward+backward on random ids at the configured shape, gradients dropped.
+
+    Synthetic for the reason :func:`measure_step_peak_bytes` gives: the CONFIGURED
+    shape is the worst case any real batch can pad up to, a real batch measures
+    whatever length it happened to have.
+    """
+    import torch
+
+    ids = torch.randint(0, vocab_size, (rows, seq_len), device=device)
+    out = None
+    try:
+        out = model(input_ids=ids, labels=ids)
+        out.loss.backward()
+    finally:
+        del ids, out
+        _zero_probe_grads(model)
+
+
+def plan_stream_recompute_auto(
+    model: Any,
+    *,
+    rows: int,
+    seq_len: int,
+    vocab_size: int,
+    notify: Callable[[str], Any],
+    override_bytes: Optional[int] = None,
+    headroom: Optional[float] = None,
+    memory: Any = None,
+    step: Optional[Callable[..., None]] = None,
+) -> int:
+    """training.stream_recompute='auto' — decide, before training, how many of the
+    LAST streamed layers keep their activations, and switch them. Returns ``K``.
+
+    One synthetic forward+backward at the configured shape (``rows`` x
+    ``seq_len``, the shape the VRAM probe measures) runs with the checkpoint
+    recompute on every layer but the last, which a :class:`RetainedLayerProbe`
+    measures: its allocated bytes, charged at the step's reserved/allocated ratio
+    when that is above 1. The step's RESERVED peak (which therefore already holds
+    the measured layer, so ``K`` errs low by up to one) is taken from
+    :func:`~soup_cli.utils.layer_stream.stream_recompute_budget`'s cap, and ``K =
+    budget // charge`` clamped to the layer count. Anything that cannot be
+    measured keeps the checkpoint recompute everywhere and says why; that
+    includes an out-of-memory in the synthetic step. Any other exception of the
+    step propagates, as the VRAM probe treats one (:func:`_classify_probe_exception`).
+
+    ``memory`` reads the allocator (:class:`CudaMemoryReader` on the streamed
+    layers' device when None, which needs a CUDA pool); ``step`` runs the
+    synthetic step (:func:`_synthetic_step` when None).
+    """
+    from soup_cli.utils.layer_stream import (
+        RECOMPUTE_CAP_CARD,
+        RECOMPUTE_CAP_FREE,
+        STREAM_RECOMPUTE_HEADROOM,
+        plan_retained_layers,
+        retained_layer_charge,
+        stream_recompute_budget,
+    )
+    from soup_cli.utils.terminal import for_terminal
+
+    headroom = STREAM_RECOMPUTE_HEADROOM if headroom is None else headroom
+    layers = streamed_decoder_layers(model)
+    n_layers = len(layers)
+
+    def keep(why: str) -> int:
+        set_stream_recompute(model, True)
+        notify(
+            f"[yellow]training.stream_recompute='auto' keeps the recompute on all "
+            f"{n_layers} streamed layers:[/] {for_terminal(why)}"
+        )
+        return 0
+
+    if not layers:
+        return keep("the model has no streamed decoder layers")
+    if min(rows, seq_len, vocab_size) < 1:
+        return keep(
+            f"no step shape to measure (batch {rows} x seq {seq_len}, vocab_size {vocab_size})"
+        )
+    device = layers[-1].pool.device
+    if memory is None:
+        if not getattr(layers[-1].pool, "is_cuda", False):
+            return keep("no CUDA device to measure VRAM on")
+        memory = CudaMemoryReader(device)
+    run = _synthetic_step if step is None else step
+    shape = f"batch {rows} x seq {seq_len}"
+    probe = RetainedLayerProbe(allocated=memory.allocated)
+    probe.arm(model)
+    try:
+        memory.reset_peak()
+        run(model, rows=rows, seq_len=seq_len, vocab_size=vocab_size, device=device)
+        memory.synchronize()
+        peak_reserved = memory.peak_reserved()
+        peak_allocated = memory.peak_allocated()
+        free = memory.free()
+        reserved = memory.reserved()
+        total = memory.total()
+    except Exception as exc:
+        # An out-of-memory is a result, as it is for the VRAM probe: this shape
+        # does not fit even with one layer retained. Anything else (an illegal
+        # access, a device assert, a bug) may leave the context unusable, so it
+        # propagates and the setup closes the runtime and refuses the run.
+        if not _is_out_of_memory(exc):
+            raise
+        return keep(
+            f"the synthetic step at {shape} ran out of memory, so the configured shape "
+            "does not fit with one layer retained; set training.stream_vram_probe: true "
+            "to measure whether it fits at all"
+        )
+    finally:
+        probe.disarm(model)
+        try:
+            memory.release()
+        except Exception:  # noqa: BLE001 — a cache flush must not mask the result
+            logger.warning("stream_recompute='auto': releasing the allocator cache failed")
+    per_layer = probe.per_layer_bytes
+    if per_layer is None:
+        return keep(probe.error or "the measured forward did not run")
+    if per_layer <= 0:
+        return keep(f"one layer measured at {_fmt_bytes(per_layer)} retained (<= 0)")
+    charge = retained_layer_charge(per_layer, peak_reserved, peak_allocated)
+    budget = stream_recompute_budget(
+        total_bytes=total,
+        free_bytes=free,
+        reserved_bytes=reserved,
+        reserved_peak_bytes=peak_reserved,
+        override_bytes=override_bytes,
+        headroom=headroom,
+    )
+    if budget.bound == RECOMPUTE_CAP_CARD:
+        cap = f"{headroom:.0%} of the card's {_fmt_bytes(total)}"
+    elif budget.bound == RECOMPUTE_CAP_FREE:
+        cap = f"free + reserved VRAM {_fmt_bytes(free + reserved)}"
+    else:
+        cap = f"training.stream_vram_override {_fmt_bytes(budget.cap_bytes)}"
+    if budget.budget_bytes <= 0:
+        return keep(
+            f"no VRAM headroom: {cap} minus the reserved peak of the {shape} step, "
+            f"{_fmt_bytes(peak_reserved)}, is {_fmt_bytes(budget.budget_bytes)}"
+        )
+    k = plan_retained_layers(budget.budget_bytes, charge, n_layers)
+    if k == 0:
+        return keep(
+            f"one layer ({_fmt_bytes(charge)} charged) does not fit the budget of "
+            f"{_fmt_bytes(budget.budget_bytes)}"
+        )
+    set_stream_recompute(model, False, retain=k)
+    ratio = peak_reserved / peak_allocated if peak_allocated > 0 else 1.0
+    notify(
+        f"[cyan]training.stream_recompute='auto':[/] the last {k} of {n_layers} streamed "
+        f"layers keep their activations, the rest recompute (measured at {shape}: one "
+        f"layer {_fmt_bytes(per_layer)} retained, charged {_fmt_bytes(charge)} at "
+        f"reserved/allocated {ratio:.2f}; budget {_fmt_bytes(budget.budget_bytes)} = "
+        f"{cap} minus the reserved peak {_fmt_bytes(peak_reserved)})"
+    )
+    return k
 
 
 def _streamed_layer_class():
@@ -3029,6 +3765,8 @@ class StreamRuntime:
                 self.pool.nbytes + getattr(self.large_pool, "nbytes", 0)
                 + (self.expert_pool.plan.weight_bytes if self.expert_pool is not None else 0)
             ),
+            "resident_layer_bytes": getattr(self.pool, "resident_bytes", 0),
+            "resident_layer_indices": sorted(getattr(self.pool, "resident_slots", {})),
             "large_buffer_bytes": getattr(self.large_pool, "nbytes", 0),
             "expert_buffer_bytes": (
                 self.expert_pool.plan.weight_bytes if self.expert_pool is not None else 0
@@ -3053,6 +3791,10 @@ class StreamRuntime:
             # number there would be an invented one.
             "read_ahead": getattr(self.source, "read_ahead", None),
             "disk_bytes": getattr(self.source, "disk_bytes", 0),
+            "ram_cache_allocated_bytes": getattr(self.source, "_cache_stats", {}).get(
+                "allocated_bytes", 0
+            ),
+            "ram_cache_indices": list(getattr(self.source, "_cache_stats", {}).get("indices", [])),
             "layer_loads": self.pool.loads,
             "layer_restores": self.pool.restores,
             "large_loads": getattr(self.large_pool, "loads", 0),
@@ -3189,6 +3931,7 @@ def install_streaming(
     read_ahead_decision: Any = None,
     partial_ram_budget: Any = None,
     shared_host_budget: Any = None,
+    ram_cache_bytes: int = 0,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3353,6 +4096,7 @@ def install_streaming(
             partial_ram_budget=partial_ram_budget,
             cacheable_layers=n_layers,
             shared_host_budget=shared_host_budget,
+            **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
         )
         pool = LayerBufferPool(
             spec,
@@ -3680,6 +4424,7 @@ def _build_source(
     partial_ram_budget=None,
     cacheable_layers=None,
     shared_host_budget=None,
+    ram_cache_bytes=0,
 ):
     """Build the weight source for the chosen tier.
 
@@ -3713,9 +4458,15 @@ def _build_source(
     The second element of the returned tuple means the same thing on both tiers:
     the host-side source memory is page-locked.
     """
+    if type(ram_cache_bytes) is not int or ram_cache_bytes < 0:
+        raise ValueError("ram_cache_bytes must be a non-negative integer byte ceiling")
+    if ram_cache_bytes and tier != "disk":
+        raise ValueError("ram_cache_bytes is only applicable to the disk tier")
     if shared_host_budget is not None and partial_ram_budget is None:
         raise ValueError("shared_host_budget requires an explicit partial_ram_budget")
     if partial_ram_budget is not None:
+        if ram_cache_bytes:
+            raise ValueError("partial_ram_budget cannot be combined with ram_cache_bytes")
         from soup_cli.utils.partial_ram_source import PartialRamSource
 
         if tier != "disk":
@@ -3744,6 +4495,17 @@ def _build_source(
             # R4: which drive each source index lives on. Only the async reader uses it; the
             # RAM tier reads every file once whatever drive it is on.
             open_kwargs["layer_roots"] = layer_roots
+        if ram_cache_bytes:
+            # An explicit cache request is attempted once. In particular, a cache
+            # I/O/identity failure must never be reinterpreted as pinning failure
+            # and hidden by the legacy pageable fallback below.
+            source = AsyncDiskSource(
+                shard_dir, n_layers, spec, pin=pin,
+                ram_cache_bytes=ram_cache_bytes, **open_kwargs,
+            )
+            if console is not None and not source.ram_cache_stats()["indices"]:
+                console.print("[yellow]No repeated layer fits the safe RAM cache budget.[/]")
+            return source, source.pinned
         if pin:
             try:
                 source = AsyncDiskSource(shard_dir, n_layers, spec, pin=True, **open_kwargs)
@@ -3880,6 +4642,7 @@ def build_streamed_model(
     read_ahead_decision: Any = None,
     partial_ram_budget: Any = None,
     shared_host_budget: Any = None,
+    ram_cache_bytes: int = 0,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -3939,6 +4702,7 @@ def build_streamed_model(
             read_ahead_decision=read_ahead_decision,
             partial_ram_budget=partial_ram_budget,
             shared_host_budget=shared_host_budget,
+            **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
         )
     except BaseException:
         for external in external_sources:

@@ -1,0 +1,85 @@
+{
+  "upstream": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b",
+  "models": [
+    {
+      "size_b": 8,
+      "model_id": "Qwen/Qwen3-8B",
+      "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+      "weight_bytes": 16381470720,
+      "config": {
+        "architectures": [
+          "Qwen3ForCausalLM"
+        ],
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "bos_token_id": 151643,
+        "eos_token_id": 151645,
+        "head_dim": 128,
+        "hidden_act": "silu",
+        "hidden_size": 4096,
+        "initializer_range": 0.02,
+        "intermediate_size": 12288,
+        "max_position_embeddings": 40960,
+        "max_window_layers": 36,
+        "model_type": "qwen3",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 36,
+        "num_key_value_heads": 8,
+        "rms_norm_eps": 1e-06,
+        "rope_scaling": null,
+        "rope_theta": 1000000,
+        "sliding_window": null,
+        "tie_word_embeddings": false,
+        "torch_dtype": "bfloat16",
+        "transformers_version": "4.51.0",
+        "use_cache": true,
+        "use_sliding_window": false,
+        "vocab_size": 151936
+      }
+    }
+  ],
+  "quantization": "none",
+  "dtype": "bfloat16",
+  "batch": 1,
+  "accumulation": 2,
+  "sequence_length": 1024,
+  "seed": 792,
+  "lora_rank_alpha": 4,
+  "warmup": 6,
+  "measured_updates": 8,
+  "pairs": 4,
+  "pair_order": [
+    "AB",
+    "BA",
+    "BA",
+    "AB"
+  ],
+  "capture": {
+    "reference_first_rtol": 0.01,
+    "atol": 1e-05,
+    "loss_three_decimals": true,
+    "exact_inputs_initial_adapters": true,
+    "finite_required": true,
+    "updates": 2
+  },
+  "performance_gate": {
+    "minimum_median_paired_time_reduction_percent": 2,
+    "minimum_positive_pair_fraction": 0.75,
+    "bootstrap_95_lower_above_zero": true,
+    "resamples": 20000,
+    "seed": 792
+  },
+  "arms": [
+    "baseline",
+    "resident",
+    "retained",
+    "both"
+  ],
+  "allocator_budget_gib": 7,
+  "study": "stream8-cache-20261022",
+  "cap_usd": 5,
+  "prior_usd": 0,
+  "source_sha256": "12063cfc2a3326b0c6cb4020758733b3a02168e8b1d8e3b3dc041f4b60784968",
+  "retention": "selected decoder checkpoint bypass; clone all saved rotating-weight aliases; immutable resident borrowing in both",
+  "selection": "baseline reserved peak;7GiB allocator minus0.75GiB reserve; weight bytes plus512MiB activation allowance for retained/both"
+}

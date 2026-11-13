@@ -1,0 +1,674 @@
+{
+  "status": "QUALIFIED_SHORT_NUMERICAL_AND_RESOURCE_COMPARISON",
+  "source_commit": "c22e5f904e4e34c89f9b0f71c1b9d96ca66e212b",
+  "source_archive": {
+    "bytes": 7395341,
+    "sha256": "60f37abebedd1d68b4ade8819e60cb6a5bdadae83c582a7415e8f90bc1c3c6da"
+  },
+  "upstream_base": "51777d12077df022db8ee8a57cf46ed2f76909ef",
+  "arm_meanings": {
+    "baseline": "RAM cache",
+    "ram": "RAM cache + retained activations",
+    "vram": "RAM cache + 4 GPU-resident layers",
+    "both": "RAM cache + 4 GPU-resident layers + retained activations"
+  },
+  "selection": {
+    "context": 512,
+    "ram_ceiling_mib": 14336,
+    "arms": {
+      "baseline": {
+        "resident_indices": [],
+        "retained_layer_indices": [],
+        "ram_cache": {
+          "indices": [
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 14086942240
+        }
+      },
+      "ram": {
+        "resident_indices": [],
+        "retained_layer_indices": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63
+        ],
+        "ram_cache": {
+          "indices": [
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 14086942240
+        }
+      },
+      "vram": {
+        "resident_indices": [
+          30,
+          31,
+          32,
+          33
+        ],
+        "retained_layer_indices": [],
+        "ram_cache": {
+          "indices": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 14086942240
+        }
+      },
+      "both": {
+        "resident_indices": [
+          30,
+          31,
+          32,
+          33
+        ],
+        "retained_layer_indices": [
+          61,
+          62,
+          63
+        ],
+        "ram_cache": {
+          "indices": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 14086942240
+        }
+      }
+    }
+  },
+  "performance": {
+    "contrasts": {
+      "baseline_to_ram": {
+        "paired_step_time_reduction_percent": [
+          2.578872568174795,
+          2.4907656736098405,
+          2.5331345052407195,
+          2.404292139712927
+        ],
+        "median_paired_step_time_reduction_percent": 2.51195008942528,
+        "bootstrap95_percent": [
+          2.404292139712927,
+          2.578872568174795
+        ],
+        "positive_block_fraction": 1.0,
+        "practical_speed_gate_passed": true,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      },
+      "baseline_to_vram": {
+        "paired_step_time_reduction_percent": [
+          0.4446950046825493,
+          0.5829340132766259,
+          0.6369159726757001,
+          0.49021079830406933
+        ],
+        "median_paired_step_time_reduction_percent": 0.5365724057903476,
+        "bootstrap95_percent": [
+          0.4446950046825493,
+          0.6369159726757001
+        ],
+        "positive_block_fraction": 1.0,
+        "practical_speed_gate_passed": false,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      },
+      "baseline_to_both": {
+        "paired_step_time_reduction_percent": [
+          1.5512594755347053,
+          1.6617382508055445,
+          1.7060159853821921,
+          1.701679970730452
+        ],
+        "median_paired_step_time_reduction_percent": 1.6817091107679982,
+        "bootstrap95_percent": [
+          1.5512594755347053,
+          1.7060159853821921
+        ],
+        "positive_block_fraction": 1.0,
+        "practical_speed_gate_passed": false,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      },
+      "ram_to_both": {
+        "paired_step_time_reduction_percent": [
+          -1.0548154386318398,
+          -0.850204012503375,
+          -0.8486150812996085,
+          -0.7199211772594527
+        ],
+        "median_paired_step_time_reduction_percent": -0.8494095469014917,
+        "bootstrap95_percent": [
+          -1.0548154386318398,
+          -0.7199211772594527
+        ],
+        "positive_block_fraction": 0.0,
+        "practical_speed_gate_passed": false,
+        "bootstrap_unit": "entire fresh four-arm block",
+        "resamples": 20000,
+        "seed": 792,
+        "interval_scope": "Pointwise descriptive interval; not familywise confidence"
+      }
+    },
+    "roles": {
+      "baseline": {
+        "median_step_seconds": 7.586294453532901,
+        "processed_input_positions_per_second_including_padding": 134.98026029336737,
+        "median_whole_entry_seconds": 57.749532855988946,
+        "median_whole_setup_seconds": 7.88547869946342,
+        "peak_allocated_vram_bytes": 3913106432,
+        "peak_reserved_vram_bytes": 4099932160,
+        "peak_process_rss_bytes": 21284917248,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          248
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 6037340160.0,
+        "ram_cache_allocated_bytes": 15032385536,
+        "ram_cache_payload_bytes": 14086942240,
+        "resident_indices": [],
+        "resident_bytes": 0
+      },
+      "ram": {
+        "median_step_seconds": 7.397376687265933,
+        "processed_input_positions_per_second_including_padding": 138.42745114801906,
+        "median_whole_entry_seconds": 65.51994561753236,
+        "median_whole_setup_seconds": 18.139262998476624,
+        "peak_allocated_vram_bytes": 5475891712,
+        "peak_reserved_vram_bytes": 5955911680,
+        "peak_process_rss_bytes": 21366247424,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          248
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 6037340160.0,
+        "ram_cache_allocated_bytes": 15032385536,
+        "ram_cache_payload_bytes": 14086942240,
+        "resident_indices": [],
+        "resident_bytes": 0
+      },
+      "vram": {
+        "median_step_seconds": 7.545345143531449,
+        "processed_input_positions_per_second_including_padding": 135.71281108033412,
+        "median_whole_entry_seconds": 69.31437127204845,
+        "median_whole_setup_seconds": 21.20674545998918,
+        "peak_allocated_vram_bytes": 5051849216,
+        "peak_reserved_vram_bytes": 5408555008,
+        "peak_process_rss_bytes": 21361995776,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          232
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 2012446720.0,
+        "ram_cache_allocated_bytes": 15032385536,
+        "ram_cache_payload_bytes": 14086942240,
+        "resident_indices": [
+          30,
+          31,
+          32,
+          33
+        ],
+        "resident_bytes": 1006210160
+      },
+      "both": {
+        "median_step_seconds": 7.461323015013477,
+        "processed_input_positions_per_second_including_padding": 137.24107613884752,
+        "median_whole_entry_seconds": 77.25522381154587,
+        "median_whole_setup_seconds": 29.736745684524067,
+        "peak_allocated_vram_bytes": 5468031488,
+        "peak_reserved_vram_bytes": 5907677184,
+        "peak_process_rss_bytes": 21351874560,
+        "max_observed_swap_bytes": 0,
+        "timed_decoder_load_counts": [
+          232
+        ],
+        "timed_large_load_counts": [
+          4
+        ],
+        "median_timed_update_physical_read_bytes": 2012446720.0,
+        "ram_cache_allocated_bytes": 15032385536,
+        "ram_cache_payload_bytes": 14086942240,
+        "resident_indices": [
+          30,
+          31,
+          32,
+          33
+        ],
+        "resident_bytes": 1006210160
+      }
+    },
+    "primary_incremental_contrast": "ram_to_both",
+    "warmup": 2,
+    "measured_updates_per_process": 4,
+    "processes": 16,
+    "processed_input_positions_per_update_including_padding": 1024
+  },
+  "all_six_candidate_capture_comparisons_bitwise_equal": true,
+  "accuracy": {
+    "bytes": 353065,
+    "sha256": "4171d8bfb46e65c1b2c9b2a1e0579ccfb54446719c5e066141ce1e69d06223c1"
+  },
+  "timing": {
+    "bytes": 856303,
+    "sha256": "9f78efb38b20d1f9d506bb9fff1fb28ce0102611180812ad1a7c1e12975a2fc7"
+  },
+  "hardware": {
+    "scope": "32B capacity with physical/cgroup RAM <=32GiB",
+    "samples": [
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792918939.3986168
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792918944.4256399
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792918949.4518096
+      }
+    ],
+    "ram_scope": {
+      "limit_enforced": true,
+      "requested_ram_upper_bound_bytes": 34359738368,
+      "effective_ram_upper_bound_bytes": 31950110720,
+      "host_mem_total_bytes": 33282760704,
+      "native_cgroup_limit_bytes": 31950110720,
+      "container_swap_current_bytes": 0,
+      "method": "PHYSICAL_32GB_CLASS",
+      "parent_limits_and_system_settings_unchanged": true,
+      "host_swap_total_bytes": 8589930496,
+      "swap_policy": "Enabled host swap is not called disabled; abort on container swap use",
+      "proc_self_cgroup": "0::/\n"
+    },
+    "passed": true,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+    "gpu_uuid": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099",
+    "host_meminfo": "MemTotal:       32502696 kB\nMemFree:        21567120 kB\nMemAvailable:   30927700 kB\nBuffers:           27804 kB\nCached:          9420440 kB\nSwapCached:       150788 kB\nActive:          3207252 kB\nInactive:        6608772 kB\nActive(anon):     324664 kB\nInactive(anon):    51712 kB\nActive(file):    2882588 kB\nInactive(file):  6557060 kB\nUnevictable:       26484 kB\nMlocked:           26484 kB\nSwapTotal:       8388604 kB\nSwapFree:        8096252 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               520 kB\nWriteback:             0 kB\nAnonPages:        391188 kB\nMapped:           176584 kB\nShmem:               468 kB\nKReclaimable:     389164 kB\nSlab:             605852 kB\nSReclaimable:     389164 kB\nSUnreclaim:       216688 kB\nKernelStack:        8672 kB\nPageTables:        10984 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    24639952 kB\nCommitted_AS:    3055336 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:      179544 kB\nVmallocChunk:          0 kB\nPercpu:            14976 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:    25154152 kB\nDirectMap2M:     8036352 kB\nDirectMap1G:           0 kB\n",
+    "cgroup": {
+      "/sys/fs/cgroup/memory.max": "31950110720\n"
+    }
+  },
+  "storage": {
+    "nvme_verified": false,
+    "scope": "Actual disk-source mount; physical NVMe backing is not assumed",
+    "raw_mount": "TARGET SOURCE                                FSTYPE OPTIONS\n/data  /dev/loop5[/volumes/V.57640334/_data] xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,prjquota,grpquota",
+    "major_minor": "7:5",
+    "loop/backing_file": "/vast_disk.img\n",
+    "loop/dio": "0\n"
+  },
+  "storage_override": {
+    "field": "training.stream_disk_kind",
+    "value": "nvme",
+    "reason": "Provider advertises NVMe; VM exposes xfs loopback and native auto detection returns ssd. Documented VM override is identical in every arm.",
+    "physical_nvme_verified": false,
+    "claims": "Disk-tier comparison only; no independently verified physical NVMe performance claim."
+  },
+  "diagnostic_profile": {
+    "diagnostic_only": true,
+    "ordinary_speed_evidence": false,
+    "cpu_step_seconds": 7.612811016113281,
+    "interval_union_seconds_not_additive": {
+      "soup.decoder.wait_enqueue": 0.00841944384765625,
+      "soup.decoder.load_async": 5.108004117919922,
+      "soup.source.get": 0.952994466796875,
+      "soup.large.load_async": 0.466205158203125,
+      "soup.large.wait_enqueue": 0.0001735419921875,
+      "observed_gpu_activity": 7.537473689697266,
+      "gpu_memcpy": 5.211596203857422,
+      "kernel": 7.016415329101562,
+      "name_matched_dequant": 1.281110951904297
+    },
+    "source_get_without_observed_gpu_activity_seconds": 0.03269918579101563,
+    "top_gpu_events_by_summed_duration_not_exclusive": [
+      {
+        "name": "Memcpy HtoD (Pinned -> Device)",
+        "calls": 7946,
+        "summed_event_us": 5173578.155517578
+      },
+      {
+        "name": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)",
+        "calls": 514,
+        "summed_event_us": 1513853.9260253906
+      },
+      {
+        "name": "void kDequantizeBlockwise<__nv_bfloat16, 512, 64, 8, 2>(float*, unsigned char*, float*, __nv_bfloat16*, int, int)",
+        "calls": 1792,
+        "summed_event_us": 1254297.5397949219
+      },
+      {
+        "name": "ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_stages_32x1_nn",
+        "calls": 762,
+        "summed_event_us": 1000620.3444824219
+      },
+      {
+        "name": "ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_32x3_tn",
+        "calls": 256,
+        "summed_event_us": 751666.1569824219
+      },
+      {
+        "name": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_nn_align8::Params)",
+        "calls": 128,
+        "summed_event_us": 369131.99072265625
+      },
+      {
+        "name": "ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_stages_32x1_tn",
+        "calls": 768,
+        "summed_event_us": 312035.16064453125
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+        "calls": 4724,
+        "summed_event_us": 271353.2648925781
+      },
+      {
+        "name": "ampere_bf16_s16816gemm_bf16_128x128_ldg8_f2f_stages_64x3_tn",
+        "calls": 256,
+        "summed_event_us": 249098.33813476562
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul>)",
+        "calls": 512,
+        "summed_event_us": 163747.3603515625
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+        "calls": 2561,
+        "summed_event_us": 136172.43359375
+      },
+      {
+        "name": "Memcpy DtoD (Device -> Device)",
+        "calls": 2312,
+        "summed_event_us": 115728.25805664062
+      }
+    ]
+  },
+  "cost": {
+    "conservative_usd_including_retries": 2.3900932432259303,
+    "initial_remaining_usd": 9.41655345670971,
+    "remaining_usd": 7.02646021348378,
+    "not_an_invoice": true
+  },
+  "cleanup": {
+    "verified_absent": true,
+    "instance_id": "57640335",
+    "volume_id": "57640334",
+    "checked_unix": 1792922436.6356676,
+    "method": "Fresh independent paginated API inventory",
+    "all_completed_owned_leases_rechecked": [
+      {
+        "instance_id": 57631369,
+        "volume_id": 57631367
+      },
+      {
+        "instance_id": 57631844,
+        "volume_id": 57631843
+      },
+      {
+        "instance_id": 57632583,
+        "volume_id": 57632582
+      },
+      {
+        "instance_id": 57634533,
+        "volume_id": 57634531
+      },
+      {
+        "instance_id": 57640335,
+        "volume_id": 57640334
+      }
+    ],
+    "unrelated_resources_untouched": true
+  },
+  "model_stage_memory_audit": {
+    "bytes": 33518,
+    "sha256": "464e806fd85636859a5dd58f78754db30bf8031cc77c7135a30724c03ba2f1f8"
+  }
+}

@@ -6,6 +6,7 @@
 
 **Contents:**
 
+- [Fast-LoRA correctness probes (D2)](#fast-lora-correctness-probes-d2)
 - [LongLoRA Forward Override](#longlora-forward-override)
 - [Multipack — FFD Bin-Packing Sampler](#multipack--ffd-bin-packing-sampler)
 - [Long Context — YaRN, Llama 3.1 NTK, LongLoRA](#long-context--yarn-llama-31-ntk-longlora)
@@ -27,6 +28,78 @@
 - [Depth Pruning + Distill-Heal (`soup shrink`)](#depth-pruning--distill-heal-soup-shrink)
 
 ---
+
+## Fast-LoRA correctness probes (D2)
+
+The experimental single-projection, shared-X QKV and SiLU/SwiGLU MLP Functions
+have a dedicated evidence harness in `benchmarks/harness/fast_lora_probe.py`.
+This is a correctness probe, not a full-training performance multiplier. There
+is no `training.fast_lora` configuration switch in this revision; do not put an
+unknown key in a training YAML. The harness applies the existing patchers directly.
+
+Mixed-precision backward preserves the adapter input-gradient cast boundary and
+the activation's intermediate rounding before SiLU backward. QKV and MLP also
+have a correctness-first **scoped reference-order** path for verified canonical
+installed Llama/PEFT calls with low-precision inputs, FP32 adapter masters and
+autocast disabled. Eligibility checks executable identities and bound receivers;
+standalone projection calls or unsupported contexts must not claim this mode. The path preserves
+separate projection GEMMs and the canonical shared-input accumulation order.
+This gives up some fusion opportunities; no speedup follows from selecting it.
+
+The selected QKV/MLP arithmetic is exposed as `grad_fn.reference_order`. A custom
+Function name alone cannot distinguish this path from genuine legacy fusion.
+The loss harness observes mode separately for every declared module at every
+step. Agreement on its finite synthetic CPU fixture is not universal bit-exactness
+and does not validate CUDA, NF4 or alternative graph schedules.
+
+Start with the committed decision rule in
+[`benchmarks/gate-d2-fast-lora-rule.md`](../benchmarks/gate-d2-fast-lora-rule.md).
+Use the checkout's `src` on `PYTHONPATH` so an older editable installation cannot
+silently supply the reference or kernels. For example, from the repository root:
+
+```bash
+PYTHONPATH="$PWD/src" python -m pytest \
+  tests/test_issue839_fast_lora_single_projection.py \
+  tests/test_issue838_fast_lora_qkv.py \
+  tests/test_issue837_fast_lora_mlp.py \
+  tests/test_d2_qkv_backward.py tests/test_d2_qkv_semantics.py \
+  tests/test_d2_checkpoint_and_dtypes.py \
+  tests/test_d2_mixed_precision_backward.py tests/test_d2_reference_precision.py \
+  tests/test_d2_fast_lora_probe.py tests/test_d2_fast_lora_probe_validity.py --no-cov -q
+
+PYTHONPATH="$PWD/src" python benchmarks/harness/fast_lora_probe.py parity \
+  --device cpu --dtype fp32 --output-prefix evidence/parity-fp32
+PYTHONPATH="$PWD/src" python benchmarks/harness/fast_lora_probe.py loss \
+  --device cpu --dtype fp32 --steps 50 --output-prefix evidence/loss-fp32
+```
+
+The fixtures are **SYNTHETIC** random weights and token batches. The baseline is
+unpatched PEFT. JSON/CSV records distinguish forward outputs, input gradients and
+every expected adapter gradient, and report `bit_exact` separately from approximate
+agreement. Low-precision dense checks use the explicitly named proposed float64
+error bound from the rule. A matching loss curve is not a substitute for these
+gradient checks or proof of quality on a real dataset.
+
+The loss command retains all measured steps and exits with code 2 when the
+three-decimal gate fails. Failed runs must remain in the report. NF4 is not yet
+implemented by this evidence harness; applicable NF4 tests are separate pytest
+gates, including a single-projection non-reentrant-checkpoint regression. A
+skipped GPU test is **UNVERIFIED**, not PASS.
+
+For an initial single-GPU CUDA probe, expose only one card:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 PYTHONPATH="$PWD/src" \
+  python benchmarks/harness/fast_lora_probe.py parity \
+  --device cuda --dtype fp16 --output-prefix evidence/parity-cuda-fp16
+```
+
+Run timing only after correctness and with the declared validity protocol.
+The timing mode supports tiny and `llama3.1-8b` shapes, uses ABBA arm order, and
+reports raw arm samples. CPU timings are DEBUG-ONLY / NO VERDICT; an 8B-shaped
+layer is not a pretrained 8B-model run. No speedup against Liger, Unsloth or a
+full training run is established by this probe. BF16 and fp16 must be reported
+as distinct regimes, and the runtime refuses unsupported native-BF16 CUDA use.
 
 ## Depth Pruning + Distill-Heal (`soup shrink`)
 

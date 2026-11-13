@@ -625,22 +625,32 @@ def test_mountinfo_picks_the_longest_mount_that_holds_the_path(g2):
     assert g2.classify_scope("unknown")[0] == "unknown"  # unreadable is not local
 
 
-def test_paced_weight_stream_never_runs_ahead_of_its_rate(g2):
+def test_paced_weight_stream_never_runs_ahead_of_its_rate(g2, monkeypatch):
     import io
-    import threading
-    import time
+    from types import SimpleNamespace
 
     chunk, rate = 4096, 400_000  # ~100 requests per second
-    handle = io.BytesIO(b"\x01" * chunk * 8)
+    now = 0.0
+    arrivals = []
+
+    class TimedReader(io.BytesIO):
+        def readinto(self, buffer):
+            arrivals.append(now)
+            return super().readinto(buffer)
+
+    class StopAfter50Reads:
+        def is_set(self):
+            return len(arrivals) >= 50
+
+        def wait(self, delay):
+            nonlocal now
+            now += delay
+
+    monkeypatch.setattr(g2, "time", SimpleNamespace(monotonic=lambda: now,
+                                                   perf_counter=lambda: now))
+    handle = TimedReader(b"\x01" * chunk * 8)
     buf = g2.l2l_activations.aligned_buffer(chunk, pin=False)
-    meter, stop = g2.Meter(), threading.Event()
-    thread = threading.Thread(target=g2.weights_loop,
-                              args=(handle, chunk * 8, buf, meter, stop),
-                              kwargs={"rate_Bps": rate})
-    start = time.monotonic()
-    thread.start()
-    time.sleep(0.5)
-    moved, elapsed = meter.snapshot()["bytes"]["weight"], time.monotonic() - start
-    stop.set()
-    thread.join(timeout=5)
-    assert 0 < moved <= rate * elapsed + chunk  # wrapped the 8-chunk file, never ahead
+    meter = g2.Meter()
+    g2.weights_loop(handle, chunk * 8, buf, meter, StopAfter50Reads(), rate_Bps=rate)
+    assert meter.snapshot()["bytes"]["weight"] == 50 * chunk
+    assert arrivals == pytest.approx([index * chunk / rate for index in range(50)])
