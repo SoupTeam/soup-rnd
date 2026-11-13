@@ -1,0 +1,128 @@
+{
+  "schema": "p3-moonlight-unattended-eval-result-v1",
+  "recorded_utc": "2026-11-13T06:19:57.365732+00:00",
+  "archive": {
+    "name": "moonlight-resident-20261111t201548z-whole3-h2-final-done.tar.gz",
+    "bytes": 74411624,
+    "sha256": "3ecbeb644c00accc077805988626c3c6e27c72931f32bb6b5445a444fd02973c",
+    "members": 1179,
+    "location": "workstation only (C:\\Users\\sydyk\\Downloads\\moonlight-quality-results-h2); not committed",
+    "host_evidence_files_outside_train": 802,
+    "all_present_with_matching_sizes": true
+  },
+  "run": {
+    "instance_id": 60335129,
+    "volume_id": 60335123,
+    "machine_id": 140544,
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "driver_started_utc": "2026-11-12T09:17:19.687242+00:00",
+    "done_utc": "2026-11-13T05:19:30.053241+00:00",
+    "pieces_total": 84,
+    "pieces_scored_here": 82,
+    "pieces_reused_from_first_host": 2,
+    "refused_pieces": 0,
+    "max_forwards_per_piece": 1381,
+    "limit": 1400
+  },
+  "committed_extracts": {
+    "quality-summary.json": {
+      "archive_member": "evidence/quality-summary.json",
+      "bytes": 30898,
+      "sha256": "ea30e05d45d63c6390dfb9fe82b8204ac2cdbb8a065db6636ce6165925631338"
+    },
+    "h2-cross-check.json": {
+      "archive_member": "evidence/h2-cross-check.json",
+      "bytes": 171,
+      "sha256": "ad0d992f2a29f5ef6487b4eb8fa82bce86da50a9b8ee1e76e470dffb6f05ead8"
+    },
+    "h2-initial-adapter-check.json": {
+      "archive_member": "evidence/h2-initial-adapter-check.json",
+      "bytes": 465,
+      "sha256": "73404e22861ba53a21b4c0eb178f0641b99094e380a915cf8bc3275ca77fffd3"
+    },
+    "h2-profiler-probe.json": {
+      "archive_member": "evidence/h2-profiler-probe.json",
+      "bytes": 276,
+      "sha256": "faaa83a5b081a2d19434a20bced370237b9df1f99bc66fc2aa73f38390ef11ff"
+    },
+    "h2-shard-plan.json": {
+      "archive_member": "evidence/h2-shard-plan.json",
+      "bytes": 1950,
+      "sha256": "c1c0d36d137a84a14dccc939b03becad03d6249689043d84f4d5874f1f8da062"
+    },
+    "driver-steps.log": {
+      "archive_member": "autorun/driver-steps.log",
+      "bytes": 12521,
+      "sha256": "ff484ddb2079d8cd0480a9d2e59fcd670892e5d3abd5f2392f1c086f7a9309b5"
+    },
+    "gpu.txt": {
+      "archive_member": "autorun/logs/gpu.txt",
+      "bytes": 46,
+      "sha256": "5bb6ddf0bd97218709b6126470716cdd03b50f7c88111eed0b340c2170574167"
+    }
+  },
+  "paired_files_not_committed": {
+    "evidence/paired/manifest.json": {
+      "bytes": 2452566,
+      "sha256": "16c551209fb0b2cb8972bd8aa07b2f45fd1b63b56e2bc39bb52d7beffc03cc5a"
+    },
+    "evidence/paired/nll-pairs.jsonl": {
+      "bytes": 1513657,
+      "sha256": "2293f3595336fe021b4fb3a0f6f395ac3e4e52f11a5de37839339cb7daca49e2"
+    },
+    "evidence/paired/pairs.jsonl": {
+      "bytes": 10635807,
+      "sha256": "6c599ac9d3f6324b506751c6bdc510ffd16563a545d0f5991bcff65753abae61"
+    }
+  },
+  "verdict": {
+    "gated_quality_decision": "NONINFERIOR",
+    "statistical_quality_decision": "NONINFERIOR",
+    "pair_manifest_sha256": "16c551209fb0b2cb8972bd8aa07b2f45fd1b63b56e2bc39bb52d7beffc03cc5a",
+    "scoring_protocol_sha256": "685fa5bee528969d9b2eef423c90280d179432ba017fbebed12b687f608a8249",
+    "study_protocol_sha256": "d22871c398d29e25c614129a1a084903fbc0dce09a5bb5d2659c08d9102b2f82",
+    "primary_pairs": 41942,
+    "secondary_nll_rows": 3564,
+    "harms": 187,
+    "gains": 184,
+    "agreement": 0.991154
+  },
+  "memory_persistent_boundary_store_per_step": {
+    "source": "boundary_store_host_bytes in each arm's steps.jsonl; constant over all 64 steps and equal at L1024 and L4096",
+    "bf16_bytes": 452984832,
+    "fp8_bytes": 240648192,
+    "fp8_payload_bytes": 226492416,
+    "fp8_scale_bytes": 14155776,
+    "oracle_owned_host_bytes": 8093696,
+    "store_saving": 0.4688,
+    "store_plus_oracle_saving": 0.4509,
+    "not_claimed": "total activation or process memory; CUDA peaks unchanged; BF16 L1024 timing/resource block VOID"
+  },
+  "closure": {
+    "closed_utc": "2026-11-13T05:39:48.720779+00:00",
+    "verified_absent": true,
+    "reason": "manual close after user approval",
+    "posted_usd_cumulative_at_close_check": 20.647,
+    "accrued_estimate_usd": 21.95,
+    "cap_usd": 30,
+    "note": "posted total covers all 22 owned resources of the Moonlight study; billing may still settle"
+  },
+  "code_snapshot_sha256": {
+    "h2_precollect.py": "406220f813b85686aeba84a5d336978dee42b22f5cf0f49e23199b4eaabd8a80",
+    "h2_predry.py": "388b3427114f924a20caafc945c0c830b3a1d5d538dfbb4886ad8bff8ef46a0c",
+    "launch.py": "4b01a726eb2ec5f70454c52eaa7562228869598f7d47bfc8e652a01b86bb228c",
+    "moonlight_watchdog.py": "8e957db62ed22b954cd3991a97db0327c611104354455c3121b60f5b3cd73b62",
+    "precheck.py": "977d50df194e88161c870ad874464611009afea099be08812473272ef1f817b9",
+    "README-user.md": "37805fd89c3e9c2572dbbf7fe3095741c82776245c3b2a698be257b60f1b3660",
+    "remote/cross_check.py": "1334e8bd217cfb1b7911f635c5a2918238acc0cf872e239f927afa39330e44e0",
+    "remote/driver.py": "21fd204c650e0865be5ee66084a5404afe404ec616fa4340e3b5afe689fac42e",
+    "remote/dry_admission.py": "782a6b3a3dc50777bb139adcec4a73bc4493b4bdfb0e8a13f6ade46822882158",
+    "remote/launch_driver.sh": "b343fe53b99d3080df4d866077731cd368008acdc38163892490a38980bac4b6",
+    "remote/moonlight_measured_entry.py": "bb6b6c530103fe4117509a8997e0b9dc94b35f85f0cba6cbc2bceee0d54dc745",
+    "remote/plan_shards.py": "20256f792272b8efed2af0f30b8e931ee52377ce8956190abb601162df723078",
+    "remote/profiler_session_probe.py": "57684c05b5ec94171faed7135218240c4e374d447d76e847515e610e1a19cb98",
+    "remote/quality_summary.py": "8803f8033fc1b2f15dd34fd663992354ce1379fdf9131429c68a7fbdfbaf16b4",
+    "remote/restore_mtimes.py": "59c66d9a869a256459b1e6126614561e8dba2c8dd60bb174f1623b229920aa6c",
+    "remote/setup.sh": "b64f14eaa03b6b43179e3ab023d5daf6b0770a4bdfcaab5f48fb3d18ea536e1d"
+  }
+}

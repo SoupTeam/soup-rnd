@@ -2,10 +2,21 @@
 
 Everything below runs in **PowerShell** or **cmd** on this PC. Keep the PC on and awake.
 
-## Where is it now?
+## Where is it now? (one line)
 
 ```
-python C:\Users\sydyk\Downloads\moonlight-autorun\moonlight_watchdog.py status
+python -X utf8 C:\Users\sydyk\Downloads\moonlight-autorun\moonlight_watchdog.py progress
+```
+
+It prints one line: the state, the step, which scoring piece (of 84) is running, whether the
+run is alive, the money, and whether the machine was **deleted** or merely **not answering**.
+A line saying the machine "не отвечает по SSH (не удалена)" is a connection problem, not a
+deletion; the watchdog never deletes a machine that is merely unreachable before 21:45 UTC.
+
+For the full detail:
+
+```
+python -X utf8 C:\Users\sydyk\Downloads\moonlight-autorun\moonlight_watchdog.py status
 ```
 
 Read `remote.state` and `remote.step`:
@@ -54,8 +65,8 @@ to run twice. Run `status` afterwards: `closed.verified_absent` must be `true`.
 
 ## Automatic limits
 
-- Cost estimate ≥ $29: the watchdog asks the run to stop, waits for its archive,
-  downloads it and deletes the machine. ≥ $29.8 or after 2026-11-13 21:45 UTC it makes one
+- Cost estimate ≥ $28.5: the watchdog asks the run to stop, waits for its archive,
+  downloads it and deletes the machine. ≥ $29.5 or after 2026-11-13 21:45 UTC it makes one
   last download or rescue attempt, then deletes.
 - 2026-11-13 20:30 UTC: no new scoring piece starts (pairing and analysis still run);
   21:00 UTC: stop requested.

@@ -2,7 +2,7 @@
 
 ## Execution authority
 
-Current authority is **USD 30 cumulative**, including previous charges, for one more unattended whole-machine evaluation on machine140544; see the [unattended-evaluation authorization](unattended-eval-authorization-v1.json), which records the user's answers, the watchdog limits (stop request at $29, deletion at $29.8, no new scoring after 2026-11-13 20:30 UTC) and the unchanged protocol `d22871c3…`. The earlier $25 records below are historical. Earlier USD15/USD1 preparation records are not current permission.
+The study ran under a **USD 30 cumulative** authority, including previous charges, for one unattended whole-machine evaluation on machine140544; see the [unattended-evaluation authorization](unattended-eval-authorization-v1.json). It records the user's answers, the watchdog limits, the unchanged protocol `d22871c3…` and, under `outcome`, how the run ended. The run is finished and every owned resource is deleted; no spending authority remains open. The earlier $25, $15 and $1 records below are historical.
 
 Work is on `research/p3-moonlight-quality`, based on the current reviewed parent `8bc5826d370b349993e790dcc7643aa7f4b489d4`. PR #61 and its branch are unchanged. The plan's older parenthetical `e6fa7136` predates the retained download/review fixes.
 
@@ -22,13 +22,72 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Native source/cache/shared initializer | **PASS**: all 27 shards; NF4/noDQ/per-expert cache; one exported initial adapter; session closed |
 | CUDA technical smoke | **COMPLETE** on RTX4090; qualification fixture only, not Moonlight quality or historical tiny E3 |
 | Native resource measurements | **COMPLETE** on machine140544: four no-update training windows and resident dev measurements with valid F1; no timings transferred from another GPU |
-| Moonlight quality, gated verdict | **RUNNING, not reached**: the first run was blocked by an evaluator defect (HellaSwag refused on 3 of 3 adapters after about 3510 profiler cycles). A second, unattended evaluation of all four adapters is in progress with smaller pieces. Not a degradation verdict |
-| Moonlight quality, statistical verdict | **RUNNING, not reached**; no subset replaces the frozen study |
+| Moonlight quality, gated verdict | **NONINFERIOR**: all 8 benchmark × length cells have a pointwise upper bound below the 1-point margin; see [Result](#result-fp8-block64--oracle-versus-bf16) |
+| Moonlight quality, statistical verdict | **NONINFERIOR**: 41942 paired tasks, full frozen coverage, no floor cells, no observed margin breach |
+| Secondary NLL (GSM8K, MBPP) | **Descriptive only**: FP8 minus BF16 between −0.12% and +0.22% of the BF16 mean |
+| Persistent layer-input store, CPU RAM | **−46.9%** (432 → 229.5 MiB per optimizer step), −45.1% with the Oracle buffer; CUDA peaks unchanged |
 | Moonlight numerical gate | **PASS, 6/6**; complete raw closure independently readmitted and exported |
 | Per-step training loss and adapter-change norm | **4/4 independent64-step arms complete**, all archives verified; BF16 L1024 timing VOID, other three blocks F1 ok |
-| Moonlight paid resources and charges | First host: **USD7.189 posted** by 2026-11-12T07:18UTC, deleted and verified absent. Second host (instance60329118, volume60329113) was created at 08:14UTC and is **active**; the watchdog closes it after the results download. Charges there are not yet posted |
+| Moonlight paid resources and charges | **USD20.647 posted** for all 22 owned resources (accrued estimate $21.95), within the $30 cap; billing may still settle. Every instance and volume is deleted and verified absent; the last two at 2026-11-13T05:39UTC |
 
 The terminated DeepSeek preparation was a separate attempt: instance `60187378` and volume `60187377` were deleted and confirmed absent. Its provider-reported charge was USD 0.159, not a Moonlight training or evaluation expense.
+
+## Result: FP8 block64 + Oracle versus BF16
+
+The second, unattended evaluation finished on 2026-11-13 at 05:19 UTC. All 84 scoring pieces are complete: 82 were scored on this host and 2 BF16 L1024 pieces (ARC, BoolQ) were reused from the first host after a cross-check passed. No piece was refused and none was retried. Pairing and the unchanged v2 analysis ran on the host. Protocol `d22871c3…` and the scoring protocol `685fa5be…` are unchanged.
+
+**Scope.** One seed (23). 64 optimizer steps per arm, 4096 tokens per step. Inference in BF16 with natural routing. Uncertainty covers test-set sampling only, not seed or training variance. The base model was not evaluated. This is a Moonlight-16B-A3B result on one RTX4090 host, not a P3 x50 verdict.
+
+| Result | Value |
+| --- | --- |
+| Gated decision | **NONINFERIOR** |
+| Statistical decision | **NONINFERIOR** |
+| Margin | 1 percentage point of accuracy, one-sided α 0.025 per cell, intersection-union rule over 8 cells |
+| Paired tasks | 41942 primary (ARC 3548, BoolQ 3270, HellaSwag 9000 prefix, LAMBADA 5153 at each length); 3564 NLL rows |
+| Same right/wrong result | 99.12% of tasks; FP8 lost 187 and gained 184 |
+| Pair manifest | SHA256 `16c551209fb0b2cb8972bd8aa07b2f45fd1b63b56e2bc39bb52d7beffc03cc5a` |
+
+Accuracy and degradation (BF16 minus FP8), percentage points. Bounds are Clopper-Pearson with a union bound; "simultaneous" covers all 8 cells.
+
+| Benchmark | L | n | BF16 | FP8 + Oracle | Degradation | Lost / gained | Upper, pointwise | Upper, simultaneous |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ARC | 1024 | 3548 | 74.07 | 73.96 | 0.11 | 18 / 14 | 0.65 | 0.82 |
+| ARC | 4096 | 3548 | 73.84 | 73.76 | 0.08 | 15 / 12 | 0.58 | 0.74 |
+| BoolQ | 1024 | 3270 | 78.93 | 78.90 | 0.03 | 25 / 24 | 0.74 | 0.96 |
+| BoolQ | 4096 | 3270 | 78.32 | 78.41 | −0.09 | 25 / 28 | 0.65 | 0.87 |
+| HellaSwag | 1024 | 9000 | 77.24 | 77.24 | 0.00 | 28 / 28 | 0.28 | 0.36 |
+| HellaSwag | 4096 | 9000 | 77.13 | 77.22 | −0.09 | 22 / 30 | 0.18 | 0.26 |
+| LAMBADA | 1024 | 5153 | 70.21 | 70.15 | 0.06 | 26 / 23 | 0.51 | 0.65 |
+| LAMBADA | 4096 | 5153 | 69.94 | 69.88 | 0.06 | 28 / 25 | 0.53 | 0.67 |
+
+Secondary NLL, nats per supervised token, task mean. **Descriptive only**; it does not enter the decision.
+
+| Benchmark | L | n | BF16 | FP8 + Oracle | FP8 − BF16 | 95% CI | Relative |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| GSM8K | 1024 | 1288 | 0.70854 | 0.70766 | −0.00087 | [−0.00132, −0.00042] | −0.12% |
+| GSM8K | 4096 | 1288 | 0.84744 | 0.84756 | +0.00013 | [−0.00031, +0.00056] | +0.01% |
+| MBPP | 1024 | 494 | 1.02583 | 1.02674 | +0.00092 | [+0.00021, +0.00163] | +0.09% |
+| MBPP | 4096 | 494 | 1.17354 | 1.17607 | +0.00253 | [+0.00163, +0.00343] | +0.22% |
+
+Three of the four intervals exclude zero, in both directions. The changes are at most 0.22% of the BF16 mean.
+
+**Training.** Training loss for FP8 + Oracle stays within 0.43% of BF16 at every step and within 0.19% on any 8-step average. The mean gap is +0.02% at L1024 and +0.08% at L4096. The paired steps saw identical inputs and labels (see [Four independent training arms complete](#four-independent-training-arms-complete)).
+
+**Memory.** The claim covers the persistent store of decoder-layer inputs that L2L keeps in CPU RAM between forward and backward. It is read from `boundary_store_host_bytes` in every step record. The value is the same at L1024 and L4096 and constant over all 64 steps.
+
+| Arm | Store per optimizer step | Of which | Change |
+| --- | ---: | --- | ---: |
+| BF16 L2L | 452,984,832 B (432 MiB) | 4096 tokens × 2048 hidden × 27 layers × 2 B | — |
+| FP8 block64 E4M3 | 240,648,192 B (229.5 MiB) | payload 226,492,416 + scales 14,155,776 | −46.9% |
+| FP8 + Oracle buffer | 248,741,888 B (237.2 MiB) | plus Oracle host buffer 8,093,696 | −45.1% |
+
+CUDA allocated peaks did not change (2.729 GiB at L1024, 8.377 GiB at L4096). The sampled process RSS peak is 5.0% lower at L4096 (3.760 → 3.572 GiB). No L1024 ratio is admitted because the BF16 L1024 resource block is VOID. Total activation memory was not measured. The relative saving is similar to the Granite real-data run (198.26 → 102.76–110.39 MiB at L4096, −44…48%).
+
+**What this run changed against the frozen layout.** Each endpoint ran as contiguous pieces in fresh processes (HellaSwag 15 × 600, GSM8K 2 × 644, the rest whole), at most 1381 forwards per piece against a 1400 limit. This avoided the earlier refusal after about 3510 profiler sessions in one process. The cause of that refusal is still unproven: the pre-run profiler probe did not reproduce it in 5000 cycles, and the user chose to continue anyway. A first unattended attempt (instance 60329118) stopped before any scoring because the rebuilt initial adapter's file hash differed. All 216 tensors and `parameter_sha256 cf5b676c…` were identical; only the safetensors metadata key order differed. The driver now compares tensors, and both resources of that attempt were deleted.
+
+**Evidence.** The full archive stays on the workstation: `moonlight-resident-20261111t201548z-whole3-h2-final-done.tar.gz`, 74,411,624 B, 1179 members, SHA256 `3ecbeb644c00accc077805988626c3c6e27c72931f32bb6b5445a444fd02973c`. All 802 evidence files on the host outside training directories are in it with matching sizes. The four adapters on the host match the first host's training archives byte for byte. Committed extracts, figures and hashes are in [`unattended-eval-v1/h2-final/`](unattended-eval-v1/h2-final/result-index.json): the quality summary, cross-check, initial-adapter check, profiler probe, piece plan, driver step log and six figures (PNG and PDF) with the scripts that drew them. The [code snapshot](unattended-eval-v1/code/) is a byte copy of the files that ran (driver.py `21fd204c650e…`).
+
+Separate facts, unchanged: the Moonlight numerical gate is a **PASS 6/6** diagnostic; historical tiny E3 stays **FAIL 0.05028628354277727 > 0.05**; **DeepSeek-V3 671B: отложен**.
 
 ## Fixed comparison
 
@@ -448,3 +507,5 @@ Instance60261779 and volume60261770 were then deleted. All18 owned resource IDs
 across attempts were verified absent. See [closeout](moonlight-resident-20261111t201548z/whole-machine-3/resource-closeout.json).
 Posted cumulative charges:**USD7.189**, within the $25 limit; billing may lag.
 Tiny E3 remains **FAIL 0.05028628354277727 > 0.05**. **DeepSeek-V3 671B: отложен**.
+
+The evaluator change took the second route (smaller pieces in fresh processes) under the new $30 authority; see [Result](#result-fp8-block64--oracle-versus-bf16).

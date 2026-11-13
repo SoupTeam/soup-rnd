@@ -333,6 +333,22 @@ def tick() -> None:
     has_archive = ended and bool(status.get("archive_sha256"))
 
     if has_archive:
+        # An early FAILED (before any scoring piece completed) is usually a defect in the run's
+        # own checks, not a scientific result, and a repaired relaunch is far cheaper on the same
+        # host (the 32 GB weights and the cache are already there). Keep the host for a bounded
+        # repair window; the archive is downloaded first either way.
+        early = status.get("state") == "FAILED" and not state.get("repair_window_used")
+        if early and "completed_pieces" in status and status.get("completed_pieces", 0) == 0:
+            began = state.setdefault("repair_window_started_utc", now().isoformat())
+            held = (now() - datetime.fromisoformat(began)).total_seconds()
+            if held < 5400 and not hard_hit:
+                download(state, status)
+                save(state)
+                log(f"early failure ({status.get('detail')}); keeping the host for repair "
+                    f"({int(held)} s of 5400 used)")
+                return
+            state["repair_window_used"] = True
+            save(state)
         if download(state, status):
             destroy(state, f"run ended: {status.get('state')} {status.get('detail')}")
             return
@@ -399,6 +415,31 @@ def print_status() -> None:
                       "closed": closed, "stop_requested_utc": state.get("stop_requested_utc"),
                       "results_folder": str(RESULTS)}, indent=2))
 
+def print_progress() -> None:
+    """One readable line; says plainly whether the host was deleted or just not answering."""
+    if not STATE.exists():
+        print("Нет активной аренды (state.json отсутствует).")
+        return
+    state = load()
+    closed = state.get("closed")
+    cost = cost_estimate(state) if state.get("created_utc") else {}
+    money = f"~${cost.get('estimate_usd', '?')} из $30"
+    if closed:
+        print(f"ЗАКРЫТО: машина и диск удалены ({closed.get('reason', '')[:90]}). "
+              f"Расход {money}. Результаты: {RESULTS}")
+        return
+    status = remote_status(state) if state.get("ssh_host") else None
+    if status is None:
+        print(f"Машина существует, но не отвечает по SSH (не удалена). Расход {money}. "
+              f"Сторож продолжит попытки каждые 15 минут; ничего не удалит до 21:45 UTC 13.11.")
+        return
+    step, total = status.get("step"), status.get("shard_total")
+    part = f", кусок {status.get('shard_index')} из {total}" if total else ""
+    done = f"; итоговые архивы: {status.get('archive')}" if status.get("archive") else ""
+    print(f"{status.get('state')} · шаг {step}{part} · драйвер "
+          f"{'жив' if status.get('driver_alive') else 'НЕ работает'} · {money}{done}")
+
+
 
 def single_instance():
     import msvcrt
@@ -416,6 +457,9 @@ def command_main() -> int:
     force = "--force" in sys.argv
     if command == "status":
         print_status()
+        return 0
+    if command == "progress":
+        print_progress()
         return 0
     _lock = single_instance()  # noqa: F841
     if command == "tick":

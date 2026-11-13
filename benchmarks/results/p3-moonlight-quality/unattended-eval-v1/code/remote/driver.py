@@ -139,7 +139,7 @@ def env() -> dict:
         "CUDA_VISIBLE_DEVICES": "0", "PYTHONHASHSEED": "23", "OMP_NUM_THREADS": "8",
         "MKL_NUM_THREADS": "8", "TOKENIZERS_PARALLELISM": "false",
         "HF_HUB_DISABLE_TELEMETRY": "1", "WANDB_DISABLED": "true",
-        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUNBUFFERED": "1",
     })
     return value
 
@@ -297,6 +297,21 @@ def step_restore_identity() -> None:
         raise Failed("source mtime restoration failed")
 
 
+INITIAL_PARAMETER_SHA256 = "cf5b676c42dc0be973668d3adf6087d59a21d958bf6dca7dbc50361bfc5892ac"
+
+
+def read_safetensors(path: Path) -> tuple[dict, dict]:
+    """(metadata, {name: (dtype, shape, raw bytes)}); stdlib only, key order ignored."""
+    raw = path.read_bytes()
+    size = int.from_bytes(raw[:8], "little")
+    header = json.loads(raw[8:8 + size])
+    meta = header.pop("__metadata__", {})
+    base = 8 + size
+    return meta, {name: (item["dtype"], item["shape"],
+                         raw[base + item["data_offsets"][0]:base + item["data_offsets"][1]])
+                  for name, item in header.items()}
+
+
 def step_convert() -> None:
     out = EVIDENCE / "h2-b-convert"
     for path in (out, EVIDENCE / "h2-b-convert-process"):
@@ -310,12 +325,26 @@ def step_convert() -> None:
         "--output", str(out), "--approved-pilot"])
     if code != 0:
         raise Failed("cache conversion failed")
-    # The four adapters were trained from this exact initial adapter; the frozen protocol pins
-    # its hash. A different initializer would make every evaluation unrepresentative.
-    actual = sha256(out / "initial-adapter.safetensors")
+    # The four adapters were trained from this exact initial adapter. Compare the WEIGHTS, not
+    # the file hash: safetensors headers can list __metadata__ keys in a different order on a
+    # different host (observed 2026-11-12: all 216 tensors byte-identical, file hash different).
+    original = INPUTS / "initial-adapter.safetensors"
     expected = json.loads(PROTOCOL.read_bytes())["initial_adapter_sha256"]
-    if actual != expected:
-        raise Failed(f"INITIAL_ADAPTER_MISMATCH: {actual} != frozen {expected}")
+    if sha256(original) != expected:
+        raise Failed("bundled original initial adapter does not match the frozen hash")
+    rebuilt = out / "initial-adapter.safetensors"
+    meta_new, tensors_new = read_safetensors(rebuilt)
+    meta_old, tensors_old = read_safetensors(original)
+    write_json(EVIDENCE / "h2-initial-adapter-check.json", {
+        "file_sha256_rebuilt": sha256(rebuilt), "file_sha256_frozen": expected,
+        "parameter_sha256_rebuilt": meta_new.get("parameter_sha256"),
+        "parameter_sha256_frozen": meta_old.get("parameter_sha256"),
+        "tensor_count": len(tensors_new),
+        "tensors_identical": tensors_new == tensors_old,
+        "metadata_identical": meta_new == meta_old})
+    if tensors_new != tensors_old or meta_new.get("parameter_sha256") != INITIAL_PARAMETER_SHA256:
+        raise Failed("INITIAL_ADAPTER_TENSORS_DIFFER: the rebuilt initial weights differ from "
+                     "the ones the adapters were trained from; see h2-initial-adapter-check.json")
 
 
 def step_identity_check() -> None:
@@ -520,8 +549,11 @@ def package(state: str, detail: str) -> None:
         members = len(check.getmembers())
     digest = sha256(archive)
     (exports / (name + ".sha256")).write_text(f"{digest}  {name}\n", encoding="utf-8")
+    pieces = sum(1 for item in shard_list() if complete_shard(shard_dir(*item))
+                 and item not in REUSED)
     status(state, "packaged", detail=detail, archive=str(archive), archive_sha256=digest,
-           archive_bytes=archive.stat().st_size, archive_members=members)
+           archive_bytes=archive.stat().st_size, archive_members=members,
+           completed_pieces=pieces)
 
 
 LOCK = AUTO / "driver.lock"
@@ -553,8 +585,10 @@ def wait_for_orphans() -> None:
                 cmd = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
             except OSError:
                 continue
-            if "benchmarks.harness.p3_deepseek_quality_" in cmd or \
-                    "moonlight_measured_entry.py" in cmd:
+            if "benchmarks.harness.p3_deepseek_quality_" in cmd or any(
+                    name in cmd for name in ("moonlight_measured_entry.py", "dry_admission.py",
+                                             "plan_shards.py", "cross_check.py",
+                                             "profiler_session_probe.py", "quality_summary.py")):
                 busy.append(entry.name)
         if not busy:
             return

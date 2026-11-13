@@ -34,17 +34,19 @@ VOLUME_OFFER_ID = 59917588
 VOLUME_GB = 220
 ROOT_GB = 32
 HOURLY_USD = 0.62        # 0.5319 gpu/root (earlier quote) + 0.0815 volume, rounded up
-PRIOR_SPEND_USD = 7.44   # conservative upper of everything charged before this rental
+PRIOR_SPEND_USD = 8.30   # posted $7.904 for all 20 earlier resources (incl. the deleted attempt 2,
+#                          $0.709) at 2026-11-12 09:15Z, plus a margin for charges still settling
 TRAFFIC_USD = 0.60       # ~36 GB down at $0.0067/GB plus uploads/downloads, rounded up
-COMPUTE_STOP_USD = 29.0  # watchdog asks the run to stop
-HARD_CAP_USD = 29.8      # watchdog deletes even without an archive
+COMPUTE_STOP_USD = 28.5  # watchdog asks the run to stop: leaves ~$1.5 of the $30 cap for the
+#                          current piece (<= ~25 min), packaging and the download
+HARD_CAP_USD = 29.5      # watchdog deletes even without an archive
 STOP_UTC = "2026-11-13T21:00:00+00:00"
 HARD_CLOSE_UTC = "2026-11-13T21:45:00+00:00"
-OLD_IDS = {
+OLD_IDS = {  # every resource of this study so far, including the deleted attempt 2
     "instances": [60241118, 60244148, 60246341, 60256341, 60257559, 60258336, 60259585,
-                  60260641, 60261779],
+                  60260641, 60261779, 60329118],
     "volumes": [60241117, 60244147, 60246278, 60256277, 60257498, 60258329, 60259577,
-                60260624, 60261770],
+                60260624, 60261770, 60329113],
 }
 REMOTE_ROOT = "/data/p3-moonlight-quality"
 
@@ -101,7 +103,7 @@ def plan() -> None:
         "volume_offer": {k: volume.get(k) for k in ("id", "disk_space", "storage_total_cost",
                                                     "disk_name")},
         "quoted_hourly_usd": round(hourly, 4), "budget_hourly_usd": HOURLY_USD,
-        "hours_to_29_usd": round((COMPUTE_STOP_USD - PRIOR_SPEND_USD - TRAFFIC_USD) / HOURLY_USD, 1),
+        "hours_to_stop_usd": round((COMPUTE_STOP_USD - PRIOR_SPEND_USD - TRAFFIC_USD) / HOURLY_USD, 1),
         "now_utc": now().isoformat(), "stop_utc": STOP_UTC}, indent=2))
 
 

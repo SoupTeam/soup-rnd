@@ -121,5 +121,39 @@
     "committed_blob_sha256": "4d5c2378cd6e355a555eccb913a361b18e52cfc2a51faf84c416aea5cc64a0ad",
     "equal": true,
     "note": "repo text uses CRLF for these files; the bytes equal the running files"
+  },
+  "outcome": {
+    "recorded_utc": "2026-11-13T06:19:57.365732+00:00",
+    "attempt_2": {
+      "instance_id": 60329118,
+      "volume_id": 60329113,
+      "result": "FAILED INITIAL_ADAPTER_MISMATCH before any scoring: the rebuilt initial adapter file hash differed only because safetensors metadata keys were ordered differently; the watchdog downloaded its evidence and deleted both resources (verified absent 2026-11-12T09:01Z)",
+      "fix": "driver compares all 216 tensors and parameter_sha256 instead of the file hash; launch limits lowered to stop $28.5 / hard $29.5 to absorb attempt-2 spend"
+    },
+    "attempt_3": {
+      "instance_id": 60335129,
+      "volume_id": 60335123,
+      "machine_id": 140544,
+      "state": "DONE",
+      "done_utc": "2026-11-13T05:19:30Z",
+      "pieces": "84/84 complete (82 scored, 2 reused after a PASS cross-check), no refused piece",
+      "initial_adapter_check": "216 tensors identical, parameter_sha256 cf5b676c... equal",
+      "gated_quality_decision": "NONINFERIOR",
+      "statistical_quality_decision": "NONINFERIOR",
+      "archive_sha256": "3ecbeb644c00accc077805988626c3c6e27c72931f32bb6b5445a444fd02973c"
+    },
+    "closure": {
+      "utc": "2026-11-13T05:39:48.720779+00:00",
+      "verified_absent": true,
+      "how": "watchdog task disabled before its next tick; 'download' then 'close' run by hand after explicit user approval"
+    },
+    "cost": {
+      "posted_usd_cumulative": 20.647,
+      "accrued_estimate_usd": 21.95,
+      "cap_usd": 30,
+      "note": "all 22 owned Moonlight resources; billing may still settle"
+    },
+    "result_index": "unattended-eval-v1/h2-final/result-index.json",
+    "final_code_snapshot": "unattended-eval-v1/code (byte copies of the files that ran; driver.py sha256 21fd204c650e...)"
   }
 }
