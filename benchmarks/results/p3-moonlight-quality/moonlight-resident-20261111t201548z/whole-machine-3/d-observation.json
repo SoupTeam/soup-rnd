@@ -1,0 +1,179 @@
+{
+  "argv": [
+    "--profile",
+    "moonlight-16b-a3b",
+    "--source",
+    "/data/p3-moonlight-quality/sources/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--cache",
+    "/data/p3-moonlight-quality/cache/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--pack",
+    "/data/p3-moonlight-quality/pack",
+    "--pack-sha256",
+    "2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4",
+    "--initial-adapter",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/b-convert/initial-adapter.safetensors",
+    "--output",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/d-gate"
+  ],
+  "cgroup_after": {
+    "observed_hierarchy_peaks": [
+      {
+        "bytes": 47235170304,
+        "path": "/sys/fs/cgroup/memory.peak"
+      }
+    ],
+    "peak_scope": "visible cgroup lifetime, not reset or added to RSS/CUDA",
+    "status": "MEASURED",
+    "unavailable": [],
+    "unavailable_policy": "absent kernel counters are explicit; read/parse errors refuse"
+  },
+  "cgroup_before": {
+    "observed_hierarchy_peaks": [
+      {
+        "bytes": 46735917056,
+        "path": "/sys/fs/cgroup/memory.peak"
+      }
+    ],
+    "peak_scope": "visible cgroup lifetime, not reset or added to RSS/CUDA",
+    "status": "MEASURED",
+    "unavailable": [],
+    "unavailable_policy": "absent kernel counters are explicit; read/parse errors refuse"
+  },
+  "f1": {
+    "arm": "d-observation",
+    "box_stamp_after": {
+      "commit_charge": {
+        "limit_bytes": 42259476480,
+        "used_bytes": 5294780416
+      },
+      "gpu_memory_used_mib": 1590,
+      "gpu_processes": [
+        {
+          "name": "python",
+          "pid": 5204,
+          "type": "C",
+          "used_mib": 1580
+        }
+      ],
+      "power_source": "mains",
+      "ram_available_bytes": 61664747520,
+      "unix_s": 1794438285.6909845,
+      "unknown": {}
+    },
+    "box_stamp_before": {
+      "commit_charge": {
+        "limit_bytes": 42259476480,
+        "used_bytes": 2201952256
+      },
+      "gpu_memory_used_mib": 1,
+      "gpu_processes": [],
+      "power_source": "mains",
+      "ram_available_bytes": 63447126016,
+      "unix_s": 1794437780.7519114,
+      "unknown": {}
+    },
+    "checks": {
+      "foreign_reads": {
+        "evidence": {
+          "device": "nvme0n1",
+          "disk_read_bytes_end": 3829887032832,
+          "disk_read_bytes_start": 2898749525504,
+          "foreign_read_bytes": 30601216,
+          "foreign_read_bytes_max": 30601216,
+          "foreign_read_bytes_min": 30601216,
+          "model_path": "/data/p3-moonlight-quality",
+          "other_disk_read_bytes_end": 0,
+          "other_disk_read_bytes_start": 0,
+          "own_read_bytes": 931106906112,
+          "uninspectable_processes": 0
+        },
+        "outcome": "ok",
+        "readers": [
+          {
+            "name": "sshd",
+            "pid": 262,
+            "read_bytes": 30068736
+          }
+        ],
+        "reason": "at most 30601216 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+        "unattributed_bytes": 532480
+      },
+      "power": {
+        "evidence": {
+          "battery_present": false,
+          "last_reading": {
+            "battery": false,
+            "online": {}
+          },
+          "off_mains_samples": [],
+          "samples": 254,
+          "unknown_samples": 0
+        },
+        "outcome": "ok",
+        "reason": "no battery in any of 254 power samples, so on mains"
+      },
+      "suspend": {
+        "evidence": {
+          "sleep_offset_end_s": -4.199973773211241e-07,
+          "sleep_offset_start_s": -5.199981387704611e-07,
+          "suspend_count_end": 0,
+          "suspend_count_start": 0
+        },
+        "outcome": "ok",
+        "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0"
+      }
+    },
+    "gpu": {
+      "id": "0",
+      "source": "CUDA_VISIBLE_DEVICES"
+    },
+    "gpu_clock": {
+      "outcome": "ok",
+      "reason": "SM clock 210 to 2535 MHz over 251 samples; clock event reasons seen: gpu_idle",
+      "reasons_seen": {
+        "gpu_idle": 2
+      },
+      "samples": 251,
+      "sm_clock_mhz": {
+        "max": 2535,
+        "median": 2535,
+        "min": 210
+      },
+      "unknown_samples": 0
+    },
+    "label": null,
+    "outcome": "ok",
+    "required": [
+      "suspend",
+      "power",
+      "foreign_reads"
+    ],
+    "round": 1,
+    "run": 1
+  },
+  "memory": {
+    "cuda_allocated_after_bytes": 860353536,
+    "cuda_allocated_before_bytes": 0,
+    "cuda_allocated_peak_bytes": 1012026880,
+    "cuda_reserved_after_bytes": 1075838976,
+    "cuda_reserved_before_bytes": 0,
+    "cuda_reserved_peak_bytes": 1075838976,
+    "kind": "observed process/allocator bytes; not activation-only memory",
+    "process_lifetime_rss_high_water_bytes": 3545354240,
+    "process_rss_after_bytes": 2150277120,
+    "process_rss_before_bytes": 708308992,
+    "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+    "process_rss_sampled_peak_bytes": 3549454336,
+    "process_rss_samples": 48878,
+    "process_rss_sampling_interval_seconds": 0.01,
+    "sampling_errors": [],
+    "scope": "Whole command, covering all nested pass/step/batch timing intervals",
+    "wall_seconds": 502.8628174439946
+  },
+  "module": "benchmarks.harness.p3_deepseek_quality_gate",
+  "returncode": 0,
+  "scope": "Whole command, covering all nested pass/step/batch timing intervals",
+  "status": "COMPLETE",
+  "timing_valid": true,
+  "wall_seconds": 504.9801553389989
+}

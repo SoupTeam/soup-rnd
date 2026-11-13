@@ -1,0 +1,50 @@
+{
+  "status": "EVALUATOR_DEFECT_SUSPECTED_NOT_FIXED",
+  "refusals": [
+    {
+      "stage": "eval-bf16_l2l-L1024-hellaswag-0-9000",
+      "failed_batch_index": 3509,
+      "request_indices": [
+        17893,
+        17917
+      ]
+    },
+    {
+      "stage": "eval-oracle_block64_e4m3-L1024-hellaswag-0-9000",
+      "failed_batch_index": 3510,
+      "request_indices": [
+        18016,
+        18020
+      ]
+    },
+    {
+      "stage": "eval-bf16_l2l-L4096-hellaswag-0-9000",
+      "failed_batch_index": 3510,
+      "request_indices": [
+        18016,
+        18020
+      ]
+    }
+  ],
+  "observations": [
+    "All three refusals have query/key shape [2,16,106,192]; aten::_efficient_attention_forward and aten::_scaled_dot_product_efficient_attention are recorded, but the profiled cuda_kernel_names list is empty.",
+    "In FP8+Oracle L1024 and BF16 L4096 the immediately preceding batch 3509 had the identical shape and recorded the native fmha_cutlassF kernel; failing request indices differ between runs (17893 vs 18016).",
+    "p3_deepseek_quality_eval._ScoringModel resets the bounded attention observer per forward, so every batch starts and stops a new torch.profiler session in one long-lived process (profiled_operations=1 per batch).",
+    "Refusals occur after 3509-3511 profiler sessions in the process; completed ARC used 1381 sessions and BoolQ 162."
+  ],
+  "conclusion": "Consistent with a per-process profiler-session limit near 3510 start/stop cycles: CUDA kernel activity stops being attributed to recorded operators. This is correlation from three failures and two shorter successful runs (ARC 1381, BoolQ 162 sessions), not a demonstrated cause; the CUPTI/Kineto mechanism is unproven.",
+  "consequence": "HellaSwag 9000 cannot complete in one process under the unchanged evaluator. LAMBADA 5153 may also exceed the limit; GSM8K and MBPP batch counts are unmeasured.",
+  "candidate_fixes_requiring_user_authorization": [
+    "Keep per-forward observers and the unchanged per-forward guard, but cache admitted kernel evidence per signature across forwards under its own explicit bound, profiling only signatures not yet cached. Evaluator change; needs remote re-qualification.",
+    "Freeze smaller contiguous shards, each in a fresh process far below ~3500 batches, covering every endpoint (including LAMBADA and the unmeasured GSM8K/MBPP). Changes the shard layout and protocol hash."
+  ],
+  "not_done": "No retry, guard relaxation, profiler change or protocol change was made.",
+  "rejected_fix": "Profiling each signature once per process with one retained observer does not work: _MAX_SIGNATURES = 16 (p3_deepseek_quality_attention.py:22, 377-379) and evaluation shapes vary per batch, which is why p3_deepseek_quality_eval.py:467 resets the observer per forward; it would raise \"signature limit exceeded\" within a few batches.",
+  "confirmation_test": {
+    "status": "NOT_RUN",
+    "design": "Standalone probe without the model: one efficient-SDPA call on shape [2,16,106,192] per torch.profiler start/stop cycle, mirroring _stop_profile, for 5000 cycles in one process; record the first cycle with empty kernel attribution.",
+    "free_route_blocked": "Kaggle API credential refused on 2026-11-12; no free GPU run possible without the user refreshing it.",
+    "gate": "If kernels never empty, sharding is not justified: stop before downloading weights or evaluating.",
+    "probe_sha256": "57684c05b5ec94171faed7135218240c4e374d447d76e847515e610e1a19cb98"
+  }
+}

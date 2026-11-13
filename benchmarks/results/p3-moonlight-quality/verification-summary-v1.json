@@ -1,0 +1,251 @@
+{
+  "alternate_ci": {
+    "all_primary_contract_passes_preserved": true,
+    "counts": {
+      "ERROR": 0,
+      "FAILED": 0,
+      "PASSED": 732,
+      "SKIPPED": 51
+    },
+    "only_extra_skip": "native scientific normalization integration requires pinned rich==13.9.4",
+    "production_refusal": {
+      "message": "Moonlight native aux proof requires rich==13.9.4",
+      "type": "ValueError"
+    },
+    "rich": "14.0.0",
+    "status": "PASS",
+    "wall_seconds": 305.0933348089999
+  },
+  "analysis": {
+    "admission_sha256": "1cb4bcf56198bbb98141fee93ace2e742fd1273b362667a807595a51f943924e",
+    "archive_sha256": "60e1e14025eada5aa5883549e8ecfaf5699b8d8deaf9785619c34322a45b4c31",
+    "archive_verified_members": 35,
+    "bootstrap_sha256": "3325f80bc33c24fcb0b2084bad2e40db77db64af9cca606af782d458ad898e1c",
+    "compact_evidence": {
+      "bytes": 654060,
+      "path": "benchmarks/results/p3-moonlight-quality/prelaunch-review-v1/analysis-verification-records-v1.zip",
+      "retained_members": 35,
+      "sha256": "9118ea88fadb1937cada5b104974f8a1b6c8890abb97569df613ff3445175734",
+      "source_archive_sha256": "60e1e14025eada5aa5883549e8ecfaf5699b8d8deaf9785619c34322a45b4c31"
+    },
+    "counts": {
+      "ERROR": 0,
+      "FAILED": 0,
+      "PASSED": 241,
+      "SKIPPED": 0
+    },
+    "kernel": "batyrkhan2131123/soup-moonlight-analysis-v1-20261111t163700z",
+    "owned_directory_deleted": true,
+    "project_code_changed_for_analysis_correction": false,
+    "restored_dependencies": "analysis-prerequisites-v1.json",
+    "same_length_hash_tamper_refused": true,
+    "scipy_record": {
+      "bytes": 269655,
+      "sha256": "2cf152d7f6af377ec42fd39b5c718c2566bdcf35162dac91f2d454de8070a651"
+    },
+    "source_overlay_sha256": "d5599682ba7a337e6747006760555846ed97a02d7d6e50b5da1b233fd5b87c3d",
+    "status": "PASS",
+    "summary_script": {
+      "bytes": 3999,
+      "sha256": "ffaf412aab08749096f55b213f9615afa10fcab7922513855ad00e91a46eeb21"
+    },
+    "synthetic_api_cases": [
+      {
+        "fixture_only": true,
+        "gated_api_output": "NONINFERIOR",
+        "name": "informative",
+        "secondary_mean_difference": 0.125,
+        "statistical_api_output": "NONINFERIOR",
+        "status": "PASS",
+        "summary": {
+          "bytes": 28107,
+          "sha256": "80d5fc71ebc9306fb83395f1417028b7ddcc9631f38e0a6328f2c5a2790cf22b"
+        }
+      },
+      {
+        "fixture_only": true,
+        "gated_api_output": "INCONCLUSIVE_UNINFORMATIVE_FLOOR",
+        "name": "uninformative",
+        "secondary_mean_difference": 0.125,
+        "statistical_api_output": "NONINFERIOR",
+        "status": "PASS",
+        "summary": {
+          "bytes": 28475,
+          "sha256": "f329ca3c15e015191b160974305408c9f00eae19506cfc1a93a6d6dbcc3339d8"
+        }
+      }
+    ],
+    "wall_seconds": 34.977321147
+  },
+  "blockers": [
+    "Pre-rental frozen protocol requires actual production cache and shared initial-adapter hashes; supported creation requires admitted native-BF16 GPU preparation after rental. No placeholder or recipe substituted.",
+    "No admitted measured whole-workload upper cost bound; historical Granite T4 timings and a Vast quote do not qualify Moonlight disk-L2L runtime."
+  ],
+  "cost_usd": 0.0,
+  "deepseek_v3_671b": "\u043e\u0442\u043b\u043e\u0436\u0435\u043d",
+  "diagnostic_api_smoke": {
+    "actual_installed_aux_binding": {
+      "contract": {
+        "path": "benchmarks/results/p3-moonlight-quality/aux-admission-contract-v2.json",
+        "sha256": "12e9a1f548d3192035f5781e0d568642480a94a383d48fb1f5373a8f2e178cd0"
+      },
+      "evidence": {
+        "path": "benchmarks/results/p3-moonlight-quality/prelaunch-review-v1/aux-report-v2.json",
+        "sha256": "3b56a594a381822bd33c11cea01d6ff5b1d2ef9508522924f148b1431f62f27a"
+      }
+    },
+    "all_six_synthetic_passes_admitted": true,
+    "gpu_execution": false,
+    "manifest_sha256": "2e5e987adc6bb116805e19b59d1a5cd654fa82cb42b8293685d335aed51e90fb",
+    "nonfinite_diagnostic_paths": [
+      "$.passes.fp8_oracle.gradient_agreement.max_rel_l2",
+      "$.passes.fp8_oracle.gradient_agreement.per_tensor.model.layers.0.self_attn.kv_a_proj_with_mqa.lora_A.default.weight.rel_l2",
+      "$.passes.fp8_oracle.gradient_agreement.worst[0].rel_l2",
+      "$.passes.int4_oracle.gradient_agreement.max_rel_l2",
+      "$.passes.int4_oracle.gradient_agreement.per_tensor.model.layers.0.self_attn.kv_a_proj_with_mqa.lora_A.default.weight.rel_l2",
+      "$.passes.int4_oracle.gradient_agreement.worst[0].rel_l2"
+    ],
+    "pytest_fixtures_or_monkeypatches_applied": false,
+    "quality_evaluated": false,
+    "schema": "p3-moonlight-derived-diagnostic-api-smoke-v1",
+    "scientific_gate_run": false,
+    "scope": "Synthetic production-shaped metadata and CPU raw tensors only",
+    "status": "PASS",
+    "synthetic_gate_diagnostic_verdict": "NO_VERDICT",
+    "synthetic_gate_execution_status": "COMPLETE",
+    "wall_seconds": 15.799315796999963
+  },
+  "historical_tiny_e3": {
+    "relative_l2": 0.05028628354277727,
+    "rerun": false,
+    "threshold": 0.05,
+    "verdict": "FAIL"
+  },
+  "native_gpu_qualified": false,
+  "paid_launch_admitted": false,
+  "primary": {
+    "admission_sha256": "c4ebe1fd015c3d74c21786f71d28dc94ff1d759d4dd8afa7ef95dc14f0087b10",
+    "archive_sha256": "94d8a746454aa2cc7ee4ba76e1513f4b6822af132548227c88045e1d16b9c0db",
+    "archive_verified_members": 1137,
+    "bootstrap_sha256": "c99856d1992b82332147412b84fd40fca7d2cdbd2001da392cc8abc473ee7c90",
+    "compact_evidence": {
+      "bytes": 3856641,
+      "path": "benchmarks/results/p3-moonlight-quality/prelaunch-review-v1/final-verification-records-v1.zip",
+      "retained_members": 1137,
+      "sha256": "e4f56248da9729a47aaced6adfe7c1309a212789101bfd49fdb1fed62b05dcb3",
+      "source_archive_sha256": "94d8a746454aa2cc7ee4ba76e1513f4b6822af132548227c88045e1d16b9c0db"
+    },
+    "counts": {
+      "ERROR": 0,
+      "FAILED": 0,
+      "PASSED": 733,
+      "SKIPPED": 50
+    },
+    "kernel": "batyrkhan2131123/soup-moonlight-final-v1-20261111t161937z",
+    "original_deepseek_test_files_unchanged": 14,
+    "owned_directory_deleted": true,
+    "protected_repository_sources_unchanged": 191,
+    "requirements": [
+      {
+        "name": "packet-inputs",
+        "status": "PASS"
+      },
+      {
+        "name": "original-tests-unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "ruff-result",
+        "status": "PASS"
+      },
+      {
+        "name": "pytest-result",
+        "status": "PASS"
+      },
+      {
+        "name": "unapproved-download-refusal",
+        "status": "PASS"
+      },
+      {
+        "name": "stage-success",
+        "status": "PASS"
+      },
+      {
+        "name": "stage-deadline",
+        "status": "PASS"
+      },
+      {
+        "name": "missing-gate-refusal",
+        "status": "PASS"
+      },
+      {
+        "name": "native-cpu-refusal",
+        "status": "PASS"
+      },
+      {
+        "name": "hub-zero-weight-metadata",
+        "status": "PASS"
+      },
+      {
+        "name": "normalized-native-session",
+        "status": "PASS"
+      },
+      {
+        "name": "scoring-protocol-locality",
+        "status": "PASS"
+      },
+      {
+        "name": "source-continuity",
+        "status": "PASS"
+      },
+      {
+        "name": "executed-source-stability",
+        "status": "PASS"
+      },
+      {
+        "name": "runner-resource-observations",
+        "status": "PASS"
+      }
+    ],
+    "source_archive_overall_status": "FAILED: analysis packaging omission, corrected separately without changing primary code",
+    "source_overlay_sha256": "9548a6a9e29629f4348f9c3972b2f62ec0ae2abc06e7cbf53aec44365a51bee7",
+    "standalone_normalized_cpu_sessions": 2,
+    "wall_seconds": 332.728309664
+  },
+  "quality_evaluated": false,
+  "resource_closeout": "prelaunch-review-v1/resource-closeout-v3.json",
+  "reviewed_parent": "8bc5826d370b349993e790dcc7643aa7f4b489d4",
+  "schema": "moonlight-pre-rental-verification-v1",
+  "scientific_proofs": {
+    "aux_report_sha256": "3b56a594a381822bd33c11cea01d6ff5b1d2ef9508522924f148b1431f62f27a",
+    "compact_raw_archives": {
+      "aux": {
+        "bytes": 2853320,
+        "path": "benchmarks/results/p3-moonlight-quality/prelaunch-review-v1/scientific-proofs-v1/aux-raw-proof.zip",
+        "scientific_member_count": 35,
+        "sha256": "94e3e8d841f45d1ea6f5823fa26ff475bb9d62d608fa8f6d78bac081430d8cfe",
+        "source_archive_sha256": "9e6eb5b3aea1d7899e4283e5e30e59957addf0560a8df2f1805d30a80dc4d898"
+      },
+      "reference": {
+        "bytes": 9221107,
+        "path": "benchmarks/results/p3-moonlight-quality/prelaunch-review-v1/scientific-proofs-v1/reference-raw-proof.zip",
+        "scientific_member_count": 18,
+        "sha256": "6649f38428029cdc5cb2b7a48f8fda3b3eb8952d7c3822c08e4f938905f1a549",
+        "source_archive_sha256": "28c4332d8e32bbd8d44e5dd5206eeeaba2a68f46188ba5ece251a16f1313aba1"
+      }
+    },
+    "pack_manifest_sha256": "2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4",
+    "reference_summary_sha256": "c8b24896ef65f2c4bf42b8969eb632823d74dc1d244a7498317db3a798f04b7c",
+    "tokenizer_exact_checks": 348941
+  },
+  "status": "PASS_CPU_AND_SCIENTIFIC_PREREQUISITES_ONLY",
+  "unexecuted": {
+    "adapter_delta": "NOT_RUN",
+    "full_repository_pytest": "NOT_RUN",
+    "gated_quality": "NOT_RUN",
+    "moonlight_numerical_gate_passes": 0,
+    "native_gpu_cases": "NOT_RUN",
+    "statistical_quality": "NOT_RUN",
+    "training_steps": 0
+  }
+}

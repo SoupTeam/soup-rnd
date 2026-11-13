@@ -1,0 +1,62 @@
+#5 CACHED
+#6 [5/6] RUN export DEBIAN_FRONTEND=noninteractive; 				env >> /etc/environment; 				echo VAST_CONTAINERLABEL='"$(cat ~/.vast_containerlabel)"' >> /root/.bashrc; 				sed -i "s/StrictModes yes/StrictModes no/g" /etc/ssh/sshd_config; 				echo Clie2026-11-11 18:27:05 UTC: ntAliveInterval 10 >> /etc/ssh/sshd_config; 				echo ClientAliveCountMax 2 >> /etc/ssh/sshd_config; 				echo UsePAM no >> /etc/ssh/sshd_config; 				echo PasswordAuthentication no >> /etc/ssh/sshd_config; 				echo ChallengeResponseAuthentication no >> /etc/ssh/sshd_config; 				echo Banner /etc/banner >> /etc/ssh/sshd_config;         sed -i '/^[ \t]*LogLevel /d' /etc/ssh/sshd_config;         echo 'LogLevel VERBOSE' >> /etc/ssh/sshd_config; 				echo 'Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.' > /etc/banner ; 				echo 'Have fun!' >> /etc/banner
+#6 CACHED
+#7 [4/6] RUN export DEBIAN_FRONTEND=noninteractive; for x in {0..30}; do apt-get install --no-install-recommends -y openssh-server tmux git wget curl less locales sudo software-properties-common rsync && break; sleep 1; done; exit 0;
+#7 CACHED
+#8 [3/6] RUN export DEBIAN_FRONTEND=noninteractive; apt-get update || echo 'V220614a: error during apt-get update!';
+#8 CACHED
+#9 [6/6] RUN echo 'PS1="\[\2026-11-11 18:27:05 UTC: e]0;\u@$VAST_CONTAINERLABEL: \w\a\]\[\e[01;34m\]\u\[\e[m\e[01m\]@\[\e[01;36m\]$VAST_CONTAINERLABEL\[\e[m\e[01m\]:\[\e[01;37m\]\w\$\[\e[m\] " ; if [ ! -e "$HOME/.no_auto_tmux" ] && [[ -z "$TMUX" ]] && [ "$SSH_CONNECTION" != "" ] && [ "$TMUX_STARTED" = "" ]; then tmux attach-session -t ssh_tmux || tmux new-session -s ssh_tmux; exit; elif ! [[ -z "$TMUX" ]]; then echo '"'"'Welcome to your vast.ai container! This session is running in `tmux`.'"'"'; echo '"'"'To disconnect without closing your processes, press ctrl+b, release, then d.'"'"'; echo '"'"'To disable auto-tmux, run `touch ~/.no_auto_tmux` and reconnect. See also https://tmuxcheatsheet.com/'"'"'; fi; ' >> ~/.bashrc
+#9 CACHED
+#10 exporting to image
+#10 exporting layers done
+#10 writing image sha256:efccbb5d30186831ea429b775ac697b697db0b5f5664b3e8405d6373dfe1f66c done
+#10 naming to docker.io/ubuntu_sha256_78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d/ssh done
+#10 DONE 0.0s
+ [33m1 warning found (use docker --debug to expand):
+[0m - J2026-11-11 18:27:05 UTC: SONArgsRecommended: JSON arguments recommended for ENTRYPOINT to prevent unintended behavior related to OS signals (line 22)
+2026-11-11 18:27:05 UTC: SONArgsRecommended: JSON arguments recommended for ENTRYPOINT to prevent unintended behavior related to OS signals (line 22)
+2026-11-11 18:27:56 UTC: docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d: Pulling from library/ubuntu
+2026-11-11 18:27:56 UTC: Digest: sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d
+Status: Image is up to date for ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d
+2026-11-11 18:27:56 UTC: docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d
+2026-11-11 18:27:56 UTC: docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d
+2026-11-11 18:27:56 UTC: #0 building with "default" instance using docker driver
+#1 [internal] load build definition from ubuntu_sha256_78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d
+2026-11-11 18:27:56 UTC: #1 transferring dockerfile: 2.24kB done
+#1 WARN: JSONArgsRecommended: JSON arguments recommended for ENTRYPOINT to prevent unintended behavior related to OS signals (line 22)
+#1 DONE 0.0s
+#2 [internal] load metadata for docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d
+#2 DONE 0.0s
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+#4 [1/6] FROM docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d
+#4 DONE 0.0s
+#5 [3/6] RUN export DEBIAN_FRONTEND=noninteractive; apt-get update || echo 'V220614a: error during apt-get update!';
+#5 CACHED
+#6 [4/6] RUN export DEBIAN_FRONTEND=noninteractive; for x in {0..30}; do apt-get install --no-install-recommends -y openssh-server tmux git wget curl less locales sudo software-properties-common rsync && break; sleep 1; done; exit 0;
+#6 CACHED
+#7 [2/6] RUN mkdir -p /tmp; chmod 1777 /tmp; exit 0;
+#7 CACHED
+#8 [5/6] RUN export DEBIAN_FRONTEND=noninteractiv2026-11-11 18:27:56 UTC: e; 				env >> /etc/environment; 				echo VAST_CONTAINERLABEL='"$(cat ~/.vast_containerlabel)"' >> /root/.bashrc; 				sed -i "s/StrictModes yes/StrictModes no/g" /etc/ssh/sshd_config; 				echo ClientAliveInterval 10 >> /etc/ssh/sshd_config; 				echo ClientAliveCountMax 2 >> /etc/ssh/sshd_config; 				echo UsePAM no >> /etc/ssh/sshd_config; 				echo PasswordAuthentication no >> /etc/ssh/sshd_config; 				echo ChallengeResponseAuthentication no >> /etc/ssh/sshd_config; 				echo Banner /etc/banner >> /etc/ssh/sshd_config;         sed -i '/^[ \t]*LogLevel /d' /etc/ssh/sshd_config;         echo 'LogLevel VERBOSE' >> /etc/ssh/sshd_config; 				echo 'Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.' > /etc/banner ; 				echo 'Have fun!' >> /etc/banner
+#8 CACHED
+#9 [6/6] RUN echo 'PS1="\[\e]0;\u@$VAST_CONTAINERLABEL: \w\a\]\[\e[01;34m\]\u\[\e[m\e[01m\]@\[\e[01;36m\]$VAST_CONTAINERLABEL\[\e[m\e[01m\]:\[\e[01;37m\]\w\$\[\e[m\] " ; if [ ! -e "$HOME/.no_auto_tmux" ] 2026-11-11 18:27:56 UTC: && [[ -z "$TMUX" ]] && [ "$SSH_CONNECTION" != "" ] && [ "$TMUX_STARTED" = "" ]; then tmux attach-session -t ssh_tmux || tmux new-session -s ssh_tmux; exit; elif ! [[ -z "$TMUX" ]]; then echo '"'"'Welcome to your vast.ai container! This session is running in `tmux`.'"'"'; echo '"'"'To disconnect without closing your processes, press ctrl+b, release, then d.'"'"'; echo '"'"'To disable auto-tmux, run `touch ~/.no_auto_tmux` and reconnect. See also https://tmuxcheatsheet.com/'"'"'; fi; ' >> ~/.bashrc
+#9 CACHED
+#10 exporting to image
+#10 exporting layers done
+#10 writing image sha256:efccbb5d30186831ea429b775ac697b697db0b5f5664b3e8405d6373dfe1f66c done
+#10 naming to docker.io/ubuntu_sha256_78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d/ssh done
+#10 DONE 0.0s
+ [33m1 warning found (use docker --debug to expand):
+[0m - JSONArgsRecommended: JSON arguments recommended for ENTRYPOINT to prevent unintended behavior related to OS signals (line 22)
+2026-11-11 18:27:56 UTC: && [[ -z "$TMUX" ]] && [ "$SSH_CONNECTION" != "" ] && [ "$TMUX_STARTED" = "" ]; then tmux attach-session -t ssh_tmux || tmux new-session -s ssh_tmux; exit; elif ! [[ -z "$TMUX" ]]; then echo '"'"'Welcome to your vast.ai container! This session is running in `tmux`.'"'"'; echo '"'"'To disconnect without closing your processes, press ctrl+b, release, then d.'"'"'; echo '"'"'To disable auto-tmux, run `touch ~/.no_auto_tmux` and reconnect. See also https://tmuxcheatsheet.com/'"'"'; fi; ' >> ~/.bashrc
+#9 CACHED
+#10 exporting to image
+#10 exporting layers done
+#10 writing image sha256:efccbb5d30186831ea429b775ac697b697db0b5f5664b3e8405d6373dfe1f66c done
+#10 naming to docker.io/ubuntu_sha256_78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d/ssh done
+#10 DONE 0.0s
+ [33m1 warning found (use docker --debug to expand):
+[0m - JSONArgsRecommended: JSON arguments recommended for ENTRYPOINT to prevent unintended behavior related to OS signals (line 22)
+2026-11-11 18:27:56 UTC: Error: Requested volume does not exist: V.60244147
+

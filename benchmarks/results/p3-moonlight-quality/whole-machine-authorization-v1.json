@@ -1,0 +1,18 @@
+{
+  "schema": "p3-moonlight-whole-machine-authorization-v1",
+  "maximum_new_rental_attempts": 3,
+  "gpu_requirement": "one complete single-GPU Ampere-or-newer machine, native BF16, at least 24 GB VRAM, gpu_frac=1, num_gpus=1, no CPU/disk neighbours",
+  "storage_requirement": "direct local PCIe NVMe proven by target mount and sysfs; no RAID, device mapper, loopback or network storage",
+  "before_model_weights": "record sequential O_DIRECT reading of at least 10000000000 bytes on the actual volume",
+  "timing_checks": ["suspend", "power", "foreign_reads"],
+  "foreign_reads_void": "invalidate the measured block; never count it as slow or successful",
+  "timing_transfer": "forbidden: estimate and comparisons use only measurements of the selected machine",
+  "report_scope": "Moonlight on this machine, GPU 24 GB without a 32 GiB cgroup cap; not a P3 x50 verdict",
+  "total_limit_usd": 25,
+  "compute_stop_usd": 24,
+  "closeout_reserve_usd": 1,
+  "deadline": "46 hours from the original first paid resource; do not reset the clock between replacements",
+  "failed_host": "delete immediately",
+  "three_failed_attempts": "stop, confirm all resources absent, report each rejected host and reason",
+  "financial_limits_in_code": false
+}

@@ -1,0 +1,192 @@
+{
+  "argv": [
+    "run-endpoint",
+    "--profile",
+    "moonlight-16b-a3b",
+    "--data-root",
+    "/data/p3-moonlight-quality/source/benchmarks/results/p3-stage2-v2/data-build-kaggle-v1/evidence/data",
+    "--source",
+    "/data/p3-moonlight-quality/sources/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--cache",
+    "/data/p3-moonlight-quality/cache/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--tokenizer-dir",
+    "/data/p3-moonlight-quality/tokenizer/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--adapter",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/train-bf16_l2l-L1024/final_adapter",
+    "--adapter-sha256",
+    "7f78f7020e4ec3f5e1a5a51c3f722ed664dac197cf727fbdfc51fca012edbd9c",
+    "--protocol",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/frozen-study-protocol.json",
+    "--protocol-sha256",
+    "d22871c398d29e25c614129a1a084903fbc0dce09a5bb5d2659c08d9102b2f82",
+    "--scoring-protocol",
+    "/data/p3-moonlight-quality/source/benchmarks/results/p3-stage2-v2/p3-stage2-v2-protocol.json",
+    "--length",
+    "1024",
+    "--device",
+    "cuda",
+    "--endpoint",
+    "boolq",
+    "--start",
+    "0",
+    "--stop",
+    "3270",
+    "--output",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/eval-bf16_l2l-L1024-boolq-0-3270"
+  ],
+  "cgroup_after": {
+    "observed_hierarchy_peaks": [
+      {
+        "bytes": 49678442496,
+        "path": "/sys/fs/cgroup/memory.peak"
+      }
+    ],
+    "peak_scope": "visible cgroup lifetime, not reset or added to RSS/CUDA",
+    "status": "MEASURED",
+    "unavailable": [],
+    "unavailable_policy": "absent kernel counters are explicit; read/parse errors refuse"
+  },
+  "cgroup_before": {
+    "observed_hierarchy_peaks": [
+      {
+        "bytes": 49678442496,
+        "path": "/sys/fs/cgroup/memory.peak"
+      }
+    ],
+    "peak_scope": "visible cgroup lifetime, not reset or added to RSS/CUDA",
+    "status": "MEASURED",
+    "unavailable": [],
+    "unavailable_policy": "absent kernel counters are explicit; read/parse errors refuse"
+  },
+  "f1": {
+    "arm": "eval-bf16_l2l-L1024-boolq-0-3270-observation",
+    "box_stamp_after": {
+      "commit_charge": {
+        "limit_bytes": 42259476480,
+        "used_bytes": 5283622912
+      },
+      "gpu_memory_used_mib": 12170,
+      "gpu_processes": [
+        {
+          "name": "python",
+          "pid": 20255,
+          "type": "C",
+          "used_mib": 12160
+        }
+      ],
+      "power_source": "mains",
+      "ram_available_bytes": 61434327040,
+      "unix_s": 1794451172.908837,
+      "unknown": {}
+    },
+    "box_stamp_before": {
+      "commit_charge": {
+        "limit_bytes": 42259476480,
+        "used_bytes": 2200301568
+      },
+      "gpu_memory_used_mib": 1,
+      "gpu_processes": [],
+      "power_source": "mains",
+      "ram_available_bytes": 63277150208,
+      "unix_s": 1794450944.3689244,
+      "unknown": {}
+    },
+    "checks": {
+      "foreign_reads": {
+        "evidence": {
+          "device": "nvme0n1",
+          "disk_read_bytes_end": 18608560541184,
+          "disk_read_bytes_start": 18598582267392,
+          "foreign_read_bytes": 4096,
+          "foreign_read_bytes_max": 4096,
+          "foreign_read_bytes_min": 4096,
+          "model_path": "/data/p3-moonlight-quality",
+          "other_disk_read_bytes_end": 0,
+          "other_disk_read_bytes_start": 0,
+          "own_read_bytes": 9978269696,
+          "uninspectable_processes": 0
+        },
+        "outcome": "ok",
+        "readers": [],
+        "reason": "at most 4096 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+        "unattributed_bytes": 4096
+      },
+      "power": {
+        "evidence": {
+          "battery_present": false,
+          "last_reading": {
+            "battery": false,
+            "online": {}
+          },
+          "off_mains_samples": [],
+          "samples": 116,
+          "unknown_samples": 0
+        },
+        "outcome": "ok",
+        "reason": "no battery in any of 116 power samples, so on mains"
+      },
+      "suspend": {
+        "evidence": {
+          "sleep_offset_end_s": -4.500034265220165e-07,
+          "sleep_offset_start_s": -4.599860403686762e-07,
+          "suspend_count_end": 0,
+          "suspend_count_start": 0
+        },
+        "outcome": "ok",
+        "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0"
+      }
+    },
+    "gpu": {
+      "id": "0",
+      "source": "CUDA_VISIBLE_DEVICES"
+    },
+    "gpu_clock": {
+      "outcome": "ok",
+      "reason": "SM clock 210 to 2790 MHz over 114 samples; clock event reasons seen: gpu_idle",
+      "reasons_seen": {
+        "gpu_idle": 2
+      },
+      "samples": 114,
+      "sm_clock_mhz": {
+        "max": 2790,
+        "median": 2775.0,
+        "min": 210
+      },
+      "unknown_samples": 0
+    },
+    "label": null,
+    "outcome": "ok",
+    "required": [
+      "suspend",
+      "power",
+      "foreign_reads"
+    ],
+    "round": 1,
+    "run": 1
+  },
+  "memory": {
+    "cuda_allocated_after_bytes": 33554432,
+    "cuda_allocated_before_bytes": 0,
+    "cuda_allocated_peak_bytes": 10341433344,
+    "cuda_reserved_after_bytes": 12203327488,
+    "cuda_reserved_before_bytes": 0,
+    "cuda_reserved_peak_bytes": 12203327488,
+    "kind": "observed process/allocator bytes; not activation-only memory",
+    "process_lifetime_rss_high_water_bytes": 2751148032,
+    "process_rss_after_bytes": 2153877504,
+    "process_rss_before_bytes": 708227072,
+    "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+    "process_rss_sampled_peak_bytes": 2752499712,
+    "process_rss_samples": 21705,
+    "process_rss_sampling_interval_seconds": 0.01,
+    "sampling_errors": [],
+    "scope": "Whole command, covering all nested pass/step/batch timing intervals",
+    "wall_seconds": 226.45314702601172
+  },
+  "module": "benchmarks.harness.p3_deepseek_quality_eval",
+  "returncode": 0,
+  "scope": "Whole command, covering all nested pass/step/batch timing intervals",
+  "status": "COMPLETE",
+  "timing_valid": true,
+  "wall_seconds": 228.58034218201647
+}

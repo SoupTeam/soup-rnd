@@ -1,0 +1,47 @@
+{
+  "utc": "2026-11-12T07:18:11.702259+00:00",
+  "reason": "Frozen HellaSwag scoring refused identically on three independent adapters (BF16 L1024, FP8+Oracle L1024, BF16 L4096) after ~3510 batches: attention forward lacks executed operators/CUDA kernel names. No valid pair can complete without an evaluator change that needs user authorization; FP8+Oracle L4096 HellaSwag and remaining endpoints were not launched. User asked to end the task.",
+  "owned_instance_ids_checked": [
+    60241118,
+    60244148,
+    60246341,
+    60256341,
+    60257559,
+    60258336,
+    60259585,
+    60260641,
+    60261779
+  ],
+  "owned_volume_ids_checked": [
+    60241117,
+    60244147,
+    60246278,
+    60256277,
+    60257498,
+    60258329,
+    60259577,
+    60260624,
+    60261770
+  ],
+  "remaining_owned_instances": [],
+  "remaining_owned_volumes": [],
+  "unrelated_resources_untouched": true,
+  "provider_operations": [
+    {
+      "utc": "2026-11-12T07:17:15.942886+00:00",
+      "resource_type": "instance",
+      "id": 60261779,
+      "returncode": 0,
+      "response": "Are you sure you want to destroy instance 60261779? This is irreversible and will delete all data. [y/N] destroying instance 60261779.\r\n"
+    },
+    {
+      "utc": "2026-11-12T07:17:39.318085+00:00",
+      "resource_type": "volume",
+      "id": 60261770,
+      "returncode": 0,
+      "response": "Deleted. {'success': True}\r\n"
+    }
+  ],
+  "final_evidence_archive_sha256": "cfcbd405588718dd3dcf3efa717080357672801e35e99ec6f72ec42db9c74d11",
+  "posted_attributable_usd_at_closeout": 7.188999999999999
+}
