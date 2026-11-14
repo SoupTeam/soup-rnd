@@ -366,6 +366,40 @@ def _validate_training_activation(act_fn: Any) -> None:
         raise ValueError("expert backward requires an unmodified stateless SiLU activation")
 
 
+def _default_expert_routes(expert_mask: Any, expert_hit: Any) -> Iterator[Tuple[int, Any, Any]]:
+    """The per-expert ``where`` walk the module used before the grouped lever."""
+    import torch
+
+    for expert_idx in expert_hit:
+        expert = int(expert_idx[0])
+        top_k_pos, token_idx = torch.where(expert_mask[expert])
+        yield expert, top_k_pos, token_idx
+
+
+def _grouped_expert_routes(expert_mask: Any) -> Iterator[Tuple[int, Any, Any]]:
+    """Hit experts with their (top-k slot, token) rows from one nonzero and one count read.
+
+    ``expert_mask`` is the one-hot routing ordered (expert, top-k slot, token). ``nonzero`` walks
+    it in C order, so the experts come out ascending and each expert's rows in the order
+    ``torch.where`` gives. The slices are views of one coordinate tensor made for this call.
+    """
+    import torch
+
+    coordinates = torch.nonzero(expert_mask, as_tuple=False)
+    counts = expert_mask.sum(dim=(-1, -2)).tolist()
+    offset = 0
+    for expert, count in enumerate(counts):
+        if count == 0:
+            continue
+        if count < 0 or offset + count > coordinates.shape[0]:
+            raise ValueError("grouped expert routes require a binary one-hot mask")
+        group = coordinates.narrow(0, offset, count)
+        offset += count
+        yield expert, group[:, 1], group[:, 2]
+    if offset != coordinates.shape[0]:
+        raise ValueError("grouped expert routes omitted nonzero coordinates")
+
+
 def _build_streamed_experts_class() -> Any:
     import torch
     import torch.nn as nn
@@ -441,10 +475,14 @@ def _build_streamed_experts_class() -> Any:
         """
 
         def __init__(
-            self, reader: ExpertShardReader, pool: ExpertBufferPool, act_fn: Any, layer_idx: int
+            self, reader: ExpertShardReader, pool: ExpertBufferPool, act_fn: Any, layer_idx: int,
+            grouped_expert_routes: bool = False,
         ) -> None:
             super().__init__()
+            if type(grouped_expert_routes) is not bool:
+                raise ValueError("grouped_expert_routes must be a bool")
             pool.validate_reader(reader)
+            self.grouped_expert_routes = grouped_expert_routes
             if not callable(act_fn) or (
                 isinstance(act_fn, nn.Module) and any(True for _ in act_fn.parameters())
             ):
@@ -478,10 +516,12 @@ def _build_streamed_experts_class() -> Any:
                 final_hidden_states = torch.zeros_like(hidden_states)
                 expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
                 expert_mask = expert_mask.permute(2, 1, 0)
-                expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
-                for expert_idx in expert_hit:
-                    expert = int(expert_idx[0])
-                    top_k_pos, token_idx = torch.where(expert_mask[expert])
+                if self.grouped_expert_routes:
+                    routes = _grouped_expert_routes(expert_mask)
+                else:
+                    expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
+                    routes = _default_expert_routes(expert_mask, expert_hit)
+                for expert, top_k_pos, token_idx in routes:
                     row = {
                         "layer": self.layer_idx, "expert": expert,
                         "token_routes": token_idx.numel(),
@@ -535,7 +575,8 @@ def _find_experts(layer: Any) -> Optional[Tuple[Any, str, Any]]:
 
 
 def install_streamed_experts(
-    layers: Sequence[Any], readers: Mapping[int, ExpertShardReader], pool: ExpertBufferPool
+    layers: Sequence[Any], readers: Mapping[int, ExpertShardReader], pool: ExpertBufferPool,
+    *, grouped_expert_routes: bool = False,
 ) -> int:
     """Replace only routed experts after validating ALL layers.
 
@@ -543,8 +584,11 @@ def install_streamed_experts(
     Routed experts become differentiable-through but never trainable: their weights must be
     frozen and carry no adapters or extra parameters. Backward re-leases each hit expert and
     requires the validated stateless SiLU activation. Readers and pool are caller-owned.
-    Invalid installs do not alter the model.
+    Invalid installs do not alter the model. ``grouped_expert_routes`` (off by default) makes
+    each replacement find its hit experts and their rows with one ``nonzero``.
     """
+    if type(grouped_expert_routes) is not bool:
+        raise ValueError("grouped_expert_routes must be a bool")
     if any(
         isinstance(idx, bool) or not isinstance(idx, int) or not 0 <= idx < len(layers)
         for idx in readers
@@ -592,7 +636,10 @@ def install_streamed_experts(
         if identity in seen:
             raise ValueError("aliased expert modules cannot share multiple layer replacements")
         seen.add(identity)
-        replacements.append((parent, attr, cls(reader, pool, module.act_fn, idx)))
+        replacements.append((
+            parent, attr,
+            cls(reader, pool, module.act_fn, idx, grouped_expert_routes=grouped_expert_routes),
+        ))
     for parent, attr, replacement in replacements:
         setattr(parent, attr, replacement)
     return len(replacements)
