@@ -3819,6 +3819,7 @@ class StreamRuntime:
 def _prepare_expert_streaming(
     layers: Any, shard_dir: str, index: Any, *, device: str, codes: Optional[Mapping[str, Any]],
     two_reads: bool = False, grouped_expert_routes: bool = False,
+    expert_transfer: str = "sync", expert_host_cache_bytes: int = 0,
 ) -> Tuple[Any, Tuple[Any, ...]]:
     """Prepare the bounded expert slot and validate the replacement modules.
 
@@ -3850,10 +3851,12 @@ def _prepare_expert_streaming(
         # A shard's alignment can make its largest read span differ by layer.
         # Size staging for the largest one, not whichever reader happens to be first.
         first = max(readers.values(), key=lambda reader: reader.max_span)
-        plan = plan_expert_buffer(first, dtype=index.dtype)
+        plan = plan_expert_buffer(first, dtype=index.dtype, transfer=expert_transfer)
         pool = ExpertBufferPool(
             first, device=device, dtype=index.dtype,
             weight_budget_bytes=expert_allocation_budget(plan, device=device), codes=codes,
+            **({"transfer": expert_transfer} if expert_transfer != "sync" else {}),
+            **({"host_cache_bytes": expert_host_cache_bytes} if expert_host_cache_bytes else {}),
         )
         install_streamed_experts(
             layers, readers, pool, two_reads=two_reads, grouped_expert_routes=grouped_expert_routes
@@ -3944,6 +3947,8 @@ def install_streaming(
     ram_cache_bytes: int = 0,
     two_read_experts: bool = False,
     grouped_expert_routes: bool = False,
+    expert_transfer: str = "sync",
+    expert_host_cache_bytes: int = 0,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3953,6 +3958,11 @@ def install_streaming(
 
     ``grouped_expert_routes`` (same caches): each MoE layer finds its hit experts and their
     token rows with one ``nonzero`` instead of one ``where`` per expert. API switch too.
+
+    ``expert_transfer="packed"`` (same caches, CUDA, NF4 in both matrices): the expert pool
+    stages each expert's stored components in one pinned block and copies it to the arena once.
+    ``expert_host_cache_bytes`` (packed only) additionally keeps whole packed blocks in RAM up
+    to that many bytes; a hit reads nothing from the experts file. See ``ExpertBufferPool``.
 
     ``refill_before_backward`` says the loss runs a second forward before each
     step's backward; an untied output head then hands autograd a private copy
@@ -4045,11 +4055,15 @@ def install_streaming(
             expert_pool, expert_readers = _prepare_expert_streaming(
                 layers, shard_dir, index, device=device, codes=codes,
                 two_reads=two_read_experts, grouped_expert_routes=grouped_expert_routes,
+                expert_transfer=expert_transfer,
+                expert_host_cache_bytes=expert_host_cache_bytes,
             )
         else:
             for lever, enabled in (
                 ("two_read_experts", two_read_experts),
                 ("grouped_expert_routes", grouped_expert_routes),
+                ("expert_transfer", expert_transfer != "sync"),
+                ("expert_host_cache_bytes", bool(expert_host_cache_bytes)),
             ):
                 if enabled:
                     raise ValueError(
@@ -4681,6 +4695,8 @@ def build_streamed_model(
     ram_cache_bytes: int = 0,
     two_read_experts: bool = False,
     grouped_expert_routes: bool = False,
+    expert_transfer: str = "sync",
+    expert_host_cache_bytes: int = 0,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -4744,6 +4760,11 @@ def build_streamed_model(
             **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
             **({"two_read_experts": True} if two_read_experts else {}),
             **({"grouped_expert_routes": True} if grouped_expert_routes else {}),
+            **({"expert_transfer": expert_transfer} if expert_transfer != "sync" else {}),
+            **(
+                {"expert_host_cache_bytes": expert_host_cache_bytes}
+                if expert_host_cache_bytes else {}
+            ),
         )
     except BaseException:
         for external in external_sources:

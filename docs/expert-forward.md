@@ -194,17 +194,25 @@ properties with `--junitxml`.
 
 ## Complete levers (experimental, off by default)
 
-Two switches port the "complete" streaming levers of the koko branches onto this code. Both
+Four switches port the "complete" streaming levers of the koko branches onto this code. All
 are API parameters of `build_streamed_model` and `install_streaming`, with no config field and
-no CLI flag. Both apply only to a `per_expert` cache of a DeepSeek-V3-family base, and
-either one on another cache raises a `ValueError` instead of being ignored. With neither
-set, the default path is unchanged: three reads of each hit expert per step (forward, checkpoint
-recompute, backward).
+no CLI flag. All apply only to a `per_expert` cache of a DeepSeek-V3-family base, and any of
+them on another cache raises a `ValueError` instead of being ignored. With none set, the
+default path is unchanged: three reads of each hit expert per step (forward, checkpoint
+recompute, backward), one copy per stored component.
 
-| Parameter | Effect | Checked on CPU |
+| Parameter | Effect | Checked |
 |---|---|---|
-| `grouped_expert_routes=True` | Each streamed MoE layer finds its hit experts and their token rows with one `nonzero` and one host count read, instead of one `where` per expert. Same experts, same order, same reads. | Output, gradients and read order are bit-equal to the default path. |
-| `two_read_experts=True` | The layer checkpoint gets a context in which the router keeps its top-k decisions in the forward and replays them in the recompute, and the recompute reads no expert. A step reads each hit expert twice. | Loss and every LoRA gradient are bit-equal to the resident model and the default path. Reads are 2 per hit expert instead of 3. |
+| `grouped_expert_routes=True` | Each streamed MoE layer finds its hit experts and their token rows with one `nonzero` and one host count read, instead of one `where` per expert. Same experts, same order, same reads. | CPU. Output, gradients and read order are bit-equal to the default path. |
+| `two_read_experts=True` | The layer checkpoint gets a context in which the router keeps its top-k decisions in the forward and replays them in the recompute, and the recompute reads no expert. A step reads each hit expert twice. | CPU. Loss and every LoRA gradient are bit-equal to the resident model and the default path, in fp32 and under bf16 autocast. Reads are 2 per hit expert instead of 3. |
+| `expert_transfer="packed"` | The pool stages each expert's stored NF4 components (packed weights and statistics) in one pinned block and copies it to the arena once, instead of once per component. Needs CUDA and NF4 in both matrices. The dequantised weights are the same bytes. | CPU: the byte layout, the plan and the refusals. The copy itself and bit-equality on a card are in `tests/test_complete_packed_transfer_cuda.py`, which has not been run. |
+| `expert_host_cache_bytes=N` | With `packed`, keeps whole packed blocks in pageable RAM up to `N` bytes, first come first kept, no eviction. A hit reads nothing from the experts file and copies one block. | CPU: the byte budget and first-fit behaviour. The hit path on a card is in the CUDA test file, not run. |
+
+The packed layout puts every stored component in one aligned region at the front of the
+arena, so one copy fills it. The pinned block (`plan.host_pinned_bytes`) is host memory outside
+`weight_bytes`. The host cache is charged to its own `N` and not to `stream_ram_cache_mb` or
+any other RAM budget, and the pool's `fetches` counts loads, hits included, while
+`reader.fetches` counts disk reads.
 
 Two reads works through the layer checkpoint. Layers that `training.stream_recompute` switches
 off have no recompute to skip and read each expert twice anyway. L2L bypasses the checkpoint,
@@ -214,9 +222,9 @@ experts, and any global forward hook, is refused with a `RuntimeError`. A patche
 not detected and is unsupported. `install_streamed_experts(..., two_reads=True)` admits only
 `DeepseekV3DecoderLayer`.
 
-The koko levers for packed NF4 transfer (`d67f77ba` and its fixes) and prepacked host RAM
-(`9873f323`) are not ported. They require CUDA, were never qualified on a GPU upstream, and
-build on an expert fetcher with cache tiers that this code does not have.
+Not ported from the same koko commits: the one-expert lookahead (`prefetch`, `prefetch_after`),
+the usage profile and the GPU placement plan. They are not among the four complete levers, and
+they build on an expert fetcher with cache tiers that this code does not have.
 
 ## Local checks
 

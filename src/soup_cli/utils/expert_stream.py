@@ -37,17 +37,35 @@ class ExpertBufferPlan:
     padding_bytes: int
     weight_bytes: int
     host_staging_bytes: int
+    #: Bytes of the one contiguous region at the front of the arena that a packed transfer
+    #: fills with a single copy; zero for the default per-component copies.
+    packed_region_bytes: int = 0
+    #: Pinned host bytes a packed transfer stages that region in (outside ``weight_bytes``).
+    host_pinned_bytes: int = 0
 
 
-def _buffer_layout(reader: ExpertShardReader, dtype: str) -> Tuple[ExpertBufferPlan, list]:
+TRANSFERS = ("sync", "packed")
+
+
+def _check_transfer(transfer: Any) -> None:
+    if transfer not in TRANSFERS:
+        raise ValueError("transfer must be 'sync' or 'packed'")
+
+
+def _buffer_layout(
+    reader: ExpertShardReader, dtype: str, transfer: str = "sync"
+) -> Tuple[ExpertBufferPlan, list]:
     import torch
 
     from soup_cli.utils.expert_shard import _expected_tensors
     from soup_cli.utils.layer_stream_runtime import _torch_dtype
     from soup_cli.utils.safetensors_reader import SECTOR_BYTES
 
+    _check_transfer(transfer)
     if dtype not in ("float32", "float16", "bfloat16"):
         raise ValueError("expert compute dtype must be float32, float16 or bfloat16")
+    if transfer == "packed" and any(reader.quant_specs.get(part) is None for part in EXPERT_PARTS):
+        raise ValueError("packed transfer needs NF4 in every expert matrix")
     target = _torch_dtype(dtype)
     entries = []
     counts = {"dense": 0, "packed": 0, "code": 0, "scratch": 0}
@@ -62,9 +80,10 @@ def _buffer_layout(reader: ExpertShardReader, dtype: str) -> Tuple[ExpertBufferP
         counts[category] += size
 
     blocks = 0
+    dense_items, packed_items = [], []
     for part in EXPERT_PARTS:
         shape = tuple(reader.shapes[part])
-        add(part, shape, target, "dense")
+        dense_items.append((part, shape, target, "dense"))
         spec = reader.quant_specs.get(part)
         if spec is None:
             continue
@@ -73,9 +92,23 @@ def _buffer_layout(reader: ExpertShardReader, dtype: str) -> Tuple[ExpertBufferP
         if spec.blocksize not in (32, 64, 128, 256, 512, 1024, 2048, 4096):
             raise ValueError("unsupported NF4 expert blocksize")
         for idx, (stored_shape, stored_dtype) in enumerate(_expected_tensors(part, shape, spec)):
-            add(f"{part}:{idx}", tuple(stored_shape), stored_dtype, "packed")
+            packed_items.append((f"{part}:{idx}", tuple(stored_shape), stored_dtype, "packed"))
         if spec.nested:
             blocks = max(blocks, -(-math.prod(shape) // spec.blocksize))
+    if transfer == "packed":
+        # One contiguous region at the front, so one copy fills every stored component.
+        for item in packed_items:
+            add(*item)
+        region = offset
+        for item in dense_items:
+            add(*item)
+    else:
+        region = 0
+        by_part = {part: [item for item in dense_items + packed_items
+                          if item[0].split(":")[0] == part] for part in EXPERT_PARTS}
+        for part in EXPERT_PARTS:
+            for item in by_part[part]:
+                add(*item)
     if reader.quant_specs:
         add("code", (16,), torch.float32, "code")
         if blocks:
@@ -90,13 +123,17 @@ def _buffer_layout(reader: ExpertShardReader, dtype: str) -> Tuple[ExpertBufferP
         padding_bytes=total - sum(counts.values()),
         weight_bytes=total,
         host_staging_bytes=reader.max_span + SECTOR_BYTES,
+        packed_region_bytes=region,
+        host_pinned_bytes=region,
     )
     return plan, entries
 
 
-def plan_expert_buffer(reader: ExpertShardReader, *, dtype: str) -> ExpertBufferPlan:
+def plan_expert_buffer(
+    reader: ExpertShardReader, *, dtype: str, transfer: str = "sync"
+) -> ExpertBufferPlan:
     """Plan storage without reading any expert or allocating the weight arena."""
-    return _buffer_layout(reader, dtype)[0]
+    return _buffer_layout(reader, dtype, transfer)[0]
 
 
 def expert_allocation_budget(plan: ExpertBufferPlan, *, device: str) -> int:
@@ -127,7 +164,15 @@ class ExpertBufferPool:
         dtype: str,
         weight_budget_bytes: int,
         codes: Optional[Mapping[str, Any]] = None,
+        transfer: str = "sync",
+        host_cache_bytes: int = 0,
     ) -> None:
+        """``transfer="packed"`` (CUDA, NF4 in both matrices) stages each expert's stored
+        components in one pinned block and copies it to the arena once instead of once per
+        component; the dequantised weights are the same. ``host_cache_bytes`` (packed only)
+        also keeps whole packed blocks in pageable RAM up to that many bytes, first come first
+        kept; a hit reads nothing from the experts file. The cache is not charged to any other
+        RAM budget. Both are off by default."""
         import torch
 
         from soup_cli.utils.expert_shard import aligned_staging
@@ -139,7 +184,16 @@ class ExpertBufferPool:
             or weight_budget_bytes < 1
         ):
             raise ValueError("weight_budget_bytes must be a positive integer")
-        self.plan, layout = _buffer_layout(reader, dtype)
+        _check_transfer(transfer)
+        if (
+            isinstance(host_cache_bytes, bool)
+            or not isinstance(host_cache_bytes, int)
+            or host_cache_bytes < 0
+        ):
+            raise ValueError("host_cache_bytes must be a non-negative integer")
+        if host_cache_bytes and transfer != "packed":
+            raise ValueError("host_cache_bytes needs transfer='packed'")
+        self.plan, layout = _buffer_layout(reader, dtype, transfer)
         if self.plan.weight_bytes > weight_budget_bytes:
             raise ValueError(
                 f"expert slot needs {self.plan.weight_bytes} bytes; budget is {weight_budget_bytes}"
@@ -147,9 +201,12 @@ class ExpertBufferPool:
         self.device = torch.device(device)
         if self.device.type not in ("cpu", "cuda"):
             raise ValueError("expert forward supports CPU or CUDA only")
+        if transfer == "packed" and self.device.type != "cuda":
+            raise ValueError("packed expert transfer requires CUDA")
         if self.device.type == "cuda" and self.device.index is None:
             self.device = torch.device("cuda", torch.cuda.current_device())
         self.dtype = dtype
+        self.transfer = transfer
         self.weight_budget_bytes = weight_budget_bytes
         self._shapes = dict(reader.shapes)
         self._specs = dict(reader.quant_specs)
@@ -173,9 +230,23 @@ class ExpertBufferPool:
         self._closed = False
         self.fetches = 0
         self.logical_bytes_read = 0
+        self.h2d_copies = 0
         self._arena = None
         self._buffers: dict = {}
         self._staging_owner = self._staging = None
+        self._pinned = None
+        self._packed_rows: list = []
+        self._host_cache = None
+        if transfer == "packed":
+            from soup_cli.utils.expert_transfer import PackedHostHotset
+
+            self._packed_rows = [
+                (name, offset, size, kind, shape)
+                for name, shape, kind, offset, size in layout if ":" in name
+            ]
+            self._packed_bytes = self.plan.packed_region_bytes
+            if host_cache_bytes:
+                self._host_cache = PackedHostHotset(host_cache_bytes)
         before = torch.cuda.memory_allocated(self.device) if self.device.type == "cuda" else 0
         try:
             self._arena = torch.empty(self.plan.weight_bytes, dtype=torch.uint8, device=self.device)
@@ -184,6 +255,8 @@ class ExpertBufferPool:
             for name, value in tables.items():
                 self._buffers[name].copy_(value, non_blocking=False)
             self._staging_owner, self._staging = aligned_staging(reader.max_span)
+            if transfer == "packed":
+                self._pinned = torch.empty(self._packed_bytes, dtype=torch.uint8, pin_memory=True)
             self._synchronize()
             self.cuda_allocation_delta = (
                 torch.cuda.memory_allocated(self.device) - before
@@ -197,7 +270,7 @@ class ExpertBufferPool:
                 )
         except BaseException:
             self._buffers.clear()
-            self._arena = self._staging_owner = self._staging = None
+            self._arena = self._staging_owner = self._staging = self._pinned = None
             self._closed = True
             raise
 
@@ -225,19 +298,51 @@ class ExpertBufferPool:
 
         before = reader.bytes_read
         try:
-            host = reader.read_host(expert, self._staging)
-            for part in EXPERT_PARTS:
-                key = expert_key(expert, part)
-                spec = self._specs.get(part)
-                if spec is None:
-                    self._buffers[part].copy_(host[key], non_blocking=False)
-                    continue
-                for idx, name in enumerate(quant_sidecar_keys(key, spec)):
-                    self._buffers[f"{part}:{idx}"].copy_(host[name], non_blocking=False)
-                self._dequantize(part, spec)
+            if self.transfer == "packed":
+                self._load_packed(reader, expert)
+            else:
+                host = reader.read_host(expert, self._staging)
+                for part in EXPERT_PARTS:
+                    key = expert_key(expert, part)
+                    spec = self._specs.get(part)
+                    if spec is None:
+                        self._buffers[part].copy_(host[key], non_blocking=False)
+                        continue
+                    for idx, name in enumerate(quant_sidecar_keys(key, spec)):
+                        self._buffers[f"{part}:{idx}"].copy_(host[name], non_blocking=False)
+                    self._dequantize(part, spec)
             self.fetches += 1
         finally:
             self.logical_bytes_read += reader.bytes_read - before
+
+    def _load_packed(self, reader: ExpertShardReader, expert: int) -> None:
+        """Fill the packed region with one H2D copy (from the host cache on a hit), then decode."""
+        import os
+
+        from soup_cli.utils.expert_shard import expert_key
+        from soup_cli.utils.expert_transfer import pack_into
+        from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
+
+        region = self._pinned[: self._packed_bytes]
+        key = (os.path.realpath(reader.path), expert)
+        block = self._host_cache.get(key) if self._host_cache is not None else None
+        if block is not None:
+            region.copy_(block)
+        else:
+            host = reader.read_host(expert, self._staging)
+            stored = {}
+            for part in EXPERT_PARTS:
+                names = quant_sidecar_keys(expert_key(expert, part), self._specs[part])
+                for idx, name in enumerate(names):
+                    stored[f"{part}:{idx}"] = host[name]
+            pack_into(region, self._packed_rows, stored)
+            if self._host_cache is not None:
+                self._host_cache.put(key, region)
+        # One copy for every stored component; the arena's dequantised part is rebuilt below.
+        self._arena[: self._packed_bytes].copy_(region, non_blocking=True)
+        self.h2d_copies += 1
+        for part in EXPERT_PARTS:
+            self._dequantize(part, self._specs[part])
 
     def _dequantize(self, part: str, spec: Any) -> None:
         from bitsandbytes.functional import QuantState, dequantize_4bit, dequantize_blockwise
@@ -302,6 +407,9 @@ class ExpertBufferPool:
             "cuda_allocation_delta": self.cuda_allocation_delta,
             "fetches": self.fetches,
             "logical_bytes_read": self.logical_bytes_read,
+            "transfer": self.transfer,
+            "h2d_copies": self.h2d_copies,
+            "host_cache": self._host_cache.stats() if self._host_cache is not None else None,
             "closed": self._closed,
             "cpu_nf4_temporaries": self.device.type == "cpu" and bool(self._specs),
         }
@@ -315,7 +423,8 @@ class ExpertBufferPool:
                 self._synchronize()
             finally:
                 self._buffers.clear()
-                self._arena = self._staging_owner = self._staging = None
+                self._arena = self._staging_owner = self._staging = self._pinned = None
+                self._host_cache = None
                 self._closed = True
         finally:
             self._lock.release()
