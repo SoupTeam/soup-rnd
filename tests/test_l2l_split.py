@@ -463,3 +463,12 @@ def test_deferred_read_comes_after_the_layer_is_queued(qwen35_streamed, monkeypa
     finally:
         for handle in handles:
             handle.remove()
+
+
+def test_deferred_read_is_opt_in(monkeypatch):
+    from soup_cli.utils.l2l_split import DEFER_READ_ENV, defer_read_enabled
+
+    monkeypatch.delenv(DEFER_READ_ENV, raising=False)
+    assert not defer_read_enabled()
+    monkeypatch.setenv(DEFER_READ_ENV, "1")
+    assert defer_read_enabled()
