@@ -1,0 +1,52 @@
+Prospective portable paired-generation probe
+
+Question: does stopping at a literal new conversation turn change strict task scores
+for the same pinned base and preserved adapter? This is inference only. It does not
+retrain, repair historical scores, remeasure CE, or establish a performance claim.
+
+The committed science contract pins model/tokenizer files, adapter/state identities,
+source hashes, interpreter and package versions, suite, rendering/scoring, four-pass
+order, decoder settings, default F1 checks and the bounded execution duration.
+Original/candidate generation and stopping functions match the historical probe.
+Literal role markers in code or quotations still stop; this limitation is unchanged.
+Raw tokens, overhang and text remain preserved. Safety review and quality verdict
+remain pending regardless of local tests. All failed/partial outputs are retained.
+
+Operational settings are deliberately outside Git. An operator-approved private
+launch configuration must explicitly provide account, instance ID, GPU UUID,
+balance floor, preservation/Stop authority and the science contract SHA. There are
+no implicit account, server, GPU or balance-floor defaults. A private stage receipt
+binds the science SHA and the exact launch-configuration SHA to fresh Billing and
+explicit authorization. The CLI also verifies the supplied launch SHA against the
+file, and checks the selected instance/GPU environment against that configuration.
+Editing private settings invalidates an existing admission. Hash agreement proves
+consistency, not user authorization: the operator must verify the actual settings
+against the user's instructions and approve a fresh admission before each stage.
+
+A stage requires enough balance above the approved floor for its whole duration,
+with a conservative rate factor and reserve. Separate preparation/download costs
+and traffic reserves must be admitted independently. Stop means stopping only the
+approved instance after evidence preservation; storage charges may continue.
+The Python entrypoint validates authority but does not call a provider Stop API.
+The supervising operator enforces preservation and the provider Stop action.
+
+The launcher requires externally set SOUP_G6_INSTANCE_ID and CUDA_VISIBLE_DEVICES;
+it never chooses a host or GPU. It enforces the same external hard timeout. Use:
+  sh benchmarks/g6/launch_portable_probe.sh \
+    --spec benchmarks/g6/spec/portable_paired_generation.json \
+    --spec-sha VERIFIED_SCIENCE_SHA \
+    --protocol-commit VERIFIED_USER_COMMIT \
+    --launch-config /private/approved_launch.json \
+    --launch-config-sha VERIFIED_PRIVATE_LAUNCH_SHA \
+    --admission /private/fresh_stage_admission.json \
+    --model-dir /verified/model --adapter /verified/adapter --out /new/unique/output
+
+Before execution, verify the actual committed Git objects; a CLI commit string
+alone is not proof. Verify exact runtime, pinned model/adapter bytes, SSH identity,
+fresh guest disk controls and native GPU process ownership. Old host calibration
+cannot certify a newly created VM. UNKNOWN or VOID fails and preserves the attempt.
+Guest controls certify neither physical host isolation nor baremetal performance.
+No automatic retry/resume, cross-host speedup comparison or full-training program.
+This commit does not alter any historical protocol, source bytes, outputs or scores.
+Private configs/admissions, financial receipts, SSH keys, logs, model/data files and
+adapters must not be added to the commit. The user alone commits and pushes.

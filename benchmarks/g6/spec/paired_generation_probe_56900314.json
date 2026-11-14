@@ -1,0 +1,257 @@
+{
+  "status": "FROZEN_FOR_USER_REVIEW_NOT_PAID_LAUNCH_AUTHORIZATION",
+  "version": "g6-paired-generation-probe-56900314-v1",
+  "parent_protocol_sha256": "4627dafc9b5704b4479c9bc5a439cb4eee0d8f56792f1b3b9741ab7980a3c2e2",
+  "instance_id": 56900314,
+  "gpu_uuid": "GPU-259fccc1-4cda-8c67-d13d-e08932415283",
+  "python": "3.12.3",
+  "runtime_target": {
+    "torch": "2.14.1",
+    "transformers": "5.19.0",
+    "peft": "0.21.2",
+    "safetensors": "0.8.0",
+    "tokenizers": "0.23.2",
+    "accelerate": "1.15.0"
+  },
+  "model": {
+    "id": "mistralai/Mistral-7B-v0.3",
+    "revision": "caa1feb0e54d415e2df31207e5f4e273e33509b1",
+    "license_declared_by_card": "apache-2.0",
+    "gated": false,
+    "source_url": "https://huggingface.co/mistralai/Mistral-7B-v0.3/tree/caa1feb0e54d415e2df31207e5f4e273e33509b1"
+  },
+  "model_files": [
+    {
+      "name": "config.json",
+      "size": 601,
+      "algorithm": "git_blob_sha1",
+      "digest": "9f913dc05d66cfb23c16e3c93b3cc4899813dfa6"
+    },
+    {
+      "name": "generation_config.json",
+      "size": 116,
+      "algorithm": "git_blob_sha1",
+      "digest": "b6bea2642bc3fe80f392111d52af91d1563a8de2"
+    },
+    {
+      "name": "model-00001-of-00003.safetensors",
+      "size": 4949453792,
+      "algorithm": "sha256",
+      "digest": "2d7de8eb9bd554cccc999649fd5a3a28a44d09042879d6c1cedd13f59c86f7a8"
+    },
+    {
+      "name": "model-00002-of-00003.safetensors",
+      "size": 4999819336,
+      "algorithm": "sha256",
+      "digest": "79a5f871a0fbb7919f263d78caff0d4d3b7a1d444552db3011ada70f48fd5ee4"
+    },
+    {
+      "name": "model-00003-of-00003.safetensors",
+      "size": 4546807800,
+      "algorithm": "sha256",
+      "digest": "ba7ae59358f726f5f5bc5264fd8a3aec907f42e6009d7b22454007d18723616a"
+    },
+    {
+      "name": "model.safetensors.index.json",
+      "size": 23950,
+      "algorithm": "git_blob_sha1",
+      "digest": "050e5515d49376fc01e4837d031902c63af98111"
+    },
+    {
+      "name": "special_tokens_map.json",
+      "size": 414,
+      "algorithm": "git_blob_sha1",
+      "digest": "451134b2ddc2e78555d1e857518c54b4bdc2e87d"
+    },
+    {
+      "name": "tokenizer.json",
+      "size": 1961548,
+      "algorithm": "git_blob_sha1",
+      "digest": "8d7d23136b474a3df1182ed829db19984e295ee7"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "size": 136697,
+      "algorithm": "git_blob_sha1",
+      "digest": "07992b5eb9617dbdf13bb69b825c45e0da5fddb2"
+    }
+  ],
+  "recipe": {
+    "seed": 901,
+    "max_length": 2048,
+    "packing": false,
+    "base_dtype": "float16",
+    "adapter_dtype": "float32",
+    "lora": {
+      "r": 8,
+      "alpha": 16,
+      "modules": [
+        "q_proj",
+        "v_proj"
+      ],
+      "dropout": 0
+    },
+    "optimizer": "AdamW betas(.9,.999),eps1e-8,weight_decay0,foreachFalse,fusedFalse",
+    "lr": 0.0001,
+    "clip": 1.0,
+    "targets_per_update": 8192,
+    "full_updates": 611,
+    "last_update_targets": 2880,
+    "lr_horizon_targets": 5000000,
+    "loss": "summed shifted nonignored NLL / actual optimizer-window target count",
+    "sampler": "sequential saved file; no shuffle/replay; disjoint loss spans with full causal prefix",
+    "padding": "right,multiple8,padID0,labels-100",
+    "attention": "eager",
+    "gradient_checkpointing": "nonreentrant",
+    "AMP": "cuda autocastFP16; FP32LoRA; scaler128 fixed; any overflow/nonfinite aborts",
+    "TF32": false,
+    "deterministic_algorithms": true,
+    "resume_or_automatic_retry": false
+  },
+  "tokenizer": {
+    "vocab_sha256": "f8db41372a121e0032f06b3ef00922a75b48580603a0d329974084ca1bfe49db",
+    "special_sha256": "bb0c3e536ea59595c7fcf4ca14af4be98e6519eb31ecda10943681890033f5fc"
+  },
+  "source_sha256": {
+    "benchmarks/g6/audit_leakage.py": "432bc567ac053e3c5a88e799ad930955ac838e8572e4f012456da740f7a58e20",
+    "benchmarks/g6/prepare.py": "6a1e9e14623ebe3f5ea7965eba64b7c2563ef354b8bafbfb6d6f1ae2be8ab1df",
+    "benchmarks/g6/consumer.py": "87d0cdfb80332975bbed0f973366055454aed6c76ebec3146e7e5492dbe0260b",
+    "benchmarks/g6/check_consumer.py": "a63ce8e650d30efa33a0e6d853c46d9b7b49a913162ce9501967e9a63c44290f",
+    "benchmarks/g6/checkpoint_eval.py": "4c8ea275c11a62fbf896e138808a83e6e76c903d43034d2968e0cdd4fa134701",
+    "benchmarks/g6/engine.py": "e6317fc77429577c19128a99e6af275ae7b825faf3e82d116fc071b8c5cd3a87",
+    "benchmarks/g6/run_support.py": "7ad9ffb28fab74e9eb98cf8166aeb9f6e2b49f7c53423d118afb2afd86813632",
+    "benchmarks/g6/eval_suite.py": "2329c89f81e03d57a1bcb707992015bb4a9cd1b122bf80ac9cc6455e186791b3",
+    "benchmarks/g6/run.py": "fe6a20b58157eb3a298ee9557addcb99b8196a921abb024d0ed730842391b5a2",
+    "benchmarks/g6/freeze.py": "e07096c9cd007ea1a0042a7d421ec45ce216c028e3867a82135d8fdd3bf7d750",
+    "benchmarks/g6/launch.py": "f46a09e6535bf59a24e1c0c6c419f8fa2c5f2549753d4a7528697db7398d6f88",
+    "benchmarks/g6/summarize.py": "a4faccbf5c1adf1d6eb1abbee466fa8aad2197c12a53045e783d0b3c1dd318df",
+    "benchmarks/g6/cuda_gate.py": "68846ce95813c11155ae5335bf77034b06a9f8f0db1758e32cd30a9e4cccda6e",
+    "benchmarks/harness/arm_validity.py": "ae7e6e5f4d4df460202c8229deb167c43a350f41538c25dc571f21a5791190f9",
+    "benchmarks/g6/paired_generation_probe.py": "f7c31cc38e43be34879b97bdb7fd37fb6a8e901dc3a9d7862b833f4450c73b7c",
+    "benchmarks/g6/turn_boundary_candidate.py": "27661fa8f5dc63a36551fc3c2e923d1ec9aaecb06ae140831324a5376ef4838d",
+    "benchmarks/g6/launch_paired_probe.sh": "e94798e28434297dc8512cfcc492c6f787b6e3cea723892a678f544f8b513521"
+  },
+  "runtime_wheels": {
+    "path": "benchmarks/g6/spec/paired_probe_requirements.txt",
+    "sha256": "4b3047c1a2a97add7d20da0cb0588d571a8a129f8c69d988e6ec0d99c0df2fdc",
+    "recorded_wheels": 56,
+    "base_dependency_closure_checked": true,
+    "pip_and_python_not_in_wheel_lock": true,
+    "packages": {
+      "torch": "2.14.1",
+      "transformers": "5.19.0",
+      "peft": "0.21.2",
+      "safetensors": "0.8.0",
+      "tokenizers": "0.23.2",
+      "accelerate": "1.15.0",
+      "rich": "15.0.0",
+      "cuda-toolkit": "13.0.3.0",
+      "nvidia-cudnn-cu13": "9.24.0.43",
+      "nvidia-cusparselt-cu13": "0.8.1",
+      "nvidia-nccl-cu13": "2.30.7",
+      "nvidia-nvshmem-cu13": "3.4.5",
+      "nvidia-cublas": "13.1.1.3",
+      "nvidia-cuda-cupti": "13.0.85",
+      "nvidia-cuda-nvrtc": "13.0.88",
+      "nvidia-cuda-runtime": "13.0.96",
+      "nvidia-cufft": "12.0.0.61",
+      "nvidia-cufile": "1.15.1.6",
+      "nvidia-curand": "10.4.0.35",
+      "nvidia-cusolver": "12.0.4.66",
+      "nvidia-cusparse": "12.6.3.3",
+      "nvidia-nvtx": "13.0.85",
+      "cuda-bindings": "13.4.4",
+      "fsspec": "2026.9.0",
+      "huggingface_hub": "1.33.0",
+      "filelock": "4.2.4",
+      "markdown-it-py": "4.2.0",
+      "networkx": "3.7",
+      "numpy": "2.5.4",
+      "packaging": "26.3",
+      "Pygments": "2.21.0",
+      "PyYAML": "6.0.3",
+      "regex": "2026.9.29",
+      "setuptools": "84.2.0",
+      "sympy": "1.14.0",
+      "tqdm": "4.70.1",
+      "triton": "3.8.0",
+      "typing_extensions": "4.16.0",
+      "Jinja2": "3.1.6",
+      "psutil": "7.2.2",
+      "typer": "0.27.3",
+      "annotated-doc": "0.0.5",
+      "click": "8.5.0",
+      "cuda-pathfinder": "1.8.3",
+      "hf-xet": "1.7.0",
+      "httpx": "0.28.1",
+      "httpcore": "1.0.9",
+      "MarkupSafe": "3.0.4",
+      "mdurl": "0.1.2",
+      "mpmath": "1.3.0",
+      "nvidia-nvjitlink": "13.4.92",
+      "shellingham": "1.5.4",
+      "anyio": "4.15.1",
+      "idna": "3.20",
+      "certifi": "2026.10.19",
+      "h11": "0.16.0"
+    }
+  },
+  "suite": {
+    "path": "benchmarks/g6/spec/eval_suite_v1.json",
+    "sha256": "46c1f2a9140fbe5930d24e3c1cb3ab7cf0c79b462ee5ad96d40604a10220b089",
+    "cases": 24
+  },
+  "adapter": {
+    "sha256": "711a13effd3608d3c233c83bae888d18381197c26e1ce8bc115dc0e77cf5ef36",
+    "initial_state": "afabcfa96bc9f495cb1f3a61686fbff09b1b31fc253e6f192c7a6fb8da9e22d2",
+    "final_state": "7980eac2693146f83c4f10d181701dca916ecdc58d8b1958b74cdcec3a7f9fc1",
+    "frozen_base": "c2d955c117b7aaa1517b9d30d5e7a89ae7a31b7566f3196df88b015a757108d8",
+    "source": "historical65536target8update baseline; reuse artifact only, no training retry"
+  },
+  "budget": {
+    "total_cap_usd": 12,
+    "authority_sha256": "91f80b35f0a7b0a7e5274de68a0d82a3e241a62f44b06219136947e9480735c2",
+    "private_authority_file_not_for_commit": true,
+    "fresh_billing_age_s": 300,
+    "reserve_usd": 0.5,
+    "full_training_authorized": false
+  },
+  "total_s": 2400,
+  "order": [
+    "initial_original",
+    "initial_boundary",
+    "adapted_boundary",
+    "adapted_original"
+  ],
+  "generation": {
+    "greedy": true,
+    "num_beams": 1,
+    "max_new_tokens": 128,
+    "prompt_render_unchanged": true,
+    "markers": [
+      "\nuser:",
+      "\nassistant:",
+      "\nsystem:"
+    ],
+    "raw_tokens_preserved": true,
+    "same_token_overhang_preserved": true,
+    "literal_marker_inside_code_also_stops": true
+  },
+  "scope": "same-host paired inference only; guestF1controls; no physical isolation claim or cross-host speedup",
+  "decision_rule": {
+    "primary": "report same-case original versus boundary stop reasons/raw text/exact scores separately for initial and historical adapted weights",
+    "no_historical_score_replacement": true,
+    "no_training_no_CE_remeasurement": true,
+    "safety": "independent blind manual reviews pending; no automated safety score",
+    "recommendation": "NO_VERDICT regardless of local synthetic tests; no general policy recommendation from this diagnostic"
+  },
+  "claim_policy": "new output directory; existing directory forbids rerun; preserve failed/partial outputs; no automatic retry",
+  "before_launch": [
+    "user commits rule and source; agent verifies Git object source hashes before upload",
+    "verify native Python3.12.3 and all pinned package versions; no silent runtime change",
+    "verify approved SSH/GPU/path identity and same guestF1scope",
+    "fresh actual Billing and authorized inference-stage receipt",
+    "offline pinned model bytes and exact adapter/state hashes",
+    "external2400s hard deadline plus per-token guard and per-phaseF1/clock checks"
+  ]
+}
