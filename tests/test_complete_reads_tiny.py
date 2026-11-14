@@ -67,8 +67,23 @@ READS_PER_HIT_TWO_READ = 2
 
 def reads_per_hit(mode: str, arm: str) -> int:
     """Two-read lowers the reads only where a checkpoint recompute exists, which L2L bypasses."""
-    two_read = "two_read" in arm or arm == "complete_cpu"
+    two_read = ARMS[arm].get("two_read_experts", False)
     return READS_PER_HIT_TWO_READ if two_read and mode == "ga" else READS_PER_HIT_DEFAULT
+
+
+def expected_layer_loads(mode: str, k: int) -> int:
+    """Three decoder layers: loaded once per micro-batch on GA and once per window on L2L."""
+    return 3 * k if mode == "ga" else 3
+
+
+def routers_patched(model: Any) -> int:
+    """Routers whose ``forward`` is the two-read replay wrapper."""
+    from soup_cli.utils import expert_stream
+
+    return sum(
+        getattr(vars(module).get("forward"), "__func__", None) is expert_stream._routing_forward
+        for module in model.modules()
+    )
 
 
 def ga_streamed(rig: Rig, spec: Spec) -> Tuple[List[Any], Any]:
@@ -129,6 +144,16 @@ def measure(
     rig = rig_factory(k=k, build_options=ARMS[arm])
     spec = Spec(micro_batches(rig, k))
     physical = PhysicalReads(monkeypatch, list(rig.runtime.expert_readers))
+    from soup_cli.utils import expert_stream
+
+    grouped_calls = [0]
+    original_grouped = expert_stream._grouped_expert_routes
+
+    def spy(expert_mask: Any) -> Any:
+        grouped_calls[0] += 1
+        return original_grouped(expert_mask)
+
+    monkeypatch.setattr(expert_stream, "_grouped_expert_routes", spy)
     losses, counters = (ga_streamed if mode == "ga" else l2l_streamed)(rig, spec)
     update = adamw_update(rig.model)
     return {
@@ -142,6 +167,8 @@ def measure(
         "unique_experts": oracle["unique_experts"],
         "physical_calls": physical.calls,
         "physical_bytes": physical.bytes,
+        "grouped_calls": grouped_calls[0],
+        "routers_patched": routers_patched(rig.model),
         "_losses": losses,
         "_update": update,
     }
@@ -225,6 +252,12 @@ def test_reads_follow_the_lever_and_the_update_is_bit_equal_to_ordinary(
     assert row["expert_fetches"] == reads_per_hit(mode, arm) * row["total_hits"], (
         f"{where}: {row['expert_fetches']} fetches for {row['total_hits']} hits"
     )
+    assert row["layer_loads"] == expected_layer_loads(mode, k), where
+    # The arm runs the lever it names, also where the lever changes no count.
+    assert (row["grouped_calls"] > 0) == ARMS[arm].get("grouped_expert_routes", False), where
+    assert row["routers_patched"] == (
+        2 if ARMS[arm].get("two_read_experts", False) else 0
+    ), where
     # Two stored tensors per expert, one request each.
     assert row["physical_calls"] == 2 * row["expert_fetches"], where
     assert row["physical_bytes"] >= row["expert_bytes_read"] > 0, where
@@ -296,7 +329,7 @@ def test_table(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     rows = [_public(cell(mode, arm, k)) for mode in MODES for arm in ARMS for k in K_SWEEP]
-    header = (
+    header = (  # the spy and patch counters stay in the JSON and in the record_property data
         "mode arm k layer_loads expert_fetches total_hits unique_experts "
         "physical_calls physical_bytes"
     ).split()
