@@ -3818,7 +3818,7 @@ class StreamRuntime:
 
 def _prepare_expert_streaming(
     layers: Any, shard_dir: str, index: Any, *, device: str, codes: Optional[Mapping[str, Any]],
-    two_reads: bool = False,
+    two_reads: bool = False, grouped_expert_routes: bool = False,
 ) -> Tuple[Any, Tuple[Any, ...]]:
     """Prepare the bounded expert slot and validate the replacement modules.
 
@@ -3855,7 +3855,9 @@ def _prepare_expert_streaming(
             first, device=device, dtype=index.dtype,
             weight_budget_bytes=expert_allocation_budget(plan, device=device), codes=codes,
         )
-        install_streamed_experts(layers, readers, pool, two_reads=two_reads)
+        install_streamed_experts(
+            layers, readers, pool, two_reads=two_reads, grouped_expert_routes=grouped_expert_routes
+        )
         return pool, tuple(readers.values())
     except BaseException:
         cleanup = ([pool.close] if pool is not None else [])
@@ -3941,12 +3943,16 @@ def install_streaming(
     shared_host_budget: Any = None,
     ram_cache_bytes: int = 0,
     two_read_experts: bool = False,
+    grouped_expert_routes: bool = False,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
     ``two_read_experts`` (``expert_layout="per_expert"`` caches only): each MoE layer's
     checkpoint recompute replays its routers' top-k decisions and reads no expert, so a step
     reads every routed-to expert twice instead of three times. API switch, no config field.
+
+    ``grouped_expert_routes`` (same caches): each MoE layer finds its hit experts and their
+    token rows with one ``nonzero`` instead of one ``where`` per expert. API switch too.
 
     ``refill_before_backward`` says the loss runs a second forward before each
     step's backward; an untied output head then hands autograd a private copy
@@ -4037,7 +4043,8 @@ def install_streaming(
     try:
         if getattr(index, "expert_layout", "") == "per_expert":
             expert_pool, expert_readers = _prepare_expert_streaming(
-                layers, shard_dir, index, device=device, codes=codes, two_reads=two_read_experts
+                layers, shard_dir, index, device=device, codes=codes,
+                two_reads=two_read_experts, grouped_expert_routes=grouped_expert_routes,
             )
         elif two_read_experts:
             raise ValueError(
@@ -4668,6 +4675,7 @@ def build_streamed_model(
     shared_host_budget: Any = None,
     ram_cache_bytes: int = 0,
     two_read_experts: bool = False,
+    grouped_expert_routes: bool = False,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -4730,6 +4738,7 @@ def build_streamed_model(
             shared_host_budget=shared_host_budget,
             **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
             **({"two_read_experts": True} if two_read_experts else {}),
+            **({"grouped_expert_routes": True} if grouped_expert_routes else {}),
         )
     except BaseException:
         for external in external_sources:

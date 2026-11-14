@@ -311,3 +311,36 @@ def test_two_reads_need_a_per_expert_cache(tmp_path: Path) -> None:
             model_id=str(weights), shard_dir=shards, index=index, lora_config=_lora(config),
             device="cpu", dtype="float32", pin=False, two_read_experts=True,
         )
+
+
+def test_grouped_routes_and_two_reads_together_equal_the_default_path(tmp_path: Path) -> None:
+    """The comparison harness switches both levers through ``build_streamed_model``."""
+    from soup_cli.utils.layer_stream_runtime import build_streamed_model
+
+    models, ids = _build(tmp_path)
+    try:
+        weights = tmp_path / "weights"
+        index_dir = str(tmp_path / "shards")
+        from soup_cli.utils.layer_shard import read_shard_index
+
+        grouped, runtime = build_streamed_model(
+            model_id=str(weights), shard_dir=index_dir, index=read_shard_index(index_dir),
+            lora_config=_lora(_tiny_deepseek_v3_config()), device="cpu", dtype="float32",
+            pin=False, seed=71, two_read_experts=True, grouped_expert_routes=True,
+        )
+        try:
+            experts = _moe(grouped, 1).experts
+            assert experts.grouped_expert_routes and experts.two_reads
+            assert not _moe(models["default"][0], 1).experts.grouped_expert_routes
+            _copy_lora(models["default"][0], grouped)
+            grouped.eval()
+            want_loss, want = _step(models["default"][0], ids)
+            before = runtime.expert_pool.fetches
+            loss, got = _step(grouped, ids)
+            assert torch.equal(loss, want_loss)
+            _assert_grads_equal(got, want)
+            assert runtime.expert_pool.fetches - before > 0
+        finally:
+            runtime.close()
+    finally:
+        _close(models)
