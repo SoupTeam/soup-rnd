@@ -486,6 +486,7 @@ class L2LStep:
         calls: Optional[Sequence[LayerCall]] = None,
         head: Optional[LossHead] = None,
         reference: Union[ReferencePass, Sequence[ReferencePass], None] = None,
+        scaler: Any = None,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
@@ -496,6 +497,12 @@ class L2LStep:
         ``head`` replaces the SFT head and loss (see :data:`LossHead`); it owns its labels
         and its scale, so it excludes ``labels`` and ``n_items``.
 
+        ``scaler`` is the Trainer's fp16 ``GradScaler`` (``accelerator.scaler``), or None. The
+        head loss is backpropagated as ``scaler.scale(loss)``; the scale then travels down every
+        layer through ``grad_tensors``, as it does through accumulation's
+        ``accelerator.backward``. Unscaling, clipping and skipping an inf step stay with
+        accelerate's optimizer step. The returned losses are unscaled.
+
         ``reference`` adds the gradient-free passes (one :class:`ReferencePass` or a sequence
         of them). It refuses a model whose layers draw dropout: accumulation's extra forwards
         would draw masks too, and the replay of ``l2l_rng`` covers the policy's draws only.
@@ -503,7 +510,9 @@ class L2LStep:
         if head is not None and (labels is not None or n_items is not None):
             raise ValueError("a custom head owns its labels and scale: pass no labels or n_items")
         with count_loads(self.runtime) as counters, RoutingGuard(self.layers) as guard:
-            losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+            losses = self._run(
+                micro_batches, store, n_items, labels, calls, guard, head, reference, scaler
+            )
         self.counters = counters
         return losses
 
@@ -517,6 +526,7 @@ class L2LStep:
         guard: RoutingGuard,
         head: Optional[LossHead],
         reference: Union[ReferencePass, Sequence[ReferencePass], None] = None,
+        scaler: Any = None,
     ) -> List[Any]:
         import torch
 
@@ -599,7 +609,7 @@ class L2LStep:
             ):
                 loss = head(self.causal, self.owner, last, mb)
             with self._backward_context(micro_batches[mb]):
-                loss.backward()
+                (loss if scaler is None else scaler.scale(loss)).backward()
             losses.append(loss.detach())
             grads.append(last.grad)
 
