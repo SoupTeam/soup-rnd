@@ -344,3 +344,45 @@ def test_grouped_routes_and_two_reads_together_equal_the_default_path(tmp_path: 
             runtime.close()
     finally:
         _close(models)
+
+
+@pytest.mark.parametrize("lever", ["two_read_experts", "grouped_expert_routes"])
+def test_every_lever_needs_a_per_expert_cache_instead_of_being_ignored(
+    tmp_path: Path, lever: str
+) -> None:
+    from soup_cli.utils.kimi_k2 import load_stream_config
+    from soup_cli.utils.layer_shard import shard_checkpoint
+    from soup_cli.utils.layer_stream import stream_arch_of
+    from soup_cli.utils.layer_stream_runtime import build_streamed_model
+
+    config = _tiny_deepseek_v3_config()
+    weights = tmp_path / "weights"
+    _save_fixture(weights, config)
+    arch = stream_arch_of(load_stream_config(str(weights), trust_remote_code=False))
+    shards = str(tmp_path / "shards")
+    index = shard_checkpoint(str(weights), shards, dtype="float32", arch=arch)
+    with pytest.raises(ValueError, match=f"{lever} needs a cache sharded"):
+        build_streamed_model(
+            model_id=str(weights), shard_dir=shards, index=index, lora_config=_lora(config),
+            device="cpu", dtype="float32", pin=False, **{lever: True},
+        )
+
+
+def test_bf16_autocast_steps_are_bit_equal_between_default_and_two_reads(nets: Any) -> None:
+    """fp32 weights under CPU bf16 autocast, the mixed-precision shape of a real recipe: the
+    replayed zero never reaches a gradient, so two reads match the default path bit for bit."""
+    models, ids = nets
+    results = {}
+    for path in ("default", "two-reads"):
+        net, runtime = models[path]
+        net.zero_grad(set_to_none=True)
+        before = _fetches(runtime)
+        with torch.autocast("cpu", dtype=torch.bfloat16):
+            loss = net(input_ids=ids, labels=ids).loss
+        forward = _fetches(runtime) - before
+        loss.backward()
+        per_read = 2 if path == "two-reads" else 3
+        assert _fetches(runtime) - before == per_read * forward > 0
+        results[path] = (loss.detach(), _grads(net))
+    assert torch.equal(results["default"][0], results["two-reads"][0])
+    _assert_grads_equal(results["two-reads"][1], results["default"][1])

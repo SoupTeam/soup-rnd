@@ -196,7 +196,8 @@ properties with `--junitxml`.
 
 Two switches port the "complete" streaming levers of the koko branches onto this code. Both
 are API parameters of `build_streamed_model` and `install_streaming`, with no config field and
-no CLI flag. Both apply only to a `per_expert` cache of a DeepSeek-V3-family base. With neither
+no CLI flag. Both apply only to a `per_expert` cache of a DeepSeek-V3-family base, and
+either one on another cache raises a `ValueError` instead of being ignored. With neither
 set, the default path is unchanged: three reads of each hit expert per step (forward, checkpoint
 recompute, backward).
 

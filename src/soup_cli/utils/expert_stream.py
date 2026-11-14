@@ -13,9 +13,9 @@ from __future__ import annotations
 import functools
 import math
 import threading
-import types
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from types import MethodType
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
 
 from soup_cli.utils.expert_shard import DOWN, EXPERT_PARTS, GATE_UP, ExpertShardReader
@@ -454,7 +454,7 @@ def checkpoint_context_fn(layer: Any) -> Optional[Any]:
     return None
 
 
-def _build_topk_decisions_class():
+def _build_topk_decisions_class() -> Any:
     import torch
     from torch.utils._python_dispatch import TorchDispatchMode
 
@@ -938,5 +938,5 @@ def install_streamed_experts(
     for parent, attr, replacement, router in replacements:
         setattr(parent, attr, replacement)
         if router is not None:
-            router.forward = types.MethodType(_routing_forward, router)
+            router.forward = MethodType(_routing_forward, router)
     return len(replacements)

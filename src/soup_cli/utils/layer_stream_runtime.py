@@ -4046,11 +4046,16 @@ def install_streaming(
                 layers, shard_dir, index, device=device, codes=codes,
                 two_reads=two_read_experts, grouped_expert_routes=grouped_expert_routes,
             )
-        elif two_read_experts:
-            raise ValueError(
-                "two_read_experts needs a cache sharded with expert_layout='per_expert'; "
-                f"this one is {getattr(index, 'expert_layout', '') or 'fused'!r}"
-            )
+        else:
+            for lever, enabled in (
+                ("two_read_experts", two_read_experts),
+                ("grouped_expert_routes", grouped_expert_routes),
+            ):
+                if enabled:
+                    raise ValueError(
+                        f"{lever} needs a cache sharded with expert_layout='per_expert'; "
+                        f"this one is {getattr(index, 'expert_layout', '') or 'fused'!r}"
+                    )
         if two_read_experts:
             from soup_cli.utils.expert_stream import checkpoint_context_fn
 
