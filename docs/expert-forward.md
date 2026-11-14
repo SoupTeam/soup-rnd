@@ -192,6 +192,27 @@ for real experts.
 Reproduce with `pytest tests/test_p3_expert_read_diagnostic.py -v` and read the recorded
 properties with `--junitxml`.
 
+### Reads with the complete levers on CPU
+
+`tests/test_complete_reads_tiny.py` repeats the window on the same fixture for four arms
+(ordinary, `grouped_expert_routes`, `two_read_experts`, and both together, which is every lever
+that runs on a CPU), on gradient accumulation (GA) and on L2L, at k = 1, 4, 16, 64. Expert
+fetches of a window:
+
+| k | hits | GA ordinary | GA grouped | GA two-read | GA both | L2L ordinary | L2L both |
+|---|---|---|---|---|---|---|---|
+| 1 | 13 | 39 | 39 | 26 | 26 | 39 | 39 |
+| 4 | 54 | 162 | 162 | 108 | 108 | 162 | 162 |
+| 16 | 207 | 621 | 621 | 414 | 414 | 621 | 621 |
+| 64 | 842 | 2526 | 2526 | 1684 | 1684 | 2526 | 2526 |
+
+Reads follow k in every arm. Two-read cuts GA reads from three to two per hit (ratio 2/3 at every
+k) and does nothing on L2L, which has no checkpoint recompute. Grouping changes no read.
+Layer loads are 3 per micro-batch on GA (3k per window) and 3 per window on L2L. After one AdamW
+step the LoRA gradients, parameters and optimizer state of every arm equal ordinary bit for bit.
+`packed` and `expert_host_cache_bytes` need CUDA and are not measured. The test makes no speed
+claim.
+
 ## Complete levers (experimental, off by default)
 
 Four switches port the "complete" streaming levers of the koko branches onto this code. All
