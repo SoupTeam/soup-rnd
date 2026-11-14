@@ -192,6 +192,31 @@ for real experts.
 Reproduce with `pytest tests/test_p3_expert_read_diagnostic.py -v` and read the recorded
 properties with `--junitxml`.
 
+## Complete levers (experimental, off by default)
+
+Two switches port the "complete" streaming levers of the koko branches onto this code. Both
+are API parameters of `build_streamed_model` and `install_streaming`, with no config field and
+no CLI flag. Both apply only to a `per_expert` cache of a DeepSeek-V3-family base. With neither
+set, the default path is unchanged: three reads of each hit expert per step (forward, checkpoint
+recompute, backward).
+
+| Parameter | Effect | Checked on CPU |
+|---|---|---|
+| `grouped_expert_routes=True` | Each streamed MoE layer finds its hit experts and their token rows with one `nonzero` and one host count read, instead of one `where` per expert. Same experts, same order, same reads. | Output, gradients and read order are bit-equal to the default path. |
+| `two_read_experts=True` | The layer checkpoint gets a context in which the router keeps its top-k decisions in the forward and replays them in the recompute, and the recompute reads no expert. A step reads each hit expert twice. | Loss and every LoRA gradient are bit-equal to the resident model and the default path. Reads are 2 per hit expert instead of 3. |
+
+Two reads works through the layer checkpoint. Layers that `training.stream_recompute` switches
+off have no recompute to skip and read each expert twice anyway. L2L bypasses the checkpoint,
+so `two_read_experts` has no effect there and the trainer never sets it. In the recompute the
+routed experts return zeros, so a forward hook on the decoder layer, its MoE block or its routed
+experts, and any global forward hook, is refused with a `RuntimeError`. A patched `forward` is
+not detected and is unsupported. `install_streamed_experts(..., two_reads=True)` admits only
+`DeepseekV3DecoderLayer`.
+
+The koko levers for packed NF4 transfer (`d67f77ba` and its fixes) and prepacked host RAM
+(`9873f323`) are not ported. They require CUDA, were never qualified on a GPU upstream, and
+build on an expert fetcher with cache tiers that this code does not have.
+
 ## Local checks
 
 ```text
