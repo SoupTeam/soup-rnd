@@ -1,0 +1,106 @@
+{
+  "status": "PASS_LOCAL_CPU_TRAINER_INTEGRATION",
+  "scope": "Tiny random CPU Llama, real Soup/TRL SFT and PEFT; not 8B/CUDA",
+  "performance_verdict": "NO_VERDICT",
+  "real_8b_or_cuda": false,
+  "normal": {
+    "optimizer_events": 2,
+    "trainer_global_step": 2,
+    "backward_events": 4,
+    "batch_events": 4,
+    "token_totals": {
+      "processed_positions": 20,
+      "nonpadding_tokens": 20,
+      "padding_positions": 0,
+      "useful_targets": 16
+    },
+    "changed_adapters": [
+      "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+      "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+      "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+      "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight"
+    ],
+    "frozen_parameters_and_buffers_unchanged": true,
+    "attention_implementation": "sdpa",
+    "executed_cpu_operation_names": [
+      "aten::mm",
+      "aten::scaled_dot_product_attention",
+      "aten::_scaled_dot_product_flash_attention_for_cpu",
+      "autograd::engine::evaluate_function: DivBackward0",
+      "DivBackward0",
+      "autograd::engine::evaluate_function: MulBackward0",
+      "MulBackward0",
+      "autograd::engine::evaluate_function: NllLossBackward0",
+      "NllLossBackward0",
+      "autograd::engine::evaluate_function: LogSoftmaxBackward0",
+      "LogSoftmaxBackward0",
+      "autograd::engine::evaluate_function: ViewBackward0",
+      "ViewBackward0",
+      "autograd::engine::evaluate_function: UnsafeViewBackward0",
+      "UnsafeViewBackward0",
+      "autograd::engine::evaluate_function: MmBackward0",
+      "MmBackward0",
+      "autograd::engine::evaluate_function: AliasBackward0",
+      "AliasBackward0",
+      "autograd::engine::evaluate_function: RsqrtBackward0",
+      "RsqrtBackward0",
+      "autograd::engine::evaluate_function: AddBackward0",
+      "AddBackward0",
+      "autograd::engine::evaluate_function: MeanBackward1",
+      "MeanBackward1",
+      "autograd::engine::evaluate_function: PowBackward0",
+      "PowBackward0",
+      "autograd::engine::evaluate_function: SiluBackward0",
+      "SiluBackward0",
+      "autograd::engine::evaluate_function: TransposeBackward0",
+      "TransposeBackward0",
+      "autograd::engine::evaluate_function: ScaledDotProductFlashAttentionForCpuBackward0",
+      "ScaledDotProductFlashAttentionForCpuBackward0",
+      "autograd::engine::evaluate_function: CatBackward0",
+      "CatBackward0",
+      "autograd::engine::evaluate_function: NegBackward0",
+      "NegBackward0",
+      "autograd::engine::evaluate_function: SliceBackward0",
+      "SliceBackward0",
+      "autograd::engine::evaluate_function: TBackward0",
+      "TBackward0"
+    ]
+  },
+  "negative_controls": [
+    {
+      "mode": "skip_optimizer",
+      "status": "FAIL",
+      "evidence_sha256": "af8b399fd3bf899a8ca04d20c9b4dbbd40367f2cf276be5ed0cebeefde7af93c"
+    },
+    {
+      "mode": "wrong_targets",
+      "status": "NEGATIVE_CONTROL_REJECTED",
+      "evidence_sha256": "2ce3dd03d535933a2327d21873f824ab0bbe60ce46938397cc44be48ec060fdd"
+    }
+  ],
+  "versions": {
+    "torch": "2.14.1",
+    "transformers": "5.19.0",
+    "trl": "0.29.1",
+    "peft": "0.21.2"
+  },
+  "runner_sha256": "66816111b10715b607fb0e13d80e69b8f6c0c5e7c4ae28bec348f47843dac768",
+  "oracle_sha256": "99bc98e94d6a3176ca46a9b49fc7291edca4cad16dd8488ca7cd6db2193765e5",
+  "local_archive": {
+    "name": "h2_sft_integration_001.zip",
+    "sha256": "8e5f7b4b01d47c69c222b6f186a10d9544ed42984c59ba65c642b1db7312a7b7",
+    "bytes": 116619,
+    "payload_files": 68,
+    "member_sha_readbacks_verified": true
+  },
+  "tests": {
+    "passed": 22,
+    "skipped": 0
+  },
+  "preparatory_failures_retained": [
+    "max_length32 rejected by Soup schema minimum64",
+    "raw Alpaca rows replaced with normalized messages expected by wrapper",
+    "explicit local chat_template added to fixture tokenizer",
+    "CPU TrainingArguments enforced after HF auto-selected local MPS during setup; no accepted training on that path"
+  ]
+}

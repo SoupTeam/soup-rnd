@@ -1,0 +1,77 @@
+H2 isolated-operator diagnostic v1 — prospective protocol, 2026-10-27
+
+Purpose
+Determine which explicitly patched operations reproduce the saved one-row
+NF4/bf16 gradient discrepancy. This is not a training/performance study, a fix
+for attempt009, or a general judgment about Liger correctness.
+No optimizer is constructed by this runner and no training loop is called.
+Each arm performs exactly one model loss/backward on the first collated row.
+The original numerical_policy.json is unchanged (relative L2 <=0.02, cosine
+>=0.999 and the existing absolute/relative limits). No fitted rescaling is used.
+
+Fixed identity
+operator_study.json pins model revision, 11 model files, runtime versions,
+recipe/fixture SHA, and historical baseline parameter/buffer/NF4/input identity.
+The new source commit must contain this protocol, study, all new helpers and
+all inherited correctness helpers. Code must be committed before GPU execution.
+The user handles commit/push; preparing these files does not publish them.
+One Ampere+ bf16 CUDA GPU >=16GiB, one boot and exact GPU UUID for all arms.
+The existing H2 source/runtime/model/ownership/license checks remain in force.
+
+Matrix and process isolation
+Order: baseline, ce_only, fused_lce_only, rms_norm_only, rope_only,
+swiglu_only, combined. Combined enables RoPE, RMSNorm, SwiGLU and Fused-LCE.
+All five Boolean patch options are explicit; CE and Fused-LCE never coexist.
+Each arm runs in a fresh subprocess, never an already patched interpreter.
+Soup's class patch and HF Trainer's instance patch are intercepted: both call
+Liger's Llama patch with the same flags. Baseline must call neither entry point.
+Missing/duplicate calls, extra global bindings, incorrect actual model/module
+forwards and missing/unexpected CUDA kernel families fail the capture.
+A false flag is not an unpatch operation. No restore, retry or resume is allowed.
+
+Capture
+Before forward: snapshot of every frozen parameter/buffer/NF4 state and every
+trainable adapter must equal the historical baseline identity, and raw input
+hashes/masks/labels/work must match. Model training mode, RNG fork, bf16 autocast,
+checkpointing, attention and LoRA configuration retain baseline policy.
+Only forward/backward is profiled, with record_shapes/profile_memory/stack off.
+Large weight hashing and evidence serialization occur outside the trace window.
+Raw loss, all adapter gradients, input tensors, module input/output dtypes,
+trace, kernel-family audit, patch bindings and source/authority are preserved.
+Full before/after state must be equal; gradients are cleared, modes/RNG restored.
+No full model snapshot is copied into a run's evidence archive.
+
+Comparison and stopping
+The parent uses the pinned historical probe (full readback validation) for the
+new baseline continuity check. A baseline tolerance failure blocks the series.
+The other six arms are compared against this new baseline using raw probes.
+A treatment tolerance failure is an expected diagnostic outcome: preserve it
+and continue the other independently specified arms. An infrastructure error,
+nonfinite value, patch mismatch, identity mismatch, missing evidence/kernel,
+source drift, timeout or log limit stops advancement. No adaptive extra arms.
+Every comparison retains raw per-tensor metrics and FAIL reasons. Passing this
+single row does not establish full-training equivalence or model quality.
+
+Bounds and authority
+The example authority is disabled and cannot launch anything. A future rental
+requires current exact instance/GPU/boot IDs, remaining H2 budget and source SHA.
+Total H2 ceiling remains $5 for the current series, including prior spending,
+setup, disk, traffic and cleanup reserve. No borrowing from G3/C3 or old series.
+Explicit rent+disk hourly cost and reserve must cover all seven arms, each at
+most 300 seconds, plus 40 seconds overall cleanup. The absolute deadline for all GPU children
+is at most 2140 seconds from series_started_unix_s; setup must be accounted for.
+CPU comparison/preservation may finish afterward; no child starts past deadline.
+The existing watchdog owns a new process group, retains bounded logs, terminates
+and kills only that group while retaining its leader PID until cleanup.
+It does not prove containment of processes that escape sessions and does not
+stop provider billing. Provider Stop/Destroy remains an external closure step
+following verified preservation and the applicable user authority.
+A new authorized evidence_root is required; an existing output is never reused.
+
+Run interface (after source freeze and separate runtime authority)
+python benchmarks/harness/h2_operator_probe.py --contract AUTHORITY.json --out NEW_ROOT
+Internal --child/--arm options are reserved for the supervisor. One child only.
+A COMPLETE_DIAGNOSTIC_MATRIX means the matrix finished; it does not mean every
+arm passed parity. Performance remains NO_VERDICT regardless of outcome.
+Archive all evidence safely, verify archive/member SHA locally and review before
+provider deletion. No GPU execution is authorized by local test success.

@@ -221,3 +221,25 @@ class TestTheCollector:
         report = collector.build_report(warmup_steps=0, provenance={}, memory={})
         assert report["valid"] is False  # nothing moved: the fingerprint check
         assert {f["check"] for f in report["failures"]} == {"parameters_changed"}
+
+
+def test_fingerprint_hashes_bfloat16_adapters_and_keeps_float32_bytes():
+    # numpy has no bfloat16: the earlier ``.numpy()`` digest raised on bf16 LoRA weights
+    # (H2-close stage P, RTX 4090, 2026-11-02). Raw bytes must hash for any dtype.
+    import hashlib
+
+    model = torch.nn.Module()
+    model.register_parameter("a", torch.nn.Parameter(torch.ones(2, 3, dtype=torch.bfloat16)))
+    model.register_parameter("s", torch.nn.Parameter(torch.tensor(1.5, dtype=torch.bfloat16)))
+    first = fingerprint_trainable(model)
+    assert summarize_trainable(model).fingerprint_first == first
+    with torch.no_grad():
+        model.a.add_(1)
+    assert fingerprint_trainable(model) != first
+
+    flat = torch.nn.Module()
+    flat.register_parameter("t0", torch.nn.Parameter(torch.arange(4.0).reshape(2, 2)))
+    expected = hashlib.sha256()
+    expected.update(b"t0")
+    expected.update(flat.t0.detach().numpy().tobytes())
+    assert fingerprint_trainable(flat) == expected.hexdigest()

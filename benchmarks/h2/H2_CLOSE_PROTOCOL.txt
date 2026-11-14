@@ -1,0 +1,168 @@
+H2-close protocol: actual updates, Unsloth and interleaved throughput (prospective)
+Written 2026-11-02, before any stage U, S or P arm. Commit it before the first arm and do not edit
+it afterwards; each attempt contract pins its sha256. A later change is a new, dated addendum that
+applies only to attempts started after it is committed.
+
+0. Purpose and what does not change
+Close the four open items of the H2 card: actual adapter updates (U), Unsloth on the same recipe
+(S), measured full-training throughput and peak VRAM in interleaved runs (P), and a multiplier
+published only for the measured configuration.
+Unchanged and not reinterpreted by this protocol: NUMERICAL_POLICY.txt/numerical_policy.json and
+their thresholds; attempts 015 and 016 stay BLOCKED; attempt019 stays NOT_CALIBRATABLE; every
+earlier NO_VERDICT stays. No stage below turns a gradient difference into a pass or a fail of the
+old policy. Performance claims come only from stage P.
+
+1. Arms
+A  baseline: stock Transformers/TRL SFT, candidate_configs/baseline.json (U) and
+   perf_baseline.json (P).
+L  Liger CE-only: the same recipe with only the cross-entropy rebound to liger_cross_entropy
+   through the existing PatchController (h2_operator_patch.py), as in attempts 015-019. No
+   RMSNorm, RoPE, SwiGLU or fused-linear-CE kernel may be active; attempt013 showed those break
+   the gradient thresholds and they are out of scope. Configs liger.json / perf_liger_ce.json.
+U  Unsloth: backend unsloth, unsloth/unsloth-zoo 2026.10.7 from runtime_candidate.lock, configs
+   unsloth.json / perf_unsloth.json. Unsloth chooses its own kernels, dtype handling and
+   checkpointing; flags alone are not equivalence. Its actual choices are recorded, not assumed.
+All arms: unsloth/Meta-Llama-3.1-8B revision e9a141a2091ea561b96483212645a2a05e6f99fc from the
+verified 11-file snapshot, NF4 QLoRA r16/alpha32/dropout0 on seven projections, AdamW 2e-4
+constant, batch 1, accumulation 4, seed and data_seed 42, gradient checkpointing, llama3 template,
+responses-only loss. Only the backend/CE binding and output paths differ.
+
+2. Stage U: actual updates, arms A and L (one fresh process each)
+Workload: the frozen training batches of ce_confirmation_workset.json (16 microbatches drawn
+from prepared_fixture_candidate.jsonl, 4 optimizer updates, 96 useful targets), run by the
+existing, already tested training phase of h2_ce_training.py. That phase never ran on a GPU:
+attempts 015/016 stopped at the probe comparison, which is not a gate here.
+Gate rows, each per arm; any failure gives UPDATES_FAIL with the failing row:
+U1 exactly 16 microbatches and 4 optimizer updates in the frozen order; every accumulation
+   window complete; num_items_in_batch is the Python integer 24 in every window (hardening R2).
+U2 h2_update_oracle.py: every tensor of the exact expected trainable manifest changed its bytes;
+   no frozen parameter, buffer or NF4 quant-state byte changed (h2_quant_state.py).
+U3 every logged loss and every gradient norm finite; no gradient norm exactly 0.0.
+U4 work equivalence (h2_work_equivalence.py): ordered input ids, masks, labels and counts equal
+   between A and L and equal to the frozen workset.
+U5 attribution: L shows liger_cross_entropy_kernel launches and no other Liger kernel; A shows
+   no Liger kernel; in L all 16 gradient-enabled training CE calls are bound to the Liger CE
+   (reduction sum, ignore_index -100), in A none.
+Validity (void, not fail): the F1 checks of section 5 and GPU exclusivity on each process.
+Recorded, never gated: per-step loss difference L-A, final adapter relative L2 and cosine L vs A
+per tensor, optimizer-state difference. These are measurements; the old policy is not applied.
+Outcome per arm: UPDATES_PASS, UPDATES_FAIL(row), INCOMPLETE (no readable evidence or the
+shared deadline) or VOID(check).
+Runner: h2_ce_confirmation.py with contract series "updates" (exactly baseline_training then
+ce_only_training, each a fresh supervised child; a failed child stops the series, no retry).
+Review: h2_close_updates.review_updates, written to updates_review.json and repeatable offline
+with --review-only. The series status is COMPLETE_H2_UPDATES_SERIES or STOPPED_H2_UPDATES_SERIES.
+
+3. Stage S: Unsloth, arm U (one fresh audited process)
+Stage U's harness is built around the Transformers/PatchController path, so arm U is audited on
+the stage P path instead: `h2_perf_abba.py audit U`, the perf workload, 20 optimizer steps,
+the same trainer path as a stage P run plus update evidence. Unsloth is imported first in the
+process, before torch and transformers. An audited run hashes the whole model and is never timed.
+S1 the pinned stack must import, load the 8B snapshot in 4-bit and train. An import, load or
+   kernel-compilation error, or a refusal by Unsloth of the pinned Transformers/TRL versions,
+   gives UNSLOTH_INCOMPATIBLE with the full error. No other Unsloth or library version is tried
+   under this protocol.
+S2 work: 20 optimizer steps measured; per-step useful and total token counts observed in
+   training_step equal the frozen 20-step sequence of perf_workload_receipt.json.
+S3 updates (h2_update_oracle.audit_update): adapter bytes changed; no frozen parameter, buffer
+   or NF4 quant-state byte changed; finite nonzero adapter gradients observed before optimizer
+   steps; every loss finite; bench validity (no zero or non-finite gradient norm). The trainable
+   manifest must hold LoRA A and B on all seven target projections in every layer.
+S4 record, never gated: Unsloth version; parameter and trainable dtypes; gradient-checkpointing
+   flag; forward bindings of model, attention, MLP, norms and the loss function; per-step
+   losses. No kernel profile is taken.
+Declared differences that are part of arm U and are not equalized: Unsloth builds its own
+4-bit config (double quantization on, as in A); Unsloth's get_peft_model initializes the LoRA
+weights with its own random state, not seed 42, so initial adapters differ from A; Soup asks
+for use_gradient_checkpointing="unsloth"; dtype is chosen by Unsloth. soup bench train refuses
+the Unsloth backend by name; the runner skips that scope check for arm U only, and S2/S3 stand
+in for it.
+Outcome: UPDATES_PASS, UPDATES_FAIL(row), UNSLOTH_INCOMPATIBLE or VOID(check).
+
+4. Stage P: interleaved throughput and peak VRAM
+P1 Workload. benchmarks/h2/perf_workload.jsonl, 96 synthetic English-like rows, written by
+   benchmarks/harness/h2_perf_workload.py (seed 20261102). Real token accounting is frozen in
+   perf_workload_receipt.json by h2_perf_receipt.py: 404-956 tokens per formatted row, mean
+   686.35, 65,890 tokens, 47,981 useful targets (72.82%), no row reaches max_length 1024, and A
+   and L prepare identical ids and targets. Systems workload only: no quality claim.
+P2 Arms admitted. A always; L only with UPDATES_PASS in stage U; U only with UPDATES_PASS in
+   stage S. An arm not admitted is reported as not measured, with the stage outcome.
+P3 Run. One run = one fresh process on one arm: 20 optimizer steps, the first 4 discarded as
+   warm-up, 16 counted (64 rows). Same row order in every arm (data_seed 42).
+   The run number is useful tokens per second over the 16 counted steps (useful target tokens /
+   summed counted step wall time, CUDA-synchronized step boundaries, as in soup bench train).
+   Deviation from METHOD.md, declared here: METHOD's run number is the median step time; rows
+   here have different lengths by design, so the token-weighted rate is used. Median step time,
+   total tokens/s and every step time are recorded too.
+   Peak VRAM per run: torch.cuda.max_memory_allocated and max_memory_reserved, reset at the
+   start of training (soup bench train).
+P4 Run validity. A run is VALID only if: the child exits 0 within 600 s; 20 steps measured;
+   the bench validity checks pass (trainable parameters present, parameters changed, no zero or
+   non-finite gradient norm); the useful and total token counts of all 20 steps equal the frozen
+   step sequence in perf_workload_receipt.json (one real 20-step CPU run of arm A through the
+   same runner, tiny stand-in model); for L, PatchController.verify passes after training; the
+   F1 checks of section 5 are not void; no other process on the GPU before or after.
+   A void F1 check or a non-exclusive GPU voids the run and its block; the block is replaced
+   (METHOD), all records kept. Any other invalid run is a code or setup failure that a
+   replacement would only repeat: the attempt stops at once with FAILED_RUN.
+P5 Block. Three arms: A L U U L A. Two arms: A X X A. Linear drift cancels for every pair inside
+   a block. Each pair (A,L) and (A,U) gets one difference per block: mean of its arm's two runs
+   minus mean of A's two runs.
+P6 Repeats (METHOD.md, per pair). 5 pilot blocks, counted. sigma = pooled run-to-run SD of the
+   pair, delta = 10% of the mean of A, N = max(2, ceil(7.85 * (sigma/delta)^2)). Run blocks up
+   to the largest N over admitted pairs, recompute N once from all blocks, top up once, stop.
+   Each pair's test uses only its own first N valid blocks, so blocks run for the other pair
+   cannot move it.
+   Hard cap: 12 valid blocks per stage P attempt (budget). A pair whose N exceeds 12 gets
+   NO_VERDICT_INSUFFICIENT_REPETITIONS. More than 4 void blocks in one attempt stops it:
+   NO_VERDICT_HOST_NOISE. No new block starts when the remaining lease cannot hold one:
+   INCOMPLETE_DEADLINE, and pairs short of N get NO_VERDICT_INSUFFICIENT_REPETITIONS.
+P7 Test and labels, per pair, on the valid blocks: mean block difference d, two-sided one-sample
+   t-test against 0, alpha 0.05, 95% t interval. Ratio r = 1 + d / mean(A useful tok/s), with
+   the interval scaled the same way.
+   FASTER if the interval lies above 0; SLOWER if below 0; NO_DETECTABLE_DIFFERENCE otherwise,
+   reported with its interval (it is not equivalence).
+P8 Peak VRAM per arm: median over its valid runs of each measure; difference to A reported with
+   min-max. Descriptive; no threshold.
+P9 Multiplier. Published only for a pair with a label from P7, as "r (95% interval) useful
+   tokens/s on <GPU, driver, workload sha, arm config sha>", plus peak VRAM. Never extrapolated
+   to other GPUs, models, lengths, quantization or other Liger operators.
+P10 Runner. benchmarks/harness/h2_perf_abba.py: run_arm (one run, soup bench train's trainer
+   path), Series (box driver, fresh child per run inside ArmWatch) and analyze (pure; the
+   offline review recomputes every label from series.json). No profiler in timed runs; L's
+   kernel attribution comes from stage U's trace and the per-run patch bindings. Arm U runs
+   as in stage S without the audit, Unsloth imported first.
+
+5. Validity checks on every process (stages U, S and P)
+benchmarks/harness/arm_validity.py, required checks: suspend, power, foreign_reads (model disk,
+1 GB limit). GPU clock record kept for every process (never voids, always reported; any
+sw_power_cap or thermal slowdown in counted windows is listed in the report). GPU exclusivity:
+nvidia-smi shows no other compute process before and after each process. Box identity (boot id,
+GPU UUID) constant within a lease.
+
+6. Leases, budget and stop rules
+Total budget for this protocol: 6.00 USD of displayed Vast spend. Planned split: stages U and S
+on one lease, cap 1.50; stage P, cap 3.00; reserve 1.50, usable only for one repeat of stage P
+after an attempt ends in NO_VERDICT_HOST_NOISE or an F1-voided series, never after a code
+failure. Machine: one RTX 4090, whole machine rented (gpu_frac 1, single GPU), verified,
+reliability >= 99%, total rate <= 0.60 USD/h with disk; 32 GB container plus 100 GB local
+volume; template "C3 H2 existing-key owner recovery 002"; protected resources untouched.
+Lease length from the rent request = min(L, floor((cap - 0.10) / rate) minutes - 1), with
+L = 150 min for U+S and 240 min for P; 0.10 USD of each cap is kept for traffic. Dispatch
+refuses when the remaining lease cannot cover the stage bound (U+S: 2400 + 600 s; P: one block)
+plus the 40 s cleanup reserve and the measured export margin.
+Bounds: U and S 600 s per process, 2400 s for stage U and 600 s for stage S; P 600 s per run;
+the P series stops starting blocks at lease - export margin - 40 s. External watchdog on every process. No retry, resume or partial rerun of a failed
+process; a void P block is replaced only under P6.
+Evidence: preserved with a manifest, exported to the USB drive, archive sha256 verified on the
+Mac before the instance and its volume are destroyed; local APFS restore and an offline review
+before any report. Billing and endpoint data stay out of public files.
+
+7. Mapping to the H2 card checklist
+1 same 8B recipe for every arm: section 1, stage U/S manifests, P4 token equality.
+2 versions, targets, numerics, token accounting: runtime lock, configs, receipts, S3, P1.
+3 actual adapter updates: stages U and S (U2).
+4 full tok/s and memory, interleaved: stage P.
+5 multiplier only for the measured configuration: P9.
+Dependencies D1/D2/D3 and H1 are reported with their state at the time of the report; their
+acceptance is the reviewer's decision and is not assumed here.

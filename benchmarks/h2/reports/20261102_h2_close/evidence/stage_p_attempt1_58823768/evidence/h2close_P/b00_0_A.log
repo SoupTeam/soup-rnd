@@ -1,0 +1,16 @@
+W1102 13:10:55.489000 4705 torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W1102 13:10:55.570000 4705 torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading tokenizer: /data/h2/model_snapshot
+Loading model: /data/h2/model_snapshot
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<00:37,  7.74it/s]Loading weights:   1%|          | 2/291 [00:00<00:37,  7.75it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:06, 46.02it/s]Loading weights:  10%|▉         | 28/291 [00:00<00:03, 82.32it/s]Loading weights:  14%|█▍        | 42/291 [00:00<00:02, 99.66it/s]Loading weights:  20%|██        | 59/291 [00:00<00:01, 121.14it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 134.02it/s]Loading weights:  31%|███▏      | 91/291 [00:00<00:01, 137.01it/s]Loading weights:  36%|███▌      | 105/291 [00:00<00:01, 133.72it/s]Loading weights:  42%|████▏     | 122/291 [00:01<00:01, 142.31it/s]Loading weights:  48%|████▊     | 139/291 [00:01<00:01, 148.27it/s]Loading weights:  53%|█████▎    | 154/291 [00:01<00:00, 147.36it/s]Loading weights:  58%|█████▊    | 169/291 [00:01<00:00, 142.51it/s]Loading weights:  64%|██████▎   | 185/291 [00:01<00:00, 144.87it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 150.64it/s]Loading weights:  75%|███████▍  | 218/291 [00:01<00:00, 152.16it/s]Loading weights:  80%|████████  | 234/291 [00:01<00:00, 149.44it/s]Loading weights:  86%|████████▌ | 249/291 [00:01<00:00, 144.89it/s]Loading weights:  91%|█████████▏| 266/291 [00:02<00:00, 150.39it/s]Loading weights:  97%|█████████▋| 283/291 [00:02<00:00, 153.02it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 131.16it/s]
+LoRA applied: 41,943,040 trainable / 8,072,204,288 total (0.52%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/96 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map:  19%|█▉        | 18/96 [00:00<00:00, 168.32 examples/s]Map:  38%|███▊      | 36/96 [00:00<00:00, 168.49 examples/s]Map:  57%|█████▋    | 55/96 [00:00<00:00, 171.78 examples/s]Map:  77%|███████▋  | 74/96 [00:00<00:00, 175.40 examples/s]Map: 100%|██████████| 96/96 [00:00<00:00, 154.37 examples/s]Map: 100%|██████████| 96/96 [00:00<00:00, 161.01 examples/s]
+Map:   0%|          | 0/96 [00:00<?, ? examples/s]Map: 100%|██████████| 96/96 [00:00<00:00, 3268.82 examples/s]
+Auto mixed-precision picked: bf16 (model=/data/h2/model_snapshot, cc=8.9)
+Gradient checkpointing: full (every block)
+Truncating train dataset:   0%|          | 0/96 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 96/96 [00:00<00:00, 13832.60 examples/s]
+Rewind log: /tmp/soup-bench-vhx2mlff/rewind.jsonl

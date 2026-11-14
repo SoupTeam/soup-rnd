@@ -1,0 +1,48 @@
+H2 prospective model-probe numerical policy v1 (candidate, not yet committed)
+
+Purpose
+Before any performance comparison, compare the model's scalar causal loss and
+all declared LoRA gradients on the same deterministic first tokenized dataset
+row through the actual trainer collator. Use train mode, dropout0, no optimizer,
+and declared bf16 CUDA autocast. The FP32 CPU controls test the auditor only;
+they do not establish that any Liger/Unsloth8B CUDA stack meets these limits.
+
+Exact prerequisites
+Initial trainable names/shapes/dtypes/bytes, frozen parameters and buffers,
+complete reviewed bitsandbytes NF4 decode state, and actual input tensor values
+must match. A seed or matching tensor count is insufficient. Zero reference
+gradients must remain exactly zero; missing gradients or nonfinite values fail.
+Raw input and gradient tensors are exported in safetensors, with per-tensor and
+file SHA. The local comparator recomputes hashes, actual causal token counts and
+FP64 gradient metrics in bounded chunks. No pickle loading is used.
+
+Prospective screening limits (numerical_policy.json is the machine input)
+- Scalar loss: |candidate-reference| <=0.01+0.01*|reference|.
+- Each gradient: max absolute difference <=0.0001+0.02*max|reference|.
+- Each nonzero-reference gradient: L2(error)/L2(reference) <=0.02.
+- Nonzero gradient cosine >=0.999. Both-zero vectors have cosine1; a single
+  zero vector fails. At least one reference adapter gradient must be nonzero.
+
+These are declared engineering screening thresholds, not vendor guarantees or
+experimentally validated8B tolerances. They permit small BF16 rounding while
+refusing sign/scale/masking/state errors. The CPU negative controls establish
+that the auditor rejects those faults, not that these limits detect every bug.
+Commit the policy and pin its SHA in the attempt authority BEFORE GPU evidence.
+Do not loosen the limits after observing a failed arm. A different numerical
+policy requires a separately declared experiment and must retain earlier evidence.
+
+Scope limits
+A one-row model-forward/backward probe does not verify TRL's gradient-accumulation
+loss normalization, numerical agreement across32training updates, final model
+quality, executed-kernel attribution or throughput. Those remain separate gates.
+The probe clears its gradients and restores torch RNG and module train/eval flags.
+No optimizer step occurs. A before/after state change refuses the probe.
+Correctness runner evidence still requires independent review; no automatic
+performance phase is authorized by a passing probe or by this document.
+
+Local audit after two separately preserved correctness runs
+python benchmarks/harness/h2_numerics.py --reference /local/baseline/model_probe \
+  --candidate /local/liger/model_probe --policy benchmarks/h2/numerical_policy.json \
+  --out /new/local/liger_probe_audit.json
+Repeat the audit separately for Unsloth. Save all failed comparisons as well.
+No H2 GPU run, rental or source commit is implied by these example commands.

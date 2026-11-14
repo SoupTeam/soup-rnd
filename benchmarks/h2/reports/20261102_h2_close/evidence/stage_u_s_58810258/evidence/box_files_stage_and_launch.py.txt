@@ -1,0 +1,10 @@
+import json,pathlib,subprocess,time,hashlib
+p=pathlib.Path('/data/h2');a=json.loads((p/'rental.json').read_text())
+assert pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()==a['boot_id']
+assert subprocess.check_output(['nvidia-smi','--query-gpu=uuid','--format=csv,noheader'],text=True).strip()==a['gpu_uuid']
+assert hashlib.sha256((p/'setup_supervisor.py').read_bytes()).hexdigest()==a['setup_supervisor_sha256']
+cmd=['python3',str(p/'setup_supervisor.py'),'--script',str(p/'setup.sh'),'--sha256',a['setup_sha256'],'--output',str(p/'evidence/setup_supervised_001'),'--max-seconds','1800','--deadline-unix-s',str(min(time.time()+1800,a['lease_deadline_unix_s']-2700))]
+with (p/'evidence/setup_dispatch.log').open('xb') as log:
+ child=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+(p/'evidence/setup_launcher.json').write_text(json.dumps({'pid':child.pid,'cmd':cmd,'unix_s':time.time()},indent=2))
+print(json.dumps({'pid':child.pid,'status':'DISPATCHED'}))

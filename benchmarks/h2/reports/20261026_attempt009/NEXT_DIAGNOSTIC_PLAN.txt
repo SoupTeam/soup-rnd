@@ -1,0 +1,34 @@
+H2 prospective diagnostic plan — DRAFT, NO EXECUTION AUTHORIZATION
+
+Question: which patched operation or compute/reduction policy explains the
+baseline/Liger model-probe gradient mismatch on the exact NF4/bf16 snapshot?
+A failed engineering tolerance is not proof that Liger is generally incorrect.
+The observed scalar loss passes its threshold; gradients do not. Preserve this
+attempt as FAIL, even if a future isolated configuration passes.
+
+Before another rental:
+1. Inspect pinned Liger 0.8.5 patch defaults and actual Transformers 5.17.0
+   call signatures. Record precise patched functions and resolved compute dtypes.
+2. Prepare separate fresh-process configurations: baseline; CE only; Fused-LCE only; RMSNorm
+   only; RoPE only; SwiGLU only; current combined treatment. Do not modify or
+   reuse an already patched process. Reject unsupported individual patch options.
+3. For each, restore the same exact trainable/frozen/NF4 initial hashes and
+   identical raw input tensors. Keep autocast, checkpointing, masking and RNG
+   policies fixed. Save model loss and raw adapter gradients before optimizer.
+4. Retain the existing numerical thresholds for comparison. Add FP32 small
+   operator reference controls for diagnosis, including backward and finite
+   differences where meaningful; those controls do not replace 8B CUDA evidence.
+5. Review causal loss reduction and dtype/cast paths explicitly. Treat a
+   different precision/reduction policy as a separate declared experiment.
+6. Freeze scripts, fixtures, negative controls, expected counts, source hashes,
+   runtime, budget and process deadlines before execution; no iterative paid
+   edits, reruns or threshold adjustment after results.
+7. Only after accepted parity design a separate full-training equivalence and
+   representative performance study. The 24-token correctness fixture and
+   instrumented run times are not throughput evidence.
+
+No new GPU launch, package change or source commit is implied by this draft.
+
+2026-10-27 clarification: Llama defaults use Fused-LCE, not standalone CE.
+Apply matching explicit flags at both Soup class and Trainer instance patch
+points in fresh processes. See ../20261027_local_diagnostic/REPORT_RU.txt.

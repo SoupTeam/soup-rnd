@@ -1,0 +1,33 @@
+{
+  "status": "REVIEWED_BLOCKED_DIAGNOSTIC",
+  "source_commit": "b9727b00f61c655a8461987032480712fab1272c",
+  "arms": {
+    "baseline": {
+      "status": "PASS_MODEL_PROBE_TOLERANCES",
+      "loss": 15.923088073730469
+    },
+    "ce_only": {
+      "status": "FAILED",
+      "error": "ValueError: Missing/duplicate/unexpected patch point"
+    }
+  },
+  "series": {
+    "status": "BLOCKED",
+    "arms": {
+      "baseline": "PASS_MODEL_PROBE_TOLERANCES"
+    },
+    "performance_verdict": "NO_VERDICT",
+    "provider_stop_performed": false,
+    "error": "RuntimeError: Failed supervised capture: ce_only"
+  },
+  "optimizer_updates": 0,
+  "completed_backward_calls": 1,
+  "unstarted_arms": [
+    "fused_lce_only",
+    "rms_norm_only",
+    "rope_only",
+    "swiglu_only",
+    "combined"
+  ],
+  "performance_verdict": "NO_VERDICT"
+}

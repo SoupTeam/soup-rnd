@@ -1,0 +1,114 @@
+H2 CE-function micro-test protocol (prospective; attempt017)
+===========================================================
+Date: 2026-10-29. Script: benchmarks/harness/h2_ce_microtest.py. Plan: attempt017_plan.md revision 2e (logits drawn on the CPU as in revision 2c).
+Plan revision 2e. Fixed before any run. The regimes, constants and interpretation below were written AFTER attempt015 and
+attempt016 were seen by everyone involved, so they are NOT blind to those results.
+
+What this is and is not
+-----------------------
+An EXPLANATORY micro-test of the cross-entropy function alone. It asks whether Liger's fp32 CE gradient is
+further from an fp64 reference than PyTorch's on synthetic bf16 logits, and how many bf16-propagated gradient
+elements differ. It cannot turn the attempt015/016 BLOCKED outcomes into PASS. numerical_policy.json is not
+read, used or changed; the CE runner, workset, fixture and every pinned runner file are untouched (the script
+only READS ce_confirmation_workset.json for shapes and masks). It is not H2 acceptance and not a speed result.
+
+CONVENTIONS (arbitrary, decisive, not derived, not tuned to the 015/016 numbers)
+  u = 2^-24 (fp32 unit roundoff; not arbitrary); A = 17 u (17 = ceil(log2 128256), an ASSUMPTION that an
+  fp32 reduction behaves like a tree of that depth); Rho = 2; the 50% threshold of label (a); the 10% marginal
+  band; the gate rule in section 5; the logit scales; five seeds; 200 cases. They are fixed when this file is
+  committed.
+
+Design
+------
+One fresh process, two phases. Phase 1 runs every PyTorch case (including repeats) with the stock
+F.cross_entropy. Then ONE rebind through the real
+apply_liger_kernel_to_llama(rope=False, cross_entropy=True, fused_linear_cross_entropy=False,
+rms_norm=False, swiglu=False), which is never restored, followed by a delegating call counter. Phase 2 runs
+every Liger case. The binding is asserted before every case.
+Per case: bf16 logits z = bf16(s * randn(N, V)), i.i.d. Gaussian with standard deviation s, drawn on the CPU
+from a seeded generator, rounded to bf16 on the CPU and copied to the GPU (no CUDA matmul is involved, so
+regeneration in phase 2 cannot depend on the cuBLAS algorithm chosen), V = 128256; labels from the real frozen probe rows (shapes [1,24],
+[1,48], [1,96], [2,192]; 6, 12, 24, 54 targets) or, in the self-consistent regimes, targets drawn from the
+softmax (only the ignore mask and shapes are then real). Regimes: random targets at s = 1, 2, 3 and
+self-consistent targets at s = 1.5, 2; 5 seeds (0..4); paths 'mean' (probe path) and 'sum24' (sum divided by
+num_items_in_batch = 24, the real training-window denominator at every shape). 4 x 5 x 5 x 2 = 200 cases.
+Implementations: P = transformers ForCausalLMLoss with stock cross_entropy; L = the same call after the
+rebind; R = fp64 reference from the SAME fp32 values, computed two independent ways (shifted softmax and
+log-sum-exp) that must agree to 1e-13 relative, else VOID; alt = an independent PyTorch fp32 log-sum-exp route
+with autograd (empirical anchor). Each of P and L is evaluated for two variants (fp32 leaf = the fp32-level
+gradient; bf16 leaf = the gradient that really propagates) and twice each (determinism repeats; non-equal
+repeats are REPORTED, never drop a case).
+In-place hazard: Liger writes its gradient over its input. The master tensors are never passed to either
+implementation; every call gets a fresh clone; after each case the master logits hash is re-checked
+(mismatch = VOID); P modifying its clone is VOID; L modifying its clone is only recorded.
+Same-input guarantee: phase 1 stores SHA-256 of the logits and labels of every case and the P fp32 gradients
+on disk; phase 2 regenerates each case from its seed and verifies both hashes (mismatch = VOID).
+
+Metrics
+-------
+Per case, fp32 level, against R: E = global relative L2, M = max-abs / max|R|, C = cosine; rho = E_L /
+max(E_P, u). D = relative L2 between implementations ((P,L), (P,alt), (L,alt)). bf16 level (PRIMARY
+descriptive outcome, no pass/fail label): count of bf16 elements with bf16(g_X) != bf16(R) for X in {P, L},
+the P-vs-L flip count, and the downstream dh = dlogits_bf16 @ W relative L2 between P and L and each against
+dh from bf16(R) (W: a synthetic bf16 [V, 4096] matrix drawn once on the CPU from its own seed 20261029 and
+copied to the GPU, 1.05 GB; one matmul, not the 32-layer amplification).
+
+Run status (evaluated first)
+----------------------------
+VOID if any of: pin mismatch (torch 2.14.1, liger-kernel 0.8.5, transformers 5.17.0, triton 3.8.0), a
+different GPU class than the contract, a foreign GPU process at start, F.cross_entropy binding wrong before
+the rebind or before any case, the Liger function not bound, a failed kernel-ran check (section 6), a phase-1 /
+phase-2 input hash mismatch, a non-finite value, a reference self-check above 1e-13, a master/clone integrity
+failure, a delegate call count other than one per loss evaluation, or any unexpected failure. INCOMPLETE if
+fewer than all 200 cases ran (a missing case is never dropped silently). Otherwise COMPLETE.
+
+CE-level label for a COMPLETE run (first match wins)
+----------------------------------------------------
+a. BOTH_OUTSIDE_A_AT_CE_LEVEL_SYNTHETIC: in at least half of the 200 cases both E_P > A and E_L > A.
+b. LIGER_WORSE_AT_CE_LEVEL_SYNTHETIC: not (a) and at least one case has E_L > A and rho > Rho.
+c. LIGER_NOT_WORSE_AT_CE_LEVEL_SYNTHETIC: not (a) or (b), and in every case E_L <= A and rho <= Rho.
+d. INCONCLUSIVE_AT_CE_LEVEL: everything else (e.g. E_L <= A everywhere but rho > Rho somewhere: a floor effect).
+MARGINAL is reported when a deciding quantity is within 10% of A or Rho (for (a): the case count within 10% of
+half the cases).
+
+Representativeness gate (loss-paired)
+-------------------------------------
+HIGH-loss cell: random-target s = 2 at the 24- and 48-row shapes, both paths, all 5 seeds: the P-vs-L bf16
+flip count must be ZERO in every case. LOW-loss cell: self-consistent s = 1.5 at the 96- and 384-position
+shapes, per shape and path: at least one flip in at least 4 of 5 seeds. The other cells are descriptive. If
+the gate fails the run is labelled NOT_REPRESENTATIVE: the CE-level label is still reported, the explanatory
+reading is WITHHELD.
+
+Kernel-ran rule (one rule)
+--------------------------
+(a) Every Liger case runs through a delegating call counter on the rebound function (binding checked against
+wrapper.__wrapped__); a count other than one call per loss evaluation (4 per case) is VOID. (b) A profiler
+capture on a fixed subset: the first case (seed 0, first regime) of each of the 4 shapes on both paths (8
+Liger cases) and, on the PyTorch side, the first case of the 24-row and the 384-position shapes on the 'mean'
+path (2 cases). A kernel event whose name contains liger_cross_entropy must appear in every captured Liger
+case and in none of the captured PyTorch cases; any miss is VOID.
+
+Receipts
+--------
+At start and end: versions, GPU name/UUID/driver, nvidia-smi clocks and throttle reasons, GPU process list,
+boot ID, deterministic and TF32 flags. Output: result.json (per-case records, label, gate, anchor, bf16
+primary outcome, profiler checks, receipts, seconds). The script's sha256 is pinned in the attempt contract.
+
+What may be said
+----------------
+"CE-function accuracy only, synthetic logits. This says nothing about which LoRA-B gradient is nearer the
+truth or why probes 02 and 03 differ. The attempt015/016 BLOCKED outcomes and the policy are unchanged. fp32
+accuracy parity does not imply the same bf16-propagated gradients. Explanatory; it cannot turn attempt015/016
+into PASS." The words "equally valid implementations" or any exoneration language are not allowed.
+
+Limitations (realism caveats)
+-----------------------------
+The logits are not from a CUDA matmul or a model, so bf16 rounding differs slightly from the real lm_head
+path. Entries are independent across the vocabulary (a real lm_head output has structure and heavy tails),
+independent of the labels, and not low rank; the construction reproduces bf16 rounding of logits and the
+shape/dtype path, not the real logit distribution. Also: rho is dominated by the u floor when
+PyTorch is near-exact; the self-consistent regime does not use the real labels; GPU-class specific (RTX 4090
+class). The phase-1 / phase-2 SHA-256 check of logits and labels stays; a mismatch is VOID, not silently
+compared. CPU cost: up to 384 x 128256 normals per case (about 49 M numbers), twice per case (UNVERIFIED,
+expected seconds). CPU tests cover the logic with a stand-in Liger module and
+cannot exercise the Triton kernel, the CUDA matmul or the profiler.

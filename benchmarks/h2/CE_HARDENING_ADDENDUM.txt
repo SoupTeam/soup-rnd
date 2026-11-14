@@ -1,0 +1,68 @@
+H2 CE confirmation hardening addendum (prospective)
+===================================================
+Date: 2026-10-29. Applies to any FRESH attempt whose source commit contains this file.
+It is NOT a retry, resume or reinterpretation of attempt014, which stays BLOCKED/VOID.
+
+Scope
+-----
+Four fail-closed evidence changes to the CE runner. Nothing here changes thresholds,
+numerical_policy.json, the workset, the prepared fixture, the model pins, the 2400 s / 600 s / 40 s
+limits, the PID/F1/clock controls, or h2_gpu_correctness.py and the other SOURCES-pinned files.
+No result of any run was seen when these rules were written.
+
+R7 Child alarm from the shared deadline
+  alarm = int(min(max_seconds, deadline_unix_s - now - 40 - 15)). If that is <= 2 s the child
+  refuses to start. The alarm is armed through arm_alarm and disarmed through disarm_alarm, which
+  also turns an already pending SIGALRM into a no-op. run_child disarms first in both its
+  except clause and its finally block, before controls.stop() and every evidence write, so a
+  timeout can no longer cut the evidence short. The supervisor timeout (bounded_process) is
+  unchanged and still enforces the bound. Residual: the signal can still interrupt the
+  interpreter in the few bytecodes between the body ending and the disarm call; evidence is then
+  still written by the finally block, and the child exits non-zero.
+
+R2 Strict normalization denominator
+  Recorder.batch and read_training require num_items_in_batch to be a Python int (bool, float,
+  str and None are refused) and equal to the shifted useful-target count of the four-microbatch
+  window containing the batch (window_targets in h2_ce_training.py). The CPU test run observed
+  8, 12, 16, 20 for the test rows, as plain ints, in both arms. For the frozen GPU workset every
+  window is 6 shifted targets x 4 microbatches = 24 (plan: 96 useful targets per arm), asserted
+  against the real ce_confirmation_workset.json in tests/test_h2_ce_hardening.py.
+
+R3b Audit receipt records configuration
+  prepared_batch_audit additionally records dataset_columns (the trainer train_dataset columns)
+  and collator {class, pad_token_id, padding_free, completion_only_loss, pad_to_multiple_of}.
+  A collator missing any of those fields fails the audit. Recording only: the row comparison
+  is unchanged.
+
+R4 Workset linked to audited prepared rows
+  Before the training dataset is replaced, validate_workset_link requires 16 distinct integer
+  training_row_indices in range and, for each fixed training batch j, that
+  collate([prepared_row[training_row_indices[j]]]) equals work.training_batches[j] and the frozen
+  expected row, for input_ids, attention_mask and labels. The receipt is stored as
+  workset_link in the child evidence.
+
+Budget reset (no code change)
+-----------------------------
+validate_contract keeps its budget_cap_usd <= 5 check and its worst-case formula
+prior_spend_usd + hourly_rate_usd * 2400 / 3600 + cleanup_traffic_reserve_usd <= budget_cap_usd.
+A new attempt may declare a different prior_spend_usd in its contract (a reset or reconciled
+value); this is a contract field and needs no runner change. Any such value must come from a
+user-reconciled billing read recorded in that attempt's prospective plan, and the cap constant
+stays 5. A cap above 5 would be a separate prospective code change, not part of this addendum.
+
+Pinning
+-------
+CE_HARDENING_ADDENDUM.txt is added to the runner ARTIFACTS tuple, so a new contract must pin its
+sha256. The runner files changed here (h2_ce_confirmation.py, h2_ce_training.py) are already in
+ARTIFACTS; the contract of the next attempt pins their new hashes (taken from git show of the new
+source commit). No ENFORCED in-repository pin stores the runner hashes: validate_contract compares
+the per-attempt contract with the files, and ce_confirmation_plan.json files_sha256 lists seven other
+files, all unchanged. Historical local-review receipts (ce_confirmation_local_review.json,
+ce_prepared_batches_local_review.json) record earlier runner hashes; no code reads them, they are
+not edited, and the next contract's pins supersede them. SOURCES-pinned files
+(h2_gpu_correctness.py etc.) are unchanged.
+
+Limits
+------
+CPU evidence only. This does not validate Liger or CUDA behavior, and does not add any
+performance claim. Result label of a passing future series remains COMPLETE_CE_NUMERICAL_SERIES.
