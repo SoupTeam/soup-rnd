@@ -1,0 +1,69 @@
+G3 candidate selection recovery v1 — prospective, no GPU execution
+
+Purpose
+The third attempt passed two 64 MiB staged control transfers and F1 checks,
+but both direct processes failed at cuFileDriverOpen with code 5001
+(CU_FILE_DRIVER_NOT_INITIALIZED). No direct reads completed. This remains
+NO_VERDICT, not an unsupported-hardware result and not a completed G3 study.
+Earlier attempts respectively exposed a source compile defect and loop storage.
+All three attempts were preserved and their provider resources deleted.
+
+Selection correction
+GeForce-focused selection did not follow NVIDIA's documented support baseline.
+Selecting a supported GPU alone also does not establish a configured transport.
+Use a conservative professional shortlist A40/L4/L40S/A100 for the next candidate;
+this is a selection policy, not a complete vendor support list. Check the actual
+installed GDS release against its version-specific support documentation too.
+
+Reference reviewed 2026-10-23
+https://docs.nvidia.com/gpudirect-storage/troubleshooting-guide/index.html
+Sections 3.2.2, 4.1, 4.2 and 16 describe diagnostics, initialization errors,
+GPU requirements and the separate PCI P2PDMA route. The online page is mutable;
+this document records the decision rather than treating it as runtime evidence.
+
+Scope and decision
+g3_readiness.py reads an existing g3_capability inventory JSON offline. It does
+not install packages, execute CUDA/cuFile, allocate device memory, transfer data,
+modify host settings or authorize a rental. The input and gate SHA are recorded.
+Missing/failed/truncated diagnostics reject the candidate. Required selection
+signals: one shortlisted GPU, attributable nonrotational local NVMe namespace,
+XFS or explicitly ordered EXT4, boot ID, loaded nvidia_fs, readable counters,
+gdscheck NVMe nvfs/Supported and GPU 0 supports GDS, no compat/P2PDMA override.
+The gate is deliberately restricted to the existing nvidia-fs route. A P2PDMA
+diagnostic is rejected here, not classified as unsupported. Do not attempt to
+enable it by setting an environment variable or altering kernel parameters.
+
+Passing produces CANDIDATE_REQUIRES_LIVE_REVIEW, never READY/SUPPORTED. Saved
+inventory is unauthenticated historical evidence: recollect on the selected host,
+review matching GPU UUID/boot/mount, GDS version, driver and route before use.
+The gate is not a substitute for live ownership, runtime library checks, budget,
+calibration, source freeze, counters, full byte oracle or independent audit.
+
+Before another paid attempt
+1. Commit this prospective selection addendum and tests; do not alter or retry
+   any existing measured arm. The original frozen primitive protocol remains.
+2. Prefer an operator-confirmed existing GDS configuration. A provider GPU/NVMe
+   advert alone is insufficient; do not represent a price listing as GDS-ready.
+3. Account for ALL earlier attempts within the original $3 ceiling. $0.75 is a
+   conservative prior-attempt reservation, not a provider invoice. Resolve any
+   billing uncertainty conservatively before choosing runtime/storage/traffic.
+4. Run bounded read-only inventory first on any separately authorized candidate.
+   If the route is missing, preserve diagnostics and stop; no blind direct retry.
+5. Before measured execution, native compilation with stats enabled must succeed.
+   Prior CUDA 12.8.1 images lacked cufile_stats.h; stats-off cannot prove a positive
+   route or qualify a performance run. Resolve this before measured execution.
+6. Freeze a separate attempt authority: exact commit, budget, boot, GPU, storage,
+   runtime/header/library SHAs, deadline and protocol. Run fresh calibration and
+   C,D,D,C only after checks. Performance requires a positive locally audited
+   route. Two independent drives and concurrency remain required for full G3.
+
+No module loading, kernel/driver/security configuration changes, reboots, forced
+compatibility or fallback claims. If no configured host fits the remaining cap,
+report ENVIRONMENT_BLOCKED and retain the reproducible partial evidence. Do not
+mark G3 complete, silently enlarge budget, or start H2 with this authorization.
+
+Offline usage (repository root)
+python benchmarks/harness/g3_readiness.py --inventory /path/inventory.json \
+  --out /new/path/readiness.json
+Outputs are exclusive. Historical rejection is diagnostic only; it does not
+retroactively change the accepted audit or verdict of an earlier attempt.
