@@ -2295,6 +2295,12 @@ class SFTTrainerWrapper(StreamingSetupMixin):
         attach_relora_callback(self.trainer, self.config.training)
         # LISA layerwise importance sampling (v0.71.34 #267).
         attach_lisa_callback(self.trainer, self.config.training)
+        # ZERO-2 — LoRA on a subset of the decoder layers (training.lora_layers).
+        from soup_cli.utils.layer_select import attach_layer_select_callback
+
+        attach_layer_select_callback(
+            self.trainer, self.config.training, self._output_dir, console
+        )
         # v0.53.5 #114/#115 — dynamic curriculum live callback.
         attach_curriculum_callback(
             self.trainer, self.config.training, self._output_dir, console

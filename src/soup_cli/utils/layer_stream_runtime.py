@@ -2873,8 +2873,12 @@ def assert_streamed_adapter_saved(model: Any, output_dir: str) -> None:
     side.
     """
     path = os.path.join(output_dir, _ADAPTER_WEIGHTS_FILE)
+    # ``training.lora_layers`` freezes the adapters of the layers it leaves out; they are
+    # still part of the adapter and saved (``layer_select.FROZEN_BY_SELECTION``).
     expected = sum(
-        1 for name, param in model.named_parameters() if param.requires_grad and "lora_" in name
+        1 for name, param in model.named_parameters()
+        if "lora_" in name
+        and (param.requires_grad or getattr(param, "_soup_frozen_by_layer_select", False))
     )
     if not os.path.isfile(path):
         raise RuntimeError(

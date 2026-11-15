@@ -631,6 +631,37 @@ see capability regressions a task benchmark would. Full measurement record:
 Implementation note: the model is left fully trainable at trainer-setup time so HF's optimizer (built before the first callback fires) contains every decoder parameter; the LISA callback then toggles `requires_grad` per interval — frozen parameters produce no gradient and the optimizer skips them.
 
 
+## LoRA on a subset of layers (`training.lora_layers`, experimental)
+
+LoRA is attached to every layer the target modules match; `lora_layers` decides which layers'
+adapters train and freezes the rest (no gradient, no optimizer step). Unlike `lisa_enabled`
+(full fine-tuning) it trains only adapters, so it works with `quantization: 4bit` and layer
+streaming (with or without `l2l`).
+
+```yaml
+training:
+  lora_layers:
+    method: grad        # fixed | random | grad | angular | lisa
+    k: 8                # layers that train (fixed takes `layers: [...]` instead)
+    probe_rows: 64      # grad / angular: training rows the probe reads
+    interval_steps: 20  # lisa: re-draw every N optimizer steps
+    seed: 0
+```
+
+- `grad`: before training the first `probe_rows` rows run forward and backward with every
+  adapter on; the `k` layers whose adapters get the largest mean squared gradient train.
+- `angular`: the same rows forward only; the `k` layers that turn the residual stream most
+  (mean `arccos(cos) / pi` between a layer's input and output) train.
+- `random`: `k` layers drawn once, the control for the scored methods.
+- `lisa`: `k` random layers re-drawn every `interval_steps`, the optimizer state of adapters
+  that go inactive cleared (LISA, arXiv 2403.17919, over LoRA).
+
+The probe reads its rows in order on its own loader and restores the random state, so the
+run's data order is unchanged. The choice, the scores and every LISA draw go to
+`<output>/lora_layers.json`. The frozen adapters stay in the saved adapter (their `lora_B` is
+untrained, so they add nothing). Refused with `lora.r: 0`, `lisa_enabled`,
+`unfrozen_parameters`, `freeze_layers`, `freeze_ratio`; sft + transformers only.
+
 ## Loss Watchdog
 
 Auto-stop training when loss spikes above a threshold (like Axolotl's `loss_watchdog_threshold`):

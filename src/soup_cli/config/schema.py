@@ -1134,6 +1134,39 @@ class StreamPartialRamConfig(BaseModel):
         return self
 
 
+class LoraLayersConfig(BaseModel):
+    """ZERO-2: which decoder layers' LoRA adapters train (``utils/layer_select.py``)."""
+
+    model_config = {"extra": "forbid"}
+    method: Literal["fixed", "random", "grad", "angular", "lisa"] = Field(
+        description=(
+            "fixed: the listed layers. random: k layers drawn once. grad: before training, "
+            "probe_rows training rows run forward and backward and the k layers whose "
+            "adapters get the largest mean squared gradient train. angular: the k layers "
+            "that change the residual stream most on those rows (forward only). lisa: k "
+            "random layers re-drawn every interval_steps optimizer steps (LISA over LoRA)."
+        ),
+    )
+    k: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
+    layers: Optional[List[int]] = Field(default=None, min_length=1, max_length=1024)
+    probe_rows: int = Field(default=64, ge=1, le=100_000, strict=True)
+    interval_steps: int = Field(default=20, ge=1, le=1_000_000, strict=True)
+    seed: int = Field(default=0, ge=0, strict=True)
+
+    @model_validator(mode="after")
+    def _check_method_fields(self) -> "LoraLayersConfig":
+        if self.method == "fixed":
+            if not self.layers or self.k is not None:
+                raise ValueError("training.lora_layers.method='fixed' takes layers, not k")
+            if any(isinstance(i, bool) or i < 0 for i in self.layers):
+                raise ValueError("training.lora_layers.layers must be layer indices >= 0")
+        elif self.k is None or self.layers is not None:
+            raise ValueError(
+                f"training.lora_layers.method={self.method!r} takes k, not layers"
+            )
+        return self
+
+
 class TrainingConfig(BaseModel):
     epochs: int = Field(default=3, ge=1, description="Number of training epochs")
     lr: float = Field(default=2e-5, gt=0, description="Learning rate")
@@ -3475,6 +3508,17 @@ class TrainingConfig(BaseModel):
                 ) from None
         return value
 
+    # ZERO-2 — LoRA on a subset of decoder layers (utils/layer_select.py).
+    lora_layers: Optional[LoraLayersConfig] = Field(
+        default=None,
+        description=(
+            "Train the LoRA adapters of only some decoder layers: a fixed list, k random "
+            "ones, the k a short probe on the training data scores highest (grad, angular), "
+            "or LISA over LoRA (k random layers re-drawn every interval_steps). sft + "
+            "transformers + LoRA; works with quantization and layer streaming. The choice "
+            "and the scores are written to <output>/lora_layers.json."
+        ),
+    )
     # v0.71.34 #267 — LISA (Layerwise Importance Sampled AdamW,
     # arXiv:2403.17919). Full-FT quality at LoRA-like memory: randomly
     # re-activate a small set of decoder layers every N steps (embeddings +
@@ -6216,6 +6260,36 @@ class SoupConfig(BaseModel):
                 f"training.unfrozen_parameters (Spectrum full fine-tuning, "
                 f"LoRA off) is mutually exclusive with LoRA features: "
                 f"{', '.join(lora_conflicts)}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_lora_layers(self) -> "SoupConfig":
+        """ZERO-2 — ``training.lora_layers`` trains a subset of the LoRA adapters."""
+        tcfg = self.training
+        if tcfg.lora_layers is None:
+            return self
+        if self.task != "sft" or self.backend != "transformers":
+            raise ValueError(
+                "training.lora_layers requires task='sft' and backend='transformers'; got "
+                f"task={self.task!r}, backend={self.backend!r}"
+            )
+        if tcfg.lora.r == 0:
+            raise ValueError(
+                "training.lora_layers selects LoRA adapters; lora.r=0 trains no adapter"
+            )
+        conflicts = [
+            name for name, on in (
+                ("lisa_enabled", tcfg.lisa_enabled),
+                ("unfrozen_parameters", bool(tcfg.unfrozen_parameters)),
+                ("freeze_layers", tcfg.freeze_layers is not None),
+                ("freeze_ratio", tcfg.freeze_ratio is not None),
+            ) if on
+        ]
+        if conflicts:
+            raise ValueError(
+                "training.lora_layers chooses which layers train; it does not combine with "
+                + ", ".join(conflicts)
             )
         return self
 
