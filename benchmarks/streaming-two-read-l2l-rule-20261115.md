@@ -68,7 +68,9 @@ verdict.
 ## Host qualification and invocation
 
 Before the series, observe `diskwatch.py` for 30 idle minutes. More than two foreign-read
-bursts above 1 GB fails the host. Require a local block-device volume, direct reads at least
+bursts above max(1 GB, 5% of own reads) fail the host. Own reads are near zero when idle, so
+the limit there is 1 GB. The user changed this host check from a fixed 1 GB to the relative
+limit on 2026-11-15, before the series starts. Require a local block-device volume, direct reads at least
 2.5 GB/s, and the ticket's RAM/swap conditions. No measurement starts before host qualification
 and explicit rental authorization. Use a fresh result root; never copy an earlier host's runs.
 
