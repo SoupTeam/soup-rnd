@@ -1034,15 +1034,16 @@ def test_guard_preserves_differentiable_router_weights(
     assert_guard_closed(guard)
 
 
-def test_public_launch_still_refuses_deepseek_but_internal_step_accepts_it(
+def test_public_launch_admits_deepseek_only_with_per_expert_layout(
     make_rig: Callable[..., Rig],
 ) -> None:
     from soup_cli.trainer.l2l_trainer import refuse_unsupported_l2l
 
     rig = make_rig(k=1)
     assert l2l_step.model_parts(rig.model)[0].config.model_type == "deepseek_v3"
-    with pytest.raises(ValueError, match="deepseek_v3.*llama.*mistral"):
+    with pytest.raises(ValueError, match="deepseek_v3.*stream_expert_layout='per_expert'"):
         refuse_unsupported_l2l(rig.config, n_gpu=1)
+    refuse_unsupported_l2l(rig.config, n_gpu=1, expert_layout="per_expert")
 
 
 def test_expert_loads_remain_visible_in_trainer_logs_and_dense_fields_stay_unchanged(

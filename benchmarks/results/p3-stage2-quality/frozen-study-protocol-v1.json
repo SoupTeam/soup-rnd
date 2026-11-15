@@ -1,0 +1,216 @@
+{
+  "schema": "p3-stage2-frozen-paired-study-v1",
+  "status": "FROZEN_SCIENTIFIC_PROTOCOL_EXECUTION_BUDGET_NOT_ADMITTED",
+  "scope": "Granite approximate-backward quality experiment; not old FP8 numerical acceptance, DeepSeek readiness or phase-0 closure",
+  "base_revision": "54be201337cb7ac8ba5e58ba9ff5b55ac7b0bc81",
+  "model": {
+    "id": "ibm-granite/granite-3.1-1b-a400m-base",
+    "revision": "408b6e90baab8cf24f4aa9f8e19703ffa0a53b29",
+    "weights": "dense BF16, no NF4",
+    "adapters": "FP32 q_proj/k_proj/v_proj/o_proj rank2 alpha4 dropout0 nonzero-B scale0.02",
+    "attention": "native eager",
+    "experts": "native eager",
+    "device": "Tesla T4 CC7.5",
+    "native_bf16_hardware": false,
+    "compute_claim": "BF16 operands with cuBLAS FP32 compute; software/SIMT backend, not native BF16 Tensor Cores; full review is separate evidence",
+    "autocast": false,
+    "cuda_matmul_allow_tf32": false,
+    "cudnn_allow_tf32": true
+  },
+  "arms": [
+    "bf16_l2l",
+    "oracle_block64_e4m3"
+  ],
+  "seeds": [
+    23,
+    41,
+    67,
+    89,
+    113
+  ],
+  "lengths": [
+    1024,
+    4096
+  ],
+  "micro_batch_size": 1,
+  "effective_k": {
+    "1024": 4,
+    "4096": 1
+  },
+  "optimizer": {
+    "type": "AdamW",
+    "lr": 0.0002,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.01,
+    "foreach": false,
+    "fused": false,
+    "clip_max_norm": 1.0
+  },
+  "scheduler": {
+    "type": "HF cosine",
+    "warmup_steps": 2,
+    "horizon": 64,
+    "preflight_observed_first_two_used_lrs": [
+      0.0,
+      0.0001
+    ]
+  },
+  "training": {
+    "windows_per_arm": 64,
+    "input_tokens_per_window": 4096,
+    "input_tokens_per_arm": 262144,
+    "supervised_targets_per_arm": 179326,
+    "input_tokens_per_domain_per_arm": 131072,
+    "same_initial_adapters_within_seed": true,
+    "same_ordered_flat_input_and_label_stream": true,
+    "response_only_labels": true,
+    "mask_each_flat_1024_token_boundary": true,
+    "checkpoint_selection": "Successfully cleaned final step64 only; no selection by outcomes"
+  },
+  "data": {
+    "dataset_manifest_file_sha256": "c840fdbcd4330062d2f6a9df29c178da6e28326fec0241b982cfc7f4c499e712",
+    "training_pack_manifest_file_sha256": "8644a1abc6692a01455c9b4398ddcac93560c0534cfb9f2bb6d25c51f09466eb",
+    "retained_evaluation_tasks": {
+      "gsm8k": 1298,
+      "humaneval": 101,
+      "apps": 4950,
+      "math": 4870
+    },
+    "math_source": "Frozen original test split; auxiliary mirrors are not split authority",
+    "unknown_base_pretraining_exposure": "Not disproven by overlap audit"
+  },
+  "generation": {
+    "backend": "Native HF eager Granite; same for both trained arms",
+    "batch_size": 8,
+    "order": "Frozen original order; true final arithmetic remainder",
+    "padding": "Left padding with explicit attention mask",
+    "do_sample": false,
+    "num_beams": 1,
+    "completions_per_task": 1,
+    "max_new_tokens": {
+      "gsm8k": 1024,
+      "humaneval": 512,
+      "apps": 1024,
+      "math": 1024
+    },
+    "stop_policy": "Native EOS0 and frozen builder literal stops",
+    "use_cache_per_call": true,
+    "model_config_use_cache": false,
+    "truncation": false,
+    "row_drop": false,
+    "answer_repair_or_selection": false,
+    "retry_or_adaptive_batch": false,
+    "oracle_hooks_during_generation": false
+  },
+  "quality": {
+    "maximum_absolute_degradation": 0.01,
+    "units": "Probability; one absolute percentage point",
+    "cells": [
+      "benchmark",
+      "training_length",
+      "seed"
+    ],
+    "required_cell_count": 40,
+    "one_sided_alpha": 0.025,
+    "marginal_tail_alpha": 0.0125,
+    "bounds": "Paired harm/gain marginal Clopper-Pearson difference bounds",
+    "all_required_noninferiority": "Every pointwise upper bound strictly below margin; intersection-union rule",
+    "any_cell_harm": "Protocol simultaneous lower bounds across all40 cells",
+    "insufficient_precision": "INCONCLUSIVE",
+    "missing_outcomes": "BLOCKED_INCOMPLETE, not a model FAIL or NONINFERIOR result",
+    "seeds_are_independent_tasks": false,
+    "hypothetical_humaneval_zero_discordance_upper_pp": 4.24586776176909
+  },
+  "memory": {
+    "positive_fully_accounted_reservation_saving_below_25_percent_allowed": true,
+    "historical_25_percent_results_immutable": true,
+    "ram_vram_separate": true,
+    "reservation_sum_is_measured_global_peak": false,
+    "whole_training_step_and_separate_serialization_observed": true
+  },
+  "routing": {
+    "production_guard_changes": false,
+    "oracle": "Experimental saved IDs/probabilities with validated frozen-router input VJP",
+    "forced_rmr_is_natural_rmr": false,
+    "forced_ids_prove_gradient_correctness": false
+  },
+  "numerical_admission": {
+    "old_G4_relative_l2_max": 0.05,
+    "old_G4_minimum_cosine_min": 0.99,
+    "historical_failures_preserved": true,
+    "finite_old_gate_failure_is_new_quality_experiment_veto": false,
+    "nonfinite_VJP_pairing_budget_or_cleanup_failure": "Block execution"
+  },
+  "native_code_evaluator": {
+    "asset_manifest_sha256": "c111fdb24fb279b9ab92bd3b8488705721bda5380b8865c893e86250da5773ec",
+    "python": "3.10.19 source build; EOL acknowledged",
+    "numpy": "1.26.4",
+    "qualification_preflight": "runtime-qualification-kaggle-v8/evidence/qualification/qualification.json",
+    "qualification_preflight_file_sha256": "c9cc448fddc9805699b28a44dd2c9015c6b783928e10c944cdfed202d420f1b4",
+    "fresh_host_job_qualification_required": true,
+    "reference_judge_integrity": "Known same-interpreter limitations; no arbitrary-code verdict authenticity claim",
+    "unsupported_runtime": "Infrastructure failure with null score; no row exclusion"
+  },
+  "preflight_evidence": {
+    "exact_comparison_sha256": "204beeb7b50d34220074ea4c5f3174c7c33d855f7309c0a2fac5b77ec1754008",
+    "resource_probe_manifest_sha256": "50972c40848ae711d3eb0e294641569de9bb2c1425d41e35e1f6efb456f64ab8",
+    "scope": "Two seed23 optimizer calls per arm/length; no post-positive-update forward or full64-step pretrained trajectory yet"
+  },
+  "execution": {
+    "provider": "Kaggle CLI only",
+    "gpu_allocation_owner": "parent",
+    "competing_GPU_jobs": false,
+    "vast_allowed": false,
+    "r1_reference_input": "deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+    "r1_weights_loaded": false,
+    "full_study_resource_admitted": false,
+    "final_quality_outcomes_exist": false,
+    "component_PR_independent": "https://github.com/SoupTeam/soup-rnd/pull/57"
+  },
+  "source_files_sha256": {
+    "benchmarks/harness/p3_realdata_model.py": "1b2f3b3e2507f64c321b70320154c96714e3410035d581774658714c65c70800",
+    "benchmarks/harness/p3_realdata_corpus.py": "b4a376c7030215add51d0b87f50bf9486239db5fc12859ee7012d99add1d08d9",
+    "benchmarks/harness/p3_realdata_codec.py": "2e47ee7be982a23df5bd930eb2ae69fc8267d6a85019090b83bb7ba9542582e1",
+    "benchmarks/harness/p3_realdata_routing.py": "abff0211b6b26bd0487458ef2f48b5a4468a7b99ac68e972a21a42bec302ee96",
+    "benchmarks/harness/p3_realdata_baseline.py": "8fcbb4795390820aca1b0c2f9d349045045c5d2a498c8c03f79ac3edccf9431f",
+    "tests/test_p3_realdata_codec.py": "2b90391e23a30de54383406cfa66cfe7a1c63ced30323d9a6f9187d28e332ece",
+    "tests/test_p3_realdata_routing.py": "84a547ebf1e94d6717ac70396d66c06233c2a3bb994fa3083423e8e93569ee2f",
+    "benchmarks/harness/p3_realdata_calibration.py": "615ae780d88b8231233e37c062d5f27a940f50bcc099d226e5a5634cdd75fe19",
+    "benchmarks/harness/p3_realdata_diagnostics.py": "e7bd7632bccf69a8bdd95f88a2fce642920822d5c4436ba071c9172c5393a522",
+    "benchmarks/harness/p3_realdata_matrix.py": "8edf985edf4701ae8f9533770eb4af70573f0bb84077a950777ea1acaa3d7f2b",
+    "tests/test_p3_realdata_evidence.py": "343345f0d338f2aa63923e8e44583ef2a1dc3edadf955d6acdae36915bc15cec",
+    "benchmarks/harness/p3_stage2_statistics.py": "a9d8be88704f699d6d42dbdc41f7067173404d651bacf23f535b13aa476e9630",
+    "benchmarks/harness/p3_stage2_apps.py": "07ef224a384ef7a16a0b83f3c2dba8aeedef035f2e2964a829927163ea06605d",
+    "benchmarks/harness/p3_stage2_math.py": "6afe590c5d82c4c7b69c3092ba3019c498e65b3b989105dca531fb18aa6c6983",
+    "benchmarks/harness/p3_stage2_runtime_probe.py": "61cd269c67a16142a09cf2fc56c6ad255b40686d7363b91528b3102e85a4b31e",
+    "tests/test_p3_stage2_statistics.py": "340ea9200218a39bbadd11df5e8bec6528ac86c5a924133a641b9c6f6488e408",
+    "tests/test_p3_stage2_apps.py": "c0459b8a73878e1f8e3d1f056fbd2b1a45489d50093212e70da89871139314d8",
+    "tests/test_p3_stage2_math.py": "9d8bb26e16b0ad0d8e8d8a536e8139fc89238a9dba6f5a72da8bb7b2d2f3147d",
+    "benchmarks/harness/p3_stage2_training.py": "7e8afe6cb777fbdd38975d0bbb8fe4eb62ca69bdce04e70e921c43f79bf0b204",
+    "benchmarks/harness/p3_stage2_core_data.py": "6f082bf617ddd268d37be2e38ff666cf15bfb1e0dfeda37e17c6342436c57f2a",
+    "benchmarks/harness/p3_stage2_code_runtime.py": "16bf39b40904429d2eb130306546ae373635a0557da32dce61278d723e4ca250",
+    "benchmarks/harness/p3_stage2_code_worker.py": "7132e9066548a5f78c551bdc14673ef97097c0a11772be586a10e4b8a8528558",
+    "tests/test_p3_stage2_training.py": "cee43aac5e79272ebe99c6a21b9ef0c25db598301c91190b836abefa19b98be5",
+    "tests/test_p3_stage2_core_data.py": "fb9f07c481b4237bc29850c36ccfc21ee9a5ea128f793b18cc6fa5319db1dd53",
+    "tests/test_p3_stage2_code_runtime.py": "ca9ba972a07b2470843c9b5ca3741b7a622252b0dc840cf9607d7b42a74f59e7",
+    "benchmarks/harness/p3_stage2_generation.py": "ed24c24e6ad148e75f80c10fc34322d76e9c3c9bd775f46630a916f2753d56d1",
+    "tests/test_p3_stage2_generation.py": "768f8093476d6bf4e570e15bca0249760727dc4df930dccb7773c82dadb54301",
+    "benchmarks/harness/p3_stage2_dataset.py": "48c0e5cba7adc6164cadf428c0ba34844ab631817f1b4942829688d824ef4bda",
+    "tests/test_p3_stage2_dataset.py": "b77ccc6c6033111d53ffcd19c96906903b526333b431c6b3f833fe6f5b74b487",
+    "benchmarks/harness/p3_stage2_backend_probe.py": "55ee6e8785962ede4cb7d01d2382b183e0b09270eb459f3d3cb38b7633f0f5e4",
+    "benchmarks/harness/p3_stage2_preflight.py": "32422c6ab02845667dbfb82cebdfb0257ece5168e23f7673212af131f675cc87",
+    "tests/test_p3_stage2_preflight.py": "dba74375c33d865e1a4b7df424cdeaecf8af4aaa47efd1635d7ec01711ad2b57",
+    "benchmarks/harness/p3_stage2_eval_preflight.py": "ec8348b5884b018e178faa7a03d3dc5bc47a22c55a2274ce6c4daeb7f65b6b13"
+  },
+  "contract_files_sha256": {
+    "approved-protocol-amendments.json": "77edcf3c24488f7d28a4bdc57f5828c045b04ae9900a050b4d55563731b7bf6a",
+    "statistics-protocol-v1.md": "9e5dd65ffdd0e4d9182f13e8f918d630957d71555f26a1e8ea3f078a5d73350b",
+    "dataset-contract.md": "f60eff28c3d13bc86678effbe8ee8c8642ff4adcf35a92c60ec4e2e3c243cd48",
+    "training-contract.md": "b3e12649a8608211258140a3e9ce1612d5543754c19720a3d817e778aafa4d9b",
+    "generation-contract.md": "de3f1938f25ffc8b070b08870ba8f7f2e89ab524d9465cb71fd3b3d6936b9a00"
+  }
+}

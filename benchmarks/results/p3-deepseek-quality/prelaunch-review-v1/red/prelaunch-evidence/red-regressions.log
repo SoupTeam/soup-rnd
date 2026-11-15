@@ -1,0 +1,25 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.2, pluggy-1.7.0 -- /kaggle/working/prelaunch-9bjdgeyx/py312/bin/python
+cachedir: .pytest_cache
+rootdir: /kaggle/working/prelaunch-9bjdgeyx/soup
+configfile: pyproject.toml
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_________ ERROR collecting tests/test_p3_deepseek_quality_failfast.py __________
+ImportError while importing test module '/kaggle/working/prelaunch-9bjdgeyx/soup/tests/test_p3_deepseek_quality_failfast.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_p3_deepseek_quality_failfast.py:12: in <module>
+    from benchmarks.harness import p3_deepseek_quality_gate as gate
+benchmarks/harness/p3_deepseek_quality_gate.py:46: in <module>
+    from benchmarks.harness.p3_deepseek_quality_attention import (
+E   ModuleNotFoundError: No module named 'benchmarks.harness.p3_deepseek_quality_attention'
+------- generated xml file: /kaggle/working/prelaunch-evidence/tests.xml -------
+=========================== short test summary info ============================
+ERROR tests/test_p3_deepseek_quality_failfast.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.79s ===============================

@@ -1,0 +1,53 @@
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+{
+  "schema": "p3-deepseek-quality-stage-v1",
+  "status": "COMPLETE",
+  "argv": [
+    "python",
+    "-B",
+    "/data/p3-moonlight-quality/source/.superpowers/sdd/p3-moonlight-quality-plan/resource_calibration.py",
+    "--mode",
+    "train",
+    "--arm",
+    "bf16_l2l",
+    "--length",
+    "1024",
+    "--source",
+    "/data/p3-moonlight-quality/sources/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--cache",
+    "/data/p3-moonlight-quality/cache/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--initial-adapter",
+    "/data/p3-moonlight-quality/evidence/moonlight-h3-20261111t184322z/b-convert-cwd/initial-adapter.safetensors",
+    "--initial-adapter-sha256",
+    "d6c9191f724ec4ca2b49253329bb492edfb45ea5efcd6fd89c44e95b1debaff1",
+    "--pack",
+    "/data/p3-moonlight-quality/pack",
+    "--pack-sha256",
+    "2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4",
+    "--tokenizer-dir",
+    "/data/p3-moonlight-quality/tokenizer/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--data-root",
+    "/data/p3-moonlight-quality/source/benchmarks/results/p3-stage2-v2/data-build-kaggle-v1/evidence/data",
+    "--output",
+    "/data/p3-moonlight-quality/evidence/moonlight-h3-20261111t184322z/resource-bf16-L1024",
+    "--deadline-seconds",
+    "885"
+  ],
+  "started_utc": "2026-11-11T19:04:36.265875+00:00",
+  "deadline_seconds": 900.0,
+  "returncode": 0,
+  "scientific_admission": false,
+  "provider_cleanup_performed": false,
+  "scope": "subprocess exit and deadline only; inspect the child's scientific receipt",
+  "child_pid": 5512,
+  "cleanup": {
+    "child_reaped": true,
+    "errors": [],
+    "scope": "original process group; detached children unsupported",
+    "group_signal": "group already absent"
+  },
+  "evidence_snapshot_only": false,
+  "wall_seconds": 167.3569006320322,
+  "finished_utc": "2026-11-11T19:07:23.622769+00:00"
+}

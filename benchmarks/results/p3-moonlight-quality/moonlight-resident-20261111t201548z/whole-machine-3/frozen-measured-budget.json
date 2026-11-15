@@ -1,0 +1,960 @@
+{
+  "absolute_deadline_utc": "2026-11-13T18:15:48.490959+00:00",
+  "accrued_upper_at_launch_usd": 2.2,
+  "all_four_adapters": true,
+  "closeout_reserve_usd": 1,
+  "full_v2": {
+    "bounded_other_seconds": {
+      "analysis": 300,
+      "gate_readmission": 60,
+      "intermediate_exports": 900,
+      "pair": 300,
+      "process_cleanup_32_commands": 320
+    },
+    "counts_per_adapter": {
+      "arc": 1381,
+      "boolq": 162,
+      "gsm8k": 1863,
+      "hellaswag": 16429,
+      "lambada": 161,
+      "mbpp": 405
+    },
+    "evaluation_allowances_seconds": {
+      "arc": 1793,
+      "boolq": 257,
+      "gsm8k": 2794,
+      "hellaswag": 23137,
+      "lambada": 256,
+      "mbpp": 619
+    },
+    "hellaswag_n": null,
+    "measured_commands_upper_seconds": 132604,
+    "total_remaining_rental_seconds": 134484,
+    "upper_bound_total_usd": 26.212088888888893
+  },
+  "gate_allowance_seconds": 2093,
+  "gate_base_seconds": 1368.2313954248093,
+  "gate_projection": "6 passes * 8 microbatches * slowest measured single-microbatch gradient window; INT4 not separately timed",
+  "hourly_total_usd": 0.6133333333333334,
+  "instance_id": 60261779,
+  "intermediate_traffic_upper_gib": 15,
+  "intermediate_traffic_upper_usd": 0.1,
+  "inventory_manifest_sha256": "38e8f989d3683a2159484b828b4ba94f5dc219ab8b7446373efc087b2812dc5b",
+  "lengths": [
+    1024,
+    4096
+  ],
+  "measured_forward_seconds": {
+    "arc": 0.8579255120057496,
+    "boolq": 0.9943081944948062,
+    "gsm8k": 0.9943081944948062,
+    "hellaswag": 0.9382465075032087,
+    "lambada": 0.9943081944948062,
+    "mbpp": 0.9943081944948062
+  },
+  "measured_training_window_seconds": {
+    "bf16_l2l-L1024": 49.07203278198722,
+    "bf16_l2l-L4096": 14.7317550109874,
+    "oracle_block64_e4m3-L1024": 64.3961040500144,
+    "oracle_block64_e4m3-L4096": 28.50482073801686
+  },
+  "minimum_scope_warning": "437 is an analytical possibility bound, not measured power or a quality result",
+  "minimum_zero_discordance_n": 437,
+  "posted_charges": [
+    {
+      "amount": 1.184,
+      "description": "Instance 60261779 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.917,
+          "description": "1.764 hours at $0.520/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.021,
+          "description": "1.771 hours at $0.012/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.241,
+          "description": "36.1 GB Downloaded at $0.007/GB",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.005,
+          "description": "0.7 GB Uploaded at $0.007/GB",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-resident-20261111t201548z-whole3"
+      },
+      "source": "instance-60261779",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.144,
+      "description": "Volume 60261770 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.144,
+          "description": "1.773 hours at $0.081/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonwholethree"
+      },
+      "source": "volume-60261770",
+      "start": 1794355200,
+      "type": "volume"
+    },
+    {
+      "amount": 0.002,
+      "description": "Instance 60260641 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.002,
+          "description": "0.102 hours at $0.015/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-resident-20261111t201548z-whole2"
+      },
+      "source": "instance-60260641",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.006,
+      "description": "Volume 60260624 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.006,
+          "description": "0.104 hours at $0.061/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonwholetwo"
+      },
+      "source": "volume-60260624",
+      "start": 1794355200,
+      "type": "volume"
+    },
+    {
+      "amount": 0.073,
+      "description": "Instance 60259585 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.071,
+          "description": "0.164 hours at $0.433/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.002,
+          "description": "0.184 hours at $0.009/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-resident-20261111t201548z-whole1"
+      },
+      "source": "instance-60259585",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.011,
+      "description": "Volume 60259577 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.011,
+          "description": "0.186 hours at $0.061/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonwholeone"
+      },
+      "source": "volume-60259577",
+      "start": 1794355200,
+      "type": "volume"
+    },
+    {
+      "amount": 0.01,
+      "description": "Instance 60258336 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.01,
+          "description": "0.022 hours at $0.453/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.0,
+          "description": "0.028 hours at $0.012/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-resident-20261111t201548z-intel"
+      },
+      "source": "instance-60258336",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.002,
+      "description": "Volume 60258329 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.002,
+          "description": "0.030 hours at $0.061/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonresidentintel"
+      },
+      "source": "volume-60258329",
+      "start": 1794355200,
+      "type": "volume"
+    },
+    {
+      "amount": 0.001,
+      "description": "Instance 60257559 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.001,
+          "description": "0.140 hours at $0.009/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-resident-20261111t201548z-replacement"
+      },
+      "source": "instance-60257559",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.032,
+      "description": "Instance 60256341 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.031,
+          "description": "0.137 hours at $0.227/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.001,
+          "description": "0.142 hours at $0.006/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-resident-20261111t201548z"
+      },
+      "source": "instance-60256341",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.006,
+      "description": "Volume 60256277 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.006,
+          "description": "0.149 hours at $0.041/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "mr201548"
+      },
+      "source": "volume-60256277",
+      "start": 1794355200,
+      "type": "volume"
+    },
+    {
+      "amount": 0.435,
+      "description": "Instance 60246341 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.422,
+          "description": "0.905 hours at $0.467/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.008,
+          "description": "0.913 hours at $0.009/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.005,
+          "description": "35.5 GB Downloaded at $0.000/GB",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "0.3 GB Uploaded at $0.000/GB",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-h3-20261111t184322z"
+      },
+      "source": "instance-60246341",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.056,
+      "description": "Volume 60246278 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.056,
+          "description": "0.922 hours at $0.061/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "mh3184322"
+      },
+      "source": "volume-60246278",
+      "start": 1794355200,
+      "type": "volume"
+    },
+    {
+      "amount": 0.002,
+      "description": "Instance 60244148 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.002,
+          "description": "0.179 hours at $0.012/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-r-20261111t180727z"
+      },
+      "source": "instance-60244148",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.047,
+      "description": "Instance 60241118 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.046,
+          "description": "0.102 hours at $0.453/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.001,
+          "description": "0.123 hours at $0.012/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "moonlight-q-20261111t175332z"
+      },
+      "source": "instance-60241118",
+      "start": 1794355200,
+      "type": "instance"
+    },
+    {
+      "amount": 0.008,
+      "description": "Volume 60241117 Charges - 1 day",
+      "end": 1794355200,
+      "items": [
+        {
+          "amount": 0.0,
+          "description": "GPU",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "gpu"
+        },
+        {
+          "amount": 0.008,
+          "description": "0.123 hours at $0.061/hour",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "disk"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (download)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwd"
+        },
+        {
+          "amount": 0.0,
+          "description": "Bandwidth (upload)",
+          "end": 1794355200,
+          "items": [],
+          "metadata": {},
+          "source": null,
+          "start": 1794355200,
+          "type": "bwu"
+        }
+      ],
+      "metadata": {
+        "label": "mq11111753"
+      },
+      "source": "volume-60241117",
+      "start": 1794355200,
+      "type": "volume"
+    }
+  ],
+  "process_startup_seconds": 2.7171339339984115,
+  "qualification_export_sha256": "8a8029d932a04253092f6c0fd3fcce42e4a40bbdbbf1e133d242a683ce7840f8",
+  "resident_setup_seconds": 7.247018681984628,
+  "same_host_machine_id": 140544,
+  "schema": "moonlight-measured-study-budget-v1",
+  "selected_inventory_manifest_sha256": "2658ca12b1fdc5295a2a951de33e3e13065b0ead7aa817aa0ad96fc3340e9a3d",
+  "selected_prefix9000": {
+    "bounded_other_seconds": {
+      "analysis": 300,
+      "gate_readmission": 60,
+      "intermediate_exports": 900,
+      "pair": 300,
+      "process_cleanup_32_commands": 320
+    },
+    "counts_per_adapter": {
+      "arc": 1381,
+      "boolq": 162,
+      "gsm8k": 1863,
+      "hellaswag": 14730,
+      "lambada": 161,
+      "mbpp": 405
+    },
+    "evaluation_allowances_seconds": {
+      "arc": 1793,
+      "boolq": 257,
+      "gsm8k": 2794,
+      "hellaswag": 20746,
+      "lambada": 256,
+      "mbpp": 619
+    },
+    "hellaswag_n": null,
+    "measured_commands_upper_seconds": 123040,
+    "total_remaining_rental_seconds": 124920,
+    "upper_bound_total_usd": 24.58266666666667
+  },
+  "single_time_multiplier": 1.5,
+  "source_setup_seconds": 4.041036028997041,
+  "steps": 64,
+  "training_allowances_seconds": {
+    "bf16_l2l-L1024": 4722,
+    "bf16_l2l-L4096": 1425,
+    "oracle_block64_e4m3-L1024": 6193,
+    "oracle_block64_e4m3-L4096": 2747
+  },
+  "unmeasured_endpoint_rule": "LAMBADA/GSM8K/MBPP use the slowest measured dev forward; extrapolation, not observed full-evaluation throughput",
+  "utc": "2026-11-11T22:53:06.808870+00:00",
+  "volume_id": 60261770
+}

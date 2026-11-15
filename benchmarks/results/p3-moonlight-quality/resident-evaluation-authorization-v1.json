@@ -1,0 +1,31 @@
+{
+  "schema": "p3-moonlight-resident-evaluation-authorization-v1",
+  "utc": "2026-11-11T20:09:48.229623+00:00",
+  "total_budget_usd": 25,
+  "includes_prior_posted_usd": 0.537,
+  "compute_stop_usd": 24,
+  "export_delete_reserve_usd": 1,
+  "absolute_deadline_hours_from_first_new_paid_resource": 46,
+  "candidate_order": [
+    "A_cuda_resident_exact_nf4",
+    "B_existing_per_expert_ram_only_if_A_ineligible"
+  ],
+  "C_role": "small dev equivalence reference only, never a fallback candidate",
+  "capacity_tokens": 8192,
+  "no_batch_shrink_after_oom": true,
+  "cost_headroom_factor": 1.5,
+  "headroom_layers": 1,
+  "hellaswag_minimum": "frozen precision_scenarios minimum_zero_discordance_n at unchanged one-percentage-point margin and alpha",
+  "cut_order": [
+    "hellaswag_frozen_prefix_at_or_above_precision_floor",
+    "omit_complete_L4096_pair"
+  ],
+  "training": "unchanged disk L2L; independent BF16 and FP8 block64+Oracle;64 steps per arm/retained length",
+  "numerical_gate": "all6 passes diagnostic, numerical FAIL does not block",
+  "technical_arm_failure": "invalid arm without retries",
+  "no_monetary_limit_in_code": true,
+  "financial_enforcement": "operator accounting and bounded launch allowances; no new budget controller",
+  "production_evaluator_changes": "only after on-rental candidate measurement and dev equivalence",
+  "reuse_accepted_preflight_proofs": true,
+  "authority": "Direct user instruction and subsequent A-before-B/no-budget-code/minimal-change clarifications"
+}

@@ -1,0 +1,22 @@
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+..................................                                       [100%]
+=============================== warnings summary ===============================
+tests/test_p3_moonlight_study.py: 14 warnings
+  /opt/moonlight-py312/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+34 passed, 14 warnings in 15.36s
+E501 Line too long (102 > 100)
+   --> benchmarks/harness/p3_deepseek_quality_train.py:102:101
+    |
+100 |             or compute_stop + reserve != limit
+101 |             or not finite_cost(upper) or upper > limit or not isinstance(adjustments, list)):
+102 |         raise ValueError("Moonlight frozen budget limits, reserve or upper estimate are inconsistent")
+    |                                                                                                     ^^
+103 |     lengths = value.get("training", {}).get("lengths")
+104 |     if lengths not in ([1024, 4096], [1024]):
+    |
+
+Found 1 error.

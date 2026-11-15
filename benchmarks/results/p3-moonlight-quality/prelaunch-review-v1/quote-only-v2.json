@@ -1,0 +1,93 @@
+{
+  "actual_moonlight_cost_usd": 0,
+  "blocking_inputs": [
+    "No admitted production cache or shared initial adapter exists; actual hashes are required before rental by plan lines15 and239",
+    "Measured dense-BF16 Granite T4 evaluation is not a measured Moonlight disk-L2L/NF4 step/forward upper bound"
+  ],
+  "budget_usd": 15,
+  "closeout_reserve_usd": 1,
+  "combined_gpu_root_volume_usd_per_hour": 0.27555555555555555,
+  "compute_stop_usd": 14,
+  "gpu_offer": {
+    "cpu_cores_effective": 16.0,
+    "cpu_ram": 48261,
+    "cuda_max_good": 13.2,
+    "disk_bw": 2141.0,
+    "disk_space": 1016.5,
+    "dph_base": 0.19999999999999998,
+    "dph_total": 0.20888888888888887,
+    "driver_version": "595.84",
+    "gpu_name": "RTX 3090",
+    "gpu_ram": 24576,
+    "id": 56970728,
+    "inet_down": 758.1,
+    "inet_down_cost": 0.005208333333333333,
+    "inet_up": 905.6,
+    "inet_up_cost": 0.0078125,
+    "machine_id": 142650,
+    "storage_cost": 0.19999999999999998,
+    "storage_total_cost": 0.008888888888888889
+  },
+  "granite_pilot": {
+    "checkpoint_model": "ibm-granite/granite-3.1-1b-a400m-base",
+    "endpoint_measurements": [
+      {
+        "endpoint": "arc",
+        "forwards": 106,
+        "requests": 3999,
+        "tasks": 1000,
+        "tokens": 138282,
+        "wall_seconds": 80.066670423
+      },
+      {
+        "endpoint": "boolq",
+        "forwards": 46,
+        "requests": 2000,
+        "tasks": 1000,
+        "tokens": 339824,
+        "wall_seconds": 144.339196889
+      },
+      {
+        "endpoint": "hellaswag",
+        "forwards": 383,
+        "requests": 8000,
+        "tasks": 2000,
+        "tokens": 388628,
+        "wall_seconds": 250.230485997
+      }
+    ],
+    "execution": "T4 SM75; dense BF16 SIMT/emulated; not NF4 disk-L2L or native BF16 TensorCore qualification",
+    "frozen_base_elements": 1334625280,
+    "kernel": "batyrkhan2131123/soup-stage2-v2-dev-pilot-v1",
+    "manifest_sha256": "7438fa2eaf507b03d63036dae46cb6b7dbbd9c258ff27b7f050abc1dda30300b",
+    "use": "Historical measured evidence only; no direct Moonlight upper-bound conversion is claimed"
+  },
+  "local_volume_offer": {
+    "disk_bw": 2141.0,
+    "disk_space": 1000.0,
+    "id": 56970732,
+    "machine_id": 142650,
+    "storage_cost": 0.2666666666666666,
+    "storage_total_cost": 0.06666666666666665
+  },
+  "measurement_limits": [
+    "Advertised NVMe bandwidth is not sustained execution throughput",
+    "RAM field is MiB, not search-filter GB; raw cpu_ram=48261 exceeds32768MiB",
+    "Whole-workload upper estimate has not been admitted; hourly price is not an estimate"
+  ],
+  "offer_search": "verified=true rentable=true rented=false num_gpus=1 gpu_ram>=24 cpu_ram>=34 cpu_cores_effective>=8 disk_space>=212 cuda_vers>=13.0 gpu_name=RTX_3090; storage32GiB",
+  "protocol_frozen": false,
+  "quote_observation": "Read-only live search earlier in this session; prices and availability are not reserved",
+  "recorded_at_utc": "2026-11-11T15:19:00.689378+00:00",
+  "rental_created": false,
+  "requested_local_volume_gib": 180,
+  "requested_root_gib": 32,
+  "schema": "p3-moonlight-quote-only-v2",
+  "scope_reductions": [],
+  "sources": [
+    "https://docs.vast.ai/cli/reference/search-instances",
+    "https://docs.vast.ai/cli/reference/search-volumes"
+  ],
+  "status": "QUOTE_ONLY_NOT_RENTAL_ADMISSION",
+  "volume_search": "verified=true machine_id=142650 disk_space>=180; storage180GiB"
+}

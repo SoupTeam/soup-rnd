@@ -13,9 +13,9 @@ each frozen expert inside a bounded lease and accepts only the validated statele
 SiLU activation without hooks; higher-order gradients are refused. The routing weight
 multiplies the per-expert node's output with ordinary autograd, so its gradient needs no
 reload.
-The public L2L launch guard still admits only Llama/Mistral; planner, public YAML/CLI
-fields, budgets and defaults are unchanged. The only public expert-training entry point
-is the opt-in B6 recipe below; public L2L enablement for MoE belongs to B1.4.
+The public L2L launch guard admits Llama/Mistral, and DeepSeek-V3 only with
+`stream_expert_layout: per_expert`; planner, budgets and defaults are unchanged. The only
+public expert-training entry point is the opt-in B6 recipe below.
 
 CPU and CUDA tiny-model tests compare gradients with resident controls and
 exercise optimizer updates and adapter reload. The opt-in SFT configuration is
@@ -156,6 +156,41 @@ comparison fails. A correct-path PASS alone does not validate that control.
 These are tiny synthetic correctness checks, not convergence, throughput or
 whole-model memory-fit measurements. B1.2 gate results below remain historical
 forward evidence; they are not B1.3 backward or CUDA verification.
+
+## Expert reads per window
+
+`tests/test_p3_expert_read_diagnostic.py` counts the reads of one L2L window at k = 1, 4, 16
+and 64 micro-batches. It runs on the CPU, on the tiny DeepSeek-V3 fixture (one dense and two
+MoE layers, eight experts per MoE layer), measured on 2026-11-05:
+
+| k | layer loads | expert fetches | logical expert bytes | expert hits | unique experts | physical requests | physical bytes |
+|---|---|---|---|---|---|---|---|
+| 1 | 3 | 39 | 239616 | 13 | 13 | 78 | 547536 |
+| 4 | 3 | 162 | 995328 | 54 | 15 | 324 | 2276160 |
+| 16 | 3 | 621 | 3815424 | 207 | 16 | 1242 | 8671128 |
+| 64 | 3 | 2526 | 15519744 | 842 | 16 | 5052 | 35311200 |
+
+An expert hit is one expert that the router chose for at least one token of one micro-batch
+in one MoE layer. Unique experts are the distinct (layer, expert) pairs hit anywhere in the
+window.
+
+Layer loads do not depend on k. Each hit expert is fetched three times per micro-batch:
+in the forward, in the recompute and in the expert's own backward. Fetches therefore equal
+three times the hits and stay near 39 per micro-batch at every k. At k = 64 the window needs
+16 distinct experts and reads 2526 times. An expert is read again for every micro-batch that
+hits it, so the "one read per window" assumption does not hold for experts as implemented.
+The test makes no speed claim.
+
+Physical requests are the calls to `read_range_into` that expert readers make, counted by
+wrapping that function. They are sector-aligned requests that the process hands to the OS,
+not device reads, and the page cache is not observed. Layer-weight reads are not counted.
+Every expert fetch is two requests (`gate_up` and `down`). Logical bytes are 44 percent of
+the physical bytes on this fixture because each small tensor span is rounded out to sector
+bounds; the ratio is an effect of the tiny tensors and will be much closer to 100 percent
+for real experts.
+
+Reproduce with `pytest tests/test_p3_expert_read_diagnostic.py -v` and read the recorded
+properties with `--junitxml`.
 
 ## Local checks
 
