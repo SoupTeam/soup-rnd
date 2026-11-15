@@ -29,6 +29,7 @@ def time_inputs(
     reduction_chunk_tokens: int = frozen.REDUCTION_CHUNK_TOKENS,
     test_fixture: bool = False, observations: list[dict] | None = None,
     evidence_prefix: Path | None = None,
+    profile_id: str = "deepseek-v3",
 ) -> list[dict]:
     """Use input IDs/positions only; targets are deliberately not copied or accessed."""
     import torch
@@ -53,7 +54,9 @@ def time_inputs(
     )
     if observations is None:
         observations = []
-    with scoring._scoring_session(session, tokenizer, test_fixture=test_fixture) as model:
+    with scoring._scoring_session(
+        session, tokenizer, test_fixture=test_fixture, profile_id=profile_id,
+    ) as model:
         device = model.device
         for indices in plan:
             scoring._require(time.monotonic() < deadline, "resource timing deadline exceeded")
@@ -72,7 +75,7 @@ def time_inputs(
             started = time.monotonic()
             largest_logits = 0
             record = {
-                "status": "FAILED", "input_indices": indices,
+                "profile_id": profile_id, "status": "FAILED", "input_indices": indices,
                 "input_tokens": sum(len(row["input_ids"]) for row in batch),
                 "batch_size": len(batch), "width": width, "padded_input_tokens": len(batch) * width,
                 "native_forward_calls": 0, "planned_native_forward_calls": len(chunks),
@@ -86,7 +89,7 @@ def time_inputs(
                 f"{evidence_prefix.name}-batch-{len(observations):04d}")
             if evidence_name is not None:
                 scoring._write_json(evidence_name.with_name(evidence_name.name + "-start.json"), {
-                    "admission_sufficient": False, "observation": record,
+                    "profile_id": profile_id, "admission_sufficient": False, "observation": record,
                 })
             try:
                 with measurement:
@@ -139,7 +142,8 @@ def time_inputs(
                 model.attention_reports = []
                 if evidence_name is not None:
                     scoring._write_json(evidence_name.with_suffix(".json"), {
-                        "admission_sufficient": False, "observation": record,
+                        "profile_id": profile_id, "admission_sufficient": False,
+                        "observation": record,
                     })
     scoring._require(time.monotonic() < deadline, "resource timing deadline exceeded")
     return observations
@@ -149,11 +153,14 @@ def run_timing(
     *, source: Path, cache: Path, initial: Path, initial_sha256: str,
     data_root: Path, output: Path, max_tokens_per_batch: int, deadline_seconds: int,
     gate: Path, gate_sha256: str, device: str = "cuda",
+    profile_id: str = "deepseek-v3",
+    tokenizer_dir: Path | None = None,
 ) -> dict:
     """Measure the first frozen development task per endpoint, never evaluation rows."""
     output.mkdir(parents=True, exist_ok=False)
     result = {
         "schema": "p3-deepseek-quality-forward-timing-v1", "status": "FAILED",
+        "profile_id": profile_id,
         "include_base_model_evaluation": False, "quality_outcomes_computed": False,
         "evaluation_rows_opened": 0, "budget_admission_sufficient": False,
         "sample_policy": "first frozen development task per endpoint, no outcome selection",
@@ -173,39 +180,47 @@ def run_timing(
             sha256,
             trainable_parameters,
         )
-        from .p3_deepseek_quality_train import _execution_identity, require_gate_binding
+        from .p3_deepseek_quality_train import (
+            _execution_identity,
+            _gate_admission,
+            _require_profile,
+            require_gate_binding,
+        )
 
         scoring._require(type(deadline_seconds) is int and 0 < deadline_seconds <= 5400,
                          "resource timing deadline must be in (0,5400]")
         result["deadline_seconds"] = deadline_seconds
         scoring._require(type(max_tokens_per_batch) is int and max_tokens_per_batch > 0,
                          "positive resource token budget required")
-        gate_result = load_gate(gate, gate_sha256)
-        result["gate"] = {"manifest_sha256": gate_sha256, "overall": "PASS"}
+        gate_result = load_gate(gate, gate_sha256, profile_id=profile_id)
+        result["gate"] = _gate_admission(gate_result, gate_sha256, profile_id=profile_id)
         result["hardware"] = scoring._admit_native_execution(device)
-        execution_identity = _execution_identity(device)
+        execution_identity = _execution_identity(device, profile_id=profile_id)
         result["environment"] = execution_identity["gate_environment"]
-        result["attention_policy"] = scoring.attention_policy.policy_identity()
+        result["attention_policy"] = scoring.attention_policy.policy_identity(profile_id)
         result["source_files_sha256"] = {
-            **scoring._source_files(), __name__: scoring._hash(Path(__file__)),
+            **scoring._source_files(profile_id=profile_id), __name__: scoring._hash(Path(__file__)),
         }
         scoring._require(sha256(initial) == initial_sha256, "initial adapter SHA256 mismatch")
         development, data_identity = frozen._admit_pilot_data(
             data_root, scoring.DATA_MANIFEST_SHA256)
-        tokenizer, tokenizer_identity = load_tokenizer(source)
+        tokenizer_root = source if tokenizer_dir is None else tokenizer_dir
+        tokenizer, tokenizer_identity = load_tokenizer(tokenizer_root, profile_id=profile_id)
+        _require_profile(tokenizer_identity, profile_id, "timing tokenizer")
         result.update(data=data_identity, tokenizer=tokenizer_identity,
                       initial_adapter_sha256=initial_sha256,
                       max_tokens_per_batch=max_tokens_per_batch)
-        session = open_session(source, cache, device=device, dtype="bfloat16", prepare=False)
-        result["source_files_sha256"].update(scoring._source_files())
-        require_production_source(session.metadata["source"])
+        session = open_session(source, cache, device=device, dtype="bfloat16", prepare=False,
+                               profile_id=profile_id)
+        result["source_files_sha256"].update(scoring._source_files(profile_id=profile_id))
+        require_production_source(session.metadata["source"], profile_id=profile_id)
         require_gate_binding(
             gate_result, model_metadata=session.metadata, initial_sha256=initial_sha256,
-            execution_identity=execution_identity,
+            execution_identity=execution_identity, profile_id=profile_id,
         )
         result["model"] = copy.deepcopy(session.metadata)
-        scoring._require(load_initial_adapter(session.model, initial) == initial_sha256,
-                         "initial adapter changed during admission")
+        scoring._require(load_initial_adapter(session.model, initial, profile_id=profile_id)
+                         == initial_sha256, "initial adapter changed during admission")
         before = adapter_digest(trainable_parameters(session.model))[0]
         scoring._write_json(output / "execution-start.json", {
             "admission_sufficient": False, "partial_execution": result,
@@ -225,14 +240,19 @@ def run_timing(
                 deadline=started + deadline_seconds,
                 observations=result["endpoints"][endpoint]["batches"],
                 evidence_prefix=output / endpoint,
+                profile_id=profile_id,
             )
         scoring._require(adapter_digest(trainable_parameters(session.model))[0] == before,
                          "resource timing changed the shared adapter")
         scoring._require(sha256(initial) == initial_sha256, "initial adapter file changed")
-        scoring._require(result["attention_policy"] == scoring.attention_policy.policy_identity()
-                         and result["source_files_sha256"] == {
-                             **scoring._source_files(), __name__: scoring._hash(Path(__file__)),
-                         }, "attention policy/executing source changed during timing")
+        scoring._require(all(descriptor["sha256"] == scoring._hash(tokenizer_root / name)
+                             for name, descriptor in tokenizer_identity["files"].items()),
+                         "tokenizer changed during resource timing")
+        scoring._require(result["attention_policy"] == scoring.attention_policy.policy_identity(
+            profile_id) and result["source_files_sha256"] == {
+                **scoring._source_files(profile_id=profile_id),
+                __name__: scoring._hash(Path(__file__)),
+            }, "attention policy/executing source changed during timing")
         scoring._require(scoring._hash(data_root / "manifest.json") == scoring.DATA_MANIFEST_SHA256,
                          "data manifest changed during timing")
         result.update(status="COMPLETE", unchanged_adapter_sha256=before)
@@ -254,10 +274,13 @@ def main() -> None:
     for option in ("source", "cache", "initial", "data-root", "output", "gate"):
         parser.add_argument("--" + option, type=Path, required=True)
     parser.add_argument("--initial-sha256", required=True)
+    parser.add_argument("--tokenizer-dir", type=Path)
     parser.add_argument("--gate-sha256", required=True)
     parser.add_argument("--max-tokens-per-batch", type=int, default=8192)
     parser.add_argument("--deadline-seconds", type=int, default=900)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--profile", dest="profile_id",
+                        choices=("deepseek-v3", "moonlight-16b-a3b"), default="deepseek-v3")
     result = run_timing(**vars(parser.parse_args()))
     Console().print_json(data=result)
     if result["status"] != "COMPLETE":

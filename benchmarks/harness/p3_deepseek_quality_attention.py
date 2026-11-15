@@ -31,10 +31,17 @@ _CALL_FIELDS = (
 )
 
 
-def policy_identity() -> dict[str, Any]:
-    """Admit the approved bytes, never a caller-selected replacement contract."""
-    payload = (Path(__file__).parents[2] / _POLICY_PATH).read_bytes()
-    if hashlib.sha256(payload).hexdigest() != _POLICY_SHA256:
+def policy_identity(profile_id: str = "deepseek-v3") -> dict[str, Any]:
+    """Admit the profile's frozen bytes, never a caller-selected replacement contract."""
+    path, expected = _POLICY_PATH, _POLICY_SHA256
+    if profile_id != "deepseek-v3":
+        from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
+
+        profile = get_profile(profile_id)
+        path = "benchmarks/results/p3-moonlight-quality/attention-protocol-v1.json"
+        expected = profile.attention_protocol_sha256
+    payload = (Path(__file__).parents[2] / path).read_bytes()
+    if hashlib.sha256(payload).hexdigest() != expected:
         raise ValueError("attention protocol differs from the approved immutable SHA256")
     contract = json.loads(payload)
     if (not isinstance(contract, dict)
@@ -46,7 +53,7 @@ def policy_identity() -> dict[str, Any]:
                 "autocast": False, "warn_only": False,
             }):
         raise ValueError("attention protocol does not describe the approved backend contract")
-    return {"path": _POLICY_PATH, "sha256": _POLICY_SHA256, "contract": contract}
+    return {"path": path, "sha256": expected, "contract": contract}
 
 
 def require_ampere_cuda(device: str) -> dict[str, Any]:
@@ -139,8 +146,13 @@ def _validate_call(call: Any, *, dtype: str, hardware: dict) -> str:
 
 def require_execution_evidence(
     report: dict[str, Any], *, backend: str, dtype: str, backward: bool = True, min_calls: int = 1,
+    profile_id: str = "deepseek-v3",
 ) -> None:
     """Validate live or serialized execution evidence without trusting requested flags."""
+    if (profile_id not in ("deepseek-v3", "moonlight-16b-a3b")
+            or not isinstance(report, dict)
+            or report.get("profile_id", "deepseek-v3") != profile_id):
+        raise ValueError("attention evidence belongs to a different model profile")
     if backend not in (MAIN_BACKEND, FLOOR_BACKEND) or dtype not in ("bfloat16", "float32"):
         raise ValueError("unsupported attention backend or dtype")
     if type(min_calls) is not int or min_calls < 1 or type(backward) is not bool:
@@ -233,9 +245,12 @@ def require_execution_evidence(
 
 
 class _AttentionObservation:
-    def __init__(self, backend: str, hardware: dict[str, Any]) -> None:
+    def __init__(
+        self, backend: str, hardware: dict[str, Any], *, profile_id: str = "deepseek-v3",
+    ) -> None:
         self.backend = backend
         self.hardware = hardware
+        self.profile_id = profile_id
         self.count = 0
         self.calls: dict[str, dict[str, Any]] = {}
         self.samples: dict[str, dict[str, Any]] = {}
@@ -403,6 +418,7 @@ class _AttentionObservation:
 
     def report(self) -> dict[str, Any]:
         return copy.deepcopy({
+            "profile_id": self.profile_id,
             "backend_requested": self.backend, "hardware": self.hardware,
             "executed_sdpa_calls": self.count,
             "unique_calls": [self.calls[key] for key in sorted(self.calls)],
@@ -420,16 +436,20 @@ class _AttentionObservation:
 
     def require_complete(self, *, dtype: str, backward: bool = True, min_calls: int = 1) -> None:
         self._check_permissions()
-        require_execution_evidence(self.report(), backend=self.backend, dtype=dtype,
-                                   backward=backward, min_calls=min_calls)
+        require_execution_evidence(
+            self.report(), backend=self.backend, dtype=dtype, backward=backward,
+            min_calls=min_calls, profile_id=self.profile_id,
+        )
 
 
 @contextmanager
-def attention_execution(backend: str, *, device: str) -> Iterator[_AttentionObservation]:
+def attention_execution(
+    backend: str, *, device: str, profile_id: str = "deepseek-v3",
+) -> Iterator[_AttentionObservation]:
     """Select one backend, enforce strict determinism, restore flags without reseeding."""
     if backend not in (MAIN_BACKEND, FLOOR_BACKEND):
         raise ValueError("unsupported attention backend; only EFFICIENT_ATTENTION or MATH")
-    policy_identity()
+    policy_identity(profile_id)
     import torch
     import torch.nn.functional as functional
     from torch.nn.attention import SDPBackend, sdpa_kernel
@@ -456,7 +476,7 @@ def attention_execution(backend: str, *, device: str) -> Iterator[_AttentionObse
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         with sdpa_kernel([getattr(SDPBackend, backend)]):
-            observation = _AttentionObservation(backend, hardware)
+            observation = _AttentionObservation(backend, hardware, profile_id=profile_id)
 
             def observed(query: Any, key: Any, value: Any, *args: Any, **kwargs: Any) -> Any:
                 return observation.observe(original, query, key, value, *args, **kwargs)

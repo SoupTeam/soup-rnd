@@ -4,7 +4,7 @@ Run only on an approved rental, inside the process-only stage deadline::
 
     python -m benchmarks.harness.p3_deepseek_quality_smoke --output NEW_DIRECTORY
 
-The only input is a fresh evidence directory. Workload sizes cannot be changed.
+The inputs are a fresh evidence directory and an immutable model profile. Sizes stay fixed.
 No production source, download, provider operation or gradient gate is invoked.
 This reproduces the archived attention probe and standalone fixture smoke using
 current production attention/training/resource APIs. COMPLETE means fixture
@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any, Iterator, Sequence
 
 from rich.console import Console
+
+from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
 
 _SCOPE = (
     "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific "
@@ -96,7 +98,8 @@ def _error(error: BaseException) -> dict[str, str]:
 def _attempt(root: Path, report: dict, name: str) -> Iterator[dict]:
     """Write an immutable start and terminal receipt, including failed partial work."""
     record: dict[str, Any] = {
-        "name": name, "status": "RUNNING", "test_fixture": True,
+        "name": name, "profile_id": report["profile_id"], "status": "RUNNING",
+        "test_fixture": True, "qualification_only": True,
         "scientific_admission": False, "scope": _SCOPE,
     }
     report["attempts"].append(record)
@@ -141,21 +144,28 @@ def _attention_cases(root: Path, report: dict) -> None:
 
     from . import p3_deepseek_quality_attention as attention
 
+    profile = get_profile(report["profile_id"])
+
     for backend, length in ((attention.MAIN_BACKEND, 1024),
                             (attention.MAIN_BACKEND, 4096), (attention.FLOOR_BACKEND, 64)):
         hashes = []
         for repeat in range(2):
             name = f"attention-{backend}-L{length}-repeat-{repeat}"
             with _attempt(root, report, name) as record:
-                record.update(backend=backend, length=length, batch=1, heads=128,
-                              qk_dim=192, v_dim=128, dtype="bfloat16", repeat=repeat)
+                record.update(backend=backend, length=length, batch=1,
+                              heads=profile.attention_heads, qk_dim=profile.qk_head_dim,
+                              v_dim=profile.v_head_dim, dtype="bfloat16", repeat=repeat)
                 observation = None
                 try:
                     torch.manual_seed(23)
-                    with attention.attention_execution(backend, device="cuda") as observation:
-                        tensors = [torch.randn(1, 128, length, width, device="cuda",
-                                               dtype=torch.bfloat16, requires_grad=True)
-                                   for width in (192, 192, 128)]
+                    with attention.attention_execution(
+                        backend, device="cuda", profile_id=profile.profile_id,
+                    ) as observation:
+                        tensors = [torch.randn(1, profile.attention_heads, length, width,
+                                               device="cuda", dtype=torch.bfloat16,
+                                               requires_grad=True) for width in (
+                                                   profile.qk_head_dim, profile.qk_head_dim,
+                                                   profile.v_head_dim)]
                         value = functional.scaled_dot_product_attention(
                             *tensors, is_causal=True, dropout_p=0.0,
                         )
@@ -192,20 +202,26 @@ def _fixture_runs(root: Path, report: dict) -> None:
     from . import p3_deepseek_quality_train as train
 
     fixture_root = _child(root, "fixtures")
+    # This existing tiny DeepSeek fixture is not Moonlight architecture/parity evidence.
+    fixture_profile = "deepseek-v3"
     fixture_root.mkdir(exist_ok=False)
     with _attempt(root, report, "fixture-preparation") as record:
+        record["fixture_profile_id"] = fixture_profile
         pack, pack_hash = study_pack.__wrapped__(_Directories(fixture_root))
         source = _checkpoint(fixture_root, exact_mla=True)
         cache = _child(fixture_root, "cache")
         initial = _child(fixture_root, "initial.safetensors")
-        with model_api.open_session(source, cache, device="cuda", prepare=True) as session:
-            model_api.write_initial_adapter(session.model, initial)
+        with model_api.open_session(source, cache, device="cuda", prepare=True,
+                                    profile_id=fixture_profile) as session:
+            model_api.write_initial_adapter(session.model, initial, profile_id=fixture_profile)
         initial_hash = model_api.sha256(initial)
         record.update(pack_sha256=pack_hash, initial_adapter_sha256=initial_hash,
                       exact_mla=True, shared_initial=True)
         report["fixture"] = {
+            "profile_id": report["profile_id"], "fixture_profile_id": fixture_profile,
             "pack_sha256": pack_hash, "initial_adapter_sha256": initial_hash,
-            "exact_mla": True, "test_fixture": True,
+            "exact_mla": True, "test_fixture": True, "qualification_only": True,
+            "full_model_parity_evaluated": False,
         }
     training = _child(root, "training")
     training.mkdir(exist_ok=False)
@@ -214,6 +230,7 @@ def _fixture_runs(root: Path, report: dict) -> None:
             name = f"{arm}-L{length}"
             output = _child(training, name)
             with _attempt(root, report, name) as record:
+                record["fixture_profile_id"] = fixture_profile
                 record.update(arm=arm, length=length, steps=3, micro_batch_size=1,
                               k=4096 // length, initial_adapter_sha256=initial_hash)
                 try:
@@ -221,9 +238,12 @@ def _fixture_runs(root: Path, report: dict) -> None:
                         source=source, cache=cache, pack=pack, pack_sha256=pack_hash,
                         initial_adapter=initial, arm=arm, length=length, steps=3,
                         output=output, device="cuda", test_fixture=True,
+                        profile_id=fixture_profile,
                     )
-                    if manifest.get("status") != "COMPLETE" or manifest.get("completed_steps") != 3:
-                        raise RuntimeError("fixture training did not complete all three steps")
+                    if (manifest.get("status") != "COMPLETE"
+                            or manifest.get("completed_steps") != 3
+                            or manifest.get("profile_id", "deepseek-v3") != fixture_profile):
+                        raise RuntimeError("DeepSeek fixture training did not complete three steps")
                     if model_api.sha256(initial) != initial_hash:
                         raise ValueError("shared initial adapter changed during fixture training")
                     record["completed_steps"] = manifest["completed_steps"]
@@ -236,30 +256,37 @@ def _fixture_runs(root: Path, report: dict) -> None:
     from transformers import AutoTokenizer
 
     with _attempt(root, report, "resource-only-forward") as record:
+        record["fixture_profile_id"] = fixture_profile
         tokenizer = AutoTokenizer.from_pretrained(
             pack.parent / "train-fixture", local_files_only=True)
         observations: list[dict] = []
         record["observations"] = observations
         record["quality_evaluated"] = False
         record["resource_admission_sufficient"] = False
-        with model_api.open_session(source, cache, device="cuda") as session:
-            model_api.load_initial_adapter(session.model, initial)
+        with model_api.open_session(source, cache, device="cuda",
+                                    profile_id=fixture_profile) as session:
+            model_api.load_initial_adapter(session.model, initial, profile_id=fixture_profile)
             timing.time_inputs(
                 session, tokenizer, [{"input_ids": [3, 4, 5, 3], "positions": [1, 2, 3]}],
                 max_tokens_per_batch=4, deadline=time.monotonic() + 120,
                 test_fixture=True, observations=observations,
                 evidence_prefix=_child(root / "receipts", "resource-forward"),
+                profile_id=fixture_profile,
             )
         if model_api.sha256(initial) != initial_hash:
             raise ValueError("shared initial adapter changed during resource-only forward")
 
 
-def run_smoke(*, output: Path | str) -> dict[str, Any]:
-    """Execute one fixed fixture attempt; failure commits evidence then raises."""
+def run_smoke(*, output: Path | str, profile_id: str = "deepseek-v3") -> dict[str, Any]:
+    """Probe selected-profile attention and a separate tiny DeepSeek qualification fixture."""
+    profile = get_profile(profile_id)
     root = _new_output(output)
     report: dict[str, Any] = {
-        "schema": "p3-deepseek-quality-smoke-v1", "status": "FAILED", "scope": _SCOPE,
+        "schema": "p3-deepseek-quality-smoke-v1", "profile_id": profile.profile_id,
+        "status": "FAILED", "scope": _SCOPE,
         "scientific_admission": False, "quality_evaluated": False, "test_fixture": True,
+        "qualification_only": True, "full_model_parity_evaluated": False,
+        "fixture_profile_id": "deepseek-v3",
         "device": "cuda", "dtype": "bfloat16", "seed": 23, "attempts": [],
         "training_lengths": list(_LENGTHS), "steps_per_arm_and_length": 3,
         "first_scheduler_learning_rate": 0, "retry_allowed": False,
@@ -278,7 +305,7 @@ def run_smoke(*, output: Path | str) -> dict[str, Any]:
         # This context establishes CUBLAS configuration before any CUDA initialization.
         with train._deterministic_run():
             report["hardware"] = attention.require_ampere_cuda("cuda")
-            report["attention_policy"] = attention.policy_identity()
+            report["attention_policy"] = attention.policy_identity(profile_id=profile_id)
             stage = "dependency_identity"
             repository = Path(__file__).resolve().parents[2]
             dependencies = (*_ARCHIVES,
@@ -287,6 +314,7 @@ def run_smoke(*, output: Path | str) -> dict[str, Any]:
                             "benchmarks/harness/p3_deepseek_quality_train.py",
                             "benchmarks/harness/p3_deepseek_quality_timing.py",
                             "benchmarks/harness/p3_deepseek_quality_data.py",
+                            "benchmarks/harness/p3_deepseek_quality_profiles.py",
                             "benchmarks/harness/b13_moe_fixture.py",
                             "benchmarks/harness/p3_fp8_smoke.py",
                             "tests/test_p3_deepseek_quality_model.py",
@@ -304,6 +332,7 @@ def run_smoke(*, output: Path | str) -> dict[str, Any]:
         failure = error
         report.update(status="FAILED", failed_stage=stage, error=_error(error))
         _write_json(root / "FAILED.json", {
+            "profile_id": profile_id, "qualification_only": True, "test_fixture": True,
             "scope": _SCOPE, "scientific_admission": False, "retry_allowed": False,
             "failed_stage": stage, "error": _error(error),
         })
@@ -327,10 +356,12 @@ def run_smoke(*, output: Path | str) -> dict[str, Any]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, help="Fresh evidence directory; never reused")
+    parser.add_argument("--profile", choices=("deepseek-v3", "moonlight-16b-a3b"),
+                        default="deepseek-v3")
     arguments = parser.parse_args(argv)
     Console().print(_SCOPE)
     try:
-        run_smoke(output=arguments.output)
+        run_smoke(output=arguments.output, profile_id=arguments.profile)
     except KeyboardInterrupt:
         Console().print("Smoke interrupted; retain partial receipts. No retry or admission.")
         return 130

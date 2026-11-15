@@ -1,4 +1,4 @@
-"""Build and verify the DeepSeek-V3 paired response-only training pack.
+"""Build and verify profile-bound paired response-only training packs.
 
 CLI::
 
@@ -9,7 +9,7 @@ CLI::
 
 Only tokenizer assets are loaded. Source bytes, physical JSONL row hashes and every
 published file are bound to a manifest written last. Production admission accepts
-only the frozen 7801 source rows and the pinned DeepSeek tokenizer. Each domain
+only the frozen 7801 source rows and the selected profile's pinned fast tokenizer. Each domain
 cycles the frozen source order to 131072 tokens, recording every occurrence and
 the final cutoff exactly as Granite does. The private Python fixture argument is
 test-only, appears in evidence and has no CLI flag.
@@ -25,7 +25,7 @@ import tempfile
 from collections import Counter
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, Callable, TextIO
 
 from benchmarks.harness import p3_stage2_dataset as frozen
 
@@ -36,24 +36,10 @@ POLICY = "p3-deepseek-quality-training-pack-v1"
 STATUS = "PAIRED_DATA_PACKED_RUNTIME_AND_PRECISION_PENDING"
 _DOMAIN_TOKENS = 131072
 _LENGTHS = (1024, 4096)
-# SHA256 of bytes whose Git blob OIDs match the primary HF revision's tree:
-# tokenizer.json: 51083c600ec00c7f57ae1af7fef7108c52ce7376
-# tokenizer_config.json: 3ef38058ece03201b9af6baf99b28f16a020ad64
-# https://huggingface.co/api/models/deepseek-ai/DeepSeek-V3/tree/
-# e815299b0bcbac849fa540c768ef21845365c9eb
-_TOKENIZER_FILES = {
-    "tokenizer.json": {
-        "bytes": 7847652,
-        "sha256": "621ac2e32d0dba658404412318818aaa8ce8cda492e59830109d8da6b517fb41",
-    },
-    "tokenizer_config.json": {
-        "bytes": 3128,
-        "sha256": "637bcd1a08cf7c772ce6a383196b22930921c79c3c73223c5afc0c7f41545546",
-    },
-}
 _TOKENIZER_ASSETS = {
     "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json",
     "added_tokens.json", "vocab.json", "merges.txt", "tokenizer.model", "spiece.model",
+    "chat_template.jinja",
 }
 _REQUIRED_FILES = {
     "training_sources": "training-sources.jsonl",
@@ -82,14 +68,19 @@ def _digest(value: Any) -> bool:
     return isinstance(value, str) and frozen._SHA256.fullmatch(value) is not None
 
 
-def _production_pin() -> dict:
-    return {"repo_id": MODEL_ID, "revision": REVISION, "test_only": False,
-            "files": {name: dict(descriptor) for name, descriptor in _TOKENIZER_FILES.items()}}
+def _production_pin(profile_id: str = "deepseek-v3") -> dict:
+    # Final profiles bind attention to this pack. Import only at strict public admission.
+    from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
+
+    profile = get_profile(profile_id)
+    return {"repo_id": profile.model_id, "revision": profile.revision, "test_only": False,
+            "files": {name: dict(spec) for name, spec in profile.tokenizer.files.items()}}
 
 
-def _pin(fixture: dict | None) -> dict:
+def _pin(fixture: dict | None, profile_id: str = "deepseek-v3") -> dict:
+    _require(profile_id in ("deepseek-v3", "moonlight-16b-a3b"), "unknown_model_profile")
     if fixture is None:
-        return _production_pin()
+        return _production_pin(profile_id)
     _require(isinstance(fixture, dict) and fixture.get("test_only") is True,
              "explicit_test_only_tokenizer_identity_required")
     for key in ("repo_id", "revision"):
@@ -124,10 +115,10 @@ def _check_tokenizer_files(root: Path, pin: dict) -> dict:
     return files
 
 
-def load_tokenizer(tokenizer_dir: Path, *, _test_only_tokenizer: dict | None = None
-                   ) -> tuple[Any, dict]:
-    """Load only locally pinned fast-tokenizer bytes, never Granite or model weights."""
-    pin = _pin(_test_only_tokenizer)
+def load_tokenizer(tokenizer_dir: Path, *, profile_id: str = "deepseek-v3",
+                   _test_only_tokenizer: dict | None = None) -> tuple[Any, dict]:
+    """Load locally pinned fast-tokenizer bytes for the selected immutable profile."""
+    pin = _pin(_test_only_tokenizer, profile_id)
     root = Path(tokenizer_dir)
     _require(root.name == pin["revision"], "tokenizer_revision_mismatch")
     files = _check_tokenizer_files(root, pin)
@@ -139,10 +130,17 @@ def load_tokenizer(tokenizer_dir: Path, *, _test_only_tokenizer: dict | None = N
     _require(type(tokenizer.eos_token_id) is int and 0 <= tokenizer.eos_token_id < len(tokenizer),
              "native_single_eos_required")
     if not pin["test_only"]:
-        _require(len(tokenizer) == 128815 and tokenizer.eos_token_id == 1
-                 and tokenizer.bos_token_id == 0 and tokenizer.pad_token_id == 1,
-                 "deepseek_tokenizer_vocabulary_or_special_ids_mismatch")
-    metadata = {"repo_id": pin["repo_id"], "revision": pin["revision"],
+        from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
+
+        expected = get_profile(profile_id).tokenizer
+        _require((len(tokenizer), tokenizer.eos_token_id, tokenizer.bos_token_id,
+                  tokenizer.pad_token_id) == (expected.vocabulary_size, expected.eos_id,
+                                             expected.bos_id, expected.pad_id),
+                 "profile_tokenizer_vocabulary_or_special_ids_mismatch")
+        if profile_id == "moonlight-16b-a3b":
+            _require(tokenizer.split_special_tokens is True,
+                     "ordinary_literal_special_token_policy_required")
+    metadata = {"profile_id": profile_id, "repo_id": pin["repo_id"], "revision": pin["revision"],
                 "test_only": pin["test_only"], "pin": pin, "files": files,
                 "tokenizer_class": type(tokenizer).__name__, "is_fast": True,
                 "vocabulary_size": len(tokenizer), "eos_id": tokenizer.eos_token_id,
@@ -151,6 +149,8 @@ def load_tokenizer(tokenizer_dir: Path, *, _test_only_tokenizer: dict | None = N
                     name: version(name) for name in ("transformers", "tokenizers")},
                 "weights_loaded": False, "add_special_tokens": False, "prepend_bos": False,
                 "append_native_eos_per_document": True}
+    if profile_id == "moonlight-16b-a3b":
+        metadata["split_special_tokens"] = tokenizer.split_special_tokens
     return tokenizer, metadata
 
 
@@ -268,24 +268,79 @@ def _failure(root: Path, error: Exception, diagnostics: dict) -> AdmissionError:
 
 
 def build_pack(*, sources: Path, sources_sha256: str, tokenizer_dir: Path, output: Path,
-               _test_only_tokenizer: dict | None = None) -> dict:
-    """Freeze 64 windows per length with Granite's fixed-order domain cycling."""
+               profile_id: str = "deepseek-v3", _test_only_tokenizer: dict | None = None) -> dict:
+    """Freeze 64 windows per length after strict profile tokenizer admission."""
+    return _build_pack(
+        sources=sources, sources_sha256=sources_sha256, tokenizer_dir=tokenizer_dir, output=output,
+        profile_id=profile_id, test_only=_test_only_tokenizer is not None,
+        tokenizer_loader=lambda: load_tokenizer(
+            Path(tokenizer_dir), profile_id=profile_id, _test_only_tokenizer=_test_only_tokenizer))
+
+
+def _assemble_pack(*, sources: Path, sources_sha256: str, tokenizer_dir: Path, tokenizer: Any,
+                   tokenizer_spec: dict, output: Path, profile_id: str) -> dict:
+    """Assemble from an independently admitted production tokenizer before profile publication.
+
+    The caller must already have validated the tokenizer and supply its exact production
+    metadata. Moonlight's independent v1 byte pins are checked here without importing the
+    not-yet-published model profile. No public CLI exposes this dependency-ordering seam.
+    Both this helper and strict build_pack use the same assembly implementation.
+    """
+    from benchmarks.harness import p3_moonlight_tokenizer as moonlight
+
+    _require(profile_id == "moonlight-16b-a3b", "independent_moonlight_admission_required")
+    expected = {"repo_id": moonlight.MODEL_ID, "revision": moonlight.REVISION,
+                "test_only": False, "files": moonlight.GENERATED_FILES}
+    _require(tokenizer_spec.get("pin") == expected
+             and tokenizer_spec.get("profile_id") == profile_id
+             and tokenizer_spec.get("repo_id") == moonlight.MODEL_ID
+             and tokenizer_spec.get("revision") == moonlight.REVISION
+             and tokenizer_spec.get("test_only") is False,
+             "independently_admitted_tokenizer_identity_required")
+    _require(tokenizer.is_fast is True and tokenizer.split_special_tokens is True
+             and (len(tokenizer), tokenizer.bos_token_id, tokenizer.eos_token_id,
+                  tokenizer.pad_token_id) == (163840, 163584, 163585, 163838),
+             "independently_admitted_tokenizer_vocabulary_required")
+    _require(tokenizer_spec.get("files") == {
+        name: {"path": name, **spec} for name, spec in expected["files"].items()}
+        and (tokenizer_spec.get("vocabulary_size"), tokenizer_spec.get("bos_id"),
+             tokenizer_spec.get("eos_id"), tokenizer_spec.get("pad_id"))
+        == (163840, 163584, 163585, 163838)
+        and tokenizer_spec.get("is_fast") is True
+        and tokenizer_spec.get("split_special_tokens") is True
+        and tokenizer_spec.get("weights_loaded") is False
+        and tokenizer_spec.get("add_special_tokens") is False
+        and tokenizer_spec.get("prepend_bos") is False
+        and tokenizer_spec.get("append_native_eos_per_document") is True,
+        "independently_admitted_tokenizer_metadata_required")
+    return _build_pack(sources=sources, sources_sha256=sources_sha256,
+                       tokenizer_dir=tokenizer_dir, output=output, profile_id=profile_id,
+                       test_only=False, tokenizer_loader=lambda: (tokenizer, tokenizer_spec))
+
+
+def _build_pack(*, sources: Path, sources_sha256: str, tokenizer_dir: Path, output: Path,
+                profile_id: str, test_only: bool,
+                tokenizer_loader: Callable[[], tuple[Any, dict]]) -> dict:
     try:
         root = frozen._fresh_root(Path(output))
     except frozen.AdmissionError:
         raise AdmissionError("existing_output_preserved") from None
-    diagnostics: dict = {}
+    diagnostics: dict = {"profile_id": profile_id, "training_sources_sha256": sources_sha256,
+                         "test_only": test_only}
     try:
-        pin = _pin(_test_only_tokenizer)
-        diagnostics = {"training_sources_sha256": sources_sha256, "test_only": pin["test_only"]}
+        _require(profile_id in ("deepseek-v3", "moonlight-16b-a3b"), "unknown_model_profile")
         with tempfile.TemporaryDirectory(prefix=".deepseek-pack-", dir=root) as temporary:
             stage = Path(temporary)
             source_copy = stage / "training-sources.jsonl"
             _copy(Path(sources), source_copy)
             rows, identities = _read_sources(source_copy, sources_sha256,
-                                             test_only=pin["test_only"], diagnostics=diagnostics)
-            tokenizer, tokenizer_spec = load_tokenizer(
-                Path(tokenizer_dir), _test_only_tokenizer=_test_only_tokenizer)
+                                             test_only=test_only, diagnostics=diagnostics)
+            tokenizer, tokenizer_spec = tokenizer_loader()
+            pin = tokenizer_spec["pin"]
+            _require(tokenizer_spec.get("profile_id") == profile_id
+                     and pin["test_only"] is test_only, "tokenizer_profile_mismatch")
+            _require(Path(tokenizer_dir).name == pin["revision"], "tokenizer_revision_mismatch")
+            _check_tokenizer_files(Path(tokenizer_dir), pin)
             available = _available_tokens(tokenizer, rows, identities)
             diagnostics.update({
                 "unique_available_tokens_by_domain": available,
@@ -294,6 +349,10 @@ def build_pack(*, sources: Path, sources_sha256: str, tokenizer_dir: Path, outpu
                 "tokenizer_revision": tokenizer_spec["revision"],
             })
             windows, spans, metadata = frozen._pack(tokenizer, rows)
+            _require(all(type(token) is int and 0 <= token < tokenizer_spec["vocabulary_size"]
+                         for layout in windows.values() for window in layout
+                         for batch in window["micro_batches"] for token in batch["input_ids"][0]),
+                     "window_vocabulary_mismatch")
             usage = _row_usage(identities, spans)
             files = {"training_sources": {**frozen._descriptor(source_copy, source_copy.name),
                                           "rows": len(rows)},
@@ -315,6 +374,7 @@ def build_pack(*, sources: Path, sources_sha256: str, tokenizer_dir: Path, outpu
                          "tokenizer_file_changed_during_copy")
                 files[f"tokenizer/{name}"] = descriptor
             manifest = {"schema": POLICY, "status": STATUS, "policy": POLICY,
+                        "profile_id": profile_id,
                         "test_only": pin["test_only"], "training_sources_sha256": sources_sha256,
                         "training_source_row_count": len(rows), "files": files,
                         "raw_row_hash_policy": "sha256_exact_physical_line_including_terminator",
@@ -343,11 +403,13 @@ def build_pack(*, sources: Path, sources_sha256: str, tokenizer_dir: Path, outpu
         raise _failure(root, error, diagnostics) from None
 
 
-def _tokenizer_contract(manifest: dict) -> dict:
+def _tokenizer_contract(manifest: dict, profile_id: str = "deepseek-v3") -> dict:
     spec = manifest.get("tokenizer")
     _require(isinstance(spec, dict) and type(manifest.get("test_only")) is bool,
              "tokenizer_identity_missing")
-    pin = _pin(spec.get("pin")) if manifest["test_only"] else _production_pin()
+    pin = (_pin(spec.get("pin"), profile_id) if manifest["test_only"]
+           else _production_pin(profile_id))
+    _require(spec.get("profile_id", "deepseek-v3") == profile_id, "tokenizer_profile_mismatch")
     _require(spec.get("pin") == pin and spec.get("repo_id") == pin["repo_id"]
              and spec.get("revision") == pin["revision"]
              and spec.get("test_only") is manifest["test_only"], "tokenizer_identity_mismatch")
@@ -359,8 +421,15 @@ def _tokenizer_contract(manifest: dict) -> dict:
     _require(type(vocabulary) is int and vocabulary > 0 and type(eos) is int
              and 0 <= eos < vocabulary, "tokenizer_vocabulary_invalid")
     if not pin["test_only"]:
-        _require((vocabulary, eos, spec.get("bos_id"), spec.get("pad_id")) == (128815, 1, 0, 1),
-                 "deepseek_tokenizer_vocabulary_or_special_ids_mismatch")
+        from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
+
+        expected = get_profile(profile_id).tokenizer
+        _require((vocabulary, eos, spec.get("bos_id"), spec.get("pad_id")) == (
+            expected.vocabulary_size, expected.eos_id, expected.bos_id, expected.pad_id),
+            "profile_tokenizer_vocabulary_or_special_ids_mismatch")
+        if profile_id == "moonlight-16b-a3b":
+            _require(spec.get("split_special_tokens") is True,
+                     "ordinary_literal_special_token_policy_required")
     _require(isinstance(spec.get("files"), dict) and set(spec["files"]) == set(pin["files"]),
              "tokenizer_files_missing")
     for name, expected in pin["files"].items():
@@ -488,7 +557,8 @@ def _validate_windows(root: Path, manifest: dict) -> dict[int, list[dict]]:
             _require(window.get("document_spans") == expected_spans,
                      "window_document_span_mismatch")
             for batch in window["micro_batches"]:
-                _require(all(token < manifest["tokenizer"]["vocabulary_size"]
+                _require(all(type(token) is int
+                             and 0 <= token < manifest["tokenizer"]["vocabulary_size"]
                              for token in batch["input_ids"][0]), "window_vocabulary_mismatch")
                 ids.extend(batch["input_ids"][0])
                 labels.extend(batch["labels"][0])
@@ -530,14 +600,15 @@ def _validate_windows(root: Path, manifest: dict) -> dict[int, list[dict]]:
     return layouts
 
 
-def load_pack(pack: Path, pack_sha256: str, *, length: int, steps: int
-              ) -> tuple[list[dict], dict]:
+def load_pack(pack: Path, pack_sha256: str, *, length: int, steps: int,
+              profile_id: str = "deepseek-v3") -> tuple[list[dict], dict]:
     """Verify the manifest and every pack file before returning a frozen-order prefix.
 
     ``pack_sha256`` is SHA256 of manifest.json bytes, not its internal payload hash.
     Fixture packs remain visibly test-only; full-model callers must reject them.
     No tokenizer, model weights or CUDA context is loaded by this function.
     """
+    _require(profile_id in ("deepseek-v3", "moonlight-16b-a3b"), "unknown_model_profile")
     _require(type(length) is int and length in _LENGTHS, "unsupported_training_length")
     _require(type(steps) is int and 1 <= steps <= 64, "insufficient_windows_or_invalid_steps")
     _require(_digest(pack_sha256), "invalid_pack_manifest_hash")
@@ -545,13 +616,15 @@ def load_pack(pack: Path, pack_sha256: str, *, length: int, steps: int
     _require(frozen._file_hash(root / "manifest.json")[1] == pack_sha256,
              "pack_manifest_file_hash_mismatch")
     manifest = frozen._read_manifest(root)
+    # Historic DeepSeek receipts predate profiles. Missing identity never admits Moonlight.
+    _require(manifest.get("profile_id", "deepseek-v3") == profile_id, "pack_profile_mismatch")
     _require(manifest.get("schema") == POLICY and manifest.get("policy") == POLICY
              and manifest.get("status") == STATUS, "completed_deepseek_pack_required")
     files = manifest["files"]
     for key, name in _REQUIRED_FILES.items():
         _require(isinstance(files.get(key), dict) and files[key].get("path") == name,
                  "required_pack_file_missing_or_path_mismatch")
-    pin = _tokenizer_contract(manifest)
+    pin = _tokenizer_contract(manifest, profile_id)
     _require(set(files) == {*_REQUIRED_FILES, *(f"tokenizer/{name}" for name in pin["files"])},
              "unexpected_pack_file_descriptor")
     _require(manifest.get("input_token_count") == 262144
@@ -595,11 +668,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sources-sha256", required=True)
     parser.add_argument("--tokenizer-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--profile", choices=("deepseek-v3", "moonlight-16b-a3b"),
+                        default="deepseek-v3")
     args = parser.parse_args(argv)
     console = Console(highlight=False, markup=False)
     try:
         manifest = build_pack(sources=args.sources, sources_sha256=args.sources_sha256,
-                              tokenizer_dir=args.tokenizer_dir, output=args.output)
+                              tokenizer_dir=args.tokenizer_dir, output=args.output,
+                              profile_id=args.profile)
     except AdmissionError as error:
         console.print(str(error))
         return 1

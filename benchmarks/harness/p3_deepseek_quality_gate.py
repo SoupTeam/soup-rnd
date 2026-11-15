@@ -31,6 +31,7 @@ import json
 import math
 import os
 import random
+import re
 import struct
 import sys
 import time
@@ -51,6 +52,7 @@ from benchmarks.harness.p3_deepseek_quality_attention import (
     require_ampere_cuda,
     require_execution_evidence,
 )
+from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
 
 SCHEMA = "p3-deepseek-quality-gate-v1"
 SEED = 23
@@ -594,7 +596,7 @@ def _run_pass(
     session: Any, *, name: str, initial_adapter: Path, initial_sha256: str,
     ids: Sequence[Any], labels: Sequence[Any], targets: int, directory: Path,
     device: str, dtype: str, host_budget_bytes: int, reference: _LayerArchive | None = None,
-    production: bool = False,
+    production: bool = False, profile_id: str = "deepseek-v3",
 ) -> tuple[dict[str, Any], dict[str, Any], _LayerArchive | None]:
     import torch
 
@@ -613,7 +615,7 @@ def _run_pass(
 
     directory.mkdir(parents=True, exist_ok=False)
     row: dict[str, Any] = {
-        "status": "FAILED", "name": name, "optimizer_applied": False,
+        "status": "FAILED", "name": name, "profile_id": profile_id, "optimizer_applied": False,
         "valid_target_count": targets, "initial_adapter_sha256": initial_sha256,
         "backend_requested": FLOOR_BACKEND if name == "ga_floor" else MAIN_BACKEND,
         "routing_guard": "production_L2LStep_enabled" if "l2l" in name or "oracle" in name
@@ -640,7 +642,7 @@ def _run_pass(
         require_ampere_cuda(device)
         memory.__enter__()
         memory_started = True
-        if load_initial_adapter(model, initial_adapter) != initial_sha256:
+        if load_initial_adapter(model, initial_adapter, profile_id=profile_id) != initial_sha256:
             raise ValueError("initial adapter file changed between gate passes")
         model.zero_grad(set_to_none=True)
         model.train()
@@ -652,7 +654,8 @@ def _run_pass(
         layers = len(model_parts(model)[1].layers)
         if any(not _tensor_check(value)["finite"] for value in parameters.values()):
             raise ValueError("nonfinite initial adapter")
-        with (attention_execution(row["backend_requested"], device=device) as attention,
+        with (attention_execution(row["backend_requested"], device=device,
+                                  profile_id=profile_id) as attention,
               torch.autocast(device_type=torch.device(device).type, enabled=False),
               count_loads(runtime) as counters):
             if name in ("ga", "ga_repeat", "ga_floor"):
@@ -695,8 +698,9 @@ def _run_pass(
             gradients, checks = _gradient_snapshot(parameters)
             row["gradient_checks"] = checks
             if (not parameters or set(gradients) != set(parameters)
-                    or any(not check["nonzero"] for check in checks.values())):
-                raise ValueError("every attention adapter requires a finite nonzero gradient")
+                    or (profile_id == "deepseek-v3"
+                        and any(not check["nonzero"] for check in checks.values()))):
+                raise ValueError("attention adapter gradient coverage violates the profile policy")
             if any(value.grad is not None for value in model.parameters()
                    if not value.requires_grad):
                 raise ValueError("frozen base received a gradient")
@@ -704,7 +708,7 @@ def _run_pass(
         row["runtime_load_deltas"] = asdict(counters)
         _require_pass_attention(
             name, {**row, "attention": attention.report()}, dtype=dtype,
-            min_calls=layers * K, production=production,
+            min_calls=layers * K, production=production, profile_id=profile_id,
         )
         if any(row["runtime_load_deltas"][key] <= 0 for key in (
             "layer_loads", "large_loads", "expert_fetches", "expert_bytes_read",
@@ -853,13 +857,14 @@ def _deterministic(device: str) -> Iterator[dict[str, Any]]:
         yield evidence
 
 
-def _source_hashes() -> dict[str, str]:
+def _source_hashes(*, profile_id: str = "deepseek-v3") -> dict[str, str]:
     root = Path(__file__).parents[2]
     names = (
         "benchmarks/harness/p3_deepseek_quality_gate.py",
         "benchmarks/harness/p3_deepseek_quality_attention.py",
         "benchmarks/harness/p3_deepseek_quality_model.py",
         "benchmarks/harness/p3_deepseek_quality_prepare.py",
+        "benchmarks/harness/p3_deepseek_quality_profiles.py",
         "benchmarks/harness/p3_fp8_smoke.py", "benchmarks/harness/host_box.py",
         "benchmarks/harness/p3_deepseek_quality_data.py",
         "benchmarks/harness/p3_deepseek_oracle.py",
@@ -875,7 +880,7 @@ def _source_hashes() -> dict[str, str]:
         "src/soup_cli/utils/activation_codec.py", "src/soup_cli/utils/layer_stream_runtime.py",
         "src/soup_cli/utils/expert_stream.py",
         "src/soup_cli/utils/layer_shard.py", "src/soup_cli/utils/host_memory_budget.py",
-        policy_identity()["path"],
+        policy_identity(profile_id=profile_id)["path"],
     )
     for name in names:
         if name.endswith(".py"):
@@ -887,19 +892,46 @@ def _source_hashes() -> dict[str, str]:
     return {name: _sha256(root / name) for name in names}
 
 
+def _derived_nonfinite_paths(report: dict[str, Any]) -> set[str]:
+    """Classify publication diagnostics, never substitute for raw-tensor replay."""
+    paths: list[str] = []
+    _json_safe(report.get("a3", {}).get("rule"), path="$.a3.rule", nonfinite=paths)
+    for name in ("bf16_l2l", "fp8_oracle", "int4_oracle"):
+        row = report.get("passes", {}).get(name, {})
+        for index, layer in enumerate(row.get("layers", [])):
+            for kind in ("restore", "output", "branch"):
+                _json_safe(layer.get(kind), path=f"$.passes.{name}.layers[{index}].{kind}",
+                           nonfinite=paths)
+        if "oracle" in name:
+            _json_safe(row.get("gradient_agreement"),
+                       path=f"$.passes.{name}.gradient_agreement", nonfinite=paths)
+    _json_safe(report.get("candidate_gates"), path="$.candidate_gates", nonfinite=paths)
+    _json_safe(report.get("control", {}).get("gates"), path="$.control.gates", nonfinite=paths)
+    return set(paths)
+
+
 def _publish(output: Path, report: dict[str, Any]) -> dict[str, Any]:
     nonfinite: list[str] = []
     safe = _json_safe(report, nonfinite=nonfinite)
-    safe["nonfinite_evidence_fields"] = nonfinite
-    if nonfinite:
+    safe.setdefault("profile_id", "deepseek-v3")
+    diagnostic = safe["profile_id"] == "moonlight-16b-a3b"
+    safe["nonfinite_evidence_fields"] = sorted(nonfinite) if diagnostic else nonfinite
+    # Frozen ratios can be undefined for finite raw observations. Preserve their numerical
+    # verdict; the loader must reconstruct every null and its exact path from raw evidence.
+    technical = set(nonfinite) - _derived_nonfinite_paths(report) if diagnostic else nonfinite
+    if technical:
         safe["verdict"] = "NO_VERDICT"
+        if diagnostic:
+            safe["status"] = "FAILED"
     for name, row in safe["passes"].items():
+        row.setdefault("profile_id", safe["profile_id"])
         if row.get("status") != "NOT_APPLICABLE":
             _write_json(_child(output, name + "/pass.json"), row)
     failed_passes = {name: row for name, row in safe["passes"].items()
                      if row.get("status") == "FAILED"}
     if safe["status"] == "FAILED" or failed_passes:
         _write_json(_child(output, "failure.json"), {
+            "profile_id": safe["profile_id"],
             "error": safe.get("error"), "failed_passes": failed_passes,
             "detail": "failed observations are preserved; no pass or floor was substituted",
         })
@@ -911,7 +943,8 @@ def _publish(output: Path, report: dict[str, Any]) -> dict[str, Any]:
             admitted = _child(output, relative)
             files[relative] = {"bytes": admitted.stat().st_size, "sha256": _sha256(admitted)}
     _write_json(_child(output, "manifest.json"), {
-        "schema": SCHEMA, "status": safe["status"], "verdict": safe["verdict"],
+        "schema": SCHEMA, "profile_id": safe["profile_id"],
+        "status": safe["status"], "verdict": safe["verdict"],
         "qualification_only": safe["qualification_only"], "files": files,
         "manifest_policy": (
             "exclusive writes; all input, raw tensor and result files precede manifest"),
@@ -956,12 +989,15 @@ def run_gate(
     window: dict[str, Any] | None = None, pack: Path | None = None,
     pack_sha256: str | None = None, device: str = "cuda", dtype: str = "bfloat16",
     prepare: bool = False, fixture: bool = False, host_budget_bytes: int = HOST_BUDGET_BYTES,
+    profile_id: str = "deepseek-v3",
 ) -> dict[str, Any]:
-    """Create immutable evidence. Return FAILED/NO_VERDICT evidence for execution failures."""
+    """Preserve numerical verdicts; only Moonlight completes all diagnostic passes after FAIL."""
+    profile = get_profile(profile_id)
+    diagnostic = profile.profile_id == "moonlight-16b-a3b"
     output = Path(os.path.realpath(output))
     output.mkdir(parents=True, exist_ok=False)
     report: dict[str, Any] = {
-        "schema": SCHEMA, "status": "FAILED", "verdict": "NO_VERDICT",
+        "schema": SCHEMA, "profile_id": profile_id, "status": "FAILED", "verdict": "NO_VERDICT",
         "qualification_only": fixture or dtype != "bfloat16" or device != "cuda",
         "source": str(source), "cache": str(cache), "dtype": dtype, "device": device,
         "seed": SEED, "optimizer_updates": 0, "passes": {},
@@ -993,7 +1029,7 @@ def run_gate(
             dtype != "bfloat16" or device != "cuda"
         )):
             raise ValueError("production gate requires CUDA/BF16; FP32 is fixture-only")
-        report["attention_policy"] = policy_identity()
+        report["attention_policy"] = policy_identity(profile_id=profile_id)
         hardware = require_ampere_cuda(device)
         if type(host_budget_bytes) is not int or host_budget_bytes < 1:
             raise ValueError("host budget must be positive integer bytes")
@@ -1002,7 +1038,8 @@ def run_gate(
 
             if pack is None or pack_sha256 is None:
                 raise ValueError("gate requires a verified pack and its SHA256")
-            windows, manifest = load_pack(pack, pack_sha256, length=1024, steps=1)
+            windows, manifest = load_pack(pack, pack_sha256, length=1024, steps=1,
+                                          profile_id=profile_id)
             window = windows[0]
             report["pack"] = {"path": str(pack), "manifest_sha256": pack_sha256,
                               "manifest": manifest}
@@ -1013,10 +1050,13 @@ def run_gate(
         inputs, targets, identity = gate_prefix(window)
         report["input"] = identity
         _write_json(_child(output, "gate-input.json"), {
-            "identity": identity, "input_ids": inputs, "labels": targets,
+            "profile_id": profile_id, "identity": identity, "input_ids": inputs, "labels": targets,
         })
         report["initial_adapter_sha256"] = _sha256(initial_adapter)
-        report["source_files_sha256"] = _source_hashes()
+        report["source_files_sha256"] = (
+            _source_hashes() if profile_id == "deepseek-v3"
+            else _source_hashes(profile_id=profile_id)
+        )
         report["environment"] = {
             "torch": str(torch.__version__), "cuda": torch.version.cuda,
             "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
@@ -1028,16 +1068,17 @@ def run_gate(
             key: hardware[key] for key in ("name", "capability", "bf16_supported", "native_bf16")
         }
         _write_json(_child(output, "execution-start.json"), {
+            "profile_id": profile_id,
             "admission_sufficient": False, "partial_execution": _json_safe(report, nonfinite=[]),
         })
         with _deterministic(device) as deterministic:
             report["determinism"] = deterministic
             with open_session(
-                source, cache, device=device, dtype=dtype, prepare=prepare,
+                source, cache, device=device, dtype=dtype, prepare=prepare, profile_id=profile_id,
             ) as session:
                 report["model"] = session.metadata
                 if not fixture:
-                    require_production_source(session.metadata["source"])
+                    require_production_source(session.metadata["source"], profile_id=profile_id)
                 parameters = trainable_parameters(session.model)
                 report["trainable_names"] = sorted(parameters)
                 report["layers"] = list(range(int(session.config.num_hidden_layers)))
@@ -1050,6 +1091,7 @@ def run_gate(
                        for row in targets for token in row[0] if token != -100):
                     raise ValueError("supervised label outside model vocabulary")
                 _write_json(_child(output, "session-open.json"), {
+                    "profile_id": profile_id,
                     "admission_sufficient": False, "model": session.metadata,
                     "trainable_names": report["trainable_names"], "layers": report["layers"],
                 })
@@ -1067,11 +1109,12 @@ def run_gate(
                         targets=identity["valid_target_count"], directory=_child(output, name),
                         device=device, dtype=dtype, host_budget_bytes=host_budget_bytes,
                         reference=archives.get("bf16_l2l") if "oracle" in name else None,
-                        production=not fixture,
+                        production=not fixture, profile_id=profile_id,
                     )
                     report["passes"][name] = row
                     nonfinite: list[str] = []
                     _write_json(_child(output, name + "/pass-observation.json"), {
+                        "profile_id": profile_id,
                         "admission_sufficient": False,
                         "pass": _json_safe(row, nonfinite=nonfinite),
                         "nonfinite_evidence_fields": nonfinite,
@@ -1083,6 +1126,9 @@ def run_gate(
                             raise RuntimeError(f"gate pass {name} cleanup failed")
                         if not row["adapter_unchanged"]:
                             raise RuntimeError(f"gate pass {name} changed the shared adapter")
+                        if diagnostic:
+                            raise RuntimeError(f"technical gate pass {name} failed: "
+                                               f"{row.get('error')}")
                         if name not in ("ga_floor", "int4_oracle", "fp8_oracle"):
                             raise RuntimeError(
                                 f"required gate pass {name} failed: {row.get('error')}")
@@ -1094,13 +1140,13 @@ def run_gate(
                         row["losses"] != report["passes"]["ga"]["losses"]
                         or any(not torch.equal(results["ga"][key], gradients[key])
                                for key in report["trainable_names"])
-                    ):
+                    ) and not diagnostic:
                         report["a3"] = {"status": "NO_VERDICT",
                                         "detail": "bitwise ordinary GA repeat failed"}
                         raise ValueError("ordinary GA repeat failed; L2L is not judged")
                     if name == "ga_floor":
                         _record_a3(report, results, dtype)
-                        if report["a3"]["status"] != "PASS":
+                        if report["a3"]["status"] != "PASS" and not diagnostic:
                             report["stopped_after"] = name
                             break
                     if name in ("fp8_oracle", "int4_oracle"):
@@ -1119,8 +1165,10 @@ def run_gate(
                         if name == "fp8_oracle":
                             report["candidate_gates"] = _pass_metrics(report, name)
                             candidate_assessed = True
-                            if any(value["status"] != "PASS"
-                                   for value in report["candidate_gates"].values()):
+                            if not diagnostic and any(
+                                value["status"] != "PASS"
+                                for value in report["candidate_gates"].values()
+                            ):
                                 report["stopped_after"] = name
                                 break
                 if dtype == "float32":
@@ -1176,8 +1224,16 @@ def _require(condition: bool, detail: str) -> None:
         raise ValueError("gate admission: " + detail)
 
 
-def _require_attention_contract(result: dict[str, Any]) -> None:
-    _require(result.get("attention_policy") == policy_identity(),
+def _require_profile(value: dict[str, Any], profile_id: str, *, detail: str) -> None:
+    _require(value.get("profile_id", "deepseek-v3") == profile_id,
+             detail + " profile differs or is missing")
+
+
+def _require_attention_contract(
+    result: dict[str, Any], *, profile_id: str = "deepseek-v3",
+) -> None:
+    _require_profile(result, profile_id, detail="gate")
+    _require(result.get("attention_policy") == policy_identity(profile_id=profile_id),
              "immutable attention backend policy differs or is missing")
     deterministic = result.get("determinism", {})
     _require(deterministic.get("restored") is True and deterministic.get("execution") == {
@@ -1201,12 +1257,15 @@ def _require_attention_contract(result: dict[str, Any]) -> None:
 def _require_pass_attention(
     name: str, row: dict[str, Any], *, dtype: str = "bfloat16", min_calls: int,
     production: bool = False, hardware: dict[str, Any] | None = None,
+    profile_id: str = "deepseek-v3",
 ) -> None:
+    profile = get_profile(profile_id)
     backend = FLOOR_BACKEND if name == "ga_floor" else MAIN_BACKEND
     _require(row.get("backend_requested") == backend, f"attention backend changed: {name}")
     observation = row.get("attention", {})
     require_execution_evidence(
         observation, backend=backend, dtype=dtype, backward=True, min_calls=min_calls,
+        profile_id=profile_id,
     )
     if hardware is not None:
         _require(all(observation["hardware"].get(key) == hardware.get(key) for key in (
@@ -1218,9 +1277,12 @@ def _require_pass_attention(
                      for shape in (query, key, value)),
                  f"attention does not cover unchanged B1/L64 gate workload: {name}")
         if production:
-            _require(query == key == [1, 128, MICROBATCH_LENGTH, 192]
-                     and value == [1, 128, MICROBATCH_LENGTH, 128],
-                     f"attention MLA heads128 Q/K192 V128 execution missing: {name}")
+            _require(query == key == [1, profile.attention_heads, MICROBATCH_LENGTH,
+                                      profile.qk_head_dim]
+                     and value == [1, profile.attention_heads, MICROBATCH_LENGTH,
+                                   profile.v_head_dim],
+                     f"attention MLA heads{profile.attention_heads} Q/K{profile.qk_head_dim} "
+                     f"V{profile.v_head_dim} execution missing: {name}")
 
 
 def _oracle_complete(row: dict[str, Any], expected_pairs: int) -> bool:
@@ -1246,22 +1308,57 @@ def _oracle_complete(row: dict[str, Any], expected_pairs: int) -> bool:
     )
 
 
-def _load_gate(path: Path, sha256: str) -> dict[str, Any]:
+def _require_layer_coverage(
+    rows: Any, *, layers: Sequence[int], diagnostic: bool = False,
+) -> None:
+    _require(isinstance(rows, list) and len(rows) == len(layers)
+             and all(isinstance(row, dict) for row in rows)
+             and [row.get("layer") for row in rows] == list(layers),
+             "exact raw boundary layer coverage missing")
+    for row in rows:
+        pairs = row.get("pairs")
+        _require(isinstance(pairs, list) and len(pairs) == K
+                 and all(isinstance(pair, dict) for pair in pairs)
+                 and [pair.get("microbatch") for pair in pairs] == list(range(K))
+                 and all(pair.get("rows") == MICROBATCH_LENGTH
+                         and pair.get("finite") is True and pair.get("forward_equal") is True
+                         for pair in pairs), "incomplete/nonfinite raw boundary pair coverage")
+        for kind in ("restore", "output", "branch"):
+            metric = row.get(kind)
+            _require(isinstance(metric, dict) and metric.get("rows") == PREFIX_TOKENS
+                     and all(key in metric and (
+                         _finite(metric[key]) and metric[key] >= 0
+                         or diagnostic and metric[key] is None
+                     ) for key in (
+                         "rms_row_rel", "worst_row_rel", "rel_l2", "max_abs",
+                         "max_abs_over_absmax", "err_sq", "ref_sq", "row_rel_sq_sum",
+                     )), "incomplete/nonfinite raw boundary metric coverage")
+
+
+def _load_gate(
+    path: Path, sha256: str, *, profile_id: str = "deepseek-v3",
+) -> dict[str, Any]:
     """Admit an immutable production receipt, recomputing A3/E1/E2/E3 from its tensors.
 
     The training caller must then match ``model.source``, ``model.cache``,
     ``initial_adapter_sha256`` and ``pack.manifest_sha256`` to its live inputs.
-    A digest-pinned PASS string without the underlying finite coverage is refused.
+    Moonlight numerical FAIL/NO_VERDICT is diagnostic, never a fabricated PASS.
     """
+    from benchmarks.harness.p3_deepseek_quality_data import _tokenizer_contract
     from benchmarks.harness.p3_deepseek_quality_model import require_production_source
+
+    profile = get_profile(profile_id)
+    diagnostic = profile.profile_id == "moonlight-16b-a3b"
+    verdicts = ("PASS", "FAIL", "NO_VERDICT") if diagnostic else ("PASS",)
 
     path = Path(path)
     _require(path.name == "manifest.json", "--gate must name manifest.json")
     _require(isinstance(sha256, str) and len(sha256) == 64 and _sha256(path) == sha256,
              "manifest hash mismatch")
     manifest = json.loads(path.read_text(encoding="utf-8"))
+    _require_profile(manifest, profile_id, detail="manifest")
     _require(manifest.get("schema") == SCHEMA and manifest.get("status") == "COMPLETE"
-             and manifest.get("verdict") == "PASS"
+             and manifest.get("verdict") in verdicts
              and manifest.get("qualification_only") is False,
              "production COMPLETE/PASS receipt required; qualification evidence is not admission")
     root = path.parent
@@ -1277,18 +1374,30 @@ def _load_gate(path: Path, sha256: str) -> dict[str, Any]:
                  and artifact.stat().st_size == descriptor.get("bytes")
                  and _sha256(artifact) == descriptor.get("sha256"),
                  f"artifact size/hash mismatch: {relative}")
+    if diagnostic:
+        _require(not {"failure.json", "FAILED.json"}.intersection(files),
+                 "technical failure artifact cannot admit a diagnostic gate")
     result = json.loads(_child(root, "result.json").read_text(encoding="utf-8"))
+    _require_profile(result, profile_id, detail="result")
     _require(result.get("schema") == SCHEMA and result.get("status") == "COMPLETE"
-             and result.get("verdict") == "PASS" and result.get("qualification_only") is False
+             and result.get("verdict") == manifest.get("verdict")
+             and result.get("qualification_only") is False
              and result.get("dtype") == "bfloat16" and result.get("device") == "cuda"
              and result.get("seed") == SEED and result.get("optimizer_updates") == 0
              and result.get("session_closed") is True
-             and result.get("nonfinite_evidence_fields") == [],
+             and (diagnostic or result.get("nonfinite_evidence_fields") == []),
              "result is not complete finite production evidence")
-    _require_attention_contract(result)
-    require_production_source(result["model"]["source"])
+    if diagnostic:
+        _require(isinstance(result.get("initial_adapter_sha256"), str)
+                 and re.fullmatch(r"[0-9a-f]{64}", result["initial_adapter_sha256"]) is not None,
+                 "initial adapter identity missing or malformed")
+    _require_attention_contract(result, profile_id=profile_id)
+    require_production_source(result["model"]["source"], profile_id=profile_id)
     cache = result["model"]["cache"]
     precision = result["model"]["precision"]
+    _require_profile(result["model"], profile_id, detail="model")
+    for name in ("source", "cache"):
+        _require_profile(result["model"][name], profile_id, detail=name)
     _require(cache.get("dtype") == "bfloat16" and cache.get("quant") == "nf4"
              and cache.get("double_quant") is False and cache.get("expert_layout") == "per_expert"
              and cache.get("tier") == "disk" and precision.get("compute_dtype") == "bfloat16"
@@ -1296,7 +1405,9 @@ def _load_gate(path: Path, sha256: str) -> dict[str, Any]:
              and precision.get("autocast") is False
              and precision.get("attention_implementation") == "sdpa",
              "NF4 noDQ per-expert disk/BF16 precision contract differs")
-    _require(result.get("source_files_sha256") == _source_hashes(),
+    source_hashes = (_source_hashes() if profile_id == "deepseek-v3"
+                     else _source_hashes(profile_id=profile_id))
+    _require(result.get("source_files_sha256") == source_hashes,
              "gate executing source hashes differ from this checkout")
     pack = result.get("pack", {})
     _require(pack.get("manifest", {}).get("test_only") is False
@@ -1304,10 +1415,40 @@ def _load_gate(path: Path, sha256: str) -> dict[str, Any]:
     _require(pack["manifest"].get("tokenizer", {}).get("test_only") is False
              and pack["manifest"].get("training_source_row_count") == 7801,
              "production tokenizer/source-row identity missing")
+    _require_profile(pack["manifest"], profile_id, detail="pack")
+    _require_profile(pack["manifest"]["tokenizer"], profile_id, detail="tokenizer")
+    if diagnostic:
+        _tokenizer_contract(pack["manifest"], profile_id=profile_id)
+        contract = result["attention_policy"]["contract"]
+        _require(pack["manifest_sha256"] == contract["training_pack_manifest_sha256"],
+                 "pack differs from immutable attention policy")
+        _require(result["model"]["source"]["config_sha256"]
+                 == contract["model"]["config_sha256"],
+                 "source config differs from immutable attention policy")
+        _require(cache.get("source_fingerprint")
+                 == result["model"]["source"].get("cache_source_fingerprint")
+                 and cache.get("source_parameters") == profile.parameters
+                 and cache.get("n_layers") == profile.shape["num_hidden_layers"]
+                 and isinstance(cache.get("index_sha256"), str)
+                 and re.fullmatch(r"[0-9a-f]{64}", cache["index_sha256"]) is not None,
+                 "cache/source identity differs or is missing")
+        _require(precision.get("lora") == {
+            "rank": 2, "alpha": 4, "dropout": 0.0, "targets": list(profile.lora_targets),
+        }, "profile rank-two attention adapter contract differs")
+        environment = result.get("environment", {})
+        _require(all(isinstance(environment.get(key), str) and bool(environment[key])
+                     for key in ("torch", "cuda"))
+                 and set(environment.get("packages", {})) == {
+                     "transformers", "peft", "bitsandbytes", "accelerate", "safetensors",
+                 } and all(isinstance(value, str) and bool(value)
+                           for value in environment["packages"].values()),
+                 "software/CUDA environment identity missing")
     input_record = json.loads(_child(root, "gate-input.json").read_text(encoding="utf-8"))
+    _require_profile(input_record, profile_id, detail="input")
     identity = input_record.get("identity", {})
     _require(identity == result.get("input") and identity.get("k") == K
              and identity.get("microbatch_length") == MICROBATCH_LENGTH
+             and identity.get("batch_size") == 1
              and identity.get("input_tokens") == PREFIX_TOKENS
              and identity.get("pack_length") == 1024 and identity.get("window_index") == 0
              and identity.get("prefix_start") == 0 and identity.get("prefix_stop") == PREFIX_TOKENS,
@@ -1330,11 +1471,12 @@ def _load_gate(path: Path, sha256: str) -> dict[str, Any]:
              and identity.get("labels_sha256") == _ids_sha256(
                  [x for row in labels for x in row[0]]),
              "prefix target denominator or input/label hash mismatch")
-    return _verify_numerical_evidence(root, files, result)
+    return _verify_numerical_evidence(root, files, result, profile_id=profile_id)
 
 
 def _verify_numerical_evidence(
     root: Path, files: dict[str, Any], result: dict[str, Any],
+    *, profile_id: str = "deepseek-v3",
 ) -> dict[str, Any]:
     """Verify raw tensors independently of production checkpoint admission.
 
@@ -1347,7 +1489,48 @@ def _verify_numerical_evidence(
 
     from benchmarks.harness import g4_activation_codec as metrics
 
-    _require_attention_contract(result)
+    profile = get_profile(profile_id)
+    diagnostic = profile.profile_id == "moonlight-16b-a3b"
+    _require_attention_contract(result, profile_id=profile_id)
+    nonfinite: list[str] = []
+    _json_safe(result, nonfinite=nonfinite)
+    _require(not nonfinite, "nonfinite numerical evidence fields")
+    declared = result.get("nonfinite_evidence_fields")
+    if diagnostic:
+        _require(isinstance(declared, list) and all(isinstance(path, str) for path in declared)
+                 and declared == sorted(set(declared)),
+                 "malformed nonfinite diagnostic paths")
+    else:
+        _require(not declared, "nonfinite numerical evidence fields")
+    derived_nonfinite: set[str] = set()
+
+    def canonical(value: Any, *, path: str) -> Any:
+        # Only independently reconstructed values can declare a derived diagnostic.
+        # Matching this representation also rejects nulls where raw replay was finite.
+        paths: list[str] = []
+        safe = _json_safe(value, path=path, nonfinite=paths)
+        _require(diagnostic or not paths, "nonfinite numerical metric recomputation")
+        derived_nonfinite.update(paths)
+        return safe
+
+    def same_json(expected: Any, recorded: Any) -> bool:
+        if isinstance(expected, dict):
+            return (isinstance(recorded, dict) and expected.keys() == recorded.keys()
+                    and all(same_json(value, recorded[key])
+                            for key, value in expected.items()))
+        if isinstance(expected, list):
+            return (isinstance(recorded, list) and len(expected) == len(recorded)
+                    and all(same_json(left, right) for left, right in zip(expected, recorded)))
+        if type(expected) is bool or type(recorded) is bool:
+            return type(expected) is type(recorded) and expected == recorded
+        return expected == recorded
+
+    def matches(value: Any, recorded: Any, *, path: str) -> bool:
+        reconstructed = canonical(value, path=path)
+        return (same_json(reconstructed, recorded) if diagnostic
+                else reconstructed == recorded)
+
+    _require(not result.get("error"), "gate retains an execution error")
 
     counts = result["input"]["per_microbatch_targets"]
     _require(isinstance(counts, list) and len(counts) == K
@@ -1355,20 +1538,50 @@ def _verify_numerical_evidence(
              and sum(counts) > 0, "invalid numerical evidence target counts")
     names = result.get("trainable_names")
     n_layers = result["model"]["cache"]["n_layers"]
+    _require(type(n_layers) is int and n_layers > 0, "invalid numerical layer count")
     layers = list(range(n_layers))
     _require(result.get("layers") == layers and isinstance(names, list)
-             and names == sorted(set(names)) and len(names) == n_layers * 10,
+             and all(isinstance(name, str) for name in names)
+             and names == sorted(set(names))
+             and len(names) == n_layers * len(profile.lora_targets) * 2,
              "exact layer/attention-adapter tensor inventory missing")
+    observed = []
+    for name in names:
+        match = re.search(
+            r"\.layers\.(\d+)\.self_attn\.([^.]+)\.lora_([AB])\.default\.weight$", name,
+        )
+        _require(match is not None, "unexpected attention-adapter tensor name")
+        observed.append((int(match[1]), match[2], match[3]))
+    _require(set(observed) == {(layer, target, factor) for layer in layers
+                              for target in profile.lora_targets for factor in ("A", "B")},
+             "exact layer/attention-adapter tensor inventory differs from profile")
     passes = result.get("passes", {})
     required = ("ga", "ga_repeat", "bf16_l2l", "ga_floor", "fp8_oracle", "int4_oracle")
     _require(set(passes) == set(required), "required measured passes missing or unexpected")
+    if diagnostic:
+        expected_raw = {name + "/gradients.pt" for name in required}
+        expected_raw.update(
+            f"{arm}/{phase}/layer-{layer:03d}-mb-{mb:03d}.pt"
+            for arm, phase in (("bf16_l2l", "forward"), ("bf16_l2l", "recompute"),
+                               ("fp8_oracle", "recompute"), ("int4_oracle", "recompute"))
+            for layer in layers for mb in range(K)
+        )
+        _require({name for name in files if name.endswith(".pt")} == expected_raw,
+                 "exact raw gradient/boundary artifact inventory missing or unexpected")
     adapter_identity = passes["ga"].get("adapter_before_sha256")
     _require(isinstance(adapter_identity, str) and len(adapter_identity) == 64,
              "shared adapter parameter digest missing")
     gradients = {}
     for name in required:
         row = passes[name]
+        _require_profile(row, profile_id, detail="pass " + name)
+        if diagnostic and result.get("qualification_only") is False:
+            relative = name + "/pass.json"
+            _require(relative in files and same_json(json.loads(
+                _child(root, relative).read_text(encoding="utf-8")), row),
+                f"pass receipt differs from result: {name}")
         _require(row.get("status") == "COMPLETE" and row.get("optimizer_applied") is False
+                 and not row.get("error") and not row.get("interrupted")
                  and row.get("adapter_unchanged") is True
                  and row.get("adapter_before_sha256") == row.get("adapter_after_sha256")
                  and row.get("adapter_before_sha256") == adapter_identity
@@ -1377,10 +1590,19 @@ def _verify_numerical_evidence(
                  and row.get("host_budget_after_close_bytes") == 0
                  and row.get("cleanup_errors") == [] and row.get("diagnostic_errors") == [],
                  f"incomplete/changed/unclean pass: {name}")
+        if diagnostic and name == "fp8_oracle":
+            store = row.get("store_after_close")
+            _require(isinstance(store, dict) and isinstance(store.get("cleanup"), dict)
+                     and store["cleanup"].get("closed") is True
+                     and all(type(store.get(key)) is int and store[key] == 0 for key in (
+                         "owned_host_storage_bytes", "owned_device_storage_bytes",
+                         "charged_host_bytes",
+                     )), "missing/unclean FP8 store cleanup")
         _require_pass_attention(
             name, row, min_calls=n_layers * K,
             production=result.get("qualification_only") is False,
             hardware=result["environment"]["gpu"],
+            profile_id=profile_id,
         )
         _require(all(type(row.get("runtime_load_deltas", {}).get(key)) is int
                      and row["runtime_load_deltas"][key] > 0 for key in (
@@ -1389,27 +1611,47 @@ def _verify_numerical_evidence(
         checks = row.get("gradient_checks", {})
         _require(set(checks) == set(names) and all(
             check.get("present") is True and check.get("finite") is True
-            and check.get("nonzero") is True for check in checks.values()
-        ), f"missing per-tensor finite/nonzero gradients: {name}")
+            and type(check.get("nonzero")) is bool
+            and (diagnostic or check["nonzero"]) for check in checks.values()
+        ), f"missing per-tensor finite gradients or invalid nonzero diagnostics: {name}")
         artifact = _child(root, name + "/gradients.pt")
         _require(name + "/gradients.pt" in files, f"raw named gradient tensors missing: {name}")
+        if diagnostic:
+            descriptor = files[name + "/gradients.pt"]
+            _require(artifact.is_file() and artifact.stat().st_size == descriptor.get("bytes")
+                     and _sha256(artifact) == descriptor.get("sha256"),
+                     f"raw gradient artifact size/hash differs: {name}")
+        if diagnostic:
+            _require(row.get("gradient_artifact") == {
+                "path": "gradients.pt", "bytes": files[name + "/gradients.pt"]["bytes"],
+                "sha256": files[name + "/gradients.pt"]["sha256"],
+            }, f"gradient artifact descriptor differs: {name}")
         with artifact.open("rb") as stream:
             values = torch.load(stream, map_location="cpu", weights_only=True)
         _require(isinstance(values, dict) and set(values) == set(names)
                  and all(isinstance(value, torch.Tensor) and value.dtype == torch.float32
-                         and bool(torch.isfinite(value).all()) and bool(value.ne(0).any())
+                         and bool(torch.isfinite(value).all())
+                         and bool(value.ne(0).any()) is checks[key]["nonzero"]
                          and list(value.shape) == checks[key].get("shape")
                          for key, value in values.items()),
-                 f"raw gradients fail finite/nonzero coverage: {name}")
+                 f"raw gradients fail finite coverage or recorded nonzero diagnostics: {name}")
         gradients[name] = values
+        if name != "ga":
+            _require(all(value.shape == gradients["ga"][key].shape
+                         for key, value in values.items()),
+                     f"raw gradient shapes differ across passes: {name}")
+        if diagnostic and name in ("ga", "ga_repeat", "ga_floor"):
+            _require(row.get("layer_forward_counts") == [K] * n_layers,
+                     f"ordinary GA layer coverage missing: {name}")
         losses = row.get("losses", [])
         _require(len(losses) == K and all(_finite(value) for value in losses),
                  f"nonfinite/incomplete losses: {name}")
         if "oracle" in name or "l2l" in name:
             _require(row.get("routing_guard") == "production_L2LStep_enabled",
                      "production routing guard was not retained")
-    _require(passes["ga"]["losses"] == passes["ga_repeat"]["losses"],
-             "per-microbatch repeat losses differ")
+    if not diagnostic:
+        _require(passes["ga"]["losses"] == passes["ga_repeat"]["losses"],
+                 "per-microbatch repeat losses differ")
     floor = result.get("floor", {})
     _require(floor.get("observed") is True and floor.get("backend") == FLOOR_BACKEND
              and floor.get("main_backend") == MAIN_BACKEND and floor.get("factor") == 1.5,
@@ -1421,15 +1663,22 @@ def _verify_numerical_evidence(
         floor_gradients=gradients["ga_floor"], floor_losses=passes["ga_floor"]["losses"],
         floor_observed=True,
     )
-    _require(a3["status"] == "PASS" and _json_safe(a3) == result.get("a3"),
-             "A3 raw tensor recomputation did not reproduce PASS")
+    _require(matches(a3, result.get("a3"), path="$.a3"),
+             "A3 raw tensor recomputation differs from recorded verdict")
+    if not diagnostic:
+        _require(a3["status"] == "PASS", "A3 raw tensor recomputation did not reproduce PASS")
     derived_gates = {}
     expected_pairs = (n_layers - result["model"]["source"]["shape"]["first_k_dense_replace"]) * K
-    for name in ("fp8_oracle", "int4_oracle"):
+    archive_names = ("bf16_l2l", "fp8_oracle", "int4_oracle") if diagnostic else (
+        "fp8_oracle", "int4_oracle",
+    )
+    for name in archive_names:
         row = passes[name]
-        _require(_oracle_complete(row, expected_pairs), "missing executed Oracle VJP coverage")
-        _require(row.get("losses") == passes["bf16_l2l"]["losses"],
-                 "candidate/control original-forward loss differs from BF16")
+        if "oracle" in name:
+            _require(_oracle_complete(row, expected_pairs), "missing executed Oracle VJP coverage")
+            _require(row.get("losses") == passes["bf16_l2l"]["losses"],
+                     "candidate/control original-forward loss differs from BF16")
+        _require_layer_coverage(row.get("layers"), layers=layers, diagnostic=diagnostic)
         table = []
         for layer in layers:
             parts = {kind: [] for kind in ("restore", "output", "branch")}
@@ -1438,6 +1687,13 @@ def _verify_numerical_evidence(
                 pair = []
                 for relative in ("bf16_l2l/forward/" + basename, name + "/recompute/" + basename):
                     _require(relative in files, "missing raw boundary pair")
+                    if diagnostic:
+                        artifact = _child(root, relative)
+                        descriptor = files[relative]
+                        _require(artifact.is_file()
+                                 and artifact.stat().st_size == descriptor.get("bytes")
+                                 and _sha256(artifact) == descriptor.get("sha256"),
+                                 "raw boundary artifact size/hash differs")
                     with _child(root, relative).open("rb") as stream:
                         value = torch.load(stream, map_location="cpu", weights_only=True)
                     hidden = result["model"]["source"]["shape"]["hidden_size"]
@@ -1460,29 +1716,48 @@ def _verify_numerical_evidence(
             recomputed = {"layer": layer, "pairs": recorded["pairs"], **{
                 kind: metrics.merge_errors(values) for kind, values in parts.items()
             }}
-            _require(recomputed == recorded, "layer metrics differ from raw one-recompute tensors")
+            _require(matches(recomputed, recorded, path=f"$.passes.{name}.layers[{layer}]"),
+                     "layer metrics differ from raw one-recompute tensors")
             table.append(recomputed)
+        if name == "bf16_l2l":
+            continue
         agreement = gradient_agreement(gradients["bf16_l2l"], gradients[name])
-        _require(agreement == row.get("gradient_agreement"), "E3 raw tensor metrics differ")
+        _require(matches(agreement, row.get("gradient_agreement"),
+                         path=f"$.passes.{name}.gradient_agreement"),
+                 "E3 raw tensor metrics differ")
         derived_gates[name] = assess_metrics(
             table, agreement, expected_layers=layers, expected_tensors=names,
         )
-    _require(derived_gates["fp8_oracle"] == result.get("candidate_gates"),
-             "candidate G4 verdict differs from raw metrics")
+        statuses = ("PASS", "FAIL", "NO_VERDICT") if diagnostic else ("PASS", "FAIL")
+        _require(all(value.get("status") in statuses for value in derived_gates[name].values()),
+                 "incomplete/nonfinite recomputed G4 metrics")
+    _require(matches(derived_gates["fp8_oracle"], result.get("candidate_gates"),
+                     path="$.candidate_gates"), "candidate G4 verdict differs from raw metrics")
     discrimination = assess_discrimination(derived_gates["int4_oracle"])
-    _require(result.get("control") == {"gates": derived_gates["int4_oracle"],
-                                       "discrimination": discrimination},
+    control = {"gates": derived_gates["int4_oracle"], "discrimination": discrimination}
+    _require(matches(control, result.get("control"), path="$.control"),
              "int4 control evidence differs")
-    _require(overall_verdict(
-        a3, derived_gates["fp8_oracle"], discrimination, eligible=True) == "PASS",
-             "independently recomputed gate does not admit training")
+    if diagnostic:
+        _require(declared == sorted(derived_nonfinite),
+                 "nonfinite diagnostic paths differ from raw metric recomputation")
+    verdict = overall_verdict(a3, derived_gates["fp8_oracle"], discrimination, eligible=True)
+    _require(verdict == result.get("verdict"),
+             "independently recomputed numerical verdict differs from receipt")
+    if not diagnostic:
+        _require(verdict == "PASS", "independently recomputed gate does not admit training")
     return result
 
 
-def load_gate(path: Path, sha256: str) -> dict[str, Any]:
-    """Validate the production gate receipt; raise ValueError on malformed evidence."""
+def load_gate(
+    path: Path, sha256: str, *, profile_id: str = "deepseek-v3",
+) -> dict[str, Any]:
+    """Return raw-verified production evidence with its unchanged numerical verdict.
+
+    DeepSeek requires PASS. Moonlight also admits complete finite FAIL/NO_VERDICT
+    diagnostics. Callers must still match live model, adapter, pack and environment.
+    """
     try:
-        return _load_gate(path, sha256)
+        return _load_gate(path, sha256, profile_id=profile_id)
     except (
         KeyError, IndexError, TypeError, AttributeError, OSError, RuntimeError, EOFError,
     ) as error:
@@ -1502,13 +1777,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--pack-sha256", required=True)
     parser.add_argument("--prepare", action="store_true", help="build only a missing NF4 cache")
     parser.add_argument("--host-budget-bytes", type=int, default=HOST_BUDGET_BYTES)
+    parser.add_argument("--profile", choices=("deepseek-v3", "moonlight-16b-a3b"),
+                        default="deepseek-v3")
     args = parser.parse_args(argv)
     report = run_gate(
         source=args.source, cache=args.cache, pack=args.pack, pack_sha256=args.pack_sha256,
         initial_adapter=args.initial_adapter, output=args.output, prepare=args.prepare,
-        host_budget_bytes=args.host_budget_bytes,
+        host_budget_bytes=args.host_budget_bytes, profile_id=args.profile,
     )
     Console().print(f"Gradient gate: {report['status']} / {report['verdict']}")
+    if args.profile == "moonlight-16b-a3b":
+        if report["status"] != "COMPLETE" or report["qualification_only"]:
+            return 1
+        manifest = args.output / "manifest.json"
+        load_gate(manifest, _sha256(manifest), profile_id=args.profile)
+        Console().print("Moonlight diagnostic execution verified; numerical verdict is unchanged.")
+        return 0
     return 0 if report["verdict"] == "PASS" else 1 if report["verdict"] == "FAIL" else 2
 
 

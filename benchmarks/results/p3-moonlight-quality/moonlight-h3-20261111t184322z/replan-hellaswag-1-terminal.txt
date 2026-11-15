@@ -1,0 +1,42 @@
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+{
+  "schema": "p3-deepseek-quality-stage-v1",
+  "status": "COMPLETE",
+  "argv": [
+    "python",
+    "/data/p3-moonlight-quality/source/.superpowers/sdd/p3-moonlight-quality-plan/workload_inventory.py",
+    "replan",
+    "--repo",
+    "/data/p3-moonlight-quality/source",
+    "--scoring-protocol",
+    "/data/p3-moonlight-quality/source/benchmarks/results/p3-stage2-v2/p3-stage2-v2-protocol.json",
+    "--inventory",
+    "/data/p3-moonlight-quality/workload-inventory/inventory",
+    "--inventory-manifest-sha256",
+    "38e8f989d3683a2159484b828b4ba94f5dc219ab8b7446373efc087b2812dc5b",
+    "--hellaswag-n",
+    "1",
+    "--lengths",
+    "1024",
+    "4096",
+    "--output",
+    "/data/p3-moonlight-quality/evidence/moonlight-h3-20261111t184322z/replan-hellaswag-1"
+  ],
+  "started_utc": "2026-11-11T19:30:18.517639+00:00",
+  "deadline_seconds": 180.0,
+  "returncode": 0,
+  "scientific_admission": false,
+  "provider_cleanup_performed": false,
+  "scope": "subprocess exit and deadline only; inspect the child's scientific receipt",
+  "child_pid": 6166,
+  "cleanup": {
+    "child_reaped": true,
+    "errors": [],
+    "scope": "original process group; detached children unsupported",
+    "group_signal": "group already absent"
+  },
+  "evidence_snapshot_only": false,
+  "wall_seconds": 2.774869283894077,
+  "finished_utc": "2026-11-11T19:30:21.292501+00:00"
+}

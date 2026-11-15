@@ -1,4 +1,4 @@
-"""Explicitly acknowledged, immutable DeepSeek-V3 download and NF4 preparation stages.
+"""Explicitly acknowledged, immutable profile downloads and NF4 preparation stages.
 
 No provider operations, gate, optimizer step or quality evaluation are performed here.
 The acknowledgement is an operator assertion, not proof of external human approval.
@@ -28,6 +28,7 @@ from typing import Any
 from rich.console import Console
 
 from benchmarks.harness import p3_deepseek_quality_model as model_api
+from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
 
 REQUIRED_METADATA = frozenset({
     "config.json", "model.safetensors.index.json",
@@ -37,9 +38,13 @@ OPTIONAL_METADATA = frozenset({
     "special_tokens_map.json", "added_tokens.json", "tokenizer.model", "vocab.json", "merges.txt",
     "generation_config.json",
 })
-WEIGHTS = frozenset(f"model-{number:05d}-of-000163.safetensors" for number in range(1, 164))
-MIN_FREE_BYTES = 1_400_000_000_000
-MIN_RAM_BYTES = 64 * 2**30
+_MOONLIGHT_METADATA = frozenset({
+    "config.json", "model.safetensors.index.json", "generation_config.json",
+    "tokenizer_config.json", "tiktoken.model",
+})
+WEIGHTS = get_profile("deepseek-v3").weight_files
+MIN_FREE_BYTES = get_profile("deepseek-v3").min_free_bytes
+MIN_RAM_BYTES = get_profile("deepseek-v3").min_ram_bytes
 MAX_METADATA_BYTES = 32 * 2**20
 PARTIAL_SUFFIX = ".partial"
 DOWNLOAD_ATTEMPTS = 3
@@ -69,9 +74,15 @@ def _hex(value: Any, length: int) -> bool:
     return isinstance(value, str) and re.fullmatch(rf"[0-9a-f]{{{length}}}", value) is not None
 
 
-def hub_inventory(info: Any) -> dict[str, dict[str, Any]]:
+def hub_inventory(
+    info: Any, *, profile_id: str = "deepseek-v3",
+) -> dict[str, dict[str, Any]]:
     """Admit complete pinned Hub metadata before any payload is requested."""
-    if _value(info, "sha") != model_api.REVISION:
+    profile = get_profile(profile_id)
+    weights = profile.weight_files
+    required = REQUIRED_METADATA if profile_id == "deepseek-v3" else _MOONLIGHT_METADATA
+    optional = OPTIONAL_METADATA if profile_id == "deepseek-v3" else frozenset()
+    if _value(info, "sha") != profile.revision:
         raise ValueError("Hub commit differs from the pinned revision")
     siblings = _value(info, "siblings")
     if not isinstance(siblings, (list, tuple)) or not siblings:
@@ -86,15 +97,15 @@ def hub_inventory(info: Any) -> dict[str, dict[str, Any]]:
         rows[name] = sibling
         if name.endswith(".safetensors"):
             all_weights.add(name)
-    if all_weights != WEIGHTS or not REQUIRED_METADATA.issubset(rows):
-        raise ValueError("Hub inventory requires all 163 pinned shards and tokenizer/metadata")
+    if all_weights != weights or not required.issubset(rows):
+        raise ValueError("Hub inventory requires all pinned profile shards and metadata")
     records = {}
-    for name in sorted(WEIGHTS | REQUIRED_METADATA | (OPTIONAL_METADATA & rows.keys())):
+    for name in sorted(weights | required | (optional & rows.keys())):
         row = rows[name]
         size, lfs = _value(row, "size"), _value(row, "lfs")
         if type(size) is not int or size <= 0:
             raise ValueError(f"missing or malformed Hub byte size: {name}")
-        if name not in WEIGHTS and size > MAX_METADATA_BYTES:
+        if name not in weights and size > MAX_METADATA_BYTES:
             raise ValueError(f"small metadata exceeds bounded hashing size: {name}")
         hub_sha256 = None
         if lfs is not None:
@@ -104,22 +115,27 @@ def hub_inventory(info: Any) -> dict[str, dict[str, Any]]:
             etag = hub_sha256
         else:
             etag = _value(row, "blob_id")
-            if name in WEIGHTS or not _hex(etag, 40):
+            if name in weights or not _hex(etag, 40):
                 raise ValueError(f"missing verified Hub content hash: {name}")
         records[name] = {"bytes": size, "hub_etag": etag, "hub_sha256": hub_sha256}
-    if sum(records[name]["bytes"] for name in WEIGHTS) != model_api.SOURCE_BYTES:
-        raise ValueError("Hub weight byte total differs from pinned V3")
-    if records != model_api.source_inventory():
+    expected_bytes = model_api.SOURCE_BYTES if profile_id == "deepseek-v3" else profile.weight_bytes
+    if sum(records[name]["bytes"] for name in weights) != expected_bytes:
+        raise ValueError("Hub weight byte total differs from the pinned profile")
+    pinned = (model_api.source_inventory() if profile_id == "deepseek-v3"
+              else model_api.source_inventory(profile_id))
+    if records != pinned:
         raise ValueError("Hub inventory differs from the reviewed source pin")
     return records
 
 
-def verify_head(metadata: Any, descriptor: dict[str, Any]) -> None:
+def verify_head(
+    metadata: Any, descriptor: dict[str, Any], *, profile_id: str = "deepseek-v3",
+) -> None:
     etag = _value(metadata, "etag")
     if isinstance(etag, str):
         etag = etag.strip('"')
     location = _value(metadata, "location")
-    if (_value(metadata, "commit_hash") != model_api.REVISION
+    if (_value(metadata, "commit_hash") != get_profile(profile_id).revision
             or etag != descriptor["hub_etag"]
             or type(_value(metadata, "size")) is not int
             or _value(metadata, "size") != descriptor["bytes"]
@@ -128,7 +144,9 @@ def verify_head(metadata: Any, descriptor: dict[str, Any]) -> None:
         raise ValueError("Hub HEAD commit, ETag, byte size or HTTPS location is unverified")
 
 
-def local_descriptor(path: Path, remote: dict[str, Any]) -> dict[str, Any]:
+def local_descriptor(
+    path: Path, remote: dict[str, Any], *, profile_id: str = "deepseek-v3",
+) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file() or path.stat().st_size != remote["bytes"]:
         raise ValueError(f"downloaded file size/type differs: {path.name}")
     if path.name.endswith(".safetensors"):
@@ -150,19 +168,26 @@ def local_descriptor(path: Path, remote: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(f"local metadata differs from Hub content identity: {path.name}")
         origin = "locally_measured_metadata"
     return {**remote, "sha256": digest, "sha256_origin": origin,
-            "hub_commit": model_api.REVISION}
+            "hub_commit": get_profile(profile_id).revision}
 
 
-def source_receipt(records: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def source_receipt(
+    records: dict[str, dict[str, Any]], *, profile_id: str = "deepseek-v3",
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    profile = get_profile(profile_id)
+    if profile_id == "moonlight-16b-a3b" and config is None:
+        raise ValueError("Moonlight source receipt requires the original source config")
+    auxiliary = model_api._source_aux_metadata(config or {}, profile_id=profile_id)
     return {
-        "schema": "p3-deepseek-quality-checkpoint-identity-v1",
-        "model_id": model_api.MODEL_ID, "revision": model_api.REVISION,
-        "source_files": records,
-        "inventory_sha256": model_api.SOURCE_INVENTORY_SHA256,
+        "schema": "p3-deepseek-quality-checkpoint-identity-v1", "profile_id": profile_id,
+        "model_id": profile.model_id, "revision": profile.revision,
+        "source_files": records, **auxiliary,
+        "inventory_sha256": profile.source_inventory_sha256,
         "source_verification": "hub_commit_etag_and_size_plus_cache_source_fingerprint",
         "weight_content_sha256_measured_this_session": False,
         "weight_hash_scope": "Hub LFS content identities; local payload byte sizes checked. "
-                             "No claim of a fresh local SHA256 pass over the 689GB checkpoint.",
+                             "No claim of a fresh local SHA256 pass over the source checkpoint.",
     }
 
 
@@ -321,16 +346,24 @@ def inspect_ram(
             "capacity_scope": "physical RAM bounded by visible cgroup limits, not swap"}
 
 
-def require_capacity(free_bytes: int, memory: dict[str, Any], *, reused_bytes: int = 0) -> None:
-    if free_bytes + reused_bytes < MIN_FREE_BYTES:
-        raise ValueError("preparation requires at least 1.4TB free on the admitted local NVMe")
-    if memory["effective_bytes"] < MIN_RAM_BYTES:
-        raise ValueError("preparation requires at least 64GiB effective host/cgroup RAM")
+def require_capacity(
+    free_bytes: int, memory: dict[str, Any], *, reused_bytes: int = 0,
+    profile_id: str = "deepseek-v3",
+) -> None:
+    profile = get_profile(profile_id)
+    if free_bytes + reused_bytes < profile.min_free_bytes:
+        minimum = "1.4TB" if profile_id == "deepseek-v3" else "150GB"
+        raise ValueError(f"preparation requires at least {minimum} free on admitted local NVMe")
+    if memory["effective_bytes"] < profile.min_ram_bytes:
+        raise ValueError(
+            f"preparation requires at least {profile.min_ram_bytes // 2**30}GiB effective RAM")
 
 
 def admit_machine(
     target: Path, *, download: bool = False, reused_bytes: int = 0,
+    profile_id: str = "deepseek-v3",
 ) -> dict[str, Any]:
+    profile = get_profile(profile_id)
     if sys.platform != "linux":
         raise ValueError("production preparation requires Linux physical NVMe provenance")
     if not Path("/data").is_dir() or not _inside(Path("/data"), target):
@@ -341,18 +374,20 @@ def admit_machine(
         existing = existing.parent
     free = shutil.disk_usage(existing).free
     if download:
-        require_capacity(free, memory, reused_bytes=reused_bytes)
-    elif memory["effective_bytes"] < MIN_RAM_BYTES:
-        raise ValueError("conversion requires at least 64GiB effective host/cgroup RAM")
-    return {"storage": storage, "memory": memory, "free_bytes_before": free,
-            "reused_bytes_credit": reused_bytes,
-            "minimum_download_free_bytes": MIN_FREE_BYTES,
-            "minimum_effective_ram_bytes": MIN_RAM_BYTES}
+        require_capacity(free, memory, reused_bytes=reused_bytes, profile_id=profile_id)
+    elif memory["effective_bytes"] < profile.min_ram_bytes:
+        raise ValueError(
+            f"conversion requires at least {profile.min_ram_bytes // 2**30}GiB effective RAM")
+    return {"profile_id": profile_id, "storage": storage, "memory": memory,
+            "free_bytes_before": free, "reused_bytes_credit": reused_bytes,
+            "minimum_download_free_bytes": profile.min_free_bytes,
+            "minimum_effective_ram_bytes": profile.min_ram_bytes}
 
 
-def _source_path(raw: str) -> Path:
+def _source_path(raw: str, *, profile_id: str = "deepseek-v3") -> Path:
     path = Path(raw)
-    if path.name != model_api.REVISION or Path(os.path.realpath(path)).name != model_api.REVISION:
+    revision = get_profile(profile_id).revision
+    if path.name != revision or Path(os.path.realpath(path)).name != revision:
         raise ValueError("source directory basename must be the pinned revision")
     return Path(os.path.realpath(path))
 
@@ -367,6 +402,7 @@ def _separate(*paths: Path) -> None:
 def _begin(args: argparse.Namespace, command: str) -> tuple[Path, dict[str, Any], float]:
     if not args.approved_pilot:
         raise ValueError("--approved-pilot operator acknowledgement is required")
+    profile = get_profile(getattr(args, "profile_id", "deepseek-v3"))
     raw_output = Path(args.output)
     if raw_output.exists():
         raise FileExistsError(raw_output)
@@ -381,7 +417,8 @@ def _begin(args: argparse.Namespace, command: str) -> tuple[Path, dict[str, Any]
     started = time.monotonic()
     return output, {
         "schema": "p3-deepseek-quality-prepare-v1", "command": command, "status": "FAILED",
-        "model_id": model_api.MODEL_ID, "revision": model_api.REVISION,
+        "profile_id": profile.profile_id, "model_id": profile.model_id,
+        "revision": profile.revision,
         "started_unix": time.time(), "operator_assertion": {
             "approved_pilot_acknowledged": True, "external_human_approval_verified": False,
             "scope": "operator assertion only; not proof of human approval or a spending grant",
@@ -449,17 +486,24 @@ def _stream_download(url: str, path: Path, descriptor: dict[str, Any]) -> None:
         os.fsync(stream.fileno())
 
 
-def _check_metadata(source: Path) -> None:
+def _check_metadata(source: Path, *, profile_id: str = "deepseek-v3") -> None:
+    profile = get_profile(profile_id)
     config = json.loads((source / "config.json").read_text(encoding="utf-8"))
     if not isinstance(config, dict) or any(
-        config.get(name) != value for name, value in model_api._FULL_SHAPE.items()
+        config.get(name) != value for name, value in profile.shape.items()
     ):
-        raise ValueError("downloaded config differs from the production DeepSeek-V3 shape")
+        name = profile.model_id.rsplit("/", 1)[-1]
+        raise ValueError(f"downloaded config differs from the production {name} shape")
     index = json.loads((source / "model.safetensors.index.json").read_text(encoding="utf-8"))
     weight_map = index.get("weight_map") if isinstance(index, dict) else None
-    if not isinstance(weight_map, dict) or set(weight_map.values()) != WEIGHTS:
-        raise ValueError("downloaded checkpoint index does not cover all 163 shards")
-    for name in ("tokenizer.json", "tokenizer_config.json"):
+    if not isinstance(weight_map, dict) or set(weight_map.values()) != profile.weight_files:
+        raise ValueError("downloaded checkpoint index does not cover all pinned profile shards")
+    if profile_id == "moonlight-16b-a3b":
+        model_api._validate_moonlight_index(config, weight_map)
+        model_api._source_aux_metadata(config, profile_id=profile_id)
+    names = ("tokenizer.json", "tokenizer_config.json") if profile_id == "deepseek-v3" else (
+        "generation_config.json", "tokenizer_config.json")
+    for name in names:
         value = json.loads((source / name).read_text(encoding="utf-8"))
         if not isinstance(value, dict) or not value:
             raise ValueError(f"downloaded metadata must be a nonempty JSON object: {name}")
@@ -481,7 +525,8 @@ def _is_transient(error: BaseException) -> bool:
 
 
 def _download_file(
-    source: Path, name: str, descriptor: dict[str, Any], head: Any,
+    source: Path, name: str, descriptor: dict[str, Any], head: Any, *,
+    profile_id: str = "deepseek-v3",
 ) -> int:
     """Write one file atomically via ``<name>.partial``; return the attempt count used."""
     final, partial = safe_child(source, name), safe_child(source, f"{name}{PARTIAL_SUFFIX}")
@@ -490,7 +535,7 @@ def _download_file(
             partial.unlink()
         try:
             metadata = head(name)
-            verify_head(metadata, descriptor)
+            verify_head(metadata, descriptor, profile_id=profile_id)
             _stream_download(metadata.location, partial, descriptor)
         except Exception as error:
             if not _is_transient(error) or attempt == DOWNLOAD_ATTEMPTS:
@@ -538,10 +583,12 @@ def _scan_resume(
     return partials, finals
 
 
-def _verify_reused(source: Path, name: str, remote: dict[str, Any]) -> dict[str, Any]:
+def _verify_reused(
+    source: Path, name: str, remote: dict[str, Any], *, profile_id: str = "deepseek-v3",
+) -> dict[str, Any]:
     path = safe_child(source, name)
-    record = local_descriptor(path, remote)
-    if name in WEIGHTS:
+    record = local_descriptor(path, remote, profile_id=profile_id)
+    if name in get_profile(profile_id).weight_files:
         if _sha256_file(path) != remote["hub_sha256"]:
             raise ValueError(f"--resume refused: local SHA256 differs from Hub LFS hash: {name}")
         record = {**record, "sha256_origin": "locally_hashed_on_resume"}
@@ -550,9 +597,13 @@ def _verify_reused(source: Path, name: str, remote: dict[str, Any]) -> dict[str,
 
 def download(args: argparse.Namespace) -> dict[str, Any]:
     output, manifest, started = _begin(args, "download")
+    profile_id = manifest["profile_id"]
+    profile = get_profile(profile_id)
+    weights = profile.weight_files
+    profile_kwargs = {} if profile_id == "deepseek-v3" else {"profile_id": profile_id}
     resume = bool(getattr(args, "resume", False))
     try:
-        source = _source_path(args.source)
+        source = _source_path(args.source, profile_id=profile_id)
         _separate(source, output)
         reused: dict[str, dict[str, Any]] = {}
         partials: list[Path] = []
@@ -560,33 +611,34 @@ def download(args: argparse.Namespace) -> dict[str, Any]:
         pin: dict[str, dict[str, Any]] = {}
         credit = 0
         if resume:
-            pin = model_api.source_inventory()
+            pin = model_api.source_inventory(**profile_kwargs)
             partials, finals = _scan_resume(source, args.source, pin)
             credit = sum(pin[name]["bytes"] for name in finals)
         elif source.exists():
             raise FileExistsError(source)
         manifest["source_path"] = str(source)
         manifest["resumed"] = resume
-        manifest["machine"] = admit_machine(source, download=True, reused_bytes=credit)
+        manifest["machine"] = admit_machine(
+            source, download=True, reused_bytes=credit, **profile_kwargs)
         if resume:
             # Any verification failure below refuses the whole run, so the provisional
             # capacity credit is never spent on an unverified file.
             for partial in partials:
                 partial.unlink()
             for name in finals:
-                reused[name] = _verify_reused(source, name, pin[name])
+                reused[name] = _verify_reused(source, name, pin[name], **profile_kwargs)
             manifest["reused_files"] = sorted(reused)
         from huggingface_hub import HfApi, get_hf_file_metadata, hf_hub_url
 
         info = HfApi(token=False).model_info(
-            model_api.MODEL_ID, revision=model_api.REVISION, files_metadata=True)
-        inventory = hub_inventory(info)
+            profile.model_id, revision=profile.revision, files_metadata=True)
+        inventory = hub_inventory(info, profile_id=profile_id)
         for name, descriptor in inventory.items():
-            url = hf_hub_url(model_api.MODEL_ID, name, revision=model_api.REVISION)
+            url = hf_hub_url(profile.model_id, name, revision=profile.revision)
             metadata = get_hf_file_metadata(url, token=False)
-            verify_head(metadata, descriptor)
+            verify_head(metadata, descriptor, profile_id=profile_id)
         write_json(output / "hub-inventory.json", {
-            "model_id": model_api.MODEL_ID, "revision": model_api.REVISION,
+            "profile_id": profile_id, "model_id": profile.model_id, "revision": profile.revision,
             "files": inventory, "all_head_commit_etag_size_verified": True,
         })
         if not resume:
@@ -594,30 +646,32 @@ def download(args: argparse.Namespace) -> dict[str, Any]:
 
         def head(file_name: str) -> Any:
             return get_hf_file_metadata(
-                hf_hub_url(model_api.MODEL_ID, file_name, revision=model_api.REVISION),
+                hf_hub_url(profile.model_id, file_name, revision=profile.revision),
                 token=False)
 
         records = {}
-        metadata_names = sorted(set(inventory) - WEIGHTS)
-        for name in [*metadata_names, *sorted(WEIGHTS)]:
-            if name in WEIGHTS and not records.keys() & WEIGHTS:
-                _check_metadata(source)
+        metadata_names = sorted(set(inventory) - weights)
+        for name in [*metadata_names, *sorted(weights)]:
+            if name in weights and not records.keys() & weights:
+                _check_metadata(source, profile_id=profile_id)
             if name in reused:
                 records[name] = reused[name]
                 file_receipt = {**records[name], "attempts": 0}
             else:
-                attempts = _download_file(source, name, inventory[name], head)
-                records[name] = local_descriptor(safe_child(source, name), inventory[name])
+                attempts = _download_file(source, name, inventory[name], head, **profile_kwargs)
+                records[name] = local_descriptor(
+                    safe_child(source, name), inventory[name], **profile_kwargs)
                 file_receipt = {**records[name], "attempts": attempts}
-            write_json(output / f"{name}.receipt.json", file_receipt)
+            write_json(output / f"{name}.receipt.json", {"profile_id": profile_id, **file_receipt})
         receipt = source_receipt({
             name: {key: value for key, value in record.items() if key != "resumed"}
             | ({"sha256_origin": "hub_lfs_content_identity_not_locally_hashed"}
-               if name in WEIGHTS else {})
+               if name in weights else {})
             for name, record in records.items()
-        })
+        }, profile_id=profile_id,
+            config=json.loads((source / "config.json").read_text(encoding="utf-8")))
         write_json(source / "checkpoint-identity.json", receipt)
-        identity = admit_source(source)
+        identity = admit_source(source, **profile_kwargs)
         manifest.update(
             status="PASS", source=identity,
             checkpoint_identity_sha256=model_api.sha256(source / "checkpoint-identity.json"),
@@ -630,7 +684,7 @@ def download(args: argparse.Namespace) -> dict[str, Any]:
     return manifest
 
 
-def admit_source(source: Path) -> dict[str, Any]:
+def admit_source(source: Path, *, profile_id: str = "deepseek-v3") -> dict[str, Any]:
     from soup_cli.utils.layer_shard import (
         checkpoint_source_components,
         fingerprint_source_files,
@@ -638,7 +692,7 @@ def admit_source(source: Path) -> dict[str, Any]:
     )
 
     config = json.loads((source / "config.json").read_text(encoding="utf-8"))
-    identity = model_api._source_identity(source, config)
+    identity = model_api._source_identity(source, config, profile_id=profile_id)
     components = tuple((name, row["bytes"], row["mtime_ns"])
                        for name, row in identity["files"].items())
     components = checkpoint_source_components(
@@ -646,7 +700,7 @@ def admit_source(source: Path) -> dict[str, Any]:
         include_config=source_identity_includes_config(str(source), "deepseek_v3"),
     )
     identity["cache_source_fingerprint"] = fingerprint_source_files(components)
-    model_api.require_production_source(identity)
+    model_api.require_production_source(identity, profile_id=profile_id)
     return identity
 
 
@@ -700,10 +754,14 @@ def require_ampere_cuda(device: str) -> dict[str, Any]:
 
 def convert(args: argparse.Namespace) -> dict[str, Any]:
     output, manifest, started = _begin(args, "convert")
+    profile_id = manifest["profile_id"]
+    profile = get_profile(profile_id)
+    profile_kwargs = {} if profile_id == "deepseek-v3" else {"profile_id": profile_id}
     session = observation = None
     previous_threads = None
     try:
-        source, cache = _source_path(args.source), Path(os.path.realpath(args.cache))
+        source = _source_path(args.source, profile_id=profile_id)
+        cache = Path(os.path.realpath(args.cache))
         _separate(source, cache, output)
         if cache.exists():
             raise FileExistsError(cache)
@@ -713,15 +771,16 @@ def convert(args: argparse.Namespace) -> dict[str, Any]:
         manifest.update(source_path=str(source), cache_path=str(cache), shard_threads=8,
                         quant="nf4", double_quant=False, expert_layout="per_expert",
                         compute_dtype="bfloat16", device="cuda", seed=23)
-        manifest["source_machine"] = admit_machine(source)
-        manifest["cache_machine"] = admit_machine(cache)
+        manifest["source_machine"] = admit_machine(source, **profile_kwargs)
+        manifest["cache_machine"] = admit_machine(cache, **profile_kwargs)
         if source.stat().st_dev != cache.parent.stat().st_dev:
             raise ValueError("source and cache must occupy the same admitted /data NVMe")
-        manifest["source_before"] = admit_source(source)
+        manifest["source_before"] = admit_source(source, **profile_kwargs)
         manifest["gpu"] = require_ampere_cuda("cuda")
         from soup_cli.utils.expert_cache_budget import new_expert_cache_budget
 
-        budget = new_expert_cache_budget([str(source / name) for name in sorted(WEIGHTS)])
+        budget = new_expert_cache_budget(
+            [str(source / name) for name in sorted(profile.weight_files)])
         free = shutil.disk_usage(cache.parent).free
         manifest.update(cache_budget_bytes=budget, cache_free_bytes_before=free)
         if free < budget:
@@ -736,11 +795,13 @@ def convert(args: argparse.Namespace) -> dict[str, Any]:
         with observation:
             try:
                 session = model_api.open_session(
-                    source, cache, device="cuda", dtype="bfloat16", prepare=True)
-                model_api.require_production_source(session.metadata["source"])
+                    source, cache, device="cuda", dtype="bfloat16", prepare=True,
+                    **profile_kwargs)
+                model_api.require_production_source(session.metadata["source"], **profile_kwargs)
                 manifest["session"] = session.metadata
                 manifest["initial_adapter"] = model_api.write_initial_adapter(
-                    session.model, output / "initial-adapter.safetensors", seed=23)
+                    session.model, output / "initial-adapter.safetensors", seed=23,
+                    **profile_kwargs)
                 manifest["initial_adapter"]["path"] = str(output / "initial-adapter.safetensors")
             finally:
                 active_error = sys.exc_info()[1]
@@ -787,6 +848,8 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     for command in ("download", "convert"):
         child = commands.add_parser(command)
+        child.add_argument("--profile", dest="profile_id", default="deepseek-v3",
+                           choices=("deepseek-v3", "moonlight-16b-a3b"))
         child.add_argument("--source", required=True,
                            help="source directory with pinned-revision basename")
         child.add_argument("--output", required=True, help="fresh immutable receipt directory")
