@@ -530,7 +530,8 @@ def build_parser() -> argparse.ArgumentParser:
     commands["verdict"].add_argument("--ks", type=int, nargs="+", required=True)
     commands["stage1"].add_argument("--full-k", type=int, nargs="+", default=[1, 2, 4])
     commands["stage1"].add_argument("--single-k", type=int, nargs="+", default=[8])
-    commands["stage1"].add_argument("--capture-ks", type=int, nargs="+",
+    for name in ("stage1", "verdict"):
+        commands[name].add_argument("--capture-ks", type=int, nargs="+",
                                     default=list(CAPTURE_KS),
                                     help="accuracy capture k values (ticket 08 series: 2)")
     return parser
