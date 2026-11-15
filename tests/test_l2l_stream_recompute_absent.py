@@ -1,10 +1,4 @@
-"""A5 ticket 01: `training.stream_recompute` and `training.l2l`.
-
-The mode comes from MakazhanAlpamys/Soup #2152 and is not in this repository. A config that
-sets it is refused at load, with or without `l2l`, so tickets 03 and 04 cannot measure a
-mixture of modes by accident. If a merge brings the field in, this test fails and the
-decision on how it combines with `l2l` has to be made then.
-"""
+"""A5 ticket 01: ordinary recompute and profiled activation retention with L2L."""
 
 from __future__ import annotations
 
@@ -33,8 +27,32 @@ def _yaml(**training):
     )
 
 
-@pytest.mark.parametrize("value", ["on", "off", "auto"])
 @pytest.mark.parametrize("l2l", [True, False])
-def test_stream_recompute_is_refused_at_load(value, l2l):
-    with pytest.raises(ValueError, match=r"unknown config key 'training\.stream_recompute'"):
-        load_config_from_string(_yaml(l2l=l2l, stream_recompute=value))
+def test_ordinary_recompute_remains_available(l2l):
+    config = load_config_from_string(_yaml(l2l=l2l, stream_recompute="on"))
+    assert config.training.stream_recompute == "on"
+    assert config.training.l2l is l2l
+
+
+@pytest.mark.parametrize("l2l", [True, False])
+def test_unconditional_retention_is_refused(l2l):
+    with pytest.raises(ValueError, match="stream_recompute: Input should be 'on' or 'auto'"):
+        load_config_from_string(_yaml(l2l=l2l, stream_recompute="off"))
+
+
+@pytest.mark.parametrize("l2l", [True, False])
+def test_automatic_retention_requires_a_profile(l2l):
+    with pytest.raises(ValueError, match=r"require training\.stream_cache_profile"):
+        load_config_from_string(_yaml(l2l=l2l, stream_recompute="auto"))
+
+
+def test_profiled_retention_is_refused_with_l2l():
+    with pytest.raises(ValueError, match="no L2L"):
+        load_config_from_string(
+            _yaml(
+                l2l=True,
+                stream_source="disk",
+                stream_recompute="auto",
+                stream_cache_profile="cache.json",
+            )
+        )

@@ -88,7 +88,9 @@ def test_process_io_accepts_platforms_without_read_chars(monkeypatch) -> None:
     process = SimpleNamespace(io_counters=lambda: counters)
     monkeypatch.setattr(psutil, "Process", lambda: process)
 
-    assert b14_path_report._process_io() == {"read_bytes": 17}
+    # Platforms which expose only one counter cannot provide the complete
+    # read_bytes/read_chars pair expected by the report schema.
+    assert b14_path_report._process_io() is None
 
 
 # --------------------------------------------------------------------------

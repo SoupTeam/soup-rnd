@@ -1,0 +1,91 @@
+{
+  "status": "COMPLETED_NOT_A_NUMERICAL_OR_PERFORMANCE_VERDICT",
+  "arm": "resident",
+  "indices": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "physical_gpu_bytes": 8222670848,
+  "allocator_budget_bytes": 7516192768,
+  "budget_excludes_context": true,
+  "torch": "2.8.0+cu128",
+  "research_bench_sha256": "080b4de75b8f228f367d7f9de2e4b7be7793b2b3c1e6c06c27ec0b0638b10f1b",
+  "pid": 5130,
+  "affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "ordinary_setup_seconds": 22.84444053005427,
+  "layer_count": 36,
+  "per_layer_bytes": 385892864,
+  "host_memory_after_setup": {
+    "max_rss_bytes": 19776745472,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 19776745472,
+    "VmRSS_bytes": 18585755648
+  },
+  "attention_backend": "sdpa",
+  "residency": {
+    "indices": [
+      16,
+      17,
+      18,
+      19
+    ],
+    "dedicated_slots": {
+      "16": 2,
+      "17": 3,
+      "18": 4,
+      "19": 5
+    },
+    "rotating_slots": 2,
+    "resident_bytes": 1543571456,
+    "preload_loads": 4,
+    "resident_load_calls_skipped": 0,
+    "dynamic_loads": 156,
+    "dynamic_logical_bytes": 60199286784,
+    "arithmetic_changed": false,
+    "host_store_retained": true,
+    "preload_seconds": 0.1454936198424548
+  },
+  "compiled_decoders": 0,
+  "compile_wrapper_seconds": 1.0600779205560684e-06,
+  "all_update_wall_seconds": [],
+  "compiler_before": {
+    "stats": {},
+    "frames": {},
+    "graph_break": {}
+  },
+  "setup_peak_allocated_bytes": 3638279168,
+  "setup_peak_reserved_bytes": 3663724544,
+  "all_update_peak_allocated_bytes": [],
+  "all_update_peak_reserved_bytes": [],
+  "per_update_loads": [],
+  "compiler_after": {
+    "stats": {},
+    "frames": {},
+    "graph_break": {}
+  },
+  "compiler_time_metrics_seconds_inclusive": {
+    "inductor_codecache_torch_key": [
+      0.282891878
+    ]
+  },
+  "host_memory_at_exit": {
+    "max_rss_bytes": 19794829312,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 19795410944,
+    "VmRSS_bytes": 19795410944
+  },
+  "peak_allocated_bytes": 3735515648,
+  "peak_reserved_bytes": 3835691008,
+  "whole_run_peak_allocated_bytes": 3735515648,
+  "whole_run_peak_reserved_bytes": 3835691008,
+  "whole_entry_seconds": 43.2725767667871
+}

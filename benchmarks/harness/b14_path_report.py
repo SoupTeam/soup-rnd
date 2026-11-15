@@ -24,16 +24,10 @@ import collections
 import gc
 import json
 import shutil
-import sys
 import tempfile
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
-
-try:
-    import resource
-except ImportError:  # Windows does not provide the POSIX resource module.
-    resource = None  # type: ignore[assignment]
 
 try:
     from . import b13_moe_fixture as fixture
@@ -134,30 +128,15 @@ def _rss_bytes() -> int:
     return int(psutil.Process().memory_info().rss)
 
 
-def _lifetime_peak_rss_bytes() -> int:
-    if resource is not None:
-        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        return peak if sys.platform == "darwin" else peak * 1024
-    # psutil exposes the peak working set in bytes on Windows.
-    import psutil
-
-    return int(psutil.Process().memory_info().peak_wset)
-
-
 def _process_io() -> Optional[Dict[str, int]]:
     """Cumulative read counters of this process: ``read_bytes`` is what reached storage."""
     import psutil
 
     try:
         counters = psutil.Process().io_counters()
+        return {"read_bytes": int(counters.read_bytes), "read_chars": int(counters.read_chars)}
     except (AttributeError, NotImplementedError, psutil.Error):
-        return None  # macOS has no per-process I/O counters
-    result = {}
-    for name in ("read_bytes", "read_chars"):
-        value = getattr(counters, name, None)
-        if value is not None:
-            result[name] = int(value)
-    return result or None
+        return None  # This platform does not expose both counters.
 
 
 class RssSampler:
@@ -376,7 +355,7 @@ def measure_path(
         expert_layout="per_expert",
     )
     cache_bytes = sum(f.stat().st_size for f in shards.rglob("*") if f.is_file())
-    peak_after_shard = _lifetime_peak_rss_bytes()
+    peak_after_shard = correctness._peak_rss_bytes()
     gc.collect()
     result: Dict[str, Any] = {
         "device": device, "dtype": dtype, "tier": tier, "rows": rows, "profile": profile,
@@ -434,5 +413,5 @@ def measure_path(
         gc.collect()
         if not keep_cache:
             shutil.rmtree(shards, ignore_errors=True)
-    result["rss_peak_process_bytes"] = _lifetime_peak_rss_bytes()
+    result["rss_peak_process_bytes"] = correctness._peak_rss_bytes()
     return result

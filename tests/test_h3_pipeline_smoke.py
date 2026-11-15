@@ -7,7 +7,7 @@ import os
 import socket
 import subprocess
 import sys
-import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -103,147 +103,42 @@ def test_tampered_prepared_inputs_are_rejected(tmp_path, changed):
         pipeline.verify_prepared(tmp_path, config)
 
 
-def _cpu_worker(rank, root, output, port):
-    import faulthandler
-
-    os.environ.update({"RANK": str(rank), "LOCAL_RANK": str(rank), "WORLD_SIZE": "2",
-                       "MASTER_ADDR": "127.0.0.1", "MASTER_PORT": str(port)})
-    directory = Path(output)
-    directory.mkdir(parents=True, exist_ok=True)
-    with (directory / f"worker-{rank}.log").open("w", encoding="utf-8") as log:
-        # Preserve the blocked Python stack before the parent's unchanged 120s deadline.
-        faulthandler.dump_traceback_later(90, file=log)
-        try:
-            import torch
-
-            torch.set_num_threads(1)
-            log.write(f"rank={rank} torch={torch.__version__} threads={torch.get_num_threads()}\n")
-            log.flush()
-            pipeline.train(Path(root), directory, "cpu", 2)
-            log.write("training completed\n")
-        finally:
-            faulthandler.cancel_dump_traceback_later()
-
-
-@pytest.fixture
-def cpu_pipeline_runtime(monkeypatch):
-    import torch
-
-    # Both spawned ranks and the independent reload inherit bounded BLAS pools.
-    for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                 "VECLIB_MAXIMUM_THREADS"):
-        monkeypatch.setenv(name, "1")
-    if sys.platform == "darwin":
-        # This is a same-host test; don't let Gloo pick an external VM interface.
-        monkeypatch.setenv("GLOO_SOCKET_IFNAME", "lo0")
-    previous = torch.get_num_threads()
-    torch.set_num_threads(1)
-    try:
-        yield
-    finally:
-        torch.set_num_threads(previous)
-
-
-def _join_pipeline(context, output, seconds=120):
-    deadline = time.monotonic() + seconds
-    try:
-        while not context.join(timeout=1):
-            if time.monotonic() >= deadline:
-                diagnostics = []
-                for rank, process in enumerate(context.processes):
-                    log = output / f"worker-{rank}.log"
-                    diagnostics.append(
-                        f"rank={rank} pid={process.pid} exitcode={process.exitcode}\n"
-                        + (log.read_text(encoding="utf-8")[-12000:]
-                           if log.exists() else "worker log not created")
-                    )
-                pytest.fail(f"CPU pipeline exceeded {seconds} seconds\n" + "\n".join(diagnostics))
-    finally:
-        for process in context.processes:
-            if process.is_alive():
-                process.terminate()
-            process.join(timeout=5)
-            if process.is_alive():
-                process.kill()
-                process.join(timeout=5)
-
-
-@pytest.mark.parametrize("stubborn", [False, True])
-def test_pipeline_deadline_preserves_diagnostics_and_reaps_workers(tmp_path, stubborn):
-    class Process:
-        pid, exitcode = 123, None
-        alive = True
-        killed = False
-
-        def is_alive(self):
-            return self.alive
-
-        def terminate(self):
-            self.alive = stubborn
-
-        def kill(self):
-            self.killed = True
-            self.alive = False
-
-        def join(self, timeout):
-            pass
-
-    class Context:
-        processes = [Process()]
-
-        def join(self, timeout):
-            return False
-
-    context = Context()
-    (tmp_path / "worker-0.log").write_text("blocked in Gloo\n", encoding="utf-8")
-    with pytest.raises(
-        pytest.fail.Exception, match="CPU pipeline exceeded 0 seconds",
-    ) as failure:
-        _join_pipeline(context, tmp_path, seconds=0)
-    assert "blocked in Gloo" in str(failure.value)
-    assert not context.processes[0].alive
-    assert context.processes[0].killed == stubborn
-
-
-def test_pipeline_child_failure_is_propagated_and_other_workers_are_reaped(tmp_path):
-    class Process:
-        alive = True
-
-        def is_alive(self):
-            return self.alive
-
-        def terminate(self):
-            self.alive = False
-
-        def join(self, timeout):
-            pass
-
-    class Context:
-        processes = [Process()]
-
-        def join(self, timeout):
-            raise RuntimeError("child numerical failure")
-
-    context = Context()
-    with pytest.raises(RuntimeError, match="child numerical failure"):
-        _join_pipeline(context, tmp_path)
-    assert not context.processes[0].alive
-
-
 @pytest.mark.integration
-def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path, cpu_pipeline_runtime):
+def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path, monkeypatch):
     import torch.distributed as dist
-    import torch.multiprocessing as mp
 
     if not dist.is_available() or not dist.is_gloo_available():
         pytest.skip("requires Torch distributed/Gloo")
+    # The model is tiny. Give each spawned rank and the reload process one
+    # compute thread so they do not compete with each other on CI runners.
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    monkeypatch.setenv("MKL_NUM_THREADS", "1")
     prepared, output = tmp_path / "prepared", tmp_path / "output"
     pipeline.prepare(prepared, True)
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
-    context = mp.spawn(_cpu_worker, (str(prepared), str(output), port), nprocs=2, join=False)
-    _join_pipeline(context, output)
+    command = [
+        sys.executable, str(_HARNESS), "train", "--prepared", str(prepared),
+        "--output", str(output), "--device", "cpu", "--steps", "2",
+    ]
+    env = dict(os.environ, WORLD_SIZE="2", MASTER_ADDR="127.0.0.1", MASTER_PORT=str(port),
+               OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
+    if sys.platform == "darwin":
+        env["GLOO_SOCKET_IFNAME"] = "lo0"
+
+    def train_rank(rank):
+        rank_env = dict(env, RANK=str(rank), LOCAL_RANK=str(rank))
+        try:
+            return subprocess.run(
+                command, env=rank_env, capture_output=True, text=True, timeout=120,
+            )
+        except subprocess.TimeoutExpired as exc:
+            pytest.fail(f"CPU pipeline rank {rank} exceeded 120 seconds: {exc.stderr!r}")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        for result in pool.map(train_rank, range(2)):
+            assert result.returncode == 0, result.stdout + result.stderr
     result = subprocess.run([
         sys.executable, str(_HARNESS), "reload", "--prepared", str(prepared),
         "--output", str(output), "--device", "cpu",

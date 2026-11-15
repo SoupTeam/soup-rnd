@@ -1,0 +1,93 @@
+{
+  "status": "verified",
+  "source_status": "stopped_numerical_gate",
+  "arms": {
+    "peft": {
+      "snapshot_sha256": "9623f495874c76bb7a9645465280b5fb42053e3c060504245fd0524b190fbd58",
+      "median_step_seconds": 2.5277997485000014,
+      "peak_allocated_gib": 5.523541450500488,
+      "peak_reserved_gib": 5.935546875,
+      "total_20_update_seconds": 51.85313048099988
+    },
+    "soup": {
+      "snapshot_sha256": "9623f495874c76bb7a9645465280b5fb42053e3c060504245fd0524b190fbd58",
+      "median_step_seconds": 2.643527744000039,
+      "peak_allocated_gib": 4.476681709289551,
+      "peak_reserved_gib": 4.861328125,
+      "total_20_update_seconds": 54.01925153199966,
+      "reference": "peft",
+      "median_step_seconds_change_pct": 4.578210578931774,
+      "peak_allocated_gib_change_pct": -18.952690960906637
+    },
+    "nora-control": {
+      "snapshot_sha256": "9623f495874c76bb7a9645465280b5fb42053e3c060504245fd0524b190fbd58",
+      "median_step_seconds": 2.6211555990000193,
+      "peak_allocated_gib": 5.523541450500488,
+      "peak_reserved_gib": 5.935546875,
+      "total_20_update_seconds": 53.79481191499974,
+      "reference": "peft",
+      "median_step_seconds_change_pct": 3.6931663813723814,
+      "peak_allocated_gib_change_pct": 0.0
+    },
+    "nora": {
+      "snapshot_sha256": "3d9b8a3dfed2911b0fedbb0d1e09edf5ffe200a0d9e1ade3a01734abeeaf130f",
+      "median_step_seconds": 2.8340824384999905,
+      "peak_allocated_gib": 5.5264787673950195,
+      "peak_reserved_gib": 5.9375,
+      "total_20_update_seconds": 57.76316155799975,
+      "reference": "nora-control",
+      "median_step_seconds_change_pct": 8.123395634398944,
+      "peak_allocated_gib_change_pct": 0.0531781452326241
+    },
+    "liger": {
+      "snapshot_sha256": "e57c3b40525305f55659e731e0d240e9a6b6432bb2257c2d159cd217bd1b9c20",
+      "median_step_seconds": 2.519228176000013,
+      "peak_allocated_gib": 4.615672588348389,
+      "peak_reserved_gib": 4.9375,
+      "total_20_update_seconds": 51.11411128199995,
+      "reference": "peft",
+      "median_step_seconds_change_pct": -0.3390922285309572,
+      "peak_allocated_gib_change_pct": -16.43635465195681
+    },
+    "unsloth": {
+      "snapshot_sha256": "98f955f23389aa19b6971d0da309d1330c8a477efe058277b4602c5d39f504fd",
+      "median_step_seconds": 2.5325572109999257,
+      "peak_allocated_gib": 6.478081226348877,
+      "peak_reserved_gib": 6.62890625,
+      "total_20_update_seconds": 52.256836561999535,
+      "reference": "peft",
+      "median_step_seconds_change_pct": 0.1882056718593761,
+      "peak_allocated_gib_change_pct": 17.281300129682165
+    }
+  },
+  "gates": {
+    "soup": {
+      "losses_match": 20,
+      "tensors": 616,
+      "exact_tensors": 616,
+      "failed_tensors": 0,
+      "maximum_relative_l2": 0.0
+    },
+    "nora-control": {
+      "losses_match": 20,
+      "tensors": 616,
+      "exact_tensors": 616,
+      "failed_tensors": 0,
+      "maximum_relative_l2": 0.0
+    },
+    "liger": {
+      "losses_match": 13,
+      "tensors": 616,
+      "exact_tensors": 0,
+      "failed_tensors": 56,
+      "maximum_relative_l2": 0.016065437669772864
+    },
+    "unsloth": {
+      "losses_match": 8,
+      "tensors": 616,
+      "exact_tensors": 0,
+      "failed_tensors": 148,
+      "maximum_relative_l2": 0.018926671720752908
+    }
+  }
+}

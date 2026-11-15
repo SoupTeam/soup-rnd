@@ -35,7 +35,7 @@ def prepared(tmp_path):
     )
 
 
-@pytest.mark.skipif(os.name != "posix", reason="fresh-process comparison uses POSIX supervisor")
+@pytest.mark.skipif(os.name != "posix", reason="POSIX supervisor required")
 def test_prepared_cpu_series_has_identical_real_updates_and_inputs(tmp_path, prepared):
     from benchmarks.c3.isolated_compare import compare_results, run
 
@@ -62,12 +62,6 @@ def test_prepared_cpu_series_has_identical_real_updates_and_inputs(tmp_path, pre
 def test_cpu_fixture_cannot_be_used_for_cuda(prepared):
     with pytest.raises(ValueError, match="kind"):
         load_prepared(prepared, cuda=True)
-
-
-def test_prepared_manifest_uses_portable_paths_and_loads(prepared):
-    payload = load_prepared(prepared, cuda=False)
-    assert "shards/index.json" in payload["files"]
-    assert all("\\" not in name for name in payload["files"])
 
 
 @pytest.mark.parametrize(

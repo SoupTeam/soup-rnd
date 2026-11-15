@@ -1,0 +1,59 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+shards 14 source bytes 71903878016
+model_type qwen3_5_moe text qwen3_5_moe_text
+loaded Qwen3_5MoeConfig stream_arch_of qwen3
+skeleton class Qwen3_5MoeForCausalLM n_layers 40 stack_experts True
+nf4 suffixes ['linear_attn.in_proj_a.weight', 'linear_attn.in_proj_b.weight', 'linear_attn.in_proj_qkv.weight', 'linear_attn.in_proj_z.weight', 'linear_attn.out_proj.weight', 'mlp.shared_expert.down_proj.weight', 'mlp.shared_expert.gate_proj.weight', 'mlp.shared_expert.up_proj.weight', 'mlp.shared_expert_gate.weight', 'self_attn.k_proj.weight', 'self_attn.o_proj.weight', 'self_attn.q_proj.weight', 'self_attn.v_proj.weight']
+skeleton expert params [('model.layers.0.mlp.experts.gate_up_proj', ((256, 1024, 2048), 'torch.bfloat16', 'Parameter')), ('model.layers.0.mlp.experts.down_proj', ((256, 2048, 512), 'torch.bfloat16', 'Parameter')), ('model.layers.1.mlp.experts.gate_up_proj', ((256, 1024, 2048), 'torch.bfloat16', 'Parameter')), ('model.layers.1.mlp.experts.down_proj', ((256, 2048, 512), 'torch.bfloat16', 'Parameter'))]
+{
+ "model": "Qwen/Qwen3.5-35B-A3B",
+ "revision": "59d61f3ce65a6d9863b86d2e96597125219dc754",
+ "n_shards": 14,
+ "source_bytes": 71903878016,
+ "source_dtypes": [
+  "BF16",
+  "F32"
+ ],
+ "model_type": "qwen3_5_moe",
+ "text_model_type": "qwen3_5_moe_text",
+ "stream_arch": "qwen3",
+ "n_layers": 40,
+ "stack_experts": true,
+ "nf4_suffixes": [
+  "linear_attn.in_proj_a.weight",
+  "linear_attn.in_proj_b.weight",
+  "linear_attn.in_proj_qkv.weight",
+  "linear_attn.in_proj_z.weight",
+  "linear_attn.out_proj.weight",
+  "mlp.shared_expert.down_proj.weight",
+  "mlp.shared_expert.gate_proj.weight",
+  "mlp.shared_expert.up_proj.weight",
+  "mlp.shared_expert_gate.weight",
+  "self_attn.k_proj.weight",
+  "self_attn.o_proj.weight",
+  "self_attn.q_proj.weight",
+  "self_attn.v_proj.weight"
+ ],
+ "routed_experts_are_nf4": false,
+ "bytes_by_class_store": {
+  "routed_experts": 64424509440,
+  "nf4_dense": 792622080,
+  "bf16_other_layer": 44258560,
+  "embed_head_norm": 2034241536,
+  "dropped_visual": 893142496,
+  "dropped_mtp": 1689281536
+ },
+ "elements_by_class": {
+  "routed_experts": 32212254720,
+  "nf4_dense": 1409105920,
+  "bf16_other_layer": 22129280,
+  "embed_head_norm": 1017120768,
+  "dropped_visual": 446571248,
+  "dropped_mtp": 844640768
+ },
+ "arithmetic_store_bytes": 67295631616,
+ "arithmetic_store_bytes_if_experts_were_nf4": 20990515456,
+ "soup_coarse_estimate_bytes": 20222965692,
+ "soup_coarse_estimate_double_quant_bytes": 18546495879,
+ "largest_layer_expert_bytes_bf16": 1610612736
+}

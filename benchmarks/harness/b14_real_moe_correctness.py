@@ -24,11 +24,6 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 try:
-    import resource
-except ImportError:  # Windows does not provide the POSIX resource module.
-    resource = None  # type: ignore[assignment]
-
-try:
     from . import b13_moe_fixture as fixture
 except ImportError:  # run as a script
     import b13_moe_fixture as fixture  # type: ignore[no-redef]
@@ -121,12 +116,15 @@ def default_batches(config: Any, *, count: int = 1, rows: int = 2, seq: int = 6)
 
 
 def _peak_rss_bytes() -> int:
-    if resource is not None:
-        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        return peak if sys.platform == "darwin" else peak * 1024
-    import psutil
+    if sys.platform == "win32":
+        import psutil
 
-    return int(psutil.Process().memory_info().peak_wset)
+        return int(psutil.Process().memory_info().peak_wset)
+
+    import resource
+
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return peak if sys.platform == "darwin" else peak * 1024
 
 
 def _track_routing(model: Any) -> tuple[Dict[int, set], List[Any]]:

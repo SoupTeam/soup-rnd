@@ -1,0 +1,99 @@
+"""Publish small exact evidence while keeping complete tensor archives local."""
+import ast
+import hashlib
+import json
+import shutil
+import tarfile
+from pathlib import Path
+
+from rich.console import Console
+
+ROOT = Path(__file__).parent
+DEST = ROOT.parents[1] / 'benchmarks/stream8-compile-20261022-resume/evidence/cohort-g'
+
+
+def write(relative, value):
+    target = DEST / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+
+
+def copy(source, relative):
+    target = DEST / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+
+
+def digest(path):
+    value = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(8 * 2**20), b''):
+            value.update(block)
+    return value.hexdigest()
+
+
+def main():
+    DEST.mkdir(parents=True, exist_ok=True)
+    archives = []
+    receipts = sorted(ROOT.glob('bundle-*-verified.json'),
+                      key=lambda item: json.loads(item.read_text())['unix'])
+    for path in receipts:
+        receipt = json.loads(path.read_text())
+        name = receipt['name']
+        folder = ROOT / 'bundles' / name
+        archive = folder / 'results.tar'
+        assert digest(archive) == receipt['sha256']
+        with tarfile.open(archive, 'r:') as stream:
+            raw = stream.extractfile('original-files.json').read()
+        index = json.loads((folder / 'index.json').read_text())
+        assert hashlib.sha256(raw).hexdigest() == index['manifest_sha256']
+        archives.append({'path': str(archive), 'receipt': receipt, 'index': index,
+                         'all_original_files_verified_before_ACK': True})
+        copy(path, f'archives/{path.name}')
+        copy(folder / 'index.json', f'archives/{name}-index.json')
+        copy(ROOT / f'streaming-extraction-{name}.json', f'archives/{name}-decode.json')
+        # Manifests contain paths/shapes/object hashes, never tensor payloads.
+        (DEST / f'archives/{name}-original-files.json').write_bytes(raw)
+        retained = folder / 'retained'
+        for source in retained.rglob('*'):
+            if (source.is_file() and source.suffix in
+                    {'.json', '.jsonl', '.yaml', '.yml', '.txt', '.xml', '.log'}
+                    and source.stat().st_size < 8 * 2**20
+                    and source.name != 'original-files.json'):
+                copy(source, Path('originals') / source.relative_to(retained))
+    write('raw-local-archives.json', archives)
+    for pattern in ['*independent*.json', '*integrator*.json', '*regression.json',
+                    'common-8b-inputs-f-vs-cache-audit.json', 'transport-public-source-audit.json',
+                    'decoded-cache-eviction*.json', 'vast-rental.json', 'vast-deletion.json',
+                    'source-manifest.json', 'capacity-preflight.json', 'gpu-idle-preflight.json',
+                    'post-transfer-guard.json', 'final-cost-and-cleanup.json', 'controller-error.json',
+                    'recovery-existing-objects.json']:
+        for source in ROOT.glob(pattern):
+            copy(source, source.name)
+    sources = ['worker.py', 'controller.py', 'transport.py', 'prepare_model.py', 'artifacts.py',
+               'entry.py', 'setup.sh', 'pin_entry.py', 'remote_guard.py', 'telemetry.py',
+               'pytest_gpu_entry.py', 'constraints.txt', 'protocol.json', 'launch-manifest.json',
+               'retention-policy.json', 'review_g_native.py',
+               'paired_analysis.py', 'review_g_native.py', 'watch_guard.py', 'test_ranges_offline.py',
+               'test_transport_range_integration.py', 'evict_decoded_traces.py', 'build_evidence.py',
+               'audit_historical_archives.py', 'final_cleanup_review.py', 'finalize_results.py']
+    for name in sources:
+        source = ROOT / name
+        if source.exists():
+            copy(source, 'executed/' + name + ('.txt' if source.suffix in {'.py', '.sh'} else ''))
+    public = ROOT.parents[1] / 'benchmarks/stream8-compile-20261022-resume'
+    assert digest(ROOT / 'bench.py') == digest(public / 'bench.py')
+    write('executed/public-bench-identity.json', {
+        'actual_gpu_bench_sha256': digest(ROOT / 'bench.py'),
+        'public_bench_sha256': digest(public / 'bench.py'),
+        'byte_identical': True,
+        'AST_identical': ast.dump(ast.parse((ROOT / 'bench.py').read_text())) ==
+                         ast.dump(ast.parse((public / 'bench.py').read_text())),
+        'provider_credentials': 'not included; local credential loader stays private',
+    })
+    Console().print({'verified_canonical_archives': len(archives),
+                     'published_small_files': sum(path.is_file() for path in DEST.rglob('*'))})
+
+
+if __name__ == '__main__':
+    main()

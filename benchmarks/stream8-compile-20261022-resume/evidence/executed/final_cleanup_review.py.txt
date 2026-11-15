@@ -1,0 +1,48 @@
+"""Fresh read-only provider audit and conservative series accounting."""
+import json
+import time
+from pathlib import Path
+
+from rich.console import Console
+
+import cloud
+
+ROOT = Path(__file__).parent
+SHARED = Path('C:/Users/esenb/.codex/tmp/soup-streaming-parallel-20261022')
+assert (ROOT / 'vast-finished').exists(), 'wait for controller cleanup'
+deleted = json.loads((ROOT / 'vast-deletion.json').read_text())
+assert deleted['verified_absent']
+compile_ids = [57114362, 57168159, 57186713, 57188897, 57189486, 57195845, 57197863]
+cache = json.loads((SHARED / 'cache-resume-status.json').read_text())
+cache_ids = cache['owned_instance_ids']
+requested = set(compile_ids + cache_ids)
+rows = cloud.rows()  # Exhaust all paginated API results, never mutate any instance.
+present = [row['id'] for row in rows if int(row['id']) in requested]
+assert not present, 'study instance still present in fresh provider listing'
+policy = cloud.receipt()
+guard = json.loads((ROOT / 'independent-last-guard.json').read_text())
+elapsed = deleted['unix'] - policy['created_unix']
+estimate = (policy['prior_usd'] + (elapsed + 120) * policy['hourly_usd'] / 3600 + .04
+            + guard['rx_bytes'] / 1e9 * policy['down_usd_per_gb']
+            + guard['tx_bytes'] / 1e9 * policy['up_usd_per_gb'] + .15)
+estimate = max(estimate, guard['conservative_usd'] + .15)
+cache_cost = cache['total_conservative_spend_usd']
+assert estimate <= 5 and cache_cost <= 5 and estimate + cache_cost <= 10
+result = {'all_study_instances_absent': True, 'compile_instance_ids': compile_ids,
+          'cache_instance_ids': cache_ids, 'present_study_instances': present,
+          'fresh_paginated_provider_check_unix': time.time(),
+          'compile_series_conservative_usd': estimate,
+          'cache_series_conservative_usd': cache_cost,
+          'combined_conservative_usd': estimate + cache_cost,
+          'original_total_cap_usd': 10, 'fixed_individual_cap_usd': 5,
+          'compile_prior_conservative_usd': policy['prior_usd'],
+          'latest_guard': guard, 'current_lease_elapsed_until_verified_absent_seconds': elapsed,
+          'accounting': 'estimate includes all earlier compile attempts, observed network, '
+                        'disk-inclusive lease time,120 seconds and0.15 USD extra margin; '
+                        'not an invoice reconciliation; cache spare not transferred',
+          'unrelated_instances': 'read-only; excluded from saved output and never modified'}
+(ROOT / 'final-cost-and-cleanup.json').write_text(
+    json.dumps(result, indent=2) + '\n', encoding='utf-8')
+Console().print({key: result[key] for key in ['all_study_instances_absent',
+                 'compile_series_conservative_usd', 'cache_series_conservative_usd',
+                 'combined_conservative_usd']})

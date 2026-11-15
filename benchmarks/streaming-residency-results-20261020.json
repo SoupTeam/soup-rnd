@@ -1,0 +1,2214 @@
+{
+  "created_unix": 1792505973.3720002,
+  "protocol": {
+    "registered_unix": 1792501807.1127331,
+    "budget_usd": 5,
+    "maximum_lease_seconds": 5400,
+    "upstream_commit": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b",
+    "source_sha256": "48bd2dbbd363dae6ba02ee2cc18687fb5306a1404587081d17736550a8bca82e",
+    "model": "openlm-research/open_llama_7b_v2",
+    "revision": "e5961def23172a2384543940e773ab676033c963",
+    "arms": {
+      "baseline": [],
+      "resident8": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "resident16": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
+    },
+    "dtype": "BF16 dense",
+    "batches": [
+      1,
+      2
+    ],
+    "sequence_length": 1024,
+    "accumulation": 2,
+    "allocator_cap_gib": 10,
+    "context_excluded_from_allocator_cap": true,
+    "rotating_buffers": 2,
+    "host_store_retained": true,
+    "rtol": 0.01,
+    "atol": 1e-05,
+    "loss_decimals": 3,
+    "initial_and_inputs_bitwise": true,
+    "reference_native_repeat_required": true,
+    "original_capture_compare_unchanged": true,
+    "baseline": "current upstream plus zero-residency accounting",
+    "qualify_before_timing": true,
+    "timing_pairs": 4,
+    "order": [
+      "AB",
+      "BA",
+      "BA",
+      "AB"
+    ],
+    "warmup_updates": 6,
+    "measured_updates": 8,
+    "extended_trajectory_updates": 14,
+    "practical_time_reduction_percent": 2,
+    "minimum_positive_pair_fraction": 0.75,
+    "bootstrap": {
+      "resamples": 20000,
+      "seed": 792,
+      "lower_bound_must_exceed": 0
+    },
+    "memory_report": [
+      "CUDA peak allocated",
+      "CUDA peak reserved",
+      "resident bytes",
+      "host RSS and peak RSS",
+      "pinned store bytes",
+      "per-update logical decoder bytes and load counts"
+    ],
+    "no_cross_host_or_prior_lease_timing_pooling": true,
+    "no_task_quality_claim": true,
+    "qualification_failure_action": "retain results; do not time failed arm",
+    "deployment": "research installer only; production schema/runtime source unchanged"
+  },
+  "status": "COMPLETE",
+  "independent_replay": true,
+  "local_torch": "2.13.0+cpu",
+  "primary": {
+    "baseline-repeat-b1": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1813,
+      "loss_matches3f": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "loss": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "final": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "initial": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "logits": {
+          "tensors": 4,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        }
+      }
+    },
+    "resident8-b1": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1813,
+      "loss_matches3f": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "loss": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "final": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "initial": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "logits": {
+          "tensors": 4,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        }
+      }
+    },
+    "resident8-b2": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1813,
+      "loss_matches3f": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "loss": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "final": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "initial": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "logits": {
+          "tensors": 4,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        }
+      }
+    },
+    "resident16-b1": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1813,
+      "loss_matches3f": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "loss": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "final": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "initial": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "logits": {
+          "tensors": 4,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        }
+      }
+    },
+    "resident16-b2": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 1813,
+      "loss_matches3f": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "loss": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "final": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "initial": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "logits": {
+          "tensors": 4,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        }
+      }
+    }
+  },
+  "semantics": {
+    "resident8": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 903,
+      "loss_matches3f": true,
+      "groups": {
+        "batch": {
+          "tensors": 4,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "loss": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "gradient": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "initial": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "diagnostic": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "logits": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        }
+      }
+    },
+    "resident16": {
+      "passed": true,
+      "bitwise_equal": true,
+      "tensor_count": 903,
+      "loss_matches3f": true,
+      "groups": {
+        "batch": {
+          "tensors": 4,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "loss": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "gradient": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "initial": {
+          "tensors": 448,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "diagnostic": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        },
+        "logits": {
+          "tensors": 1,
+          "failed": [],
+          "non_bitwise": [],
+          "max_abs": 0.0
+        }
+      }
+    }
+  },
+  "performance": {
+    "resident8-b1": {
+      "pairs": [
+        {
+          "cycle": 0,
+          "time_reduction_percent": 15.84049990513912,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 1,
+          "time_reduction_percent": 15.836106682271005,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 2,
+          "time_reduction_percent": 15.794880186772486,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 3,
+          "time_reduction_percent": 15.816226176450899,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        }
+      ],
+      "bootstrap95_percent": [
+        15.794880186772486,
+        15.84049990513912
+      ],
+      "median_paired_time_reduction_percent": 15.826166429360953,
+      "positive_pairs": 4,
+      "practical_speed_gate_passed": true,
+      "arms": {
+        "baseline": {
+          "step_seconds": 1.9747210554924095,
+          "tokens_per_second": 1037.1085049885578,
+          "peak_allocated_bytes": 1980867072.0,
+          "peak_reserved_bytes": 2279604224.0,
+          "decoder_loads_per_update": 120.0,
+          "decoder_logical_bytes_per_update": 48572006400.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 0.0,
+          "preload_seconds": 1.2029995559714735e-05,
+          "setup_seconds": 15.34040700798505,
+          "training_wall_seconds_including_final_save": 28.54190791050496,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15268839424.0,
+          "host_peak_RSS_at_exit": 15826225152.0,
+          "allocator_budget_bytes": 10737418240.0
+        },
+        "resident8": {
+          "step_seconds": 1.6623586409987183,
+          "tokens_per_second": 1231.9844951223404,
+          "peak_allocated_bytes": 5219000832.0,
+          "peak_reserved_bytes": 5517606912.0,
+          "decoder_loads_per_update": 88.0,
+          "decoder_logical_bytes_per_update": 35619471360.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 3238133760.0,
+          "preload_seconds": 0.13142201300070155,
+          "setup_seconds": 15.46077780550695,
+          "training_wall_seconds_including_final_save": 24.181169882489485,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15269507072.0,
+          "host_peak_RSS_at_exit": 15823298560.0,
+          "allocator_budget_bytes": 10737418240.0
+        }
+      },
+      "processes": {
+        "baseline": [
+          {
+            "step_seconds": 1.9746653254987905,
+            "tokens_per_second": 1037.1377739580682,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2250005966052413e-05,
+            "setup_seconds": 15.270434507983737,
+            "training_wall_seconds_including_final_save": 28.534672251989832,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268646912,
+            "host_peak_RSS_at_exit": 15827599360,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.9747767854860285,
+            "tokens_per_second": 1037.0792360190471,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.1809985153377056e-05,
+            "setup_seconds": 15.33538977097487,
+            "training_wall_seconds_including_final_save": 28.553936846001307,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269810176,
+            "host_peak_RSS_at_exit": 15827369984,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.9745453229988925,
+            "tokens_per_second": 1037.2008057477992,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.1689990060403943e-05,
+            "setup_seconds": 15.347469163010828,
+            "training_wall_seconds_including_final_save": 28.535031859006267,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269031936,
+            "host_peak_RSS_at_exit": 15825080320,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.9751516640098998,
+            "tokens_per_second": 1036.8824011429103,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2539996532723308e-05,
+            "setup_seconds": 15.345424244995229,
+            "training_wall_seconds_including_final_save": 28.548783962003654,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268171776,
+            "host_peak_RSS_at_exit": 15824412672,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ],
+        "resident8": [
+          {
+            "step_seconds": 1.6618684664863395,
+            "tokens_per_second": 1232.3478309508164,
+            "peak_allocated_bytes": 5219000832,
+            "peak_reserved_bytes": 5517606912,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.13138946201070212,
+            "setup_seconds": 15.436361303000012,
+            "training_wall_seconds_including_final_save": 24.155545699002687,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268630528,
+            "host_peak_RSS_at_exit": 15828316160,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.662049026999739,
+            "tokens_per_second": 1232.2139520137764,
+            "peak_allocated_bytes": 5219000832,
+            "peak_reserved_bytes": 5517606912,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.13142920800601132,
+            "setup_seconds": 15.442267724021804,
+            "training_wall_seconds_including_final_save": 24.177499672980048,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15271010304,
+            "host_peak_RSS_at_exit": 15822409728,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.6626682549976977,
+            "tokens_per_second": 1231.7550382309043,
+            "peak_allocated_bytes": 5219000832,
+            "peak_reserved_bytes": 5517606912,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.13141481799539179,
+            "setup_seconds": 15.500682735000737,
+            "training_wall_seconds_including_final_save": 24.18484009199892,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269916672,
+            "host_peak_RSS_at_exit": 15822585856,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.6627572095021605,
+            "tokens_per_second": 1231.6891415633575,
+            "peak_allocated_bytes": 5219000832,
+            "peak_reserved_bytes": 5517606912,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.13149043000885285,
+            "setup_seconds": 15.479287886992097,
+            "training_wall_seconds_including_final_save": 24.189262045983924,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269097472,
+            "host_peak_RSS_at_exit": 15824011264,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ]
+      },
+      "setup_and_transfer_excluded_from_step_timing": true,
+      "preload_only_break_even_updates": 0.42073568042340737,
+      "break_even_is_descriptive_not_a_cold_start_measurement": true
+    },
+    "resident8-b2": {
+      "pairs": [
+        {
+          "cycle": 0,
+          "time_reduction_percent": 5.8873858380951045,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 1,
+          "time_reduction_percent": 6.04939952464814,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 2,
+          "time_reduction_percent": 6.0256093727481215,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 3,
+          "time_reduction_percent": 6.05827676509183,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        }
+      ],
+      "bootstrap95_percent": [
+        5.8873858380951045,
+        6.05827676509183
+      ],
+      "median_paired_time_reduction_percent": 6.037504448698131,
+      "positive_pairs": 4,
+      "practical_speed_gate_passed": true,
+      "arms": {
+        "baseline": {
+          "step_seconds": 2.1978453577467008,
+          "tokens_per_second": 1863.6434114721083,
+          "peak_allocated_bytes": 2656281600.0,
+          "peak_reserved_bytes": 3229614080.0,
+          "decoder_loads_per_update": 120.0,
+          "decoder_logical_bytes_per_update": 48572006400.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 0.0,
+          "preload_seconds": 1.1944997822865844e-05,
+          "setup_seconds": 15.366309184988495,
+          "training_wall_seconds_including_final_save": 31.65495302848285,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15268241408.0,
+          "host_peak_RSS_at_exit": 15823042560.0,
+          "allocator_budget_bytes": 10737418240.0
+        },
+        "resident8": {
+          "step_seconds": 2.0649868460022844,
+          "tokens_per_second": 1983.5477451699753,
+          "peak_allocated_bytes": 5894415360.0,
+          "peak_reserved_bytes": 6467616768.0,
+          "decoder_loads_per_update": 88.0,
+          "decoder_logical_bytes_per_update": 35619471360.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 3238133760.0,
+          "preload_seconds": 0.13128470700758044,
+          "setup_seconds": 15.49085233551159,
+          "training_wall_seconds_including_final_save": 29.801097686999128,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15268665344.0,
+          "host_peak_RSS_at_exit": 15823919104.0,
+          "allocator_budget_bytes": 10737418240.0
+        }
+      },
+      "processes": {
+        "baseline": [
+          {
+            "step_seconds": 2.194115079997573,
+            "tokens_per_second": 1866.8118355963948,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.200000406242907e-05,
+            "setup_seconds": 15.410137813014444,
+            "training_wall_seconds_including_final_save": 31.59696987501229,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15267950592,
+            "host_peak_RSS_at_exit": 15819804672,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.198000461998163,
+            "tokens_per_second": 1863.5118922024246,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.1889991583302617e-05,
+            "setup_seconds": 15.36269091599388,
+            "training_wall_seconds_including_final_save": 31.669122978986707,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268507648,
+            "host_peak_RSS_at_exit": 15823314944,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.1980087454867316,
+            "tokens_per_second": 1863.5048693097776,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.1699972674250603e-05,
+            "setup_seconds": 15.36992745398311,
+            "training_wall_seconds_including_final_save": 31.67101120200823,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15267975168,
+            "host_peak_RSS_at_exit": 15822770176,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.1976902534952387,
+            "tokens_per_second": 1863.774930741792,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2019998393952847e-05,
+            "setup_seconds": 15.343127925007138,
+            "training_wall_seconds_including_final_save": 31.640783077978995,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269830656,
+            "host_peak_RSS_at_exit": 15826030592,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ],
+        "resident8": [
+          {
+            "step_seconds": 2.064939059506287,
+            "tokens_per_second": 1983.5936470586819,
+            "peak_allocated_bytes": 5894415360,
+            "peak_reserved_bytes": 6467616768,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.1311540800088551,
+            "setup_seconds": 15.488907024002401,
+            "training_wall_seconds_including_final_save": 29.79547522199573,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269253120,
+            "host_peak_RSS_at_exit": 15824474112,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.065034632498282,
+            "tokens_per_second": 1983.501843281269,
+            "peak_allocated_bytes": 5894415360,
+            "peak_reserved_bytes": 6467616768,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.1317147749941796,
+            "setup_seconds": 15.50035578099778,
+            "training_wall_seconds_including_final_save": 29.806720152002526,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268077568,
+            "host_peak_RSS_at_exit": 15823364096,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.0655653245048597,
+            "tokens_per_second": 1982.9922353009383,
+            "peak_allocated_bytes": 5894415360,
+            "peak_reserved_bytes": 6467616768,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.13116428701323457,
+            "setup_seconds": 15.48246733500855,
+            "training_wall_seconds_including_final_save": 29.785975370003143,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269470208,
+            "host_peak_RSS_at_exit": 15826010112,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.064548095499049,
+            "tokens_per_second": 1983.9692807010642,
+            "peak_allocated_bytes": 5894415360,
+            "peak_reserved_bytes": 6467616768,
+            "decoder_loads_per_update": 88,
+            "decoder_logical_bytes_per_update": 35619471360,
+            "large_loads_per_update": 4,
+            "resident_bytes": 3238133760,
+            "preload_seconds": 0.1314051270019263,
+            "setup_seconds": 15.49279764702078,
+            "training_wall_seconds_including_final_save": 29.81234576998395,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15267328000,
+            "host_peak_RSS_at_exit": 15822196736,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ]
+      },
+      "setup_and_transfer_excluded_from_step_timing": true,
+      "preload_only_break_even_updates": 0.9881542799465988,
+      "break_even_is_descriptive_not_a_cold_start_measurement": true
+    },
+    "resident16-b1": {
+      "pairs": [
+        {
+          "cycle": 0,
+          "time_reduction_percent": 31.332299839133682,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 1,
+          "time_reduction_percent": 31.27696421290943,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 2,
+          "time_reduction_percent": 31.214619582283763,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 3,
+          "time_reduction_percent": 31.191383949285974,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        }
+      ],
+      "bootstrap95_percent": [
+        31.191383949285974,
+        31.332299839133682
+      ],
+      "median_paired_time_reduction_percent": 31.245791897596597,
+      "positive_pairs": 4,
+      "practical_speed_gate_passed": true,
+      "arms": {
+        "baseline": {
+          "step_seconds": 1.97475806123839,
+          "tokens_per_second": 1037.089069470786,
+          "peak_allocated_bytes": 1980867072.0,
+          "peak_reserved_bytes": 2279604224.0,
+          "decoder_loads_per_update": 120.0,
+          "decoder_logical_bytes_per_update": 48572006400.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 0.0,
+          "preload_seconds": 1.2155011063441634e-05,
+          "setup_seconds": 15.371138036018237,
+          "training_wall_seconds_including_final_save": 28.5477193215047,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15269427200.0,
+          "host_peak_RSS_at_exit": 15824418816.0,
+          "allocator_budget_bytes": 10737418240.0
+        },
+        "resident16": {
+          "step_seconds": 1.3575698732529418,
+          "tokens_per_second": 1508.578474340491,
+          "peak_allocated_bytes": 8457134592.0,
+          "peak_reserved_bytes": 8755609600.0,
+          "decoder_loads_per_update": 56.0,
+          "decoder_logical_bytes_per_update": 22666936320.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 6476267520.0,
+          "preload_seconds": 0.2621987695019925,
+          "setup_seconds": 15.623051887509064,
+          "training_wall_seconds_including_final_save": 19.908408052986488,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15269259264.0,
+          "host_peak_RSS_at_exit": 15822202880.0,
+          "allocator_budget_bytes": 10737418240.0
+        }
+      },
+      "processes": {
+        "baseline": [
+          {
+            "step_seconds": 1.975526785987313,
+            "tokens_per_second": 1036.685513214374,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2430013157427311e-05,
+            "setup_seconds": 15.399229802016634,
+            "training_wall_seconds_including_final_save": 28.566078353993362,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268585472,
+            "host_peak_RSS_at_exit": 15823294464,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.974276737004402,
+            "tokens_per_second": 1037.3419093756122,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2300006346777081e-05,
+            "setup_seconds": 15.451075649005361,
+            "training_wall_seconds_including_final_save": 28.531124689994613,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15270490112,
+            "host_peak_RSS_at_exit": 15828238336,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.9747754969866946,
+            "tokens_per_second": 1037.079912691361,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.14399881567806e-05,
+            "setup_seconds": 15.34304627001984,
+            "training_wall_seconds_including_final_save": 28.534785013005603,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268003840,
+            "host_peak_RSS_at_exit": 15824326656,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.9747406254900852,
+            "tokens_per_second": 1037.0982262502112,
+            "peak_allocated_bytes": 1980867072,
+            "peak_reserved_bytes": 2279604224,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2010015780106187e-05,
+            "setup_seconds": 15.340289869986009,
+            "training_wall_seconds_including_final_save": 28.5606536300038,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15270268928,
+            "host_peak_RSS_at_exit": 15824510976,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ],
+        "resident16": [
+          {
+            "step_seconds": 1.3565488099993672,
+            "tokens_per_second": 1509.7134617669637,
+            "peak_allocated_bytes": 8457134592,
+            "peak_reserved_bytes": 8755609600,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.2622617419983726,
+            "setup_seconds": 15.603815220005345,
+            "training_wall_seconds_including_final_save": 19.88634935900336,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269003264,
+            "host_peak_RSS_at_exit": 15822385152,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.3567829085077392,
+            "tokens_per_second": 1509.4529767127576,
+            "peak_allocated_bytes": 8457134592,
+            "peak_reserved_bytes": 8755609600,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.26228987297508866,
+            "setup_seconds": 15.602302473998861,
+            "training_wall_seconds_including_final_save": 19.901687288976973,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268507648,
+            "host_peak_RSS_at_exit": 15821901824,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.3583568379981443,
+            "tokens_per_second": 1507.7039719682243,
+            "peak_allocated_bytes": 8457134592,
+            "peak_reserved_bytes": 8755609600,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.2615414499887265,
+            "setup_seconds": 15.642288555012783,
+            "training_wall_seconds_including_final_save": 19.915128816996003,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269724160,
+            "host_peak_RSS_at_exit": 15822020608,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.3587916949909413,
+            "tokens_per_second": 1507.2214582630736,
+            "peak_allocated_bytes": 8457134592,
+            "peak_reserved_bytes": 8755609600,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.2621357970056124,
+            "setup_seconds": 15.675325681018876,
+            "training_wall_seconds_including_final_save": 19.931433054996887,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269515264,
+            "host_peak_RSS_at_exit": 15824883712,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ]
+      },
+      "setup_and_transfer_excluded_from_step_timing": true,
+      "preload_only_break_even_updates": 0.4248279124683678,
+      "break_even_is_descriptive_not_a_cold_start_measurement": true
+    },
+    "resident16-b2": {
+      "pairs": [
+        {
+          "cycle": 0,
+          "time_reduction_percent": 11.589273162229068,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 1,
+          "time_reduction_percent": 11.624437669368678,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 2,
+          "time_reduction_percent": 11.570388030386315,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        },
+        {
+          "cycle": 3,
+          "time_reduction_percent": 11.601877102433786,
+          "final_accuracy_passed": true,
+          "failed_final_tensors": [],
+          "final_bitwise_equal": true,
+          "logged_losses_equal": true
+        }
+      ],
+      "bootstrap95_percent": [
+        11.570388030386315,
+        11.624437669368678
+      ],
+      "median_paired_time_reduction_percent": 11.595575132331426,
+      "positive_pairs": 4,
+      "practical_speed_gate_passed": true,
+      "arms": {
+        "baseline": {
+          "step_seconds": 2.197580457512231,
+          "tokens_per_second": 1863.8680581881258,
+          "peak_allocated_bytes": 2656281600.0,
+          "peak_reserved_bytes": 3229614080.0,
+          "decoder_loads_per_update": 120.0,
+          "decoder_logical_bytes_per_update": 48572006400.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 0.0,
+          "preload_seconds": 1.2295015039853752e-05,
+          "setup_seconds": 15.489938813989284,
+          "training_wall_seconds_including_final_save": 31.673121540996362,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15269056512.0,
+          "host_peak_RSS_at_exit": 15824257024.0,
+          "allocator_budget_bytes": 10737418240.0
+        },
+        "resident16": {
+          "step_seconds": 1.9426205684940214,
+          "tokens_per_second": 2108.4920474337923,
+          "peak_allocated_bytes": 9132549120.0,
+          "peak_reserved_bytes": 9705619456.0,
+          "decoder_loads_per_update": 56.0,
+          "decoder_logical_bytes_per_update": 22666936320.0,
+          "large_loads_per_update": 4.0,
+          "resident_bytes": 6476267520.0,
+          "preload_seconds": 0.26185156049905345,
+          "setup_seconds": 15.689724815500085,
+          "training_wall_seconds_including_final_save": 28.069694195495686,
+          "pinned_host_bytes": 13958643712.0,
+          "host_RSS_after_setup": 15268986880.0,
+          "host_peak_RSS_at_exit": 15823257600.0,
+          "allocator_budget_bytes": 10737418240.0
+        }
+      },
+      "processes": {
+        "baseline": [
+          {
+            "step_seconds": 2.1960562405147357,
+            "tokens_per_second": 1865.161704164705,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2109987437725067e-05,
+            "setup_seconds": 15.417722856014734,
+            "training_wall_seconds_including_final_save": 31.63541772600729,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268765696,
+            "host_peak_RSS_at_exit": 15822594048,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.19798921700567,
+            "tokens_per_second": 1863.5214259968018,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2520002201199532e-05,
+            "setup_seconds": 15.819095977989491,
+            "training_wall_seconds_including_final_save": 31.68029179298901,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269789696,
+            "host_peak_RSS_at_exit": 15825715200,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.197426684011589,
+            "tokens_per_second": 1863.9984804964708,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.226001768372953e-05,
+            "setup_seconds": 15.463658464985201,
+            "training_wall_seconds_including_final_save": 31.681764079025015,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269347328,
+            "host_peak_RSS_at_exit": 15822798848,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 2.1977342310128734,
+            "tokens_per_second": 1863.7376358797806,
+            "peak_allocated_bytes": 2656281600,
+            "peak_reserved_bytes": 3229614080,
+            "decoder_loads_per_update": 120,
+            "decoder_logical_bytes_per_update": 48572006400,
+            "large_loads_per_update": 4,
+            "resident_bytes": 0,
+            "preload_seconds": 1.2330012395977974e-05,
+            "setup_seconds": 15.516219162993366,
+            "training_wall_seconds_including_final_save": 31.665951289003715,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268683776,
+            "host_peak_RSS_at_exit": 15827468288,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ],
+        "resident16": [
+          {
+            "step_seconds": 1.9415492840053048,
+            "tokens_per_second": 2109.6554353491283,
+            "peak_allocated_bytes": 9132549120,
+            "peak_reserved_bytes": 9705619456,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.26157144701574,
+            "setup_seconds": 15.680312718002824,
+            "training_wall_seconds_including_final_save": 28.041075756016653,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15270649856,
+            "host_peak_RSS_at_exit": 15822364672,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.9424853304954013,
+            "tokens_per_second": 2108.6388327861287,
+            "peak_allocated_bytes": 9132549120,
+            "peak_reserved_bytes": 9705619456,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.2623221139947418,
+            "setup_seconds": 15.66797859800863,
+            "training_wall_seconds_including_final_save": 28.068409375991905,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15269027840,
+            "host_peak_RSS_at_exit": 15827406848,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.943175889988197,
+            "tokens_per_second": 2107.8894716138534,
+            "peak_allocated_bytes": 9132549120,
+            "peak_reserved_bytes": 9705619456,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.26163903999258764,
+            "setup_seconds": 15.768864996003686,
+            "training_wall_seconds_including_final_save": 28.070979014999466,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15267893248,
+            "host_peak_RSS_at_exit": 15820525568,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          },
+          {
+            "step_seconds": 1.9427558064926416,
+            "tokens_per_second": 2108.3452620814564,
+            "peak_allocated_bytes": 9132549120,
+            "peak_reserved_bytes": 9705619456,
+            "decoder_loads_per_update": 56,
+            "decoder_logical_bytes_per_update": 22666936320,
+            "large_loads_per_update": 4,
+            "resident_bytes": 6476267520,
+            "preload_seconds": 0.26206408100551926,
+            "setup_seconds": 15.699136912997346,
+            "training_wall_seconds_including_final_save": 28.076679716003127,
+            "pinned_host_bytes": 13958643712,
+            "host_RSS_after_setup": 15268945920,
+            "host_peak_RSS_at_exit": 15824150528,
+            "affinity": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "allocator_budget_bytes": 10737418240
+          }
+        ]
+      },
+      "setup_and_transfer_excluded_from_step_timing": true,
+      "preload_only_break_even_updates": 1.0270304144992453,
+      "break_even_is_descriptive_not_a_cold_start_measurement": true
+    }
+  },
+  "source_sha256": "48bd2dbbd363dae6ba02ee2cc18687fb5306a1404587081d17736550a8bca82e",
+  "source_revision": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b",
+  "no_downstream_quality_claim": true,
+  "artifact_receipts": [
+    {
+      "name": "qualification-baseline",
+      "archive_bytes": 908319540,
+      "sha256": "71e2ed77fac1f6f036ff71b5114a2c1444e5ec9247ae76dee54b38528db035dd",
+      "all_original_files_verified": 100
+    },
+    {
+      "name": "qualification-resident8",
+      "archive_bytes": 892563451,
+      "sha256": "f49d65f43fdd5baeff64770d871712fa9177cac62384dda8699405f83fa59ba9",
+      "all_original_files_verified": 54
+    },
+    {
+      "name": "qualification-resident16",
+      "archive_bytes": 892571031,
+      "sha256": "a0d1d1a37f90db4accb8962b2b6ad7c79ffbdcb1cbfd27839dc3047ab58533d3",
+      "all_original_files_verified": 54
+    },
+    {
+      "name": "timings-resident8-b1",
+      "archive_bytes": 120549334,
+      "sha256": "72db42149a6dbe7d662667c9a62ea498215b82021c00ea645208a7453868fb79",
+      "all_original_files_verified": 187
+    },
+    {
+      "name": "timings-resident8-b2",
+      "archive_bytes": 120586517,
+      "sha256": "a2ba826bf95d82cd76cb5878f7d547061a7bb81df7b4d8fe8c00dbec8c1fc925",
+      "all_original_files_verified": 187
+    },
+    {
+      "name": "timings-resident16-b1",
+      "archive_bytes": 120515063,
+      "sha256": "7e0e1b185a73ab89cc5c25c8ad9d26ff83747f6a302e7484778dc6321909d0ce",
+      "all_original_files_verified": 187
+    },
+    {
+      "name": "timings-resident16-b2",
+      "archive_bytes": 120582920,
+      "sha256": "17e33bf7abf376986afa565530b4bccf900e608ba7c529cb6e355e1625206d01",
+      "all_original_files_verified": 187
+    },
+    {
+      "name": "final",
+      "archive_bytes": 26797,
+      "sha256": "be69f403902160fcab0ab1b03da4f64f1b79b37bccb377757c9a64b658fe2c83",
+      "all_original_files_verified": 5
+    }
+  ],
+  "cost_and_cleanup": {
+    "unix": 1792505977.8330245,
+    "instance_id": 56895623,
+    "label": "soup-residency-20261020-a",
+    "new_experiment_cap_usd": 5,
+    "previous_experiments_excluded": true,
+    "provider_observed_usd": 0.787,
+    "provider_settlement_can_lag": true,
+    "conservative_estimate_usd": 0.9474420395569899,
+    "elapsed_rental_with60s_margin_usd": 0.6864420395569899,
+    "provider_network_usd": 0.111,
+    "container_observed_network_usd": 0.11099554538541667,
+    "verified_deleted": true,
+    "active_task_instances": [],
+    "unrelated_instances_untouched": true,
+    "account_balance_difference_used": false
+  },
+  "gpu_execution_environment": {
+    "python": "3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]",
+    "soup_import": "/root/liger/repo/src/soup_cli/__init__.py",
+    "packages": {
+      "torch": "2.8.0+cu128",
+      "transformers": "5.17.0",
+      "peft": "0.20.0",
+      "trl": "0.29.1",
+      "accelerate": "1.14.0",
+      "numpy": "2.5.4",
+      "rich": "15.0.0",
+      "click": "8.4.2",
+      "typer": "0.20.0"
+    },
+    "gpu_name": "RTX 4090",
+    "runtime_source_sha256": "48bd2dbbd363dae6ba02ee2cc18687fb5306a1404587081d17736550a8bca82e"
+  },
+  "timing_environment_audit": {
+    "timed_processes": [
+      {
+        "name": "timing-resident8-b1-0-0-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2782.5,
+          2790.0
+        ],
+        "temperature_C_max": 58.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b1-0-1-resident8",
+        "samples": 9,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2745.0,
+          2790.0
+        ],
+        "temperature_C_max": 59.0,
+        "sampled_process_memory_MiB_max": 5854.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b1-1-0-resident8",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2790.0,
+          2790.0
+        ],
+        "temperature_C_max": 58.0,
+        "sampled_process_memory_MiB_max": 5854.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b1-1-1-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2790.0,
+          2790.0
+        ],
+        "temperature_C_max": 61.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b1-2-0-resident8",
+        "samples": 9,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2775.0,
+          2790.0
+        ],
+        "temperature_C_max": 59.0,
+        "sampled_process_memory_MiB_max": 5854.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b1-2-1-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2775.0,
+          2790.0
+        ],
+        "temperature_C_max": 61.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b1-3-0-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2775.0,
+          2775.0
+        ],
+        "temperature_C_max": 59.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b1-3-1-resident8",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2775.0,
+          2790.0
+        ],
+        "temperature_C_max": 62.0,
+        "sampled_process_memory_MiB_max": 5854.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-0-0-baseline",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2565.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 64.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-0-1-resident8",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2400.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 68.0,
+        "sampled_process_memory_MiB_max": 6760.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-1-0-resident8",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2565.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 66.0,
+        "sampled_process_memory_MiB_max": 6760.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-1-1-baseline",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2550.0,
+          2595.0,
+          2790.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-2-0-resident8",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2445.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 6760.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-2-1-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2550.0,
+          2595.0,
+          2790.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-3-0-baseline",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2565.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 68.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident8-b2-3-1-resident8",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2535.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 6760.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-0-0-baseline",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          210.0,
+          2790.0,
+          2790.0
+        ],
+        "temperature_C_max": 56.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-0-1-resident16",
+        "samples": 8,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2767.5,
+          2790.0
+        ],
+        "temperature_C_max": 63.0,
+        "sampled_process_memory_MiB_max": 8942.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-1-0-resident16",
+        "samples": 9,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2550.0,
+          2595.0,
+          2790.0
+        ],
+        "temperature_C_max": 64.0,
+        "sampled_process_memory_MiB_max": 8942.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-1-1-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2775.0,
+          2790.0
+        ],
+        "temperature_C_max": 63.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-2-0-resident16",
+        "samples": 8,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2580.0,
+          2662.5,
+          2790.0
+        ],
+        "temperature_C_max": 65.0,
+        "sampled_process_memory_MiB_max": 8942.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-2-1-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2775.0,
+          2790.0
+        ],
+        "temperature_C_max": 60.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-3-0-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2775.0,
+          2790.0
+        ],
+        "temperature_C_max": 63.0,
+        "sampled_process_memory_MiB_max": 2766.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b1-3-1-resident16",
+        "samples": 9,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2595.0,
+          2760.0,
+          2790.0
+        ],
+        "temperature_C_max": 66.0,
+        "sampled_process_memory_MiB_max": 8942.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-0-0-baseline",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          210.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 67.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-0-1-resident16",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2550.0,
+          2572.5,
+          2595.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 9848.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-1-0-resident16",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2565.0,
+          2632.5,
+          2775.0
+        ],
+        "temperature_C_max": 68.0,
+        "sampled_process_memory_MiB_max": 9848.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-1-1-baseline",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2565.0,
+          2595.0,
+          2790.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-2-0-resident16",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2445.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 68.0,
+        "sampled_process_memory_MiB_max": 9848.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-2-1-baseline",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2550.0,
+          2595.0,
+          2790.0
+        ],
+        "temperature_C_max": 68.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-3-0-baseline",
+        "samples": 11,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2550.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 3672.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      },
+      {
+        "name": "timing-resident16-b2-3-1-resident16",
+        "samples": 10,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "GPU_clock_MHz_min_median_max": [
+          2490.0,
+          2595.0,
+          2775.0
+        ],
+        "temperature_C_max": 69.0,
+        "sampled_process_memory_MiB_max": 9848.0,
+        "maximum_sampled_CUDA_processes": 1,
+        "sampling_scope": "whole process including setup and saving; not isolated measured window"
+      }
+    ],
+    "all_affinities_match": true,
+    "all_allocator_budgets_equal": true,
+    "sampled_peer_count_at_most_one": true,
+    "GPU_NUMA_node": 0,
+    "memory_binding_enforced": false,
+    "provider_one_GPU_offer_does_not_establish_whole_host_exclusivity": true,
+    "thermal_or_clock_stability_not_inferred_from_one_snapshot": true
+  },
+  "source_audit": {
+    "upstream_commit": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b",
+    "unmodified_production_files": 602,
+    "capture_comparator_byte_identical": true,
+    "frozen_archive_all_files_hash_verified": true,
+    "source_sha256": "48bd2dbbd363dae6ba02ee2cc18687fb5306a1404587081d17736550a8bca82e",
+    "rtol": 0.01,
+    "atol": 1e-05,
+    "loss_decimals": 3,
+    "reference_first": true,
+    "production_schema_modified": false
+  }
+}
