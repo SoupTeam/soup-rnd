@@ -1,0 +1,97 @@
+{
+  "arm": "capture:l2l_ordinary",
+  "round": 2,
+  "run": 3,
+  "label": "RTX 5070, host 58382, oc-stage1",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1794704551.6251307,
+    "ram_available_bytes": 123407794176,
+    "commit_charge": {
+      "used_bytes": 14626832384,
+      "limit_bytes": 75736989696
+    },
+    "power_source": "mains",
+    "gpu_processes": [],
+    "gpu_memory_used_mib": 2,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1794705111.7130723,
+    "ram_available_bytes": 121325383680,
+    "commit_charge": {
+      "used_bytes": 16244588544,
+      "limit_bytes": 75736989696
+    },
+    "power_source": "mains",
+    "gpu_processes": [],
+    "gpu_memory_used_mib": 2,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 2602 to 2925 MHz over 275 samples; clock event reasons seen: none",
+    "samples": 275,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 2602,
+      "median": 2887,
+      "max": 2925
+    },
+    "reasons_seen": {}
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+        "sleep_offset_start_s": -1.6810372471809387e-07,
+        "sleep_offset_end_s": -1.4691613614559174e-07,
+        "suspend_count_start": 0,
+        "suspend_count_end": 0
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 282 power samples, so on mains",
+      "evidence": {
+        "samples": 282,
+        "off_mains_samples": [],
+        "battery_present": false,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": false,
+          "online": {}
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "void",
+      "reason": "at least 3978506240 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/root/volume/cache",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 3649637990400,
+        "disk_read_bytes_end": 4416438464512,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 762821967872,
+        "foreign_read_bytes": 3978506240,
+        "foreign_read_bytes_min": 3978506240,
+        "foreign_read_bytes_max": 3978506240,
+        "uninspectable_processes": 1
+      },
+      "readers": [],
+      "unattributed_bytes": 3978506240
+    }
+  }
+}
