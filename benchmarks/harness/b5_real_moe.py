@@ -179,6 +179,8 @@ def _open_store(store: Path, *, dtype: str, quant: str) -> Any:
 
 def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = None) -> None:
     """Prepare the cache, train ``args.steps`` steps, save, reload; write the journal."""
+    if getattr(args, "cold", False) and not b5_cold.supports_page_cache_residency():
+        raise RuntimeError("--cold page-cache measurements require Linux mincore")
     os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
     import torch
     import yaml
@@ -441,6 +443,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
     if args.cold and not args.store:
         parser.error("--cold needs --store: only a store of known files can be dropped")
+    if args.cold and not b5_cold.supports_page_cache_residency():
+        parser.error("--cold page-cache measurements require Linux mincore")
     if args.store:
         args.kind = "synthetic"
     else:

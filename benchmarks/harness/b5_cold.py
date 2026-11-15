@@ -18,6 +18,7 @@ from __future__ import annotations
 import ctypes
 import mmap
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -27,6 +28,16 @@ METHODS = ("drop_caches", "fadvise", "none")
 DROP_CACHES_PATH = "/proc/sys/vm/drop_caches"
 #: Translate table that keeps only the lowest bit of each byte (the mincore residency flag).
 _LOW_BIT_TABLE = bytes(value & 1 for value in range(256))
+
+
+def supports_page_cache_residency() -> bool:
+    """Whether this host exposes the Linux ``mincore`` page-cache interface."""
+    return sys.platform.startswith("linux")
+
+
+def _require_page_cache_residency() -> None:
+    if not supports_page_cache_residency():
+        raise NotImplementedError("B5 page-cache residency measurement requires Linux mincore")
 
 
 def _files(store: Path) -> List[Path]:
@@ -57,6 +68,7 @@ def _file_residency(path: Path, libc: Any) -> Tuple[int, int]:
 
 def store_residency(store: Path) -> Tuple[int, int]:
     """(bytes of the store's files in the page cache, total bytes of those files)."""
+    _require_page_cache_residency()
     libc = ctypes.CDLL(None, use_errno=True)
     resident = total = 0
     for path in _files(store):
@@ -81,6 +93,7 @@ def _fadvise_all(store: Path) -> bool:
 
 def drop_page_cache(store: Path) -> Dict[str, Any]:
     """Empty the page cache of ``store`` and report the method and the residency around it."""
+    _require_page_cache_residency()
     started = time.perf_counter()
     before, total = store_residency(store)
     method = "none"
