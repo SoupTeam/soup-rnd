@@ -167,6 +167,9 @@ class Stage:
     ram_limit_gib: Optional[float] = None
     two_read: bool = False
     foreign_read_fraction: float = 0.0
+    #: Accuracy capture k values. The ticket-08 series uses (2,) by the user's decision of
+    #: 2026-11-15; every other run keeps CAPTURE_KS.
+    capture_ks: Tuple[int, ...] = CAPTURE_KS
     #: ``runner(command) -> returncode``; the default launches a subprocess.
     runner: Callable[[List[str]], int] = field(default_factory=lambda: _subprocess_runner)
     watch_factory: Callable[..., Any] = field(default_factory=lambda: _arm_watch)
@@ -401,7 +404,7 @@ def link_captures(stage: Stage, k: int) -> None:
 def accuracy_status(stage: Stage, comparison: str) -> Tuple[bool, str]:
     """Whether the accuracy pairs of a comparison passed at every capture k, and why not."""
     found = []
-    for k in CAPTURE_KS:
+    for k in stage.capture_ks:
         path = stage.root / "capture" / f"accuracy-k{k}.json"
         if not path.is_file():
             return False, f"no accuracy capture at k={k}"
@@ -527,6 +530,9 @@ def build_parser() -> argparse.ArgumentParser:
     commands["verdict"].add_argument("--ks", type=int, nargs="+", required=True)
     commands["stage1"].add_argument("--full-k", type=int, nargs="+", default=[1, 2, 4])
     commands["stage1"].add_argument("--single-k", type=int, nargs="+", default=[8])
+    commands["stage1"].add_argument("--capture-ks", type=int, nargs="+",
+                                    default=list(CAPTURE_KS),
+                                    help="accuracy capture k values (ticket 08 series: 2)")
     return parser
 
 
@@ -537,7 +543,8 @@ def stage_from(args: argparse.Namespace) -> Stage:
                  ram_limit_gib=args.ram_limit_gib, two_read=args.two_read,
                  foreign_read_fraction=(args.foreign_read_fraction
                                         if args.foreign_read_fraction is not None
-                                        else (0.05 if args.two_read else 0.0)))
+                                        else (0.05 if args.two_read else 0.0)),
+                 capture_ks=tuple(getattr(args, "capture_ks", None) or CAPTURE_KS))
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -556,7 +563,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         elif args.command == "verdict":
             write_verdicts(stage, args.ks)
         else:
-            for k in CAPTURE_KS:
+            for k in stage.capture_ks:
                 run_capture(stage, budget, k)
             if stage.two_read:
                 for comparison, k in TWO_READ_SCHEDULE:

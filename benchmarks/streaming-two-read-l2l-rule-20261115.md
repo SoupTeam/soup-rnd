@@ -16,7 +16,12 @@ criteria retain `streaming-ordinary-vs-complete-l2l-rule-20261115.md` except as 
 - Ordinary: `l2l_ordinary`, used for the new C2 k=2 comparison and accuracy captures.
 
 On a newly qualified host, capture accuracy first at k=2 and k=8. B must pass A3 against
-both A and ordinary, and read exactly two experts per hit. A must read exactly three.
+both A and ordinary, and read exactly two experts per hit.
+
+Amendment, user decision 2026-11-15, recorded before the first accuracy capture of this
+series: the k=8 accuracy capture is dropped. The series captures accuracy at k=2 only
+(`--capture-ks 2`), and the accuracy gate checks k=2 only. The k=8 accuracy check is not
+run. Any k=8 performance point stays a linear extrapolation, not a verdict. A must read exactly three.
 The C2 accuracy pairs from the previous rule must also pass. A3 uses the GA MATH versus
 EFFICIENT_ATTENTION noise-floor captures from the same session; no tolerance is relaxed.
 
