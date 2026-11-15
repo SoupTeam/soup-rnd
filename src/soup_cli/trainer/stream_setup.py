@@ -731,6 +731,12 @@ class StreamingSetupMixin:
         # made the entire free tier unsupported without saying so, and could not
         # fail on the Ampere card every published measurement came from.
         dtype = resolve_stream_dtype(str(self.device))
+        auto_k = getattr(tcfg, "l2l_auto_k", False)
+        if auto_k and not (
+            (on_cuda and dtype == "bfloat16")
+            or (str(self.device) == "cpu" and dtype == "float32")
+        ):
+            raise ValueError("training.l2l_auto_k requires CPU FP32 or CUDA BF16 streaming")
 
         # v0.72.2 — NF4. The decoder linears ship as packed nibbles + per-block
         # absmax, so the RAM store is ~0.26x its bf16 size; embeddings, norms and
@@ -1311,6 +1317,12 @@ class StreamingSetupMixin:
                 raise
         if probe_plan is not None:
             self._run_stream_vram_probe(model, probe_plan)
+        if auto_k:
+            try:
+                self._resolve_moe_l2l_plan(cfg, model_config, index, dtype, adapter_plan.budget)
+            except BaseException:
+                self._close_stream_runtime()
+                raise
         stats = runtime.stats()
         source_line = _stream_source_line(stats)
         large_runtime_buffer = stats.get("large_buffer_bytes", 0)
@@ -1329,6 +1341,83 @@ class StreamingSetupMixin:
         console.print(
             f"[green]Layer streaming ready:[/] {stats['n_layers']} layers, "
             f"{source_line}, {buffer_line}"
+        )
+
+    def _resolve_moe_l2l_plan(self, cfg, model_config, index, dtype, adapter_budget) -> None:
+        """Reserve a RAM-only L2L window after the fixed streaming buffers are live."""
+        from soup_cli.utils.c3_l2l_budget import plan_c3_l2l
+        from soup_cli.utils.host_memory_budget import HostMemoryBudget
+        from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
+        from soup_cli.utils.l2l_spill import allocation_cost, ram_budget
+        from soup_cli.utils.layer_stream import (
+            dtype_bytes,
+            estimate_activation_bytes,
+            estimate_logits_bytes,
+        )
+        from soup_cli.utils.moe_l2l_budget import plan_moe_l2l
+        from soup_cli.utils.partial_ram_source import PartialRamBudget
+
+        ram = ram_budget()
+        if ram.budget_bytes is None or ram.failed_levels:
+            raise ValueError("training.l2l_auto_k could not establish a safe host RAM budget")
+        tcfg = cfg.training
+        batch, length = tcfg.batch_size, cfg.data.max_length
+        hidden = model_config.hidden_size
+        top_k = getattr(model_config, "num_experts_per_tok", None)
+        if type(top_k) is not int or not 1 <= top_k <= index.expert_count:
+            raise ValueError("training.l2l_auto_k needs a valid DeepSeek expert routing count")
+        pin = str(self.device).startswith("cuda")
+        tokens = batch * length
+        # HF keeps input IDs, labels and attention masks for the window. Allow a
+        # fourth token-sized tensor for positions and charge host pin rounding.
+        window_bytes = 4 * allocation_cost(tokens * 8, pin=pin)
+        if adapter_budget.optimizer is None:
+            raise ValueError("training.l2l_auto_k requires a known optimizer host budget")
+        # Adapter weights are already live. Gradients and optimizer state are not.
+        fixed = adapter_budget.gradients.cpu_bytes + adapter_budget.optimizer.cpu_bytes
+        if not pin:
+            # On CPU, live hidden states and their gradients also consume host RAM.
+            window_bytes += 2 * tokens * hidden * dtype_bytes(dtype)
+            intermediate = max(
+                self._stream_intermediate_size(model_config),
+                model_config.moe_intermediate_size * top_k,
+            )
+            fixed += estimate_activation_bytes(
+                hidden_size=hidden, intermediate_size=intermediate, n_layers=1,
+                seq_len=length, batch_size=batch, dtype=dtype,
+            ) + estimate_logits_bytes(
+                vocab_size=model_config.vocab_size, seq_len=length, batch_size=batch,
+            )
+        if ram.budget_bytes <= fixed:
+            raise MemoryError(
+                f"training.l2l_auto_k: fixed workspace needs {fixed} host bytes, "
+                f"only {ram.budget_bytes} available before the first micro-batch"
+            )
+
+        memory = plan_moe_l2l(
+            HostMemoryBudget(ram.budget_bytes, fixed),
+            n_layers=index.n_layers,
+            n_moe_layers=len(index.expert_layers),
+            max_shape=(batch, length, hidden),
+            experts_per_token=top_k,
+            requested_k=tcfg.gradient_accumulation_steps,
+            dtype=dtype,
+            pin=pin,
+            host_workspace_bytes_per_batch=window_bytes,
+        )
+        # Reuse C3's activation lease and shape guard without enabling its
+        # optional dense weight cache. Other window bytes are already charged.
+        non_activation_bytes = fixed + memory.host_bytes - memory.activation_bytes
+        self._c3_l2l_plan = plan_c3_l2l(
+            PartialRamBudget(ram.budget_bytes, non_activation_bytes, 0),
+            n_layers=index.n_layers, batch_size=batch, max_length=length, hidden_size=hidden,
+            microbatches=memory.effective_k, dtype=dtype, pin=pin, shape_round=1,
+        )
+        self._l2l_recipe = resolve_l2l_recipe(tcfg, effective_k=memory.effective_k)
+        console.print(
+            f"[green]L2L auto-k:[/] k={memory.effective_k} of {memory.requested_k}; "
+            f"window {memory.host_bytes:,} / {memory.available_host_bytes:,} host bytes "
+            f"after fixed workspace ({fixed:,} bytes)"
         )
 
     def _stream_large_budget_bytes(self, slot_bytes: int, n_large_keys: int) -> int:
