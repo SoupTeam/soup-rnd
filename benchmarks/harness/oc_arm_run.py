@@ -20,7 +20,8 @@ Three subcommands.
 Arms. The complete arms switch on the four levers through ``build_streamed_model``: two-read,
 grouped routes, packed NF4 transfer and the prepacked host cache. On CPU only the first two run
 (packed needs CUDA and NF4), and the record says so (``levers_applied``). Under L2L two-read
-changes nothing (ticket 01), so ``l2l_complete`` and ``l2l_ordinary`` differ by the other three.
+is disabled for the historical ``l2l_complete`` arm A. ``l2l_two_read`` is arm B,
+with all four levers enabled (ticket 08).
 
 Data. Random token ids of ``--seq`` tokens, batch of one. Window ``u``, micro-batch ``j`` is
 seeded ``SEED + 1000 * u + j``, so every arm sees the same rows. The record's ``kind`` is
@@ -73,13 +74,14 @@ console = Console()
 SEED = 20261114
 CLIP_NORM = 1.0
 GIB = 1 << 30
-ARM_NAMES = ("ga_ordinary", "ga_complete", "l2l_ordinary", "l2l_complete", "ga_floor")
+ARM_NAMES = ("ga_ordinary", "ga_complete", "l2l_ordinary", "l2l_complete",
+             "l2l_two_read", "ga_floor")
 #: arm -> mode. ``ga_floor`` is GA on a second SDPA backend, the noise floor of tolerance A3.
 ARM_MODE = {
     "ga_ordinary": "ga", "ga_complete": "ga", "l2l_ordinary": "l2l", "l2l_complete": "l2l",
-    "ga_floor": "ga",
+    "ga_floor": "ga", "l2l_two_read": "l2l",
 }
-COMPLETE_ARMS = ("ga_complete", "l2l_complete")
+COMPLETE_ARMS = ("ga_complete", "l2l_complete", "l2l_two_read")
 #: Recipe of the plan (section 4.1) and PR #5.
 DEFAULT_TARGETS = ("q_proj", "kv_b_proj", "o_proj")
 PAIRS = (
@@ -98,7 +100,9 @@ def levers_for(arm: str, *, device: str, host_cache_bytes: int) -> Tuple[Dict[st
         raise ValueError(f"unknown arm {arm!r}, expected one of {ARM_NAMES}")
     if arm not in COMPLETE_ARMS:
         return {}, []
-    levers: Dict[str, Any] = {"two_read_experts": True, "grouped_expert_routes": True}
+    levers: Dict[str, Any] = {
+        "two_read_experts": arm != "l2l_complete", "grouped_expert_routes": True,
+    }
     if device != "cuda":
         return levers, ["expert_transfer", "expert_host_cache_bytes"]
     levers["expert_transfer"] = "packed"
@@ -497,7 +501,12 @@ def judge(args: argparse.Namespace) -> Dict[str, Any]:
         floor_grad = l2l_mistral_stand.rel_l2_by_step(runs["ga_ordinary"], runs["ga_floor"])
         floor_loss = l2l_mistral_stand.loss_rel_by_step(runs["ga_ordinary"], runs["ga_floor"])
     pairs: Dict[str, Any] = {}
-    for ref_arm, cand_arm in PAIRS:
+    pairs_to_judge = PAIRS
+    if args.two_read:
+        pairs_to_judge = tuple(pair for pair in PAIRS if pair[1] != "ga_complete")
+        pairs_to_judge += (("l2l_complete", "l2l_two_read"),
+                           ("l2l_ordinary", "l2l_two_read"))
+    for ref_arm, cand_arm in pairs_to_judge:
         name = f"{cand_arm}_vs_{ref_arm}"
         if ref_arm not in runs or cand_arm not in runs:
             pairs[name] = {"judged": False, "pass": False, "missing": [
@@ -548,6 +557,8 @@ def build_parser() -> argparse.ArgumentParser:
     judge_cmd = sub.add_parser("judge")
     judge_cmd.add_argument("--runs", required=True)
     judge_cmd.add_argument("--k", type=int, required=True)
+    judge_cmd.add_argument("--two-read", action="store_true",
+                           help="also require B versus A and ordinary L2L accuracy")
     return parser
 
 

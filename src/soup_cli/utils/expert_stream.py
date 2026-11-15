@@ -496,6 +496,8 @@ class _TwoReadHookGuard:
     forward's values. A forward hook on one of those three modules, or a global forward
     hook, is refused; no hook is judged safe by what it does. Forward pre-hooks and hooks
     on any other module are not checked, and neither is a patched or replaced ``forward``.
+    When given the streamed wrapper for L2L, both that wrapper and the native decoder
+    are watched: L2L calls the wrapper during its recompute too.
     """
 
     __slots__ = ("layer_idx", "watched")
@@ -505,6 +507,8 @@ class _TwoReadHookGuard:
         watched: Dict[int, Tuple[str, Any]] = {id(layer): ("the decoder layer", layer)}
         layer_idx = None
         for name, module in layer.named_modules():
+            if type(module).__name__ in TWO_READ_DECODERS:
+                watched.setdefault(id(module), (f"the decoder layer `{name}`", module))
             if not (isinstance(module, cls) and module.two_reads):
                 continue
             layer_idx = module.layer_idx
@@ -537,8 +541,8 @@ class _TwoReadHookGuard:
             f"({name}). Its checkpoint recompute runs the routed experts at zero, so a "
             f"forward hook on the decoder layer, its MoE block or its routed experts would "
             f"see a different output there and could produce wrong gradients without an "
-            f"error. Remove the hook, move it to the router, the attention or the streamed "
-            f"layer wrapper, or build with two_read_experts=False."
+            f"error. Remove the hook, move it to the router or the attention, "
+            f"or build with two_read_experts=False."
         )
 
 

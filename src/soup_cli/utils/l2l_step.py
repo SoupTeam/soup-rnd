@@ -40,8 +40,9 @@ and walk the backward the same way in reverse.
   Recompute restores the same states without advancing the outer stream. See ``l2l_rng.py``.
 
 * A layer with streamed routed experts (a per-expert cache, ``utils/expert_stream.py``) reads
-  every hit expert through the one-slot arena in the no-grad forward, again in the grad
-  recompute and again in the expert's own backward; ``LoadCounters`` counts those reads. The
+  every hit expert through the one-slot arena in the no-grad forward and its own backward.
+  Two-read experts replay routing without a read in the grad recompute; ordinary experts
+  read again there. ``LoadCounters`` counts those reads. The
   router draws no randomness, so the replay above needs nothing more for it, and
   ``RoutingGuard`` checks that the recompute routes like the forward.
 
@@ -521,6 +522,7 @@ class L2LStep:
         import torch
 
         from soup_cli.utils import l2l_rng
+        from soup_cli.utils.expert_stream import checkpoint_context_fn
 
         k = len(micro_batches)
         if k < 1:
@@ -556,6 +558,17 @@ class L2LStep:
         train_embedding = any(param.requires_grad for param in self.owner.embed_tokens.parameters())
         embedding_states: List[Any] = []
 
+        # Each policy (layer, micro-batch) owns its routing record. Reference passes
+        # stay outside these scopes and cannot overwrite the policy's decisions.
+        contexts = {}
+        for idx, layer in enumerate(self.layers):
+            # L2L calls the outer wrapper during recompute too, so its output hooks
+            # must be guarded along with the native decoder and MoE modules.
+            context_fn = checkpoint_context_fn(layer)
+            if context_fn is not None:
+                for mb in range(k):
+                    contexts[idx, mb] = context_fn()
+
         self._prime(self.owner, ())
         pass_hidden: List[List[Any]] = []
         with torch.no_grad():
@@ -570,7 +583,8 @@ class L2LStep:
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
-                    with guard.record(idx, mb):
+                    pair = contexts.get((idx, mb))
+                    with guard.record(idx, mb), pair[0] if pair else nullcontext():
                         hidden[mb] = self._layer(
                             layer, hidden[mb], states[mb][idx] if states else None, calls[mb]
                         )
@@ -611,7 +625,12 @@ class L2LStep:
             try:
                 for mb in range(k):
                     inputs = store.get(idx, mb).requires_grad_(True)
-                    with torch.enable_grad(), guard.check(idx, mb):
+                    pair = contexts.pop((idx, mb), None)
+                    with (
+                        torch.enable_grad(),
+                        guard.check(idx, mb),
+                        pair[1] if pair else nullcontext(),
+                    ):
                         out = self._layer(
                             layer, inputs, states[mb][idx] if states else None, calls[mb]
                         )

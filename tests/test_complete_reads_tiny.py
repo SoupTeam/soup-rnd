@@ -66,9 +66,9 @@ READS_PER_HIT_TWO_READ = 2
 
 
 def reads_per_hit(mode: str, arm: str) -> int:
-    """Two-read lowers the reads only where a checkpoint recompute exists, which L2L bypasses."""
+    """Two-read skips expert reads in both checkpoint and L2L recomputes."""
     two_read = ARMS[arm].get("two_read_experts", False)
-    return READS_PER_HIT_TWO_READ if two_read and mode == "ga" else READS_PER_HIT_DEFAULT
+    return READS_PER_HIT_TWO_READ if two_read else READS_PER_HIT_DEFAULT
 
 
 def expected_layer_loads(mode: str, k: int) -> int:
@@ -291,11 +291,11 @@ def test_expert_reads_grow_with_k_on_every_arm(
 
 
 @pytest.mark.parametrize("k", K_SWEEP)
-def test_complete_lowers_the_reads_by_two_thirds_on_ga_and_not_on_l2l(
+def test_complete_uses_two_thirds_of_the_reads_on_ga_and_l2l(
     cell: Callable[[str, str, int], Dict[str, Any]],
     record_property: Callable[..., None], k: int,
 ) -> None:
-    """Ratio of complete to ordinary reads: 2/3 on GA, 1 on L2L (ticket 01, option A)."""
+    """Ratio of complete to ordinary reads: 2/3 in both execution modes."""
     ga_ratio = cell("ga", "complete_cpu", k)["expert_fetches"] / cell("ga", "ordinary", k)[
         "expert_fetches"
     ]
@@ -305,7 +305,7 @@ def test_complete_lowers_the_reads_by_two_thirds_on_ga_and_not_on_l2l(
     record_property("ga_ratio", ga_ratio)
     record_property("l2l_ratio", l2l_ratio)
     assert ga_ratio == pytest.approx(2 / 3)
-    assert l2l_ratio == 1.0
+    assert l2l_ratio == pytest.approx(2 / 3)
 
 
 @pytest.mark.parametrize(
@@ -342,3 +342,26 @@ def test_table(
         with open(target, "w", encoding="utf-8") as handle:
             json.dump(rows, handle, indent=2)
     assert len(rows) == len(MODES) * len(ARMS) * len(K_SWEEP)
+
+
+@pytest.mark.parametrize("target", ("wrapper", "decoder", "moe", "experts"))
+def test_l2l_two_read_refuses_output_hooks_and_recovers(
+    make_rig: Callable[..., Rig], target: str,  # noqa: F811
+) -> None:
+    rig = make_rig(k=2, build_options=ARMS["complete_cpu"])
+    layer = rig.stepper.layers[1].inner
+    module = {"wrapper": rig.stepper.layers[1], "decoder": layer,
+              "moe": layer.mlp, "experts": layer.mlp.experts}[target]
+    seen = []
+    handle = module.register_forward_hook(lambda *_args: seen.append(True))
+    spec = Spec(micro_batches(rig, 2))
+    try:
+        with pytest.raises(RuntimeError, match="two-read expert streaming refuses"):
+            l2l_streamed(rig, spec)
+        assert not seen
+    finally:
+        handle.remove()
+    # A failed scope must not leak routing replay state into the next step.
+    losses, counters = l2l_streamed(rig, spec)
+    assert len(losses) == 2
+    assert counters.expert_fetches > 0

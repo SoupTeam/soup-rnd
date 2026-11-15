@@ -201,13 +201,13 @@ fetches of a window:
 
 | k | hits | GA ordinary | GA grouped | GA two-read | GA both | L2L ordinary | L2L both |
 |---|---|---|---|---|---|---|---|
-| 1 | 13 | 39 | 39 | 26 | 26 | 39 | 39 |
-| 4 | 54 | 162 | 162 | 108 | 108 | 162 | 162 |
-| 16 | 207 | 621 | 621 | 414 | 414 | 621 | 621 |
-| 64 | 842 | 2526 | 2526 | 1684 | 1684 | 2526 | 2526 |
+| 1 | 13 | 39 | 39 | 26 | 26 | 39 | 26 |
+| 4 | 54 | 162 | 162 | 108 | 108 | 162 | 108 |
+| 16 | 207 | 621 | 621 | 414 | 414 | 621 | 414 |
+| 64 | 842 | 2526 | 2526 | 1684 | 1684 | 2526 | 1684 |
 
-Reads follow k in every arm. Two-read cuts GA reads from three to two per hit (ratio 2/3 at every
-k) and does nothing on L2L, which has no checkpoint recompute. Grouping changes no read.
+Reads follow k in every arm. Two-read cuts GA and L2L reads from three to two per hit
+(ratio 2/3 at every k). Grouping changes no read.
 Layer loads are 3 per micro-batch on GA (3k per window) and 3 per window on L2L. After one AdamW
 step the LoRA gradients, parameters and optimizer state of every arm equal ordinary bit for bit.
 `packed` and `expert_host_cache_bytes` need CUDA and are not measured. The test makes no speed
@@ -237,9 +237,12 @@ any other RAM budget, and the pool's `fetches` counts loads, hits included, whil
 
 Two reads works through the layer checkpoint. Layers that `training.stream_recompute` switches
 off have no recompute to skip and read each expert twice anyway. L2L bypasses the checkpoint,
-so `two_read_experts` has no effect there and the trainer never sets it. In the recompute the
+and supplies a separate forward/recompute context pair for each (layer, micro-batch)
+when the API enables `two_read_experts`. Reference passes stay outside these contexts.
+The trainer never sets this experimental API option. In the recompute the
 routed experts return zeros, so a forward hook on the decoder layer, its MoE block or its routed
-experts, and any global forward hook, is refused with a `RuntimeError`. A patched `forward` is
+experts, and any global forward hook, is refused with a `RuntimeError`. Under L2L this
+also includes the streamed layer wrapper, which runs during recompute. A patched `forward` is
 not detected and is unsupported. `install_streamed_experts(..., two_reads=True)` admits only
 `DeepseekV3DecoderLayer`.
 

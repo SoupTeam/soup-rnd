@@ -29,6 +29,12 @@ history and always starts.
 
 The rule's required checks are the constant ``REQUIRED``, a copy of the committed rule (ticket
 06 commits it before the first run). Unknown in one of them gives NO VERDICT.
+Ticket 08: ``--two-read`` includes arm B in captures and runs only C2 k=2, then
+A/B k=1 and k=2 in ``stage1``. ``blocks --comparison AB`` requires the B accuracy
+pairs first. ``--foreign-read-fraction 0.05`` opts into the proposed relative
+validity limit and writes both verdicts, with a sensitivity flag. The ticket-08
+profile selects the approved 5% rule; legacy commands keep the old rule.
+
 """
 
 from __future__ import annotations
@@ -57,9 +63,14 @@ console = Console()
 #: Copy of the committed rule's required checks (plan section 4, protocol 3.1).
 REQUIRED = ("suspend", "power", "foreign_reads")
 #: comparison -> (arm A, arm B). A is ordinary, B is complete.
-COMPARISONS = {"C1": ("ga_ordinary", "ga_complete"), "C2": ("l2l_ordinary", "l2l_complete")}
+COMPARISONS = {"C1": ("ga_ordinary", "ga_complete"),
+               "C2": ("l2l_ordinary", "l2l_complete"),
+               "AB": ("l2l_complete", "l2l_two_read")}
+LEGACY_COMPARISONS = ("C1", "C2")
+TWO_READ_SCHEDULE = (("C2", 2), ("AB", 1), ("AB", 2))
 #: The accuracy pairs each comparison needs (protocol 3.3).
 ACCURACY_PAIRS = {
+    "AB": ("l2l_two_read_vs_l2l_complete", "l2l_two_read_vs_l2l_ordinary"),
     "C1": ("ga_complete_vs_ga_ordinary",),
     "C2": ("l2l_complete_vs_l2l_ordinary", "l2l_ordinary_vs_ga_ordinary"),
 }
@@ -154,6 +165,8 @@ class Stage:
     revision: Optional[str] = None
     extra_args: List[str] = field(default_factory=list)
     ram_limit_gib: Optional[float] = None
+    two_read: bool = False
+    foreign_read_fraction: float = 0.0
     #: ``runner(command) -> returncode``; the default launches a subprocess.
     runner: Callable[[List[str]], int] = field(default_factory=lambda: _subprocess_runner)
     watch_factory: Callable[..., Any] = field(default_factory=lambda: _arm_watch)
@@ -228,8 +241,11 @@ def watched_run(
     out = stage.root / folder / f"{comparison}-k{k}" / f"b{block:02d}p{position}-{arm}"
     round_, run = 2 * block + 1 + position // 2, 4 * block + position + 1
     started = stage.clock()
+    watch_options = ({"foreign_read_fraction": stage.foreign_read_fraction}
+                     if stage.foreign_read_fraction else {})
     with stage.watch_factory(arm=f"{comparison}:{arm}", round=round_, run=run, label=stage.label,
-                             required=REQUIRED, model_path=str(stage.model_path)) as watch:
+                             required=REQUIRED, model_path=str(stage.model_path),
+                             **watch_options) as watch:
         code = stage.runner(run_command(stage, arm, k, out, capture=capture))
     wall = stage.clock() - started
     (out.parent).mkdir(parents=True, exist_ok=True)
@@ -252,10 +268,21 @@ def watched_run(
         "expert_fetches_per_window": record.get("expert_fetches_per_window"),
         "host_cache_bytes": record.get("host_cache_bytes"),
     }
+    if stage.foreign_read_fraction:
+        evidence = watch.record.get("checks", {}).get("foreign_reads", {}).get("evidence", {})
+        own = evidence.get("own_read_bytes")
+        foreign = evidence.get("foreign_read_bytes_min")
+        row["foreign_reads_above_five_percent"] = (
+            own is not None and foreign is not None and foreign > 0.05 * own)
     append_row(stage, row)
     if not ok:
         raise StageStopError(f"the run {arm} k={k} failed (return code {code}); see {out}. A crash "
                         "is not a void: the block is not replaced and the stage stops")
+    if stage.foreign_read_fraction and sum(
+        bool(r.get("foreign_reads_above_five_percent")) for r in read_rows(stage)
+    ) >= 2:
+        raise StageStopError("noisy host: multiple runs exceeded 5% foreign reads; discuss "
+                             "the host with the user before continuing")
     return row
 
 
@@ -292,6 +319,10 @@ def _last_block_seconds(rows: Sequence[Dict[str, Any]], comparison: str, k: int)
 def run_blocks(stage: Stage, budget: Dict[str, float], comparison: str, k: int) -> int:
     """ABBA blocks of one comparison at one k until ``blocks_to_add`` is zero. Returns the
     number of blocks run in this call."""
+    if comparison == "AB" or stage.two_read:
+        ok, reason = accuracy_status(stage, comparison)
+        if not ok:
+            raise StageStopError(f"accuracy: {reason}")
     arm_a, arm_b = COMPARISONS[comparison]
     ran = 0
     while arm_validity.blocks_to_add(completed_blocks(read_rows(stage), comparison, k)) > 0:
@@ -310,7 +341,7 @@ def run_single(stage: Stage, budget: Dict[str, float], k: int) -> None:
     rows = read_rows(stage)
     if any(r["comparison"] == "single" and r["k"] == k for r in rows):
         raise StageStopError(f"single runs at k={k} already exist in {stage.rows_path}")
-    arms = [a for pair in COMPARISONS.values() for a in pair]
+    arms = [a for name in LEGACY_COMPARISONS for a in COMPARISONS[name]]
     for position, arm in enumerate(arms):
         check_ceiling(stage, budget, 0.0)
         watched_run(stage, comparison="single", k=k, block=0, position=position,
@@ -323,7 +354,10 @@ def run_single(stage: Stage, budget: Dict[str, float], k: int) -> None:
 def capture_arms(stage: Stage) -> Tuple[str, ...]:
     """The arms to capture. On CPU ``ga_floor`` is left out: the CPU has no second SDPA backend,
     and the fp32 tolerance of the judge (1e-4) needs no noise floor."""
-    return tuple(a for a in CAPTURE_ARMS if not (stage.device == "cpu" and a == "ga_floor"))
+    arms: Tuple[str, ...] = CAPTURE_ARMS
+    if stage.two_read:
+        arms = tuple(arm for arm in arms if arm != "ga_complete") + ("l2l_two_read",)
+    return tuple(a for a in arms if not (stage.device == "cpu" and a == "ga_floor"))
 
 
 def run_capture(stage: Stage, budget: Dict[str, float], k: int) -> Dict[str, Any]:
@@ -338,8 +372,12 @@ def run_capture(stage: Stage, budget: Dict[str, float], k: int) -> Dict[str, Any
         raise StageStopError(
             f"l2l_complete read {reads} experts per hit at k={k}, the rule expects "
             f"{L2L_COMPLETE_READS_PER_HIT}: the stage stops")
+    if stage.two_read and rows["l2l_two_read"]["reads_per_hit"] != 2.0:
+        raise StageStopError("l2l_two_read must read two experts per hit: the stage stops")
     judge_command = [sys.executable, str(Path(__file__).resolve().parent / "oc_arm_run.py"),
                      "judge", "--runs", str(stage.root / "capture"), "--k", str(k)]
+    if stage.two_read:
+        judge_command.append("--two-read")
     # The captures sit in <root>/capture/capture-k<k>/b00p<i>-<arm>; judge wants <arm>-k<k>.
     link_captures(stage, k)
     stage.runner(judge_command)
@@ -376,9 +414,37 @@ def accuracy_status(stage: Stage, comparison: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def verdict_for(stage: Stage, comparison: str, k: int) -> Dict[str, Any]:
+def original_threshold_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Reclassify copies using recorded disk bounds and ADR 0002; never rewrite evidence."""
+    classified = []
+    for row in rows:
+        path = Path(row["dir"]) / "watch.json"
+        watch = json.loads(path.read_text("utf-8")) if path.is_file() else {}
+        checks = watch.get("checks", {})
+        outcomes = {name: {"outcome": checks.get(name, {}).get("outcome", arm_validity.UNKNOWN)}
+                    for name in REQUIRED}
+        foreign = checks.get("foreign_reads", {})
+        evidence = foreign.get("evidence", {})
+        least = evidence.get("foreign_read_bytes_min")
+        most = evidence.get("foreign_read_bytes_max")
+        outcome = arm_validity.UNKNOWN
+        if least is not None and most is not None:
+            if least >= arm_validity.FOREIGN_READ_LIMIT_BYTES:
+                outcome = arm_validity.VOID
+            elif most < arm_validity.FOREIGN_READ_LIMIT_BYTES:
+                outcome = arm_validity.OK
+        outcomes["foreign_reads"] = {"outcome": outcome}
+        classified.append({**row, "outcome": arm_validity.arm_outcome(outcomes, REQUIRED)})
+    return classified
+
+
+def verdict_for(
+    stage: Stage, comparison: str, k: int, *, original_threshold: bool = False,
+) -> Dict[str, Any]:
     """The verdict of one comparison at one k (protocol 3.2). NO VERDICT carries its reason."""
     rows = read_rows(stage)
+    if original_threshold:
+        rows = original_threshold_rows(rows)
     blocks = completed_blocks(rows, comparison, k)
     valid = arm_validity.valid_blocks(blocks) if blocks else []
     out: Dict[str, Any] = {"comparison": comparison, "k": k, "blocks": len(valid),
@@ -410,7 +476,16 @@ def verdict_for(stage: Stage, comparison: str, k: int) -> Dict[str, Any]:
 
 
 def write_verdicts(stage: Stage, ks: Sequence[int]) -> Dict[str, Any]:
-    results = [verdict_for(stage, cmp_, k) for k in ks for cmp_ in COMPARISONS]
+    pairs = TWO_READ_SCHEDULE if stage.two_read else tuple(
+        (cmp_, k) for k in ks for cmp_ in LEGACY_COMPARISONS)
+    results = []
+    for comparison, k in pairs:
+        result = verdict_for(stage, comparison, k)
+        if stage.foreign_read_fraction:
+            original = verdict_for(stage, comparison, k, original_threshold=True)
+            result["original_threshold"] = original
+            result["sensitive_to_foreign_reads"] = result["outcome"] != original["outcome"]
+        results.append(result)
     path = stage.root / "verdicts.json"
     path.write_text(json.dumps(results, indent=2, allow_nan=False, default=str) + "\n",
                     encoding="utf-8")
@@ -435,6 +510,10 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
         cmd.add_argument("--label", default="oc-stage1")
         cmd.add_argument("--revision")
+        cmd.add_argument("--two-read", action="store_true",
+                         help="ticket-08 captures and series (C2 k=2, then AB k=1,2)")
+        cmd.add_argument("--foreign-read-fraction", type=float,
+                         help="Linux fraction (ticket-08 default: 0.05; legacy default: 0)")
         cmd.add_argument("--ram-limit-gib", type=float)
         cmd.add_argument("--rate-usd-per-hour", type=float, default=0.0)
         cmd.add_argument("--ceiling-hours", type=float, default=10.0)
@@ -455,7 +534,10 @@ def stage_from(args: argparse.Namespace) -> Stage:
     return Stage(root=Path(args.root), source=Path(args.source), cache=Path(args.cache),
                  model_path=Path(args.model_path or args.cache), label=args.label,
                  device=args.device, revision=args.revision, extra_args=list(args.extra),
-                 ram_limit_gib=args.ram_limit_gib)
+                 ram_limit_gib=args.ram_limit_gib, two_read=args.two_read,
+                 foreign_read_fraction=(args.foreign_read_fraction
+                                        if args.foreign_read_fraction is not None
+                                        else (0.05 if args.two_read else 0.0)))
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -476,11 +558,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             for k in CAPTURE_KS:
                 run_capture(stage, budget, k)
-            for k in args.full_k:
-                for comparison in COMPARISONS:
+            if stage.two_read:
+                for comparison, k in TWO_READ_SCHEDULE:
                     run_blocks(stage, budget, comparison, k)
-            for k in args.single_k:
-                run_single(stage, budget, k)
+            else:
+                for k in args.full_k:
+                    for comparison in LEGACY_COMPARISONS:
+                        run_blocks(stage, budget, comparison, k)
+                for k in args.single_k:
+                    run_single(stage, budget, k)
             write_verdicts(stage, args.full_k)
     except StageStopError as stop:
         console.print(f"[red]STAGE STOP:[/] {stop}")

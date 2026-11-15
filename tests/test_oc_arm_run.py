@@ -78,7 +78,7 @@ def test_complete_on_a_card_switches_all_four_levers() -> None:
 
 def test_complete_on_cpu_says_which_levers_it_leaves_off() -> None:
     levers, off = oc_arm_run.levers_for("l2l_complete", device="cpu", host_cache_bytes=8 << 30)
-    assert levers == {"two_read_experts": True, "grouped_expert_routes": True}
+    assert levers == {"two_read_experts": False, "grouped_expert_routes": True}
     assert off == ["expert_transfer", "expert_host_cache_bytes"]
 
 
@@ -106,7 +106,8 @@ def test_windows_repeat_across_calls_and_differ_across_updates() -> None:
 # ---------------------------------------------------------------- run
 @pytest.mark.parametrize(
     ("arm", "reads_per_hit"),
-    [("ga_ordinary", 3.0), ("ga_complete", 2.0), ("l2l_ordinary", 3.0), ("l2l_complete", 3.0)],
+    [("ga_ordinary", 3.0), ("ga_complete", 2.0), ("l2l_ordinary", 3.0),
+     ("l2l_complete", 3.0), ("l2l_two_read", 2.0)],
 )
 @_REQUIRES_TRAINING_FLOOR
 def test_reads_per_hit_match_the_tiny_table(
@@ -156,18 +157,30 @@ def test_a_run_folder_is_never_reused(stand: Dict[str, Path]) -> None:
 
 
 # ---------------------------------------------------------------- judge
+@pytest.mark.parametrize("two_read", (False, True))
 @_REQUIRES_TRAINING_FLOOR
-def test_judge_passes_the_pairs_and_reports_bit_equality(stand: Dict[str, Path]) -> None:
+def test_judge_passes_the_pairs_and_reports_bit_equality(
+    stand: Dict[str, Path], two_read: bool,
+) -> None:
     for arm in ("ga_ordinary", "ga_complete", "l2l_ordinary", "l2l_complete"):
         record_of(stand, arm)
+    if two_read:
+        record_of(stand, "l2l_two_read")
     args = oc_arm_run.build_parser().parse_args(
-        ["judge", "--runs", str(stand["root"] / "runs"), "--k", str(K)])
+        ["judge", "--runs", str(stand["root"] / "runs"), "--k", str(K)]
+        + (["--two-read"] if two_read else []))
     verdict = oc_arm_run.judge(args)
     assert verdict["mode"] == "fp32"
     assert verdict["all_pass"], verdict["pairs"]
     pairs = verdict["pairs"]
-    assert pairs["ga_complete_vs_ga_ordinary"]["bit_equal"] is True
+    if not two_read:
+        assert pairs["ga_complete_vs_ga_ordinary"]["bit_equal"] is True
+    else:
+        assert "ga_complete_vs_ga_ordinary" not in pairs
     assert pairs["l2l_complete_vs_l2l_ordinary"]["bit_equal"] is True
+    if two_read:
+        assert pairs["l2l_two_read_vs_l2l_complete"]["bit_equal"] is True
+        assert pairs["l2l_two_read_vs_l2l_ordinary"]["bit_equal"] is True
     assert (stand["root"] / "runs" / f"accuracy-k{K}.json").is_file()
 
 

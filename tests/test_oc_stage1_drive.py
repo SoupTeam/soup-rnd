@@ -416,3 +416,116 @@ def test_write_verdicts_lists_every_comparison_and_k(
     assert [(r["comparison"], r["k"]) for r in written] == [("C1", 2), ("C2", 2)]
     assert written[0]["outcome"] == "WIN" and written[1]["outcome"] == "NO VERDICT"
     assert out["path"].endswith("verdicts.json")
+
+
+def test_two_read_blocks_require_accuracy_and_keep_abba_order(
+    tmp_path: Path, clock: Dict[str, float],
+) -> None:
+    fakes = Fakes()
+    stage = make_stage(tmp_path, fakes, clock)
+    with pytest.raises(drive.StageStopError, match="accuracy"):
+        drive.run_blocks(stage, budget(stage), "AB", 1)
+    folder = stage.root / "capture"
+    folder.mkdir(exist_ok=True)
+    for k in drive.CAPTURE_KS:
+        (folder / f"accuracy-k{k}.json").write_text(json.dumps({"pairs": {
+            "l2l_two_read_vs_l2l_complete": {"pass": True},
+            "l2l_two_read_vs_l2l_ordinary": {"pass": True},
+        }}), encoding="utf-8")
+    drive.run_blocks(stage, budget(stage), "AB", 1)
+    arms = [parse(cmd, "--arm") for cmd in fakes.commands]
+    assert arms == ["l2l_complete", "l2l_two_read", "l2l_two_read", "l2l_complete"] * 5
+
+
+def test_two_read_capture_requires_two_reads_and_passes_flag_to_judge(
+    tmp_path: Path, clock: Dict[str, float],
+) -> None:
+    fakes = Fakes()
+    original_runner = fakes.runner
+
+    def runner(command: List[str]) -> int:
+        code = original_runner(command)
+        if "--arm" in command and parse(command, "--arm") == "l2l_two_read":
+            path = Path(parse(command, "--out")) / "record.json"
+            record = json.loads(path.read_text("utf-8"))
+            record["reads_per_hit"] = 2.0
+            path.write_text(json.dumps(record), encoding="utf-8")
+        return code
+
+    stage = make_stage(tmp_path, fakes, clock)
+    stage.two_read = True
+    stage.runner = runner
+    drive.run_capture(stage, budget(stage), 2)
+    arms = [parse(cmd, "--arm") for cmd in fakes.commands if "--arm" in cmd]
+    assert "l2l_two_read" in arms
+    assert "ga_complete" not in arms
+    assert "--two-read" in fakes.commands[-1]
+
+
+def test_relative_threshold_report_keeps_both_verdicts_without_changing_rows(
+    tmp_path: Path, clock: Dict[str, float],
+) -> None:
+    stage = run_c1(tmp_path, clock, Fakes(value=noisy(10.0, 8.0)))
+    stage.foreign_read_fraction = 0.05
+    original_rows = stage.rows_path.read_bytes()
+    for row in drive.read_rows(stage):
+        watch = {"checks": {
+            "suspend": {"outcome": "ok"}, "power": {"outcome": "ok"},
+            "foreign_reads": {"outcome": "ok", "evidence": {
+                "foreign_read_bytes_min": 2_000_000_000,
+                "foreign_read_bytes_max": 2_000_000_000,
+            }},
+        }}
+        (Path(row["dir"]) / "watch.json").write_text(json.dumps(watch), encoding="utf-8")
+    result = drive.write_verdicts(stage, [2])["verdicts"][0]
+    assert result["outcome"] == "WIN"
+    assert result["original_threshold"]["outcome"] == "NO VERDICT"
+    assert result["sensitive_to_foreign_reads"] is True
+    assert stage.rows_path.read_bytes() == original_rows
+
+
+def test_two_read_series_runs_only_the_new_pairs_in_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+    monkeypatch.setattr(drive, "run_capture", lambda _s, _b, k: calls.append(("capture", k)))
+    monkeypatch.setattr(drive, "accuracy_status", lambda _s, _c: (True, ""))
+    monkeypatch.setattr(drive, "run_blocks", lambda _s, _b, c, k: calls.append((c, k)))
+    monkeypatch.setattr(drive, "write_verdicts", lambda _s, _ks: {})
+    result = drive.main([
+        "stage1", "--root", str(tmp_path), "--source", "src", "--cache", "cache", "--two-read",
+    ])
+    assert result == 0
+    assert calls == [("capture", 2), ("capture", 8), ("C2", 2), ("AB", 1), ("AB", 2)]
+
+
+def test_repeated_foreign_reads_above_five_percent_stop_the_series(
+    tmp_path: Path, clock: Dict[str, float],
+) -> None:
+    fakes = Fakes()
+    stage = make_stage(tmp_path, fakes, clock)
+    stage.foreign_read_fraction = 0.05
+
+    def watch(**_kwargs: Any) -> FakeWatch:
+        instance = FakeWatch("void")
+        instance.record["checks"] = {"foreign_reads": {"evidence": {
+            "own_read_bytes": 100_000_000_000, "foreign_read_bytes_min": 6_000_000_000,
+        }}}
+        return instance
+
+    stage.watch_factory = watch
+    drive.watched_run(stage, comparison="AB", k=1, block=0, position=0,
+                      side="A", arm="l2l_complete")
+    with pytest.raises(drive.StageStopError, match="noisy host"):
+        drive.watched_run(stage, comparison="AB", k=1, block=0, position=1,
+                          side="B", arm="l2l_two_read")
+    assert len(drive.read_rows(stage)) == 2
+
+
+def test_two_read_profile_selects_the_approved_relative_threshold(tmp_path: Path) -> None:
+    parser = drive.build_parser()
+    common = ["verdict", "--root", str(tmp_path), "--source", "src", "--cache", "cache",
+              "--ks", "1", "2"]
+    assert drive.stage_from(parser.parse_args(common)).foreign_read_fraction == 0.0
+    profile = drive.stage_from(parser.parse_args(common + ["--two-read"]))
+    assert profile.foreign_read_fraction == 0.05
