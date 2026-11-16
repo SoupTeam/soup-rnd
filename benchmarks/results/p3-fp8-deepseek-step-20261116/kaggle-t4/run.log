@@ -1,0 +1,196 @@
++ git clone -q https://github.com/SoupTeam/soup-rnd.git /tmp/soup && git -C /tmp/soup checkout -q e7fc9db04c9bd5a43d73bdd6a88310ea7486a116 && git -C /tmp/soup rev-parse HEAD
+e7fc9db04c9bd5a43d73bdd6a88310ea7486a116
++ /usr/bin/python3 -m pip install -q uv==0.13.7
++ /usr/bin/python3 -m uv venv --python 3.12.3 --seed /tmp/py312
+warning: The `--system` flag has no effect, `uv venv` always ignores virtual environments when finding a Python interpreter; did you mean `--no-managed-python`?
+Using CPython 3.12.3 interpreter at: /usr/bin/python3.12
+Creating virtual environment with seed packages at: /tmp/py312
+ + pip==26.3
+Activate with: source /tmp/py312/bin/activate
++ /usr/bin/python3 -m uv pip install --python /tmp/py312/bin/python torch==2.11.0 transformers==5.19.0 peft==0.21.2 accelerate==1.15.0 bitsandbytes==0.50.2 safetensors==0.8.0 rich==13.9.4 pydantic==2.14.1 numpy==2.1.3 psutil==7.2.2 pyyaml==6.0.3 -e /tmp/soup
+Using Python 3.12.3 environment at: /tmp/py312
+Resolved 62 packages in 535ms
+   Building soup-cli @ file:///tmp/soup
+Downloading networkx (2.0MiB)
+Downloading nvidia-nvshmem-cu13 (57.6MiB)
+Downloading nvidia-nvjitlink (38.8MiB)
+Downloading setuptools (1.0MiB)
+Downloading pydantic-core (2.1MiB)
+Downloading pygments (1.2MiB)
+Downloading nvidia-cusparselt-cu13 (162.0MiB)
+Downloading nvidia-cufile (1.2MiB)
+Downloading nvidia-cuda-runtime (2.1MiB)
+Downloading nvidia-cusolver (191.6MiB)
+Downloading tokenizers (3.2MiB)
+Downloading nvidia-cudnn-cu13 (349.1MiB)
+Downloading numpy (15.3MiB)
+Downloading torch (506.1MiB)
+Downloading nvidia-cufft (204.2MiB)
+Downloading nvidia-nccl-cu13 (187.4MiB)
+Downloading cuda-bindings (8.0MiB)
+Downloading hf-xet (4.1MiB)
+Downloading nvidia-cuda-nvrtc (86.0MiB)
+Downloading nvidia-cuda-cupti (10.2MiB)
+Downloading sympy (6.0MiB)
+Downloading nvidia-curand (56.8MiB)
+Downloading nvidia-cusparse (139.2MiB)
+Downloading nvidia-cublas (403.5MiB)
+Downloading triton (179.5MiB)
+Downloading bitsandbytes (41.1MiB)
+Downloading transformers (12.0MiB)
+ Downloaded setuptools
+ Downloaded nvidia-cufile
+ Downloaded pygments
+ Downloaded networkx
+ Downloaded pydantic-core
+ Downloaded nvidia-cuda-runtime
+ Downloaded tokenizers
+ Downloaded hf-xet
+ Downloaded sympy
+      Built soup-cli @ file:///tmp/soup
+ Downloaded cuda-bindings
+ Downloaded nvidia-cuda-cupti
+ Downloaded transformers
+ Downloaded numpy
+ Downloaded nvidia-nvjitlink
+ Downloaded bitsandbytes
+ Downloaded nvidia-curand
+ Downloaded nvidia-nvshmem-cu13
+ Downloaded nvidia-cuda-nvrtc
+ Downloaded nvidia-cusparse
+ Downloaded nvidia-cusparselt-cu13
+ Downloaded nvidia-nccl-cu13
+ Downloaded nvidia-cusolver
+ Downloaded triton
+ Downloaded nvidia-cufft
+ Downloaded nvidia-cudnn-cu13
+ Downloaded nvidia-cublas
+ Downloaded torch
+Prepared 62 packages in 52.17s
+Installed 62 packages in 440ms
+ + accelerate==1.15.0
+ + annotated-types==0.8.0
+ + anyio==4.16.0
+ + bitsandbytes==0.50.2
+ + click==8.5.1
+ + cuda-bindings==13.5.0
+ + cuda-pathfinder==1.9.0
+ + cuda-toolkit==13.0.2
+ + filelock==4.2.10
+ + fsspec==2026.9.0
+ + h11==0.16.0
+ + hf-xet==1.8.0
+ + httpcore2==2.16.2
+ + httpx2==2.16.2
+ + huggingface-hub==2.4.0
+ + idna==3.20
+ + jinja2==3.1.6
+ + markdown-it-py==4.3.0
+ + markupsafe==3.0.4
+ + mdurl==0.1.2
+ + mpmath==1.3.0
+ + networkx==3.7
+ + numpy==2.1.3
+ + nvidia-cublas==13.1.0.3
+ + nvidia-cuda-cupti==13.0.85
+ + nvidia-cuda-nvrtc==13.0.88
+ + nvidia-cuda-runtime==13.0.96
+ + nvidia-cudnn-cu13==9.19.0.56
+ + nvidia-cufft==12.0.0.61
+ + nvidia-cufile==1.15.1.6
+ + nvidia-curand==10.4.0.35
+ + nvidia-cusolver==12.0.4.66
+ + nvidia-cusparse==12.6.3.3
+ + nvidia-cusparselt-cu13==0.8.0
+ + nvidia-nccl-cu13==2.28.9
+ + nvidia-nvjitlink==13.0.88
+ + nvidia-nvshmem-cu13==3.4.5
+ + nvidia-nvtx==13.0.85
+ + packaging==26.3
+ + peft==0.21.2
+ + plotext==6.1.0
+ + psutil==7.2.2
+ + pydantic==2.14.1
+ + pydantic-core==2.50.1
+ + pygments==2.21.0
+ + pyyaml==6.0.3
+ + regex==2026.11.15
+ + rich==13.9.4
+ + safetensors==0.8.0
+ + setuptools==81.0.0
+ + shellingham==1.5.4
+ + soup-cli==0.75.0 (from file:///tmp/soup)
+ + sympy==1.14.0
+ + tokenizers==0.23.3
+ + torch==2.11.0
+ + tqdm==4.70.1
+ + transformers==5.19.0
+ + triton==3.6.0
+ + truststore==0.10.5
+ + typer==0.20.1
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.5
++ nvidia-smi --query-gpu=name,memory.total,compute_cap,driver_version --format=csv,noheader
+Tesla T4, 15360 MiB, 7.5, 580.178.04
+Tesla T4, 15360 MiB, 7.5, 580.178.04
++ /tmp/py312/bin/python -c 'import sys,torch,transformers,peft;print(sys.version.split()[0],torch.__version__,torch.version.cuda,transformers.__version__,peft.__version__)'
+3.12.3 2.11.0+cu130 13.0 5.19.0 0.21.2
++ /tmp/py312/bin/python benchmarks/harness/p3_fp8_deepseek_step.py --device cuda --output /kaggle/working/out --ks 1 4
+
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]
+Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 94.11it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]
+Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 117.33it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]
+Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 131.50it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+k=1 bf16: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.19633674621582, 
+"store_host_bytes": 49152, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 1689919488, 
+"process_rss_high_water_bytes": 1689399296, "cuda_allocated_peak_bytes": 68242432, "error": null, 
+"e1_rms_row_rel_max": 0.0, "e1_worst_row_rel_max": 0.0, "e1_pass": true, "e2_rms_row_rel_max": 0.0, "e2_pass":
+true}
+k=1 fp8: {"status": "ROUTING_REFUSED", "routing": {"complete": false, "layer": 2, "microbatch": 0, 
+"changed_tokens": 3, "tokens": 64, "message": "routing guard: layer 2 micro-batch 0 was routed differently in 
+the recompute than in the forward (3 of 64 tokens chose other experts), so its gradients would not be those of
+the forward. The router's weights, its correction bias or its input changed between the two."}, "window_loss":
+null, "store_host_bytes": 25665, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 1659789312, 
+"process_rss_high_water_bytes": 1659510784, "cuda_allocated_peak_bytes": 68034560, "error": null}
+k=1 fp8_oracle: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.19633674621582, 
+"store_host_bytes": 25665, "oracle_host_bytes": 36352, "step_rss_sampled_peak_bytes": 1687564288, 
+"process_rss_high_water_bytes": 1687244800, "cuda_allocated_peak_bytes": 68242432, "error": null, 
+"e1_rms_row_rel_max": 0.025869181909579993, "e1_worst_row_rel_max": 0.030974906358330556, "e1_pass": true, 
+"e2_rms_row_rel_max": 0.041530393364841815, "e2_pass": true, "e3": {"global_rel_l2": 0.05368039301705306, 
+"min_cosine": 0.992760156468035, "tensors": 30, "pass": false}, "loss_abs_diff": 0.0}
+
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]
+Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 108.74it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]
+Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 141.88it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]
+Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 148.34it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+k=4 bf16: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.2003408670425415, 
+"store_host_bytes": 196608, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 1689686016, 
+"process_rss_high_water_bytes": 1689128960, "cuda_allocated_peak_bytes": 68317696, "error": null, 
+"e1_rms_row_rel_max": 0.0, "e1_worst_row_rel_max": 0.0, "e1_pass": true, "e2_rms_row_rel_max": 0.0, "e2_pass":
+true}
+k=4 fp8: {"status": "ROUTING_REFUSED", "routing": {"complete": false, "layer": 2, "microbatch": 0, 
+"changed_tokens": 3, "tokens": 64, "message": "routing guard: layer 2 micro-batch 0 was routed differently in 
+the recompute than in the forward (3 of 64 tokens chose other experts), so its gradients would not be those of
+the forward. The router's weights, its correction bias or its input changed between the two."}, "window_loss":
+null, "store_host_bytes": 102465, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 1660219392, 
+"process_rss_high_water_bytes": 1659891712, "cuda_allocated_peak_bytes": 68102144, "error": null}
+k=4 fp8_oracle: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.2003408670425415, 
+"store_host_bytes": 102465, "oracle_host_bytes": 47104, "step_rss_sampled_peak_bytes": 1689022464, 
+"process_rss_high_water_bytes": 1688707072, "cuda_allocated_peak_bytes": 68317696, "error": null, 
+"e1_rms_row_rel_max": 0.025819825007589475, "e1_worst_row_rel_max": 0.03160923831455516, "e1_pass": true, 
+"e2_rms_row_rel_max": 0.04056118867189305, "e2_pass": true, "e3": {"global_rel_l2": 0.05860672061063229, 
+"min_cosine": 0.9955920621246904, "tensors": 30, "pass": false}, "loss_abs_diff": 0.0}
