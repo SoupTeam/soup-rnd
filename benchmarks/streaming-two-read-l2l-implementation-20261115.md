@@ -36,7 +36,8 @@ All pass with the opt-in threshold; 5.01/100 remains void. These tests do not al
 
 `oc_stage1_drive.py capture --two-read` omits GA complete, includes B, and requires two reads per
 hit before judging
-B against A and ordinary. Both capture k values (2 and 8) must pass before A/B timing.
+B against A and ordinary. The series captures and checks accuracy at k=2 only
+(`--capture-ks 2`) before A/B timing, per the user decision.
 `blocks --comparison AB` runs A,B,B,A with the existing five-block pilot and `blocks_to_add`.
 `stage1 --two-read` captures accuracy first, then runs C2 k=2, A/B k=1, A/B k=2; it does not
 repeat C1 or C2 k=1. `verdict --two-read --ks 1 2` reports those three comparison points.
@@ -55,7 +56,7 @@ keeping both runs for inspection. The user approved this rule on 2026-11-15;
   Between commits, use targeted checks only. The attempted local full run was not green.
 
 - Explicit permission for GPU rental, then the 30-minute host check and disk qualification.
-- Kanana accuracy for B against A and ordinary at k = 2 and 8, under A3, before timing.
+- Kanana accuracy for B against A and ordinary at k = 2, under A3, before timing.
 - Five new clean C2 k = 2 blocks on the new host, then A/B k = 1 and k = 2 ABBA pilots
   and required additional blocks. Do not combine hosts or reuse the previous pilot sigma.
 - Final report and PR with the measured complete-versus-ordinary and two-read contributions,

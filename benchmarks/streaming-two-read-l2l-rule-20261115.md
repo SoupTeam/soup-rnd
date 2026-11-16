@@ -79,7 +79,7 @@ limit on 2026-11-15, before the series starts. Require a local block-device volu
 2.5 GB/s, and the ticket's RAM/swap conditions. No measurement starts before host qualification
 and explicit rental authorization. Use a fresh result root; never copy an earlier host's runs.
 
-The driver profile is `oc_stage1_drive.py stage1 --two-read` with the source, cache, fresh root,
+The driver profile is `oc_stage1_drive.py stage1 --two-read --capture-ks 2` with the source, cache, fresh root,
 revision and approved budget arguments. It selects fraction 0.05 and the order above.
-`verdict --two-read --ks 1 2` writes both validity views. Legacy commands without `--two-read`
+`verdict --two-read --capture-ks 2 --ks 1 2` writes both validity views. Legacy commands without `--two-read`
 retain the original threshold. Do not override the fraction for this frozen series.
