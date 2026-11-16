@@ -20,7 +20,7 @@ PYTHONPATH=src:. python benchmarks/harness/p3_fp8_deepseek_step.py --device cuda
 
 ## GPU: Tesla T4 (`kaggle-t4/`)
 
-Run on Kaggle kernel `batyrkhan2131123/soup-p3-fp8-deepseek-step` v3, using `kaggle-t4/kaggle_runner.py`.
+Run on Kaggle kernel `batyrkhan2131123/soup-p3-fp8-deepseek-step` v3, using `kaggle-t4/kaggle_runner.py.txt` (byte-exact, as executed).
 Tesla T4 15 GiB (compute 7.5), driver 580.178.04. Python 3.12.3, torch 2.11.0+cu130,
 transformers 5.19.0, peft 0.21.2.
 
