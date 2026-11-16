@@ -25,8 +25,25 @@ def admitted_sources(tmp_path_factory):
     return root
 
 
+def _unpinned_packages() -> list[str]:
+    import importlib.metadata
+
+    observed = {}
+    for name in moonlight.PACKAGE_PINS:
+        try:
+            observed[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            observed[name] = None
+    return [f"{name}=={pin} (found {observed[name]})"
+            for name, pin in moonlight.PACKAGE_PINS.items() if observed[name] != pin]
+
+
 @pytest.fixture(scope="module")
 def conversion(tmp_path_factory, admitted_sources):
+    # Byte parity is defined against the pinned tokenizer stack; the converter refuses others.
+    unpinned = _unpinned_packages()
+    if unpinned:
+        pytest.skip("Moonlight conversion needs the pinned stack: " + ", ".join(unpinned))
     root = tmp_path_factory.mktemp("moonlight-conversion")
     output = root / "first" / moonlight.REVISION
     report = moonlight.convert(source_dir=admitted_sources, output=output)
