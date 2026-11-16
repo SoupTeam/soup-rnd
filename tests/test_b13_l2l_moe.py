@@ -93,6 +93,7 @@ def make_rig(tmp_path: Path) -> Iterator[Callable[..., Rig]]:
         layout: str = "per_expert",
         targets: Sequence[str] = fixture.TARGETS,
         neftune: float = 0.0,
+        build_options: Optional[Dict[str, Any]] = None,
     ) -> Rig:
         import torch
 
@@ -105,6 +106,7 @@ def make_rig(tmp_path: Path) -> Iterator[Callable[..., Rig]]:
         moe = build_moe_streamed(
             weights, root / "shards", layout=layout, device=device,
             lora_config=fixture.moe_lora_config(dropout=dropout, targets=targets),
+            **(build_options or {}),
         )
         try:
             resident = moe_resident_reference(weights, moe.lora_config, lora_from=moe.model)

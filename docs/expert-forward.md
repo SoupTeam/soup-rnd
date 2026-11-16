@@ -192,6 +192,64 @@ for real experts.
 Reproduce with `pytest tests/test_p3_expert_read_diagnostic.py -v` and read the recorded
 properties with `--junitxml`.
 
+### Reads with the complete levers on CPU
+
+`tests/test_complete_reads_tiny.py` repeats the window on the same fixture for four arms
+(ordinary, `grouped_expert_routes`, `two_read_experts`, and both together, which is every lever
+that runs on a CPU), on gradient accumulation (GA) and on L2L, at k = 1, 4, 16, 64. Expert
+fetches of a window:
+
+| k | hits | GA ordinary | GA grouped | GA two-read | GA both | L2L ordinary | L2L both |
+|---|---|---|---|---|---|---|---|
+| 1 | 13 | 39 | 39 | 26 | 26 | 39 | 26 |
+| 4 | 54 | 162 | 162 | 108 | 108 | 162 | 108 |
+| 16 | 207 | 621 | 621 | 414 | 414 | 621 | 414 |
+| 64 | 842 | 2526 | 2526 | 1684 | 1684 | 2526 | 1684 |
+
+Reads follow k in every arm. Two-read cuts GA and L2L reads from three to two per hit
+(ratio 2/3 at every k). Grouping changes no read.
+Layer loads are 3 per micro-batch on GA (3k per window) and 3 per window on L2L. After one AdamW
+step the LoRA gradients, parameters and optimizer state of every arm equal ordinary bit for bit.
+`packed` and `expert_host_cache_bytes` need CUDA and are not measured. The test makes no speed
+claim.
+
+## Complete levers (experimental, off by default)
+
+Four switches port the "complete" streaming levers of the koko branches onto this code. All
+are API parameters of `build_streamed_model` and `install_streaming`, with no config field and
+no CLI flag. All apply only to a `per_expert` cache of a DeepSeek-V3-family base, and any of
+them on another cache raises a `ValueError` instead of being ignored. With none set, the
+default path is unchanged: three reads of each hit expert per step (forward, checkpoint
+recompute, backward), one copy per stored component.
+
+| Parameter | Effect | Checked |
+|---|---|---|
+| `grouped_expert_routes=True` | Each streamed MoE layer finds its hit experts and their token rows with one `nonzero` and one host count read, instead of one `where` per expert. Same experts, same order, same reads. | CPU. Output, gradients and read order are bit-equal to the default path. |
+| `two_read_experts=True` | The layer checkpoint gets a context in which the router keeps its top-k decisions in the forward and replays them in the recompute, and the recompute reads no expert. A step reads each hit expert twice. | CPU. Loss and every LoRA gradient are bit-equal to the resident model and the default path, in fp32 and under bf16 autocast. Reads are 2 per hit expert instead of 3. |
+| `expert_transfer="packed"` | The pool stages each expert's stored NF4 components (packed weights and statistics) in one pinned block and copies it to the arena once, instead of once per component. Needs CUDA and NF4 in both matrices. The dequantised weights are the same bytes. | CPU: the byte layout, the plan and the refusals. The copy itself and bit-equality on a card are in `tests/test_complete_packed_transfer_cuda.py`, which has not been run. |
+| `expert_host_cache_bytes=N` | With `packed`, keeps whole packed blocks in pageable RAM up to `N` bytes, first come first kept, no eviction. A hit reads nothing from the experts file and copies one block. | CPU: the byte budget and first-fit behaviour. The hit path on a card is in the CUDA test file, not run. |
+
+The packed layout puts every stored component in one aligned region at the front of the
+arena, so one copy fills it. The pinned block (`plan.host_pinned_bytes`) is host memory outside
+`weight_bytes`. The host cache is charged to its own `N` and not to `stream_ram_cache_mb` or
+any other RAM budget, and the pool's `fetches` counts loads, hits included, while
+`reader.fetches` counts disk reads.
+
+Two reads works through the layer checkpoint. Layers that `training.stream_recompute` switches
+off have no recompute to skip and read each expert twice anyway. L2L bypasses the checkpoint,
+and supplies a separate forward/recompute context pair for each (layer, micro-batch)
+when the API enables `two_read_experts`. Reference passes stay outside these contexts.
+The trainer never sets this experimental API option. In the recompute the
+routed experts return zeros, so a forward hook on the decoder layer, its MoE block or its routed
+experts, and any global forward hook, is refused with a `RuntimeError`. Under L2L this
+also includes the streamed layer wrapper, which runs during recompute. A patched `forward` is
+not detected and is unsupported. `install_streamed_experts(..., two_reads=True)` admits only
+`DeepseekV3DecoderLayer`.
+
+Not ported from the same koko commits: the one-expert lookahead (`prefetch`, `prefetch_after`),
+the usage profile and the GPU placement plan. They are not among the four complete levers, and
+they build on an expert fetcher with cache tiers that this code does not have.
+
 ## Local checks
 
 ```text
