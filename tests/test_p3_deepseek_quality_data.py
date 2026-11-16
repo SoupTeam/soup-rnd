@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -291,6 +292,7 @@ def test_fixture_admission_requires_explicit_test_only_identity(tokenizer_fixtur
         data.load_tokenizer(tokenizer_dir, _test_only_tokenizer={**spec, "test_only": False})
 
 
+@pytest.mark.requires_symlink
 def test_hf_style_snapshot_links_are_admitted_by_pinned_bytes(tmp_path, tokenizer_fixture):
     tokenizer_dir, spec = tokenizer_fixture
     blobs = tmp_path / "blobs"
@@ -300,10 +302,7 @@ def test_hf_style_snapshot_links_are_admitted_by_pinned_bytes(tmp_path, tokenize
     for name in spec["files"]:
         target = blobs / name
         shutil.copyfile(tokenizer_dir / name, target)
-        try:
-            (snapshot / name).symlink_to(target)
-        except OSError:
-            pytest.skip("Creating symbolic links is unavailable on this host")
+        (snapshot / name).symlink_to(target)
     tokenizer, observed = data.load_tokenizer(snapshot, _test_only_tokenizer=spec)
     assert tokenizer("p a", add_special_tokens=False)["input_ids"] == [4, 5]
     assert observed["pin"] == spec
@@ -431,8 +430,9 @@ def test_module_cli_is_callable_without_heavy_model_setup():
     result = subprocess.run([sys.executable, "-m", "benchmarks.harness.p3_deepseek_quality_data",
                              "--help"], capture_output=True, text=True, check=False)
     assert result.returncode == 0
-    assert "--sources-sha256" in result.stdout
-    assert "--tokenizer-dir" in result.stdout
+    plain = " ".join(re.sub(r"\x1b\[[0-9;]*m", "", result.stdout).split())
+    assert "--sources-sha256" in plain
+    assert "--tokenizer-dir" in plain
 
 
 def test_exact_unique_token_floor_completes_one_cycle_without_repetition(
@@ -518,6 +518,7 @@ def test_partial_publication_failure_preserves_files_without_success_manifest(
     assert not (output / "manifest.json").exists()
 
 
+@pytest.mark.requires_symlink
 def test_loader_refuses_symlink_escape_even_with_identical_external_bytes(tmp_path, built_pack):
     output = tmp_path / "linked-pack"
     shutil.copytree(built_pack[0], output)
@@ -525,10 +526,7 @@ def test_loader_refuses_symlink_escape_even_with_identical_external_bytes(tmp_pa
     outside = tmp_path / "outside-spans.jsonl"
     shutil.copyfile(path, outside)
     path.unlink()
-    try:
-        path.symlink_to(outside)
-    except OSError:
-        pytest.skip("Creating symbolic links is unavailable on this host")
+    path.symlink_to(outside)
     with pytest.raises(ValueError, match="escapes"):
         data.load_pack(output, _sha(output / "manifest.json"), length=1024, steps=1)
 

@@ -422,10 +422,6 @@ def test_sft_trainer_mixed_lengths_short_window_normalization_and_cleanup(
     tmp_path, k, expected_counts, expected_stores, device
 ):
     import torch
-
-    if device == "cuda" and not torch.cuda.is_available():
-        pytest.skip("CUDA is unavailable")
-
     from peft import LoraConfig, TaskType
     from transformers import (
         LlamaConfig,
@@ -617,8 +613,6 @@ def test_routing_refusal_traceback_releases_owned_records(
     from soup_cli.utils.l2l_step import RoutingGuard, model_parts
     from tests.test_b13_moe_runtime import streamed_experts_modules
 
-    if device == "cuda" and not torch.cuda.is_available():
-        pytest.skip("CUDA is unavailable")
     rig = b13_moe_fixture.build_fixture(tmp_path, device=device)
     budget = HostMemoryBudget(10_000_000)
     plan = _plan(budget, device_type=device, pin=device == "cuda")

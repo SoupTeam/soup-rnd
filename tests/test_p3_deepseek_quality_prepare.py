@@ -106,7 +106,8 @@ def _disk_fixture(root: Path, *, filesystem: str = "ext4", nvme: bool = True) ->
     return data, proc, sysfs
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Linux sysfs and mount fixtures use symlinks")
+@pytest.mark.requires_symlink
+@pytest.mark.skipif(os.name == "nt", reason="POSIX sysfs and mountinfo layout")
 @pytest.mark.parametrize("filesystem,nvme", [("overlay", True), ("nfs", True), ("ext4", False)])
 def test_overlay_network_and_nonlocal_nvme_refuse(
     tmp_path: Path, filesystem: str, nvme: bool,
@@ -116,7 +117,8 @@ def test_overlay_network_and_nonlocal_nvme_refuse(
         prepare.inspect_nvme(data, proc=proc, sysfs=sysfs, device_number="259:0")
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Linux sysfs and mount fixtures use symlinks")
+@pytest.mark.requires_symlink
+@pytest.mark.skipif(os.name == "nt", reason="POSIX sysfs and mountinfo layout")
 def test_disk_provenance_is_bound_to_target_mount(tmp_path: Path) -> None:
     data, proc, sysfs = _disk_fixture(tmp_path)
     result = prepare.inspect_nvme(data, proc=proc, sysfs=sysfs, device_number="259:0")
@@ -531,7 +533,8 @@ def test_hidden_cgroup_controller_is_not_unlimited_ram(tmp_path: Path) -> None:
         prepare.inspect_ram(proc=proc, v2_root=tmp_path / "missing", v1_root=tmp_path / "v1")
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Linux sysfs and mount fixtures use symlinks")
+@pytest.mark.requires_symlink
+@pytest.mark.skipif(os.name == "nt", reason="POSIX sysfs and mountinfo layout")
 def test_sata_device_cannot_borrow_unrelated_nvme_provenance(tmp_path: Path) -> None:
     data, proc, sysfs = _disk_fixture(tmp_path)
     disk = sysfs / "devices/pci0000:00/0000:00:01.0/nvme/nvme0/nvme0n1"
@@ -556,7 +559,7 @@ def test_exclusive_json_receipt_cannot_be_overwritten(tmp_path: Path) -> None:
     assert json.loads(path.read_text()) == {"status": "FAILED"}
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Linux fixture symlink")
+@pytest.mark.requires_symlink
 def test_safe_child_rejects_symlink_escape(tmp_path: Path) -> None:
     source, elsewhere = tmp_path / "source", tmp_path / "elsewhere"
     source.mkdir()
