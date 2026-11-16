@@ -240,6 +240,27 @@ def test_failed_activation_drain_prevents_weight_cleanup():
     assert order == ["activation", "activation retry", "weights"]
 
 
+def test_non_c3_runtime_close_drains_the_activation_store_before_weights():
+    """Without C3 the RAM/spill store still drains (and its spill file closes) first."""
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState
+    from soup_cli.trainer.stream_setup import StreamingSetupMixin
+
+    order = []
+    state = L2LState(runtime=SimpleNamespace(tier="ram"), dtype=torch.float32)
+    assert state.c3_plan is None
+    state.store = SimpleNamespace(close=lambda: order.append("activation"))
+    wrapper = SimpleNamespace(
+        trainer=SimpleNamespace(_soup_l2l=state),
+        _stream_runtime=SimpleNamespace(close=lambda: order.append("weights")),
+    )
+    StreamingSetupMixin._close_stream_runtime(wrapper)
+    assert order == ["activation", "weights"]
+    assert state.store is None
+
+
+
 @pytest.mark.parametrize("codec", ["none", "fp8_e4m3"])
 def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monkeypatch, codec):
     import torch
@@ -249,6 +270,9 @@ def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monk
     from tests.test_v07200 import TestStreamingEndToEndSetup
 
     wrapper, dataset = TestStreamingEndToEndSetup()._wrapper(tmp_path, monkeypatch)
+    if codec == "fp8_e4m3":
+        # The launch keeps FP8 closed; this research path opens it to check the plumbing.
+        monkeypatch.setattr("soup_cli.utils.l2l_recipe.AVAILABLE_CODECS", ("none", "fp8_e4m3"))
     config = wrapper.config.model_dump()
     config["training"].update(
         l2l=True,

@@ -33,6 +33,13 @@ def test_default_recipe_uses_the_accumulation_steps_as_effective_k():
     assert (recipe.activation_codec, recipe.auto_k) == ("none", False)
 
 
+def test_fp8_codec_is_refused_at_launch_by_name():
+    from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
+
+    with pytest.raises(ValueError, match="fp8_e4m3.*not available"):
+        resolve_l2l_recipe(_tcfg(l2l_activation_codec="fp8_e4m3"))
+
+
 @pytest.mark.parametrize("effective_k", [None, 0, 5])
 def test_auto_k_requires_a_resolved_window_within_the_requested_limit(effective_k):
     from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
@@ -155,6 +162,7 @@ def test_wrapper_gives_the_effective_k_to_the_c3_reservation(tmp_path, monkeypat
     finally:
         wrapper._close_stream_runtime()
 
+
 def test_wrapper_without_l2l_keeps_the_accumulation_steps(tmp_path, monkeypatch):
     from tests.test_l2l_trainer_mode import _wrapper
 
@@ -175,6 +183,7 @@ def test_wrapper_writes_the_recipe_before_training(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("change, name", [
+    ({"l2l_activation_codec": "fp8_e4m3"}, "fp8_e4m3.*not available"),
     ({"l2l_auto_k": True}, "l2l_auto_k.*requires DeepSeek"),
 ])
 def test_wrapper_refuses_unavailable_options_before_loading_the_model(
@@ -318,6 +327,8 @@ def test_public_deepseek_auto_k_fits_a_larger_fp8_window_in_the_same_ram(
     weights = moe_weights_dir(tmp_path)
     _write_tiny_tokenizer(weights)
     hermetic_ram(monkeypatch, tmp_path)
+    # The launch keeps FP8 closed; this research path opens it to check the plumbing.
+    monkeypatch.setattr("soup_cli.utils.l2l_recipe.AVAILABLE_CODECS", ("none", "fp8_e4m3"))
     monkeypatch.setattr(
         l2l_spill, "ram_budget", lambda: l2l_spill.RamBudget(None, available, None, {}, None),
     )

@@ -1161,32 +1161,21 @@ buffers are refused for backward, while expert-local random draws use local RNG
 replay. L2L separately replays LoRA/eager-attention dropout in accumulation order.
 See [the boundary and standalone smoke](expert-forward.md#b13-backward-and-l2l).
 
-**FP8 boundary storage (experimental, opt-in).** Set
-`training.l2l_activation_codec: fp8_e4m3` to store boundaries as E4M3 values with
-one FP32 scale per token. The default `none` retains uncompressed storage.
-Storage integration is separate from numerical acceptance: **FP8 failed the
-tested DeepSeek configurations**. This is not FP8 matrix multiplication or
-weight quantization; compute stays FP32/BF16 and existing L2L hardware limits apply.
+**FP8 boundary storage (research, not available from the launch).** The trainer can
+store boundaries as E4M3 values with one FP32 scale per token
+(`L2LState(activation_codec="fp8_e4m3")`), and the memory planner and auto-k size
+windows for it. `soup train` refuses `training.l2l_activation_codec: fp8_e4m3` before
+loading the model. On MoE models FP8 rounding changes routes on recompute and the
+routing guard stops the step; with forced route replay the step completes, but the
+gradients exceed the G4 E3 bound (relative L2 5.4-5.9% vs 5%). The launch opens once a
+natural-routing MoE step passes or the bound is formally revised. This is not FP8
+matrix multiplication or weight quantization; compute stays FP32/BF16.
 
-```yaml
-task: sft
-backend: transformers
-training:
-  stream_layers: true
-  l2l: true
-  l2l_activation_codec: fp8_e4m3
-  batch_size: 1
-  gradient_accumulation_steps: 4
-  lora:
-    dropout: 0
-```
-
-FP8 storage is RAM-only and limited to streamed Transformers text SFT without
-RAFT or multipack. Insufficient or unknown host budget is an error, not a fallback
-to disk or BF16. Variable-batch and variable-length micro-batches retain their own
-row capacities and original shapes. A larger position replaces the store within
-the admitted envelope; short final windows reuse it. Compression is lossy:
-uncompressed gradient-parity claims do not apply to FP8.
+Through the API, FP8 storage is RAM-only and limited to the streamed Transformers text
+SFT window loss. Insufficient or unknown host budget is an error, not a fallback to
+disk or BF16. Variable-batch and variable-length micro-batches retain their own row
+capacities and original shapes. Compression is lossy: uncompressed gradient-parity
+claims do not apply to FP8.
 
 The store and MoE planner share `fp8_activation_allocation`. Host reservations
 include payloads, FP32 scales, pinned allocator rounding and bounded CPU scratch.
@@ -1400,7 +1389,7 @@ training:
 
 `training.l2l_activation_codec` (`none` or `fp8_e4m3`, default `none`) and `training.l2l_auto_k`
 (default `false`) are valid only with `l2l: true`, `stream_layers: true` and `task: sft`; the
-config is refused otherwise. `fp8_e4m3` is the experimental opt-in described under
+config is refused otherwise. The launch currently refuses `fp8_e4m3`; see
 [FP8 boundary storage](#l2l-load-each-layer-once-per-optimizer-step-trainingl2l-beta).
 
 For DeepSeek-V3 with `stream_expert_layout: per_expert` and a fixed `batch_size`, enable
@@ -1415,7 +1404,7 @@ with a known optimizer memory profile. It uses RAM only and refuses an explicit
 This admission covers the host allocation plan. CUDA workspace and peak VRAM need
 separate measurement.
 
-FP8 has a fixed host scratch cost, so it fits more micro-batches than `none` only once
+For the API path, FP8 has a fixed host scratch cost, so it fits more micro-batches than `none` only once
 the window is large enough to amortize it. With natural routing, FP8 rounding can send
 tokens to other experts on recompute; the routing guard then stops the step with the
 layer, micro-batch and number of changed tokens, and releases the store.
