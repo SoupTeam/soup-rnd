@@ -538,6 +538,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def stage_from(args: argparse.Namespace) -> Stage:
+    if args.two_read and args.foreign_read_fraction not in (None, 0.05):
+        raise ValueError("Do not override the fraction for this frozen series (must be 0.05)")
     return Stage(root=Path(args.root), source=Path(args.source), cache=Path(args.cache),
                  model_path=Path(args.model_path or args.cache), label=args.label,
                  device=args.device, revision=args.revision, extra_args=list(args.extra),
@@ -549,8 +551,12 @@ def stage_from(args: argparse.Namespace) -> Stage:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    args = build_parser().parse_args(argv)
-    stage = stage_from(args)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        stage = stage_from(args)
+    except ValueError as exc:
+        parser.error(str(exc))
     budget = ensure_budget(stage, rate=args.rate_usd_per_hour, hours=args.ceiling_hours,
                            usd=args.ceiling_usd)
     try:

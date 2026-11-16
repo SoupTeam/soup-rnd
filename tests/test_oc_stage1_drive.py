@@ -529,3 +529,15 @@ def test_two_read_profile_selects_the_approved_relative_threshold(tmp_path: Path
     assert drive.stage_from(parser.parse_args(common)).foreign_read_fraction == 0.0
     profile = drive.stage_from(parser.parse_args(common + ["--two-read"]))
     assert profile.foreign_read_fraction == 0.05
+
+
+@pytest.mark.parametrize("fraction", ["0", "0.1", "nan"])
+def test_two_read_rejects_overridden_foreign_read_fraction(
+    tmp_path: Path, capsys: Any, fraction: str,
+) -> None:
+    args = ["verdict", "--root", str(tmp_path), "--source", "src", "--cache", "cache",
+            "--ks", "1", "--two-read", "--foreign-read-fraction", fraction]
+    with pytest.raises(SystemExit) as exc:
+        drive.main(args)
+    assert exc.value.code == 2
+    assert "Do not override the fraction for this frozen series" in capsys.readouterr().err
