@@ -817,7 +817,9 @@ def _build_streamed_experts_class() -> Any:
                 local_weights = weights.detach().requires_grad_(need_weights)
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
                     result = expert_mlp(local_hidden, gate_up, down, ctx.act_fn) * local_weights
-                wanted = [t for t in (local_hidden, local_weights) if t.requires_grad]
+                wanted = [
+                    tensor for tensor in (local_hidden, local_weights) if tensor.requires_grad
+                ]
                 grads = list(torch.autograd.grad(result, wanted, grad_out))
             grad_hidden = grads.pop(0) if need_hidden else None
             grad_weights = grads.pop(0) if need_weights else None

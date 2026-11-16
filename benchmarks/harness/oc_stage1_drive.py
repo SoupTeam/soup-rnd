@@ -93,23 +93,23 @@ def _betacf(a: float, b: float, x: float) -> float:
     """Continued fraction of the regularised incomplete beta (Numerical Recipes, betacf)."""
     tiny = 1e-300
     qab, qap, qam = a + b, a + 1.0, a - 1.0
-    c, d = 1.0, 1.0 - qab * x / qap
-    d = 1.0 / (d if abs(d) > tiny else tiny)
-    h = d
-    for m in range(1, 300):
-        m2 = 2 * m
-        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
-        d = 1.0 + aa * d
-        d = 1.0 / (d if abs(d) > tiny else tiny)
-        c = 1.0 + aa / c
-        c = c if abs(c) > tiny else tiny
-        h *= d * c
-        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
-        d = 1.0 + aa * d
-        d = 1.0 / (d if abs(d) > tiny else tiny)
-        c = 1.0 + aa / c
-        c = c if abs(c) > tiny else tiny
-        delta = d * c
+    numerator, denominator = 1.0, 1.0 - qab * x / qap
+    denominator = 1.0 / (denominator if abs(denominator) > tiny else tiny)
+    h = denominator
+    for iteration in range(1, 300):
+        m2 = 2 * iteration
+        aa = iteration * (b - iteration) * x / ((qam + m2) * (a + m2))
+        denominator = 1.0 + aa * denominator
+        denominator = 1.0 / (denominator if abs(denominator) > tiny else tiny)
+        numerator = 1.0 + aa / numerator
+        numerator = numerator if abs(numerator) > tiny else tiny
+        h *= denominator * numerator
+        aa = -(a + iteration) * (qab + iteration) * x / ((a + m2) * (qap + m2))
+        denominator = 1.0 + aa * denominator
+        denominator = 1.0 / (denominator if abs(denominator) > tiny else tiny)
+        numerator = 1.0 + aa / numerator
+        numerator = numerator if abs(numerator) > tiny else tiny
+        delta = denominator * numerator
         h *= delta
         if abs(delta - 1.0) < 1e-14:
             break
@@ -464,9 +464,9 @@ def verdict_for(
     mean_a = [statistics.fmean([b[0].value, b[3].value]) for b in valid]
     mean_b = [statistics.fmean([b[1].value, b[2].value]) for b in valid]
     diffs = [a - b for a, b in zip(mean_a, mean_b)]
-    t, p = t_test_p(diffs)
+    statistic, p_value = t_test_p(diffs)
     effect = statistics.fmean(diffs) / statistics.fmean(mean_a)
-    if p >= ALPHA:
+    if p_value >= ALPHA:
         outcome = "NO DIFFERENCE"
     elif effect >= EFFECT_THRESHOLD:
         outcome = "WIN"
@@ -474,7 +474,7 @@ def verdict_for(
         outcome = "SMALL"
     else:
         outcome = "LOSS"
-    return {**out, "outcome": outcome, "t": t, "p": p, "reduction": effect,
+    return {**out, "outcome": outcome, "t": statistic, "p": p_value, "reduction": effect,
             "mean_a_seconds": statistics.fmean(mean_a), "mean_b_seconds": statistics.fmean(mean_b)}
 
 
