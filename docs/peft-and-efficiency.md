@@ -662,6 +662,11 @@ run's data order is unchanged. The choice, the scores and every LISA draw go to
 untrained, so they add nothing). Refused with `lora.r: 0`, `lisa_enabled`,
 `unfrozen_parameters`, `freeze_layers`, `freeze_ratio`; sft + transformers only.
 
+Speed: nothing below the lowest trainable layer needs a gradient. Plain training's autograd
+stops there by itself; with `l2l` the step now stores no activation below it and walks its
+backward only down to it, so on the streamed path those layers are read once per step instead of
+twice. Choosing upper layers is therefore faster than choosing the same number of lower ones.
+
 ## Loss Watchdog
 
 Auto-stop training when loss spikes above a threshold (like Axolotl's `loss_watchdog_threshold`):

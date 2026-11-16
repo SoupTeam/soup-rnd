@@ -495,6 +495,18 @@ class L2LStep:
         self.split_devices = tuple(split_devices)
         self._replicas: Optional[List[Any]] = None
 
+    def _lowest_trainable(self) -> int:
+        """The lowest decoder layer with a trainable parameter (``len(layers)`` when none).
+
+        Nothing below it needs a gradient, so the step stores no activation there and its
+        backward stops at it: gradient accumulation's autograd never goes lower either
+        (``training.lora_layers`` freezes whole layers' adapters).
+        """
+        for idx, layer in enumerate(self.layers):
+            if any(param.requires_grad for param in layer.parameters()):
+                return idx
+        return len(self.layers)
+
     def _layer(self, module: Any, hidden: Any, state: Any, call: LayerCall, idx: int = 0) -> Any:
         # ``state`` is where accumulation's stream stands before this (micro-batch, layer)
         # pair, so the forward and the recompute in the backward draw the same mask in any
@@ -632,6 +644,7 @@ class L2LStep:
             replayed = l2l_rng.replay(plan, k)
         states = replayed[0] if replayed else None
         train_embedding = any(param.requires_grad for param in self.owner.embed_tokens.parameters())
+        cut = 0 if train_embedding else self._lowest_trainable()
         embedding_states: List[Any] = []
 
         self._prime(self.owner, ())
@@ -647,7 +660,8 @@ class L2LStep:
                     pass_hidden.append([self.owner.embed_tokens(x) for x in ids])
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
-                    store.put(idx, mb, hidden[mb])
+                    if idx >= cut:
+                        store.put(idx, mb, hidden[mb])
                     with guard.record(idx, mb):
                         hidden[mb] = self._layer(
                             layer, hidden[mb], states[mb][idx] if states else None, calls[mb],
@@ -685,7 +699,7 @@ class L2LStep:
             grads.append(last.grad)
 
         store.begin_backward()
-        for idx in range(len(self.layers) - 1, -1, -1):
+        for idx in range(len(self.layers) - 1, cut - 1, -1):
             layer = self.layers[idx]
             saved = layer.use_checkpoint
             layer.use_checkpoint = False
@@ -793,6 +807,7 @@ class L2LStep:
             total = label_tokens(micro_batches) if n_items is None else int(n_items)
             head = sft_head(labels, total)
 
+        cut = self._lowest_trainable()
         if self._replicas is None:
             self._replicas = [DeviceReplica(self.layers, dev) for dev in self.split_devices]
         replicas = self._replicas
@@ -912,6 +927,8 @@ class L2LStep:
                 with prof.span("load"):
                     weights = load(idx, layer)
                 for mb in range(k):
+                    if idx < cut:
+                        continue
                     if owner_of[mb] == 0:
                         with prof.span("put", main):
                             store.put(idx, mb, hidden[mb])
@@ -953,7 +970,7 @@ class L2LStep:
             else:
                 rounds.append([mb])
         store.begin_backward()
-        for idx in range(len(self.layers) - 1, -1, -1):
+        for idx in range(len(self.layers) - 1, cut - 1, -1):
             layer = self.layers[idx]
             with prof.span("load"):
                 weights = load(idx, layer)
