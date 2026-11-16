@@ -1,0 +1,212 @@
+{
+  "status": "COMPLETED_NOT_A_NUMERICAL_OR_PERFORMANCE_VERDICT",
+  "arm": "resident",
+  "indices": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "physical_gpu_bytes": 8222670848,
+  "allocator_budget_bytes": 7516192768,
+  "budget_excludes_context": true,
+  "torch": "2.8.0+cu128",
+  "research_bench_sha256": "080b4de75b8f228f367d7f9de2e4b7be7793b2b3c1e6c06c27ec0b0638b10f1b",
+  "pid": 10504,
+  "affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "ordinary_setup_seconds": 22.808228847105056,
+  "layer_count": 36,
+  "per_layer_bytes": 385892864,
+  "host_memory_after_setup": {
+    "max_rss_bytes": 19778248704,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 19778248704,
+    "VmRSS_bytes": 18589069312
+  },
+  "attention_backend": "sdpa",
+  "residency": {
+    "indices": [
+      16,
+      17,
+      18,
+      19
+    ],
+    "dedicated_slots": {
+      "16": 2,
+      "17": 3,
+      "18": 4,
+      "19": 5
+    },
+    "rotating_slots": 2,
+    "resident_bytes": 1543571456,
+    "preload_loads": 4,
+    "resident_load_calls_skipped": 0,
+    "dynamic_loads": 1682,
+    "dynamic_logical_bytes": 649071797248,
+    "arithmetic_changed": false,
+    "host_store_retained": true,
+    "preload_seconds": 0.14557693991810083
+  },
+  "compiled_decoders": 0,
+  "compile_wrapper_seconds": 1.0558869689702988e-06,
+  "all_update_wall_seconds": [
+    6.2692313499283046,
+    5.817341485060751,
+    5.834925539093092,
+    5.841780307935551,
+    5.854476470965892,
+    5.85000607999973,
+    5.854031493887305,
+    5.855049561941996,
+    5.856818055966869,
+    5.842342956922948,
+    5.843032483011484,
+    5.848545916844159,
+    5.852125976933166,
+    5.848915854934603
+  ],
+  "compiler_before": {
+    "stats": {},
+    "frames": {},
+    "graph_break": {}
+  },
+  "setup_peak_allocated_bytes": 3638279168,
+  "setup_peak_reserved_bytes": 3663724544,
+  "all_update_peak_allocated_bytes": [
+    5903398912,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376
+  ],
+  "all_update_peak_reserved_bytes": [
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560
+  ],
+  "per_update_loads": [
+    {
+      "step": 1,
+      "loads": 122,
+      "bytes": 47078929408
+    },
+    {
+      "step": 2,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 3,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 4,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 5,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 6,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 7,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 8,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 9,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 10,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 11,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 12,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 13,
+      "loads": 120,
+      "bytes": 46307143680
+    },
+    {
+      "step": 14,
+      "loads": 120,
+      "bytes": 46307143680
+    }
+  ],
+  "compiler_after_warmup": {
+    "stats": {},
+    "frames": {},
+    "graph_break": {}
+  },
+  "compiler_after": {
+    "stats": {},
+    "frames": {},
+    "graph_break": {}
+  },
+  "compiler_time_metrics_seconds_inclusive": {
+    "inductor_codecache_torch_key": [
+      0.235322921
+    ]
+  },
+  "host_memory_at_exit": {
+    "max_rss_bytes": 19778248704,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 19778248704,
+    "VmRSS_bytes": 19093762048
+  },
+  "peak_allocated_bytes": 5990693376,
+  "peak_reserved_bytes": 6616514560,
+  "whole_run_peak_allocated_bytes": 5990693376,
+  "whole_run_peak_reserved_bytes": 6616514560,
+  "whole_entry_seconds": 111.14444758906029
+}

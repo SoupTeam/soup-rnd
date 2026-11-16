@@ -1,0 +1,219 @@
+{
+  "status": "COMPLETED_NOT_A_NUMERICAL_OR_PERFORMANCE_VERDICT",
+  "arm": "resident_compile_precise",
+  "indices": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "physical_gpu_bytes": 8222670848,
+  "allocator_budget_bytes": 7516192768,
+  "budget_excludes_context": true,
+  "torch": "2.8.0+cu128",
+  "research_bench_sha256": "080b4de75b8f228f367d7f9de2e4b7be7793b2b3c1e6c06c27ec0b0638b10f1b",
+  "pid": 5739,
+  "affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "ordinary_setup_seconds": 26.578905353089795,
+  "layer_count": 36,
+  "per_layer_bytes": 385892864,
+  "host_memory_after_setup": {
+    "max_rss_bytes": 19786518528,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 19786518528,
+    "VmRSS_bytes": 18588815360
+  },
+  "attention_backend": "sdpa",
+  "residency": {
+    "indices": [
+      16,
+      17,
+      18,
+      19
+    ],
+    "dedicated_slots": {
+      "16": 2,
+      "17": 3,
+      "18": 4,
+      "19": 5
+    },
+    "rotating_slots": 2,
+    "resident_bytes": 1543571456,
+    "preload_loads": 4,
+    "resident_load_calls_skipped": 0,
+    "dynamic_loads": 242,
+    "dynamic_logical_bytes": 93386073088,
+    "arithmetic_changed": false,
+    "host_store_retained": true,
+    "preload_seconds": 0.14724314701743424
+  },
+  "compiled_decoders": 4,
+  "compile_wrapper_seconds": 0.010301260044798255,
+  "all_update_wall_seconds": [
+    13.7750731469132,
+    7.10332680400461
+  ],
+  "compiler_before": {
+    "stats": {},
+    "frames": {},
+    "graph_break": {}
+  },
+  "setup_peak_allocated_bytes": 3638279168,
+  "setup_peak_reserved_bytes": 3663724544,
+  "all_update_peak_allocated_bytes": [
+    5903398912,
+    5990693376
+  ],
+  "all_update_peak_reserved_bytes": [
+    6616514560,
+    6616514560
+  ],
+  "per_update_loads": [
+    {
+      "step": 1,
+      "loads": 122,
+      "bytes": 47078929408
+    },
+    {
+      "step": 2,
+      "loads": 120,
+      "bytes": 46307143680
+    }
+  ],
+  "compiler_after": {
+    "stats": {
+      "calls_captured": 112,
+      "unique_graphs": 1
+    },
+    "frames": {},
+    "graph_break": {}
+  },
+  "compiler_time_metrics_seconds_inclusive": {
+    "inductor_codecache_torch_key": [
+      0.72099216
+    ],
+    "_compile.compile_inner": [
+      4.77377236
+    ],
+    "compile_attempt_0": [
+      4.636114464
+    ],
+    "bytecode_tracing": [
+      0.535756019
+    ],
+    "OutputGraph.call_user_compiler": [
+      4.054841834
+    ],
+    "_recursive_pre_grad_passes": [
+      0.002387039
+    ],
+    "create_aot_dispatcher_function": [
+      3.123776482
+    ],
+    "aot_collect_metadata": [
+      0.208250498
+    ],
+    "aot_trace_joint_graph": [
+      0.828452564
+    ],
+    "_recursive_joint_graph_passes": [
+      0.210203984
+    ],
+    "min_cut_rematerialization_partition": [
+      0.148571458
+    ],
+    "compile_fx.<locals>.fw_compiler_base": [
+      1.680712804
+    ],
+    "compile_fx_inner": [
+      1.680049794,
+      1.579974711
+    ],
+    "fx_codegen_and_compile": [
+      1.673707441,
+      1.573202876
+    ],
+    "additional_fake_tensor_prop": [
+      0.073713598,
+      0.101075331
+    ],
+    "_recursive_post_grad_passes": [
+      0.005121044,
+      0.028551041
+    ],
+    "GraphLowering.run": [
+      0.224313097,
+      0.255775923
+    ],
+    "GraphLowering.compile_to_fn": [
+      1.307702312,
+      1.11023095
+    ],
+    "GraphLowering.compile_to_module": [
+      1.307582286,
+      1.110126521
+    ],
+    "GraphLowering.codegen": [
+      0.825636095,
+      0.761428387
+    ],
+    "Scheduler.__init__": [
+      0.393224784,
+      0.16172168
+    ],
+    "Scheduler.fused_nodes": [
+      0.003646848,
+      0.003479469
+    ],
+    "Scheduler.codegen": [
+      0.408781984,
+      0.572672969
+    ],
+    "PythonWrapperCodegen.generate": [
+      0.020552556,
+      0.023886748
+    ],
+    "PyCodeCache.load_by_key_path": [
+      0.480478847,
+      0.347061077
+    ],
+    "async_compile.wait": [
+      0.464791217,
+      0.335926925
+    ],
+    "TritonBundler.collect": [
+      0.008335454,
+      0.010539542
+    ],
+    "build_guards": [
+      0.13030506
+    ],
+    "gc": [
+      0.000892439
+    ],
+    "backward._backward_impl": [
+      1.614046615
+    ],
+    "compile_fx.<locals>.bw_compiler": [
+      1.580263197
+    ]
+  },
+  "host_memory_at_exit": {
+    "max_rss_bytes": 22925500416,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 22925500416,
+    "VmRSS_bytes": 21820485632
+  },
+  "peak_allocated_bytes": 5990693376,
+  "peak_reserved_bytes": 6616514560,
+  "whole_run_peak_allocated_bytes": 5990693376,
+  "whole_run_peak_reserved_bytes": 6616514560,
+  "whole_entry_seconds": 61.4393446079921
+}

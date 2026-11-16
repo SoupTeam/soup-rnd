@@ -461,10 +461,13 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     Keep the real file handles so open-before-failure and closed-after-cleanup are
     observable on every platform, even where the open spill file has been unlinked.
     The wrapper must leave neither the resident chunks nor the first ring buffer
-    reachable when it releases the cache, and must leave no file or thread behind."""
+    reachable when it releases the cache, and must leave no file or thread behind.
+    An exception can keep the closed store alive after its storage has been freed.
+    """
     acts = _shipped_acts()
     real_buffer, real_store = acts.aligned_buffer, acts.ActivationStore
-    made, opened, handles, instances = [], [], [], []
+    opened, handles, instances = [], [], []
+    probe = _ReleaseProbe()
 
     def record_open(kind, path, size):
         backend = spill.open_spill(kind, path, size)
@@ -477,10 +480,14 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
         for handle in handles:
             assert not handle.closed
             assert os.fstat(handle.fileno()).st_size == plan.spill_file_bytes
-        if made:
+        if probe.refs:
             raise RuntimeError("CUDA error: out of memory (injected page-lock failure)")
-        made.append(real_buffer(nbytes, pin=pin))
-        return made[-1]
+        resident = instances[0]()._resident
+        assert len(resident) == (plan.n_layers - plan.spill_layers) * plan.k
+        buffer = real_buffer(nbytes, pin=pin)
+        probe.refs = [_storage_ref(chunk) for chunk in resident.values()]
+        probe.refs.append(_storage_ref(buffer))
+        return buffer
 
     class Recorded(real_store):
         def __init__(self, **kwargs):
@@ -492,17 +499,10 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     monkeypatch.setattr(acts, "aligned_buffer", second_fails)
     monkeypatch.setattr(acts, "ActivationStore", Recorded)
     monkeypatch.setattr(spill, "l2l_activations", acts)
-    probe = _ReleaseProbe()
-
-    def watch_then_release():
-        probe.refs = [_storage_ref(made[0]), lambda: instances[0]() is not None]
-        made.clear()
-        return probe()
-
     plan = _plan(bud, 28672)  # 2 layers spilled, 1 resident layer of 3 chunks
     assert plan.spill_layers == 2
     with pytest.raises(RuntimeError, match="injected page-lock failure"):
-        _store(spill, plan, tmp_path, release=watch_then_release, opener=record_open)
+        _store(spill, plan, tmp_path, release=probe, opener=record_open)
     assert len(opened) == 1
     assert all(handle.closed for handle in handles)
     _released(spill, opened[0].path)

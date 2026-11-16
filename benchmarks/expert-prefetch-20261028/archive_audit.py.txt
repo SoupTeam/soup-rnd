@@ -1,0 +1,295 @@
+"""Pre-data extraction of unchanged retention/resource audit primitives."""
+from __future__ import annotations
+import functools
+import hashlib
+import json
+import math
+import os
+import re
+import tarfile
+import zlib
+from pathlib import Path, PurePosixPath
+from typing import Any
+SOURCE = "f5670242e13b2b480a78e8fc1e3c797d6bb13800"
+GIB, CHUNK = 2**30, 4 * 2**20
+
+def require(value: Any, message: str) -> None:
+    if not value:
+        raise ValueError(message)
+
+def finite(value: Any) -> bool:
+    return type(value) in (int, float) and math.isfinite(value)
+
+def sha(path: Path) -> str:
+    result = hashlib.sha256()
+    with path.open("rb") as source:
+        for data in iter(lambda: source.read(8 * 2**20), b""):
+            result.update(data)
+    return result.hexdigest()
+
+def read(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+def contained(root: Path, name: str) -> Path:
+    part = PurePosixPath(name)
+    require(
+        isinstance(name, str)
+        and name
+        and "\\" not in name
+        and ":" not in name
+        and not part.is_absolute()
+        and part.as_posix() == name
+        and all(value not in ("", ".", "..") for value in name.split("/")),
+        "Noncanonical original artifact path",
+    )
+    base, target = os.path.realpath(root), os.path.realpath(root / name)
+    require(
+        os.path.normcase(os.path.commonpath((base, target))) == os.path.normcase(base),
+        "Artifact escaped its evidence root",
+    )
+    return Path(target)
+
+def resource_point(point: dict, limit: int) -> None:
+    require(
+        type(point["process_swap_bytes"]) is int and point["process_swap_bytes"] == 0,
+        "Worker process swap was used/unavailable",
+    )
+    rows, host = point["cgroup"]["constraints"], point["host_memory"]
+    require(
+        rows and type(host["MemTotal"]) is int and host["MemTotal"] > 0,
+        "Native host/cgroup resource scope absent",
+    )
+    limits = [host["MemTotal"]] + [
+        row["memory.max"] for row in rows if type(row["memory.max"]) is int
+    ]
+    require(
+        all(value > 0 for value in limits) and min(limits) == limit,
+        "Effective native RAM minimum changed",
+    )
+    require(
+        all(
+            type(row["memory.swap.current"]) is int and row["memory.swap.current"] == 0
+            for row in rows
+        )
+        and (
+            host.get("SwapTotal", 0) == 0
+            or any(row["memory.swap.max"] == 0 for row in rows)
+        ),
+        "Cgroup swap was used or no longer disabled",
+    )
+
+def resources(stage: dict, spec: dict) -> None:
+    data = stage["resources"]
+    require(
+        type(data["samples"]) is int
+        and data["samples"] >= 2
+        and data["sample_interval_seconds"] == 0.05
+        and type(data["sampled_peak_rss_bytes"]) is int
+        and 0 < data["sampled_peak_rss_bytes"] <= spec["max_host_bytes"]
+        and data["sampled_peak_process_swap_bytes"] == 0
+        and data["sampled_peak_cgroup_swap_bytes"] == 0,
+        "Phase RSS, sampling or process/cgroup no-swap gate failed",
+    )
+    for point in (data["before"], data["after"]):
+        resource_point(point, spec["host_boundary"]["effective_limit_bytes"])
+    for field in ("cuda", "cuda_including_diagnostics"):
+        if field in stage:
+            require(
+                all(
+                    type(stage[field][key]) is int
+                    and 0 <= stage[field][key] <= spec["device_cap_bytes"]
+                    for key in ("peak_allocated_bytes", "peak_reserved_bytes")
+                ),
+                "Phase exceeded the original allocator VRAM cap",
+            )
+
+def timing_phase(raw: dict, phase: str, updates: int) -> None:
+    value = raw[phase]
+    require(
+        value["complete"] is True
+        and value["updates_complete"] == updates
+        and value["finite_state_checks_per_update"] is True
+        and len(value["update_seconds"]) == len(value["losses"]) == updates
+        and all(finite(item) and item > 0 for item in value["update_seconds"])
+        and all(finite(item) for item in value["losses"]),
+        "Incomplete finite training phase",
+    )
+
+class Originals:
+    def __init__(self, stage: Path):
+        self.stage, self.root = stage, stage / "retained"
+        self.outer = read(stage / "archive-manifest.json")
+        self.bundle = read(stage / "bundle-verified.json")
+        outer, bundle = self.outer, self.bundle
+        require(
+            outer["source_commit"] == SOURCE
+            and bundle["expected_source_commit"]
+            == bundle["export_source_commit"]
+            == SOURCE
+            and bundle["all_manifested_raw_files_retained"] is True
+            and bundle["whole_archive_verified"] is True
+            and bundle["per_range_hashes_verified"] is True,
+            "Incomplete raw retention",
+        )
+        path = stage / "result.lossless.tar"
+        require(
+            path.stat().st_size == outer["archive_bytes"] == bundle["bytes"]
+            and sha(path) == outer["sha256"] == bundle["sha256"],
+            "Encoded archive hash failed",
+        )
+        with tarfile.open(path, "r:") as archive:
+            members = archive.getmembers()
+            require(
+                len({row.name for row in members}) == len(members)
+                and all(row.isfile() for row in members),
+                "Archive contains special/duplicate files",
+            )
+            meta = archive.getmember("original-files.json")
+            require(0 < meta.size < 64 * 2**20, "Lossless manifest is unbounded")
+            self.inner = json.load(archive.extractfile(meta))
+            inner = self.inner
+            require(
+                inner["format"]
+                == outer["format"]
+                == bundle["format"]
+                == "soup-lossless-results-v1"
+                and inner["chunk_bytes"] == CHUNK,
+                "Lossless archive format changed",
+            )
+            require(
+                {
+                    key: {name: row[name] for name in ("bytes", "sha256")}
+                    for key, row in inner["files"].items()
+                }
+                == outer["files"],
+                "Inner/outer original manifests differ",
+            )
+            objects = inner["objects"]
+            require(
+                {row.name for row in members}
+                == {"original-files.json"}
+                | {"objects/" + identity for identity in objects},
+                "Unexpected lossless payload member",
+            )
+            active = set()
+
+            @functools.lru_cache(maxsize=8)
+            def decode(identity):
+                require(
+                    identity not in active
+                    and len(active) < 32
+                    and re.fullmatch("[0-9a-f]{64}", identity),
+                    "Cyclic/noncanonical chunk",
+                )
+                active.add(identity)
+                try:
+                    row = objects[identity]
+                    require(
+                        type(row["bytes"]) is int
+                        and 0 < row["bytes"] <= CHUNK
+                        and 0 < row["encoded_bytes"] <= CHUNK,
+                        "Unbounded encoded chunk",
+                    )
+                    member = archive.getmember("objects/" + identity)
+                    require(
+                        member.size == row["encoded_bytes"],
+                        "Encoded chunk size mismatch",
+                    )
+                    payload = archive.extractfile(member).read()
+                    require(
+                        hashlib.sha256(payload).hexdigest() == row["encoded_sha256"],
+                        "Encoded chunk SHA mismatch",
+                    )
+                    if row["codec"] == "zlib":
+                        decoder = zlib.decompressobj()
+                        data = decoder.decompress(payload, row["bytes"] + 1)
+                        require(
+                            decoder.eof
+                            and not decoder.unused_data
+                            and not decoder.unconsumed_tail,
+                            "Incomplete/oversized zlib chunk",
+                        )
+                    else:
+                        require(
+                            row["codec"] == "raw" and row["width"] == 1,
+                            "Unknown lossless codec",
+                        )
+                        data = payload
+                    require(
+                        len(data) == row["bytes"] and row["width"] in (1, 4),
+                        "Decoded chunk size/plane mismatch",
+                    )
+                    if row["width"] == 4:
+                        require(len(data) % 4 == 0, "Misaligned byte planes")
+                        reordered, size = bytearray(len(data)), len(data) // 4
+                        for index in range(4):
+                            reordered[index::4] = data[
+                                index * size : (index + 1) * size
+                            ]
+                        data = bytes(reordered)
+                    if "reference" in row:
+                        reference = decode(row["reference"])
+                        require(
+                            len(reference) == len(data), "XOR reference length differs"
+                        )
+                        data = (
+                            int.from_bytes(data, "little")
+                            ^ int.from_bytes(reference, "little")
+                        ).to_bytes(len(data), "little")
+                    require(
+                        hashlib.sha256(data).hexdigest() == identity,
+                        "Decoded chunk SHA failed",
+                    )
+                    return data
+                finally:
+                    active.remove(identity)
+
+            for identity in objects:
+                decode(identity)
+            verified_bytes = 0
+            for name, expected in inner["files"].items():
+                file = contained(self.root, name)
+                hashed, chunks, count = hashlib.sha256(), [], 0
+                with file.open("rb") as stream:
+                    for data in iter(lambda: stream.read(CHUNK), b""):
+                        hashed.update(data)
+                        chunks.append(hashlib.sha256(data).hexdigest())
+                        count += len(data)
+                require(
+                    count == expected["bytes"]
+                    and hashed.hexdigest() == expected["sha256"]
+                    and chunks == expected["chunks"]
+                    and all(identity in objects for identity in chunks),
+                    "Complete retained original/chunk hash failed: " + name,
+                )
+                verified_bytes += count
+        require(
+            len(outer["files"]) == bundle["verified_files"]
+            and verified_bytes == outer["original_bytes"] == bundle["original_bytes"],
+            "Raw retention totals differ",
+        )
+        self.summary = {
+            "verified_files": len(outer["files"]),
+            "original_bytes": verified_bytes,
+            "archive_bytes": path.stat().st_size,
+            "archive_sha256": sha(path),
+            "decoded_unique_chunks_verified": len(objects),
+            "inner_manifest_sha256": hashlib.sha256(archive_bytes(inner)).hexdigest(),
+        }
+
+    def file(self, name: str) -> Path:
+        require(name in self.outer["files"], "Required original absent: " + name)
+        path = contained(self.root, name)
+        expected = self.outer["files"][name]
+        require(
+            path.stat().st_size == expected["bytes"]
+            and sha(path) == expected["sha256"],
+            "Original changed after retention verification: " + name,
+        )
+        return path
+
+    def read(self, name: str) -> Any:
+        return read(self.file(name))
+
+def archive_bytes(value: Any) -> bytes:
+    return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()

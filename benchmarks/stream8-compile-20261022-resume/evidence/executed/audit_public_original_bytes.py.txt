@@ -1,0 +1,44 @@
+"""Check small published originals against canonical archive manifest hashes."""
+import hashlib
+import json
+import subprocess
+from pathlib import Path
+
+from rich.console import Console
+
+
+def main():
+    repo = Path(__file__).parents[2]
+    evidence = repo / 'benchmarks/stream8-compile-20261022-resume/evidence'
+    checked = []
+    for cohort in [evidence, evidence / 'cohort-g']:
+        if not cohort.exists():
+            continue
+        expected = {}
+        receipts = list((cohort / 'archives').glob('bundle-*-verified.json'))
+        receipts.sort(key=lambda path: json.loads(path.read_text())['unix'])
+        for receipt in receipts:
+            name = json.loads(receipt.read_text())['name']
+            manifest = json.loads((cohort / f'archives/{name}-original-files.json').read_text())
+            expected.update(manifest['files'])
+        for path in (cohort / 'originals').rglob('*'):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(cohort / 'originals').as_posix()
+            wanted = expected[relative]['sha256']
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == wanted, relative
+            public = path.relative_to(repo).as_posix()
+            staged = subprocess.check_output(['git', 'show', ':' + public], cwd=repo)
+            assert hashlib.sha256(staged).hexdigest() == wanted, public
+            checked.append({'path': public, 'sha256': wanted, 'staged_Git_bytes_identical': True})
+    assert checked
+    report = {'scope': 'small published original files; full raw archives retained separately',
+              'original_file_count': len(checked), 'files': checked,
+              'every_staged_blob_matches_original_canonical_manifest': True}
+    (evidence / 'published-original-byte-audit.json').write_text(
+        json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    Console().print({'small_originals_and_staged_Git_blobs_verified': len(checked)})
+
+
+if __name__ == '__main__':
+    main()

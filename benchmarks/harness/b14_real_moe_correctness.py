@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import gc
 import re
-import resource
 import shutil
 import sys
 from pathlib import Path
@@ -117,6 +116,13 @@ def default_batches(config: Any, *, count: int = 1, rows: int = 2, seq: int = 6)
 
 
 def _peak_rss_bytes() -> int:
+    if sys.platform == "win32":
+        import psutil
+
+        return int(psutil.Process().memory_info().peak_wset)
+
+    import resource
+
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return peak if sys.platform == "darwin" else peak * 1024
 

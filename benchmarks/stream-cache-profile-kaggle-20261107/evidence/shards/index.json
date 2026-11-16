@@ -1,0 +1,149 @@
+{
+  "n_layers": 24,
+  "layer_keys": [
+    "input_layernorm.weight",
+    "mlp.down_proj.weight",
+    "mlp.down_proj.weight::absmax",
+    "mlp.down_proj.weight::nested_absmax",
+    "mlp.down_proj.weight::nested_offset",
+    "mlp.gate_proj.weight",
+    "mlp.gate_proj.weight::absmax",
+    "mlp.gate_proj.weight::nested_absmax",
+    "mlp.gate_proj.weight::nested_offset",
+    "mlp.up_proj.weight",
+    "mlp.up_proj.weight::absmax",
+    "mlp.up_proj.weight::nested_absmax",
+    "mlp.up_proj.weight::nested_offset",
+    "post_attention_layernorm.weight",
+    "self_attn.k_proj.weight",
+    "self_attn.k_proj.weight::absmax",
+    "self_attn.k_proj.weight::nested_absmax",
+    "self_attn.k_proj.weight::nested_offset",
+    "self_attn.o_proj.weight",
+    "self_attn.o_proj.weight::absmax",
+    "self_attn.o_proj.weight::nested_absmax",
+    "self_attn.o_proj.weight::nested_offset",
+    "self_attn.q_proj.weight",
+    "self_attn.q_proj.weight::absmax",
+    "self_attn.q_proj.weight::nested_absmax",
+    "self_attn.q_proj.weight::nested_offset",
+    "self_attn.v_proj.weight",
+    "self_attn.v_proj.weight::absmax",
+    "self_attn.v_proj.weight::nested_absmax",
+    "self_attn.v_proj.weight::nested_offset"
+  ],
+  "extra_keys": [
+    "__nf4_code",
+    "__nf4_nested_code",
+    "model.embed_tokens.weight",
+    "model.norm.weight"
+  ],
+  "dtype": "float16",
+  "total_params": 329303040,
+  "arch": "llama",
+  "soup_version": "0.75.0",
+  "large_keys": [],
+  "format_version": 5,
+  "source_fingerprint": "ff8dcd8329d377b573925d8d8f0ee6811cfdd37ec7f093aa47a370ad1431d451",
+  "source_files": [
+    [
+      "model.safetensors",
+      658630656,
+      1794001339760776568
+    ]
+  ],
+  "quant": "nf4",
+  "double_quant": true,
+  "quant_device": "cuda",
+  "quant_specs": {
+    "mlp.down_proj.weight": {
+      "shape": [
+        1024,
+        3072
+      ],
+      "dtype": "float16",
+      "blocksize": 64,
+      "quant_type": "nf4",
+      "nested": true,
+      "nested_blocksize": 256
+    },
+    "mlp.gate_proj.weight": {
+      "shape": [
+        3072,
+        1024
+      ],
+      "dtype": "float16",
+      "blocksize": 64,
+      "quant_type": "nf4",
+      "nested": true,
+      "nested_blocksize": 256
+    },
+    "mlp.up_proj.weight": {
+      "shape": [
+        3072,
+        1024
+      ],
+      "dtype": "float16",
+      "blocksize": 64,
+      "quant_type": "nf4",
+      "nested": true,
+      "nested_blocksize": 256
+    },
+    "self_attn.k_proj.weight": {
+      "shape": [
+        1024,
+        1024
+      ],
+      "dtype": "float16",
+      "blocksize": 64,
+      "quant_type": "nf4",
+      "nested": true,
+      "nested_blocksize": 256
+    },
+    "self_attn.o_proj.weight": {
+      "shape": [
+        1024,
+        1024
+      ],
+      "dtype": "float16",
+      "blocksize": 64,
+      "quant_type": "nf4",
+      "nested": true,
+      "nested_blocksize": 256
+    },
+    "self_attn.q_proj.weight": {
+      "shape": [
+        1024,
+        1024
+      ],
+      "dtype": "float16",
+      "blocksize": 64,
+      "quant_type": "nf4",
+      "nested": true,
+      "nested_blocksize": 256
+    },
+    "self_attn.v_proj.weight": {
+      "shape": [
+        1024,
+        1024
+      ],
+      "dtype": "float16",
+      "blocksize": 64,
+      "quant_type": "nf4",
+      "nested": true,
+      "nested_blocksize": 256
+    }
+  },
+  "external_tensors": {},
+  "external_mode": "",
+  "stripe_roots": [],
+  "layer_roots": [],
+  "stacked_experts": false,
+  "fp32_keys": [],
+  "expert_layout": "",
+  "expert_layout_version": 0,
+  "expert_layers": [],
+  "expert_count": 0,
+  "expert_shapes": {},
+  "expert_quant_specs": {}
+}

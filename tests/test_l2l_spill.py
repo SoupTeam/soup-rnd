@@ -1109,7 +1109,15 @@ def test_darwin_cannot_accept_unknown_volume_backing_as_a_local_disk(tmp_path, m
         _prepare(tmp_path / "spill")
 
 
-def test_a_volume_without_unbuffered_io_is_refused(tmp_path, monkeypatch):
+@pytest.fixture()
+def local_volume(monkeypatch):
+    """Supply known local backing for tests of subsequent spill checks."""
+    from soup_cli.utils import l2l_spill
+
+    monkeypatch.setattr(l2l_spill, "filesystem_refusal", lambda path: None)
+
+
+def test_a_volume_without_unbuffered_io_is_refused(tmp_path, monkeypatch, local_volume):
     from soup_cli.utils import l2l_activations, l2l_spill
 
     directory = tmp_path / "spill"
@@ -1125,7 +1133,9 @@ def test_a_volume_without_unbuffered_io_is_refused(tmp_path, monkeypatch):
     assert os.listdir(directory) == []  # the probe file is gone
 
 
-def test_a_drive_short_of_the_file_plus_the_margin_is_refused(tmp_path, monkeypatch):
+def test_a_drive_short_of_the_file_plus_the_margin_is_refused(
+    tmp_path, monkeypatch, local_volume,
+):
     from soup_cli.utils import l2l_spill
 
     monkeypatch.setattr(l2l_spill.shutil, "disk_usage", lambda p: types.SimpleNamespace(
@@ -1147,7 +1157,7 @@ def test_a_usable_directory_is_created_and_returned(direct_dir):
 # the disk tier
 # --------------------------------------------------------------------------
 @pytest.fixture()
-def disks(monkeypatch):
+def disks(monkeypatch, local_volume):
     """``physical_disks`` answered from a table keyed by directory name."""
     from soup_cli.utils import l2l_spill
 

@@ -14,7 +14,12 @@ letter. Neither owns a regex any more.
 
 from __future__ import annotations
 
-import time
+import json
+import os
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
 
 from soup_cli.utils.final_answer import BoxedAnswer, iter_boxed_answers, parse_completion
 
@@ -23,13 +28,33 @@ _GROWTH_INPUT = 20_000
 
 
 def _best_seconds(text: str, repeats: int = 3) -> float:
-    """The fastest of ``repeats`` full scans, to keep a loaded runner out of the way."""
-    best = float("inf")
-    for _ in range(repeats):
-        started = time.perf_counter()
-        sum(1 for _ in iter_boxed_answers(text))
-        best = min(best, time.perf_counter() - started)
-    return best
+    """Time real scans without coverage hooks; imports/startup are outside the timer."""
+    source = str(Path(__file__).parents[1] / "src")
+    script = textwrap.dedent("""
+        import json
+        import sys
+        import time
+        sys.path.insert(0, sys.argv[1])
+        from soup_cli.utils.final_answer import iter_boxed_answers
+        from rich.console import Console
+        request = json.load(sys.stdin)
+        assert sys.gettrace() is None, "timing probe must not be traced"
+        best = float("inf")
+        for _ in range(request["repeats"]):
+            started = time.perf_counter()
+            sum(1 for _ in iter_boxed_answers(request["text"]))
+            best = min(best, time.perf_counter() - started)
+        Console().print(json.dumps(best))
+    """)
+    # pytest-cov may otherwise start coverage in child interpreters via .pth hooks.
+    environment = {key: value for key, value in os.environ.items()
+                   if not key.startswith("COV_CORE_") and key != "COVERAGE_PROCESS_START"}
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", script, source],
+        input=json.dumps({"text": text, "repeats": repeats}),
+        capture_output=True, text=True, check=True, timeout=30, env=environment,
+    )
+    return float(json.loads(result.stdout))
 
 
 class TestIssue1347TheScanReadsEveryClosedBox:
