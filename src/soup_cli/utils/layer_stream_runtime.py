@@ -28,6 +28,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ContextManager,
     Dict,
     FrozenSet,
     Iterator,
@@ -1644,7 +1645,8 @@ def _build_streamed_layer_class():
             use_checkpoint=True,
             quant_specs=None,
             codes=None,
-            checkpoint_context_fn=None,
+            checkpoint_context_fn: Optional[Callable[[], Tuple[ContextManager[Any],
+                                                             ContextManager[Any]]]] = None,
         ):
             super().__init__()
             self.inner = inner
