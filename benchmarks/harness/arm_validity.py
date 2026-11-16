@@ -893,12 +893,8 @@ def foreign_reads_check_result(
     device_problem: Optional[str],
     start: DiskReadings,
     end: DiskReadings,
-    foreign_read_fraction: float = 0.0,
 ) -> Dict[str, object]:
     """Void if the disk under test read 1 GB or more beyond this process tree's reads (ADR 0002).
-
-    A positive ``foreign_read_fraction`` instead permits up to
-    max(1 GB, fraction * own reads), including equality.
 
     The tree's counter covers every disk, so how much of it hit ``device`` is
     unknown. The reads of the other disks bound it: at most all of the tree's
@@ -944,15 +940,10 @@ def foreign_reads_check_result(
         uninspectable_processes=end.processes["uninspectable"],
     )
     named_bytes = sum(reader["read_bytes"] for reader in readers)
-    threshold = max(FOREIGN_READ_LIMIT_BYTES, int(own * foreign_read_fraction))
-    evidence.update(foreign_read_fraction=foreign_read_fraction, limit_bytes=threshold)
-    limit = f"(limit {threshold})"
-    # Preserve ADR 0002's boundary by default; the opt-in relative rule permits equality.
-    exceeds = least > threshold if foreign_read_fraction else least >= threshold
-    within = most <= threshold if foreign_read_fraction else most < threshold
-    if exceeds:
+    limit = f"(limit {FOREIGN_READ_LIMIT_BYTES})"
+    if least >= FOREIGN_READ_LIMIT_BYTES:
         outcome, reason = VOID, f"at least {least} bytes of foreign reads on {device} {limit}"
-    elif within:
+    elif most < FOREIGN_READ_LIMIT_BYTES:
         outcome, reason = OK, f"at most {most} bytes of foreign reads on {device} {limit}"
     else:
         outcome = UNKNOWN
@@ -1112,9 +1103,7 @@ class _LinuxChecks:
         disk_reads: Callable[[str], Optional[int]],
         other_disk_reads: Callable[[str], Optional[int]],
         process_reads: Callable[[], Optional[ProcessReads]],
-        foreign_read_fraction: float = 0.0,
     ) -> None:
-        self._foreign_read_fraction = foreign_read_fraction
         self._sleep_offset = sleep_offset
         self._suspend_count = suspend_count
         self._model_path = model_path
@@ -1165,7 +1154,6 @@ class _LinuxChecks:
                 self._device_problem,
                 self._disk[0],
                 self._disk[-1],
-                self._foreign_read_fraction,
             ),
         }
 
@@ -1257,10 +1245,6 @@ class ArmWatch:
     check watches the disk that holds it, and is unknown without it. Windows
     has no disk-wide counter, so its check ignores ``model_path``.
 
-    ``foreign_read_fraction`` opts Linux into a relative foreign-read limit:
-    max(1 GB, fraction * own reads), permitting equality. Zero preserves ADR 0002.
-    The approved ticket-08 value is 0.05; it is not enabled by default.
-
     ``platform`` picks the checks, as a ``sys.platform`` value. On an OS without
     checks every check is unknown. ``power_supplies``, ``process_reads``,
     ``ram_available`` and ``commit_charge`` default to that OS's sensor. ``sleep_offset``,
@@ -1294,10 +1278,7 @@ class ArmWatch:
         gpu_processes: Callable[[], Optional[List[GpuProcess]]] = gpu_processes,
         gpu_clock: Callable[[], Optional[ClockReading]] = gpu_clock,
         gpu_clock_interval_s: float = GPU_CLOCK_INTERVAL_S,
-        foreign_read_fraction: float = 0.0,
     ):
-        if not 0.0 <= foreign_read_fraction <= 1.0:
-            raise ValueError("foreign_read_fraction must be between 0 and 1")
         self.arm = arm
         self.round = round
         self.run = run
@@ -1322,7 +1303,6 @@ class ArmWatch:
                 disk_reads,
                 other_disk_reads,
                 process_reads or default_processes,
-                foreign_read_fraction,
             )
         elif self.system == WINDOWS:
             self._checks = _WindowsChecks(

@@ -244,11 +244,8 @@ def watched_run(
     out = stage.root / folder / f"{comparison}-k{k}" / f"b{block:02d}p{position}-{arm}"
     round_, run = 2 * block + 1 + position // 2, 4 * block + position + 1
     started = stage.clock()
-    watch_options = ({"foreign_read_fraction": stage.foreign_read_fraction}
-                     if stage.foreign_read_fraction else {})
     with stage.watch_factory(arm=f"{comparison}:{arm}", round=round_, run=run, label=stage.label,
-                             required=REQUIRED, model_path=str(stage.model_path),
-                             **watch_options) as watch:
+                             required=REQUIRED, model_path=str(stage.model_path)) as watch:
         code = stage.runner(run_command(stage, arm, k, out, capture=capture))
     wall = stage.clock() - started
     (out.parent).mkdir(parents=True, exist_ok=True)
@@ -417,8 +414,15 @@ def accuracy_status(stage: Stage, comparison: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def original_threshold_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Reclassify copies using recorded disk bounds and ADR 0002; never rewrite evidence."""
+def reclassified_rows(
+    rows: Sequence[Dict[str, Any]], fraction: float = 0.0,
+) -> List[Dict[str, Any]]:
+    """Reclassify copies from the recorded disk bounds; never rewrite the evidence.
+
+    ``fraction`` 0 is ADR 0002 (1 GB, void at least 1 GB, OK strictly below it). A positive
+    ``fraction`` is the ticket-08 rule: max(1 GB, fraction * own reads), equality permitted.
+    The arm gate code is not changed for this; the driver applies the rule.
+    """
     classified = []
     for row in rows:
         path = Path(row["dir"]) / "watch.json"
@@ -426,16 +430,19 @@ def original_threshold_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, An
         checks = watch.get("checks", {})
         outcomes = {name: {"outcome": checks.get(name, {}).get("outcome", arm_validity.UNKNOWN)}
                     for name in REQUIRED}
-        foreign = checks.get("foreign_reads", {})
-        evidence = foreign.get("evidence", {})
+        evidence = checks.get("foreign_reads", {}).get("evidence", {})
         least = evidence.get("foreign_read_bytes_min")
         most = evidence.get("foreign_read_bytes_max")
+        own = evidence.get("own_read_bytes")
         outcome = arm_validity.UNKNOWN
-        if least is not None and most is not None:
-            if least >= arm_validity.FOREIGN_READ_LIMIT_BYTES:
-                outcome = arm_validity.VOID
-            elif most < arm_validity.FOREIGN_READ_LIMIT_BYTES:
-                outcome = arm_validity.OK
+        if least is not None and most is not None and (not fraction or own is not None):
+            if fraction:
+                threshold = max(arm_validity.FOREIGN_READ_LIMIT_BYTES, int(own * fraction))
+                exceeds, within = least > threshold, most <= threshold
+            else:
+                threshold = arm_validity.FOREIGN_READ_LIMIT_BYTES
+                exceeds, within = least >= threshold, most < threshold
+            outcome = arm_validity.VOID if exceeds else (arm_validity.OK if within else outcome)
         outcomes["foreign_reads"] = {"outcome": outcome}
         classified.append({**row, "outcome": arm_validity.arm_outcome(outcomes, REQUIRED)})
     return classified
@@ -447,7 +454,9 @@ def verdict_for(
     """The verdict of one comparison at one k (protocol 3.2). NO VERDICT carries its reason."""
     rows = read_rows(stage)
     if original_threshold:
-        rows = original_threshold_rows(rows)
+        rows = reclassified_rows(rows, 0.0)
+    elif stage.foreign_read_fraction:
+        rows = reclassified_rows(rows, stage.foreign_read_fraction)
     blocks = completed_blocks(rows, comparison, k)
     valid = arm_validity.valid_blocks(blocks) if blocks else []
     out: Dict[str, Any] = {"comparison": comparison, "k": k, "blocks": len(valid),

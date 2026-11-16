@@ -17,7 +17,6 @@ import sys
 import time
 import types
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -1221,38 +1220,3 @@ def test_blocks_needed_rejects_input_it_cannot_size(validity, runs, message):
     with pytest.raises(ValueError, match=message):
         validity.blocks_needed(_blocks(validity, *runs))
 
-
-@pytest.mark.parametrize(
-    ('own_gb', 'foreign_gb', 'outcome'),
-    [(142, 3.91, 'ok'), (142, 3.90, 'ok'), (343, 1.57, 'ok'),
-     (343, 3.89, 'ok'), (343, 3.90, 'ok'), (655, 1.79, 'ok'),
-     (655, 3.92, 'ok'), (100, 5.01, 'void')],
-)
-def test_relative_foreign_reads_threshold(
-    validity: Any, own_gb: float, foreign_gb: float, outcome: str,
-) -> None:
-    """Ticket 08's seven stage-1 voids pass; more than 5% remains void."""
-    own, foreign = int(own_gb * GB), int(foreign_gb * GB)
-    record = _watch(
-        validity,
-        foreign_read_fraction=0.05,
-        disk_reads=_disk(0, own + foreign),
-        other_disk_reads=_other_disks(0, 0),
-        process_reads=_readings(_processes(own=0), _processes(own=own)),
-    )
-    assert record['checks']['foreign_reads']['outcome'] == outcome
-
-
-@pytest.mark.parametrize("own", [10 * GB, 40 * GB])
-@pytest.mark.parametrize(("excess", "outcome"), [(0, "ok"), (1, "void")])
-def test_relative_foreign_reads_at_exact_boundary(validity: Any, own: int, excess: int,
-                                                  outcome: str) -> None:
-    foreign = max(GB, own // 20) + excess
-    record = _watch(
-        validity,
-        foreign_read_fraction=0.05,
-        disk_reads=_disk(0, own + foreign),
-        other_disk_reads=_other_disks(0, 0),
-        process_reads=_readings(_processes(own=0), _processes(own=own)),
-    )
-    assert record["checks"]["foreign_reads"]["outcome"] == outcome

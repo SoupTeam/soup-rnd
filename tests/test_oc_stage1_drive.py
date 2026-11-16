@@ -472,6 +472,7 @@ def test_relative_threshold_report_keeps_both_verdicts_without_changing_rows(
         watch = {"checks": {
             "suspend": {"outcome": "ok"}, "power": {"outcome": "ok"},
             "foreign_reads": {"outcome": "ok", "evidence": {
+                "own_read_bytes": 100_000_000_000,
                 "foreign_read_bytes_min": 2_000_000_000,
                 "foreign_read_bytes_max": 2_000_000_000,
             }},
@@ -541,3 +542,51 @@ def test_two_read_rejects_overridden_foreign_read_fraction(
         drive.main(args)
     assert exc.value.code == 2
     assert "Do not override the fraction for this frozen series" in capsys.readouterr().err
+
+
+GB_BYTES = 1_000_000_000
+
+
+def _bounded_row(tmp_path: Path, name: str, own: int, foreign: int) -> Dict[str, Any]:
+    folder = tmp_path / name
+    folder.mkdir()
+    watch = {"checks": {
+        "suspend": {"outcome": "ok"}, "power": {"outcome": "ok"},
+        "foreign_reads": {"outcome": "void", "evidence": {
+            "own_read_bytes": own,
+            "foreign_read_bytes_min": foreign, "foreign_read_bytes_max": foreign,
+        }},
+    }}
+    (folder / "watch.json").write_text(json.dumps(watch), encoding="utf-8")
+    return {"dir": str(folder), "comparison": "AB", "k": 1, "block": 0, "arm": "x"}
+
+
+@pytest.mark.parametrize(
+    ("own_gb", "foreign_gb", "outcome"),
+    [(142, 3.91, "ok"), (142, 3.90, "ok"), (343, 1.57, "ok"),
+     (343, 3.89, "ok"), (343, 3.90, "ok"), (655, 1.79, "ok"),
+     (655, 3.92, "ok"), (100, 5.01, "void")],
+)
+def test_relative_rule_reproduces_the_stage_one_voids(
+    tmp_path: Path, own_gb: float, foreign_gb: float, outcome: str,
+) -> None:
+    """Ticket 08's seven stage-1 voids pass under max(1 GB, 5%); more than 5% stays void."""
+    row = _bounded_row(tmp_path, "r", int(own_gb * GB_BYTES), int(foreign_gb * GB_BYTES))
+    assert drive.reclassified_rows([row], 0.05)[0]["outcome"] == outcome
+
+
+@pytest.mark.parametrize("own", [10 * GB_BYTES, 40 * GB_BYTES])
+@pytest.mark.parametrize(("excess", "outcome"), [(0, "ok"), (1, "void")])
+def test_relative_rule_permits_equality_and_voids_one_byte_more(
+    tmp_path: Path, own: int, excess: int, outcome: str,
+) -> None:
+    foreign = max(GB_BYTES, own // 20) + excess
+    row = _bounded_row(tmp_path, "b", own, foreign)
+    assert drive.reclassified_rows([row], 0.05)[0]["outcome"] == outcome
+
+
+def test_original_view_keeps_the_strict_one_gigabyte_boundary(tmp_path: Path) -> None:
+    row = _bounded_row(tmp_path, "o", 10 * GB_BYTES, GB_BYTES)
+    assert drive.reclassified_rows([row], 0.0)[0]["outcome"] == "void"
+    row = _bounded_row(tmp_path, "p", 10 * GB_BYTES, GB_BYTES - 1)
+    assert drive.reclassified_rows([row], 0.0)[0]["outcome"] == "ok"
