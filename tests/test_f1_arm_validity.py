@@ -1241,3 +1241,18 @@ def test_relative_foreign_reads_threshold(
         process_reads=_readings(_processes(own=0), _processes(own=own)),
     )
     assert record['checks']['foreign_reads']['outcome'] == outcome
+
+
+@pytest.mark.parametrize("own", [10 * GB, 40 * GB])
+@pytest.mark.parametrize(("excess", "outcome"), [(0, "ok"), (1, "void")])
+def test_relative_foreign_reads_at_exact_boundary(validity: Any, own: int, excess: int,
+                                                  outcome: str) -> None:
+    foreign = max(GB, own // 20) + excess
+    record = _watch(
+        validity,
+        foreign_read_fraction=0.05,
+        disk_reads=_disk(0, own + foreign),
+        other_disk_reads=_other_disks(0, 0),
+        process_reads=_readings(_processes(own=0), _processes(own=own)),
+    )
+    assert record["checks"]["foreign_reads"]["outcome"] == outcome
