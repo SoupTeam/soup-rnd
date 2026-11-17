@@ -1,0 +1,58 @@
+{
+  "status": "BLOCKED_CE_PREPARED_DATASET_COLUMNS",
+  "source_commit": "41dc9f076fa7fb278302d932425a4e1c60666800",
+  "instance_id": 58138784,
+  "volume_id": 58138783,
+  "baseline_probes": 4,
+  "ce_only_probes_completed": 0,
+  "optimizer_updates": 0,
+  "error": "KeyError: 'attention_mask'",
+  "controls": {
+    "baseline_probes": {
+      "status": "PASS_CE_CONTROLS",
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2550 to 2805 MHz over 40 samples; clock event reasons seen: sw_power_cap",
+        "samples": 40,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2550,
+          "median": 2565.0,
+          "max": 2805
+        },
+        "reasons_seen": {
+          "sw_power_cap": 1
+        }
+      }
+    },
+    "ce_only_probes": {
+      "status": "PASS_CE_CONTROLS",
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2565 to 2805 MHz over 5 samples; clock event reasons seen: none",
+        "samples": 5,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2565,
+          "median": 2565,
+          "max": 2805
+        },
+        "reasons_seen": {}
+      }
+    }
+  },
+  "local_review_status": "REVIEWED_INCOMPLETE_SERIES",
+  "performance_verdict": "NO_VERDICT",
+  "rental_budget_cap_usd": 5,
+  "rental_precheck_series_upper_usd": 4.91,
+  "cost_note": "Conservative cumulative reservation, not settled provider charge; stopped storage still incurs charges until deletion.",
+  "artifact_files": 73,
+  "artifact_bytes": 379870037,
+  "archive_sha256": "8f04c713fef1c4e8d7e6fbf07243ab798e761998b0069cb7be5514dba2b98143",
+  "archive_bytes": 145777021,
+  "first_exfat_extraction_failed": true,
+  "archive_member_sha_pass": true,
+  "accepted_restoration": "APFS image on USB; archive/member/extracted-file/full read-only remount audits pass"
+}

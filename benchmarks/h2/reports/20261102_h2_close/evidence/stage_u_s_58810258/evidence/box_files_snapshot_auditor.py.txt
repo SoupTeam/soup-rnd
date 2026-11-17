@@ -1,0 +1,105 @@
+"""Independent bounded safetensors-header audit; never loads model tensors."""
+import hashlib
+import json
+import math
+import os
+import struct
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).parent
+PROGRESS = ROOT / 'h2_snapshot_progress_008.json'
+OUTPUT = ROOT / 'h2_snapshot_audit_008.json'
+
+def unique(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('Duplicate JSON key: ' + key)
+        result[key] = value
+    return result
+
+def audit(progress):
+    dest = Path(progress['destination'])
+    index = json.loads((dest / 'model.safetensors.index.json').read_text())
+    expected = {'lm_head.weight': [128256, 4096],
+                'model.embed_tokens.weight': [128256, 4096], 'model.norm.weight': [4096]}
+    shapes = {'input_layernorm.weight': [4096], 'post_attention_layernorm.weight': [4096],
+              'self_attn.q_proj.weight': [4096, 4096],
+              'self_attn.k_proj.weight': [1024, 4096],
+              'self_attn.v_proj.weight': [1024, 4096],
+              'self_attn.o_proj.weight': [4096, 4096],
+              'mlp.gate_proj.weight': [14336, 4096],
+              'mlp.up_proj.weight': [14336, 4096],
+              'mlp.down_proj.weight': [4096, 14336]}
+    for i in range(32):
+        expected.update({f'model.layers.{i}.{key}': shape for key, shape in shapes.items()})
+    assert set(expected) == set(index['weight_map']), 'Unexpected architecture keys'
+    found = {}
+    shards = {}
+    total = 0
+    for name in sorted(set(index['weight_map'].values())):
+        assert Path(name).name == name and name.endswith('.safetensors')
+        path = dest / name
+        assert path.is_file() and not path.is_symlink()
+        assert progress['files'][name]['status'] == 'VERIFIED'
+        assert path.stat().st_size == progress['files'][name]['expected_bytes']
+        with path.open('rb') as f:
+            length = struct.unpack('<Q', f.read(8))[0]
+            assert 0 < length <= 4 * 1024 * 1024
+            header = json.loads(f.read(length), object_pairs_hook=unique)
+        offset = 0
+        count = 0
+        for key, item in sorted(((k, v) for k, v in header.items() if k != '__metadata__'),
+                                key=lambda pair: pair[1]['data_offsets'][0]):
+            assert key not in found and index['weight_map'][key] == name
+            assert item['shape'] == expected[key] and item['dtype'] == 'BF16'
+            start, end = item['data_offsets']
+            assert type(start) is int and type(end) is int and start == offset
+            assert end - start == 2 * math.prod(item['shape'])
+            offset = end
+            total += end - start
+            count += 1
+            found[key] = name
+        assert offset + 8 + length == path.stat().st_size, 'Trailing/missing tensor data'
+        shards[name] = {'tensor_count': count, 'header_bytes': length,
+                        'payload_bytes': offset, 'sha256': progress['files'][name]['sha256']}
+    assert found == index['weight_map']
+    assert total == index['metadata']['total_size'] == 16060522496
+    return {'status': 'PASS_SNAPSHOT_FILE_AND_STRUCTURE_AUDIT', 'unix_s': time.time(),
+            'repo': progress['repo'], 'revision': progress['revision'],
+            'snapshot_path': str(dest), 'tensor_count': len(found),
+            'parameter_count': total // 2, 'tensor_bytes': total,
+            'shards': shards, 'all_file_hashes': progress['files'],
+            'hash_evidence': 'Downloader readback SHA256 matches immutable published LFS SHA256',
+            'independent_audit_scope': 'Independent bounded header/index/shape/offset audit; hashes not reread here',
+            'gpu_used': False, 'license_and_access_confirmed': False,
+            'h2_gpu_or_performance_verdict': 'NO_VERDICT'}
+
+if __name__ == '__main__':
+    deadline = time.monotonic() + 4 * 3600
+    while True:
+        progress = json.loads(PROGRESS.read_text())
+        if progress['status'].startswith('FAILED'):
+            result = {'status': 'BLOCKED_DOWNLOAD_FAILED', 'progress': progress}
+            break
+        if progress['status'] == 'COMPLETE_FILES_VERIFIED_STRUCTURAL_AUDIT_PENDING':
+            try:
+                result = audit(progress)
+            except BaseException as exc:
+                result = {'status': 'FAIL_STRUCTURE_AUDIT', 'error': type(exc).__name__ + ': ' + str(exc)}
+            break
+        if time.monotonic() >= deadline:
+            result = {'status': 'BLOCKED_DOWNLOAD_NOT_FINISHED_WITHIN_4H'}
+            break
+        time.sleep(15)
+    with OUTPUT.open('x') as f:
+        json.dump(result, f, indent=2)
+        f.write('\n')
+    if result['status'] == 'PASS_SNAPSHOT_FILE_AND_STRUCTURE_AUDIT':
+        delivery = Path(result['snapshot_path']) / 'H2_SNAPSHOT_RECEIPT.json'
+        with delivery.open('x') as f:
+            json.dump(result, f, indent=2)
+            f.write('\n')
+    if not result['status'].startswith('PASS'):
+        raise SystemExit(1)

@@ -1,0 +1,258 @@
+Linux 7cbba2711a3f 5.15.0-191-generic #201-Ubuntu SMP Fri Aug 7 18:39:04 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+c9931034-0385-4823-a608-6cd69cc5c03c
+uuid, name, driver_version, memory.total [MiB]
+GPU-b03f015b-bc6a-9a0c-9b30-32ae39f25af5, NVIDIA GeForce RTX 4090, 580.173.02, 24564 MiB
+Hit:1 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64  InRelease
+Hit:2 http://security.ubuntu.com/ubuntu noble-security InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu noble InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu noble-updates InRelease
+Hit:5 http://archive.ubuntu.com/ubuntu noble-backports InRelease
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+python3-venv is already the newest version (3.12.3-0ubuntu2.1).
+python3-venv set to manually installed.
+python3-pip is already the newest version (24.0+dfsg-1ubuntu1.3).
+git is already the newest version (1:2.43.0-1ubuntu7.4).
+curl is already the newest version (8.5.0-2ubuntu10.16).
+The following packages will be upgraded:
+  ca-certificates
+1 upgraded, 0 newly installed, 0 to remove and 81 not upgraded.
+Need to get 139 kB of archives.
+After this operation, 3072 B disk space will be freed.
+Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 ca-certificates all 20260816ubuntu0.24.04.1 [139 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 139 kB in 1s (149 kB/s)
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 39918 files and directories currently installed.)
+Preparing to unpack .../ca-certificates_20260816ubuntu0.24.04.1_all.deb ...
+Unpacking ca-certificates (20260816ubuntu0.24.04.1) over (20260601~24.04.1) ...
+Setting up ca-certificates (20260816ubuntu0.24.04.1) ...
+Updating certificates in /etc/ssl/certs...
+rehash: warning: skipping ca-certificates.crt,it does not contain exactly one certificate or CRL
+4 added, 5 removed; done.
+Processing triggers for man-db (2.12.0-4build2) ...
+Processing triggers for ca-certificates (20260816ubuntu0.24.04.1) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+done.
+Collecting uv==0.13.5
+  Downloading uv-0.13.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+Downloading uv-0.13.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17.2/17.2 MB 95.3 MB/s eta 0:00:00
+Installing collected packages: uv
+Successfully installed uv-0.13.5
+Installed Python 3.11.16 in 36ms
+ + cpython-3.11.16-linux-x86_64-gnu (python3.11)
+warning: `/.uv/python_bin` is not on your PATH. To use installed Python executables, run `export PATH="/.uv/python_bin:$PATH"` or `uv python update-shell`.
+Using CPython 3.11.16
+Creating virtual environment at: /data/h2/env
+Activate with: source /data/h2/env/bin/activate
+Cloning into '/data/h2/repo'...
+Using Python 3.11.16 environment at: /data/h2/env
+Resolved 104 packages in 882ms
+Downloading triton (236.5MiB)
+Downloading torch (528.9MiB)
+Downloading nvidia-cudnn-cu13 (527.5MiB)
+Downloading nvidia-cublas (403.5MiB)
+ Downloaded triton
+Downloading nvidia-nccl-cu13 (206.0MiB)
+ Downloaded nvidia-cublas
+Downloading nvidia-cufft (204.2MiB)
+ Downloaded nvidia-nccl-cu13
+Downloading nvidia-cusolver (191.6MiB)
+ Downloaded torch
+Downloading nvidia-cusparselt-cu13 (162.3MiB)
+ Downloaded nvidia-cudnn-cu13
+Downloading nvidia-cusparse (139.2MiB)
+ Downloaded nvidia-cufft
+Downloading nvidia-cuda-nvrtc (86.0MiB)
+ Downloaded nvidia-cusolver
+Downloading nvidia-nvshmem-cu13 (57.6MiB)
+ Downloaded nvidia-cusparse
+Downloading nvidia-curand (56.8MiB)
+ Downloaded nvidia-cusparselt-cu13
+Downloading pyarrow (51.4MiB)
+ Downloaded nvidia-nvshmem-cu13
+Downloading bitsandbytes (41.1MiB)
+ Downloaded nvidia-cuda-nvrtc
+Downloading nvidia-nvjitlink (40.5MiB)
+ Downloaded pyarrow
+Downloading unsloth (29.5MiB)
+ Downloaded nvidia-curand
+Downloading numpy (16.1MiB)
+ Downloaded bitsandbytes
+Downloading pandas (11.8MiB)
+ Downloaded nvidia-nvjitlink
+ Downloaded pandas
+Downloading transformers (11.7MiB)
+Downloading nvidia-cuda-cupti (10.2MiB)
+ Downloaded numpy
+Downloading torchvision (7.1MiB)
+ Downloaded transformers
+ Downloaded nvidia-cuda-cupti
+Downloading cuda-bindings (6.8MiB)
+Downloading pillow (6.8MiB)
+ Downloaded unsloth
+Downloading sympy (6.0MiB)
+ Downloaded cuda-bindings
+ Downloaded pillow
+Downloading diffusers (5.8MiB)
+Downloading hf-xet (4.0MiB)
+ Downloaded sympy
+ Downloaded hf-xet
+ Downloaded diffusers
+Downloading hf-transfer (3.4MiB)
+ Downloaded torchvision
+Downloading tokenizers (3.2MiB)
+Downloading torchao (3.2MiB)
+Downloading xformers (3.1MiB)
+ Downloaded hf-transfer
+ Downloaded tokenizers
+ Downloaded torchao
+ Downloaded xformers
+Downloading nvidia-cuda-runtime (2.1MiB)
+Downloading pydantic-core (2.1MiB)
+Downloading networkx (2.0MiB)
+ Downloaded nvidia-cuda-runtime
+Downloading unsloth-zoo (2.5MiB)
+ Downloaded pydantic-core
+Downloading aiohttp (1.8MiB)
+Downloading sentencepiece (1.3MiB)
+ Downloaded unsloth-zoo
+ Downloaded aiohttp
+ Downloaded sentencepiece
+ Downloaded networkx
+Downloading pygments (1.2MiB)
+Downloading nvidia-cufile (1.2MiB)
+ Downloaded nvidia-cufile
+ Downloaded pygments
+Prepared 104 packages in 34.36s
+Installed 104 packages in 1.38s
+ + accelerate==1.15.0
+ + aiohappyeyeballs==2.7.1
+ + aiohttp==3.14.5
+ + aiosignal==1.4.0
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + attrs==26.1.0
+ + bitsandbytes==0.50.2
+ + certifi==2026.10.19
+ + charset-normalizer==3.5.2
+ + click==8.5.0
+ + cuda-bindings==13.4.4
+ + cuda-pathfinder==1.8.4
+ + cuda-toolkit==13.0.3.0
+ + cut-cross-entropy==25.1.1
+ + datasets==4.8.5
+ + diffusers==0.41.0
+ + dill==0.4.1
+ + docstring-parser==0.18.0
+ + einops==0.8.2
+ + filelock==4.2.4
+ + frozenlist==1.8.0
+ + fsspec==2026.2.0
+ + h11==0.16.0
+ + hf-transfer==0.1.9
+ + hf-xet==1.7.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + huggingface-hub==1.33.0
+ + idna==3.20
+ + importlib-metadata==9.1.0
+ + jinja2==3.1.6
+ + liger-kernel==0.8.5
+ + markdown-it-py==4.2.0
+ + markupsafe==3.0.4
+ + mdurl==0.1.2
+ + mpmath==1.3.0
+ + msgspec==0.22.0
+ + multidict==7.1.0
+ + multiprocess==0.70.19
+ + nest-asyncio==1.6.0
+ + networkx==3.6.1
+ + numpy==2.4.6
+ + nvidia-cublas==13.1.1.3
+ + nvidia-cuda-cupti==13.0.85
+ + nvidia-cuda-nvrtc==13.0.88
+ + nvidia-cuda-runtime==13.0.96
+ + nvidia-cudnn-cu13==9.24.0.43
+ + nvidia-cufft==12.0.0.61
+ + nvidia-cufile==1.15.1.6
+ + nvidia-curand==10.4.0.35
+ + nvidia-cusolver==12.0.4.66
+ + nvidia-cusparse==12.6.3.3
+ + nvidia-cusparselt-cu13==0.8.1
+ + nvidia-nccl-cu13==2.30.7
+ + nvidia-nvjitlink==13.4.92
+ + nvidia-nvshmem-cu13==3.4.5
+ + nvidia-nvtx==13.0.85
+ + packaging==26.3
+ + pandas==3.1.0
+ + peft==0.21.2
+ + pillow==13.0.0
+ + plotext==6.1.0
+ + propcache==0.5.4
+ + protobuf==7.36.2
+ + psutil==7.2.2
+ + pyarrow==26.0.0
+ + pydantic==2.14.1
+ + pydantic-core==2.50.1
+ + pygments==2.21.0
+ + python-dateutil==3.0.0
+ + pyyaml==6.0.3
+ + regex==2026.9.29
+ + requests==2.34.2
+ + rich==15.0.0
+ + safetensors==0.8.0
+ + sentencepiece==0.2.2
+ + setuptools==84.2.1
+ + shellingham==1.5.4
+ + six==1.17.0
+ + structlog==26.1.0
+ + sympy==1.14.0
+ + tokenizers==0.23.3
+ + torch==2.14.1
+ + torchao==0.18.0
+ + torchvision==0.29.1
+ + tqdm==4.70.1
+ + transformers==5.17.0
+ + triton==3.8.0
+ + trl==0.29.1
+ + typeguard==4.6.0
+ + typer==0.20.1
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + tyro==1.0.16
+ + tzdata==2026.5
+ + unsloth==2026.10.7
+ + unsloth-zoo==2026.10.7
+ + urllib3==2.8.0
+ + wheel==0.48.0
+ + xformers==0.0.35
+ + xxhash==4.0.2
+ + yarl==1.25.1
+ + zipp==4.1.2
+/data/h2/env/bin/python: No module named pip
+Using Python 3.11.16 environment at: /data/h2/env
+Checked 104 packages in 56ms
+All installed packages are compatible
+{
+  "torch": "2.14.1+cu130",
+  "cuda_runtime": "13.0",
+  "cuda_available": true,
+  "device_count": 1,
+  "packages": {
+    "transformers": "5.17.0",
+    "trl": "0.29.1",
+    "peft": "0.21.2",
+    "bitsandbytes": "0.50.2",
+    "accelerate": "1.15.0",
+    "datasets": "4.8.5",
+    "liger-kernel": "0.8.5",
+    "unsloth": "2026.10.7",
+    "triton": "3.8.0"
+  }
+}
+Mon Nov  2 15:49:51 UTC 2026

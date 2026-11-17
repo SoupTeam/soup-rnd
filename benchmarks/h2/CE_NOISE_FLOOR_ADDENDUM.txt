@@ -1,0 +1,80 @@
+H2 CE noise-floor addendum (prospective; attempt016)
+====================================================
+Date: 2026-10-29. Applies to a FRESH attempt whose source commit contains this file and whose contract
+sets "series": "noise_floor". It is not a retry, resume or reinterpretation of attempt014 or attempt015
+(attempt015 stays a recorded policy failure; its evidence cannot supply any child of this series).
+No result of this series was seen when these rules were written.
+
+Unchanged
+---------
+numerical_policy.json (e6a320f9...), the workset, the prepared fixture, the model and runtime pins, the
+2400 s / 600 s / 40 s limits, the PID/F1/clock controls, h2_gpu_correctness.py, the $5 contract check, and
+CE_HARDENING_ADDENDUM.txt. The default series (contract without "series", or "ce_confirmation") is
+behaviourally unchanged.
+
+Design
+------
+Four fresh child processes on one box, one boot, one GPU UUID, probes 00-03 only, no training phase:
+  1. baseline_probes          (A1, baseline flags)
+  2. ce_only_probes           (C1, CE-only flags)
+  3. baseline_probes_repeat   (A2, baseline flags, same code and arm flags as A1)
+  4. ce_only_probes_repeat    (C2, CE-only flags, same code and arm flags as C1)
+The contract field "series" may only be "ce_confirmation" or "noise_floor"; any other value is refused by
+validate_contract. A repeat phase is refused under the default series.
+All four children are run (a child failure stops the series: BLOCKED, no retry). Policy failures of a
+comparison do not stop later children, because the classification needs all of them.
+
+Comparisons (review_noise_floor, using compare_probes and compare_tensors with the unchanged policy)
+  primary           A1 vs C1
+  within-arm noise  A1 vs A2, C1 vs C2
+  informational     A2 vs C2, A1 vs C2, A2 vs C1
+A comparison "passes" when every probe passes both the compare_probes tolerances and the strict
+elementwise compare_tensors check, exactly as the default probe review does.
+
+Classification (fixed in advance)
+  VOID           evidence or identity defects found by the review after all four children ran: pin or
+                 source drift, a child boot id / GPU UUID / source commit / initial state differing from the
+                 contract, changed or missing probe input, tensor manifest, dtype or loss evidence,
+                 missing or altered child files. Only tolerance exceedances are classified; any other
+                 defect raises and the series status is VOID.
+  BLOCKED(run)   a child fails or exits non-zero (this includes a boot or GPU change seen live inside that
+                 child, an ownership/F1/control failure, a patch-binding or prepared-batch audit failure,
+                 and a deadline overrun): the series stops with no retry and no classification.
+  INCONCLUSIVE   A1 vs A2 and/or C1 vs C2 fail the policy (the screen is not satisfiable on this box).
+  PASS           primary passes and both within-arm comparisons pass (limited CE probe confirmation only).
+  BLOCKED        primary fails while both within-arm comparisons pass (CE-attributable at policy resolution).
+PASS here is probe-only and same-box: not H2 acceptance, not a speedup; performance stays NO_VERDICT.
+
+NOISE_FLOOR_EQUIVALENT (separate label, never PASS)
+  Fixed before any run. K and F were chosen after attempt015 was seen, so they are not blind.
+  Per probe p in {00,01,02,03}, over all LoRA-B gradient tensors concatenated (FP64):
+    G(X,Y) = ||X - Y||2 / ||X||2 with the first-named run as reference.
+    G_cross(p)  = the largest G over (A1,C1), (A1,C2), (A2,C1), (A2,C2) (baseline run is the reference)
+    G_within(p) = max(G(A1,A2), G(C1,C2))
+  NOISE_FLOOR_EQUIVALENT iff, for every probe: (1) G_cross(p) <= K * max(G_within(p), F);
+  (2) every tensor of every cross pair has cosine >= gradient_cosine_min of numerical_policy.json;
+  (3) every cross-pair loss difference is within loss_atol + loss_rtol * |reference loss|;
+  and the series is not VOID. G_cross = 0 is accepted. The denominator is F, never 0.
+  MARGINAL is reported when, for any probe, G_cross is 0.9 to 1.1 times its threshold.
+  The label is evaluated and reported when the policy classification is not PASS; for PASS it is
+  NOT_EVALUATED_POLICY_PASS. It never changes the classification above.
+  Report-only: per-tensor relative L2 and max-element values of all pairs (gradient_metrics), per-pair
+  G values and per-probe thresholds.
+K = 3
+F = 0.00390625
+
+Recording-only receipts (no change to computation)
+  Each child's evidence.json carries determinism_receipt: attention implementation, CUBLAS_WORKSPACE_CONFIG,
+  torch deterministic-algorithm flags, cuDNN flags, SDPA backend enables, TF32/matmul precision.
+
+Pinning
+-------
+CE_NOISE_FLOOR_ADDENDUM.txt is added to the runner ARTIFACTS tuple. A new contract must pin its sha256 and
+the new hashes of h2_ce_confirmation.py (taken from git show of the new source commit). Historical
+local-review receipts record older hashes and are not edited.
+
+Limits
+------
+Page cache, thermals and clock state can differ between a child and its repeat, so a repeat is not a
+perfect replicate; clocks and throttle reasons are recorded by the controls. CPU tests do not run the CUDA
+path. A BLOCKED result would not show that Liger's gradient is farther from the true gradient.

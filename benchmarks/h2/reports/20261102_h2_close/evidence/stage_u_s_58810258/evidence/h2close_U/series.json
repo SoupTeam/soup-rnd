@@ -1,0 +1,86 @@
+{
+  "status": "COMPLETE_H2_UPDATES_SERIES",
+  "phases": {
+    "baseline_training": {
+      "status": "CHILD_EXITED",
+      "argv": [
+        "/data/h2/env/bin/python",
+        "/data/h2/repo/benchmarks/harness/h2_ce_confirmation.py",
+        "--contract",
+        "/data/h2/evidence/h2close_U/contract.json",
+        "--child",
+        "--phase",
+        "baseline_training",
+        "--out",
+        "/data/h2/evidence/h2close_U/baseline_training/runner"
+      ],
+      "performance_verdict": "NO_VERDICT",
+      "provider_stop_performed": false,
+      "group_cleanup_confirmed": true,
+      "leader_pid": 4964,
+      "process_group": 4964,
+      "new_session_verified": true,
+      "child_status": {
+        "returncode": 0,
+        "child_pid": 4965
+      },
+      "term_sent_to_owned_group": true,
+      "kill_sent_to_owned_group": true,
+      "leader_reaped_after_cleanup": true,
+      "log_pipes_reached_eof": true,
+      "retained_log_bytes": {
+        "stdout": 1344,
+        "stderr": 3251
+      },
+      "discarded_log_bytes": {
+        "stdout": 0,
+        "stderr": 0
+      },
+      "elapsed_seconds": 65.856721193064
+    },
+    "ce_only_training": {
+      "status": "CHILD_EXITED",
+      "argv": [
+        "/data/h2/env/bin/python",
+        "/data/h2/repo/benchmarks/harness/h2_ce_confirmation.py",
+        "--contract",
+        "/data/h2/evidence/h2close_U/contract.json",
+        "--child",
+        "--phase",
+        "ce_only_training",
+        "--out",
+        "/data/h2/evidence/h2close_U/ce_only_training/runner"
+      ],
+      "performance_verdict": "NO_VERDICT",
+      "provider_stop_performed": false,
+      "group_cleanup_confirmed": true,
+      "leader_pid": 5233,
+      "process_group": 5233,
+      "new_session_verified": true,
+      "child_status": {
+        "returncode": 0,
+        "child_pid": 5234
+      },
+      "term_sent_to_owned_group": true,
+      "kill_sent_to_owned_group": true,
+      "leader_reaped_after_cleanup": true,
+      "log_pipes_reached_eof": true,
+      "retained_log_bytes": {
+        "stdout": 1209,
+        "stderr": 3483
+      },
+      "discarded_log_bytes": {
+        "stdout": 0,
+        "stderr": 0
+      },
+      "elapsed_seconds": 59.22293309122324
+    }
+  },
+  "performance_verdict": "NO_VERDICT",
+  "external_controls_required": true,
+  "provider_stop_performed": false,
+  "arms": {
+    "A": "UPDATES_PASS",
+    "L": "UPDATES_PASS"
+  }
+}
