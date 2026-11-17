@@ -81,6 +81,31 @@ def pick_mixed_precision(
     return "bf16" if quirk == "bf16" else "fp16"
 
 
+def apply_fp16_init_scale(trainer, init_scale: int) -> bool:
+    """Restart the trainer's fp16 GradScaler at ``init_scale`` (``training.fp16_init_scale``).
+
+    Accelerate builds ``accelerator.scaler`` with torch's default start (2**16); HF has no
+    argument for it. The scaler is replaced before ``train()`` prepares the optimizer, which
+    is when accelerate hands it on, keeping the growth / back-off policy of the one it had.
+    Returns False (nothing changed) when the run has no scaler, i.e. is not fp16.
+    """
+    accelerator = getattr(trainer, "accelerator", None)
+    old = getattr(accelerator, "scaler", None)
+    if old is None:
+        return False
+    import torch
+
+    accelerator.scaler = torch.amp.GradScaler(
+        "cuda",
+        init_scale=float(init_scale),
+        growth_factor=float(old._growth_factor),
+        backoff_factor=float(old._backoff_factor),
+        growth_interval=int(old._growth_interval),
+        enabled=bool(old._enabled),
+    )
+    return True
+
+
 def align_trainable_dtype_for_fp16(model, *, fp16: bool, bf16: bool) -> int:
     """Cast bf16 LoRA adapters to fp32 when training in fp16.
 
