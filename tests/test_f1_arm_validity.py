@@ -589,10 +589,7 @@ def test_cgroup_disk_sensors_use_container_counters_and_exclude_target(
     assert validity.cgroup_disk_reads("loop0") == 0
 
 
-@pytest.mark.skipif(
-    not sys.platform.startswith("linux") or os.getuid() == 0,
-    reason="requires non-root Linux /proc permissions for an unreaped child",
-)
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sensors only")
 def test_unreaped_child_makes_foreign_reads_unknown_with_reason(validity):
     child = None
     with validity.ArmWatch(
@@ -1259,5 +1256,3 @@ def test_block_with_a_void_run_is_replaced_and_does_not_count(validity):
 def test_blocks_needed_rejects_input_it_cannot_size(validity, runs, message):
     with pytest.raises(ValueError, match=message):
         validity.blocks_needed(_blocks(validity, *runs))
-
-\n
