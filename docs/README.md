@@ -11,6 +11,7 @@ feature reference — every `soup` capability, grouped by area.
 | [AutoDistill artifact contract](autodistill.md) | Issue #580 Milestone A schemas, immutable fingerprints, probability/replay policy, transactional resume, plan-only estimates, and threat model |
 | [PEFT, long context & efficiency](peft-and-efficiency.md) | DoRA, LoRA+, rsLoRA, VeRA, OLoRA, NEFTune, PiSSA, ReLoRA, optimizer & PEFT zoo, LLaMA Pro, GaLore, YaRN/LongLoRA, packing, curriculum, auto-tuning, depth pruning + distill-heal (`soup shrink`) |
 | [Performance & quantization](performance-and-quantization.md) | QAT, FP8, Quant Menu (I + II), KV-cache, NVFP4, save formats, Cut Cross-Entropy, gradient checkpointing, kernels, activation offloading, layer streaming, multi-GPU / DeepSpeed / FSDP |
+| [P3 phase 0 integration](p3-phase0.md) | Shared DeepSeek L2L/FP8/MoE memory contract, parallel work boundaries, dependencies and acceptance checks |
 | [Data engineering](data.md) | Formats, the Axolotl/LF-parity pipeline, data tools, synthetic generation & forge, quality scorecards, trace tooling, remote datasets, mixing, recipe DAGs |
 | [Evaluation & probes](evaluation.md) | Eval design/gate, eval-gated training, benchmarks, NLG metrics, calibration, Elo arena, diagnose, `soup ship` verdict, post-train X-ray probes, A/B, drift, tunability, `soup advise` |
 | [Serving & export](serving-and-export.md) | OpenAI-compatible server, batch inference, benchmarking, merge/export, Anthropic Messages endpoint, speculative decoding (train + measure your own draft), deploy autopilot, Web UI, Agent Forge |
