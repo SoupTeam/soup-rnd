@@ -1,0 +1,85 @@
+{
+  "status": "RECONCILED",
+  "source": "Vast.ai per-instance charges (account billing, charges view), read 2026-11-03 for every G6 instance found in the local G6 evidence; GPU, storage and bandwidth lines as billed",
+  "currency": "USD",
+  "instances": [
+    {
+      "instance": 56869893,
+      "dates_utc": "2026-10-20",
+      "purpose": "First baseline pilot session: runtime install, model download, CUDA gate; baseline pilot paused by the user (USER_PAUSED_INCOMPLETE)",
+      "gpu_usd": 0.358,
+      "storage_usd": 0.144,
+      "bandwidth_usd": 0.208,
+      "total_usd": 0.71,
+      "in_reported_results": true
+    },
+    {
+      "instance": 56886413,
+      "dates_utc": "2026-10-20",
+      "purpose": "F1 local-volume probe; blocked before SSH, destroyed",
+      "gpu_usd": 0.0,
+      "storage_usd": 0.068,
+      "bandwidth_usd": 0.0,
+      "total_usd": 0.068,
+      "in_reported_results": true
+    },
+    {
+      "instance": 56900314,
+      "dates_utc": "2026-10-20..21",
+      "purpose": "Guest calibration and read-only readiness; mostly storage while stopped",
+      "gpu_usd": 0.068,
+      "storage_usd": 1.265,
+      "bandwidth_usd": 0.0,
+      "total_usd": 1.333,
+      "in_reported_results": true
+    },
+    {
+      "instance": 57030878,
+      "dates_utc": "2026-10-21..22",
+      "purpose": "Paired probe, guest controls, policy pilots, reload follow-up, continuation and recovery pilots, the four 5M full runs and their review",
+      "gpu_usd": 9.325,
+      "storage_usd": 1.447,
+      "bandwidth_usd": 0.0,
+      "total_usd": 10.772,
+      "in_reported_results": true
+    },
+    {
+      "instance": 57170422,
+      "dates_utc": "2026-10-22",
+      "purpose": "Response-boundary confirmation (separate study) and its NVML recovery",
+      "gpu_usd": 1.845,
+      "storage_usd": 0.318,
+      "bandwidth_usd": 0.0,
+      "total_usd": 2.163,
+      "in_reported_results": true
+    },
+    {
+      "instance": 57200845,
+      "dates_utc": "2026-10-22",
+      "purpose": "Format-prompt confirmation after the submission; stopped by its own preflight check before generation, 0 responses",
+      "gpu_usd": 0.974,
+      "storage_usd": 0.076,
+      "bandwidth_usd": 0.0,
+      "total_usd": 1.05,
+      "in_reported_results": false
+    }
+  ],
+  "totals": {
+    "all_g6_instances_usd": 16.096,
+    "in_reported_results_usd": 15.046,
+    "primary_four_policy_study_usd": 12.883,
+    "boundary_study_usd": 2.163,
+    "after_submission_usd": 1.05
+  },
+  "not_included": [
+    "the author's local machine and time",
+    "preparation done on CPU before any rental",
+    "other tasks' instances on the shared account (excluded by instance id)"
+  ],
+  "limits": [
+    "amounts are the provider's billed charges per instance, rounded to 0.001 USD; not tax invoices",
+    "the primary-study figure includes its pilots, probes and the one paused baseline pilot; the study's own pre-run estimate (train phase only) is not comparable to it",
+    "no invoice numbers, payment data, balances or endpoints are published"
+  ],
+  "per_arm_note": "The four full runs share instance 57030878 with the pilots and probes, so the billed total cannot be split per arm exactly. At that instance's GPU rate (0.533 USD/h) the four training phases (93.5, 93.3, 93.3 and 92.2 min) are about 3.3 USD and the four checkpoint-reload checks about 0.5 USD; model loading and evaluation were not timed separately."
+}
