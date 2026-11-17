@@ -1,0 +1,46 @@
+{
+  "status": "synthetic_regressions_passed",
+  "formal_execution": false,
+  "development_update_sha256": {
+    "src/soup_cli/utils/expert_group_gemm.py": "6aa39b8357f0727162e21bebec87854d9f5e30a061531e6d86a0d340fc2487b6",
+    "benchmarks/harness/d3_full_model.py": "8500c92f6f4657726deb422100841a87cf1595bc67f0b7f2faf1a9f33a442ee2",
+    "benchmarks/harness/d3_training_model.py": "679b35eb38ec6279d444f7efbd3429753eaa10129ff5f2c0e88f7c7ea1a82688",
+    "tests/test_d3_grouped_compute.py": "6cbd6e243fdc65e647a91f9ef8eaabda3e01d446e09256fc05a0ef94532d5377"
+  },
+  "software": {
+    "python": "3.12.15",
+    "torch": "2.14.1+cu130",
+    "cuda": "13.0",
+    "transformers": "5.19.0",
+    "triton": "3.8.0",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0"
+  },
+  "gpu": "NVIDIA GeForce RTX 4090, GPU-20b47f62-2dce-6790-3477-7a6b76093e15, 580.95.05",
+  "library": "/root/d3-venv/lib/python3.12/site-packages/nvidia/cu13/lib/libcublas.so.13",
+  "cublas_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e",
+  "test_source_sha256": {
+    "test_d3_expert_activation.py": "992864b27d64ae9e541c1c6b851d5619bd0979b5476e422ba2b7ab0f92bac9b5",
+    "test_d3_expert_derivatives.py": "82c29dde0daca1db556e47c457169566d0d3ad74107133a0e9aec0e9c4b52ed4",
+    "test_d3_training_model.py": "0721178cf0f9a785b0cb4a63bd54246b2fc2a85cecab547c51297b4b92b66e2b",
+    "test_d3_grouped_compute.py": "6cbd6e243fdc65e647a91f9ef8eaabda3e01d446e09256fc05a0ef94532d5377",
+    "test_d3_grouped_expert.py": "aa43c478bea1a88ce530badc27f40b112d216cfdaf16bc16c6e9ecf59785e7ff",
+    "test_d3_full_model.py": "a4340659080c3d364b6e9f351be9f5d8be27ea07f71b7596022369815647706e",
+    "test_f1_arm_validity.py": "e112ac5d47f0a96476770b18a4d0da67a8f65066bfd3490fb7b72b5b4c488e4b",
+    "test_d3_f1_mapping.py": "6673f1cedefcae442ef8f0ae30ff8f2e8bfd6e62cb36e83c497069c6117a034b",
+    "test_d3_training_protocol.py": "d70216233ec0339ba0c6deb8723f13f3d738fc3c1225f3a75eb03633007ffc3b",
+    "test_d3_training_analysis.py": "54032459422b5450db7920d5fb214bab4e3a276b891362224154ebdde8fbf7c7"
+  },
+  "returncode": 0,
+  "cases": 336,
+  "passed": 335,
+  "skipped": [
+    {
+      "name": "test_unreaped_child_makes_foreign_reads_unknown_with_reason",
+      "reason": {
+        "type": "pytest.skip",
+        "message": "requires non-root Linux /proc permissions for an unreaped child"
+      }
+    }
+  ]
+}

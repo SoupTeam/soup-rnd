@@ -442,9 +442,13 @@ def test_pinned_rounding_is_charged_before_allocation(tmp_path, monkeypatch):
 
 def test_trainer_setup_consumes_budget_and_reports_cache(tmp_path, monkeypatch):
     from soup_cli.config.schema import SoupConfig
+    from soup_cli.utils import layer_stream
     from tests.test_v07200 import TestStreamingEndToEndSetup
 
     wrapper, dataset = TestStreamingEndToEndSetup()._wrapper(tmp_path, monkeypatch)
+    wrapper.device = "cpu"
+    monkeypatch.setattr(layer_stream, "resolve_disk_kind", lambda *a, **kw:
+                        layer_stream.DiskClassification("nvme"))
     config = wrapper.config.model_dump()
     config["training"].update(
         {

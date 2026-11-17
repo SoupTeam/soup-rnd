@@ -3737,6 +3737,9 @@ class StreamRuntime:
     expert_pool: Any = None
     expert_readers: Tuple[Any, ...] = ()
 
+    # Readers/pool/backend must outlive every expert autograd graph.
+    expert_resources: Any = None
+
     def close(self) -> None:
         """Release the weight source and detach the prefetch hook.
 
@@ -3747,27 +3750,34 @@ class StreamRuntime:
         mapping charges Windows commit for the file's whole size (#926).
         A no-op for the RAM tier, which owns neither a thread nor handles.
         """
-        try:
-            source_close = getattr(self.source, "close", None)
-            if callable(source_close):
-                source_close()
-            for external in self.external_sources:
+        from contextlib import ExitStack
+
+        # Attempt every cleanup even if stopping a disk source or expert handle fails.
+        with ExitStack() as cleanup:
+            if self.hook is not None:
+                cleanup.callback(self.hook.remove)
+                self.hook = None
+            for reader in reversed(self.expert_readers):
+                cleanup.callback(reader.close)
+            if self.expert_pool is not None:
+                cleanup.callback(self.expert_pool.close)
+            for external in reversed(self.external_sources):
                 external_close = getattr(external, "close", None)
                 if callable(external_close):
-                    external_close()
-        finally:
-            try:
-                if self.expert_pool is not None:
-                    self.expert_pool.close()
-            finally:
-                for reader in self.expert_readers:
-                    reader.close()
-                if self.hook is not None:
-                    self.hook.remove()
-                    self.hook = None
+                    cleanup.callback(external_close)
+            if self.expert_resources is not None:
+                cleanup.callback(self.expert_resources.close)
+            source_close = getattr(self.source, "close", None)
+            if callable(source_close):
+                cleanup.callback(source_close)
 
     def stats(self) -> Dict[str, Any]:
+        # B1/B6 and D3 own separate pools; report reads from the active owner.
+        expert_pool = (
+            self.expert_resources.pool if self.expert_resources is not None else self.expert_pool
+        )
         return {
+            **(self.expert_resources.stats() if self.expert_resources is not None else {}),
             "n_layers": self.n_layers,
             "buffers": self.pool.n,
             "buffer_bytes": (
@@ -3813,8 +3823,8 @@ class StreamRuntime:
             # expert read into the arena, whichever of forward, recompute or backward asked
             # for it; bytes are the stored (logical) bytes read, not the dequantised arena.
             # Zero for a fused cache, so a consumer never branches on the layout.
-            "expert_fetches": getattr(self.expert_pool, "fetches", 0),
-            "expert_bytes_read": getattr(self.expert_pool, "logical_bytes_read", 0),
+            "expert_fetches": getattr(expert_pool, "fetches", 0),
+            "expert_bytes_read": getattr(expert_pool, "logical_bytes_read", 0),
         }
 
 
@@ -3944,6 +3954,7 @@ def install_streaming(
     read_ahead: int = DEFAULT_STREAM_READ_AHEAD,
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    expert_resources: Any = None,
     partial_ram_budget: Any = None,
     shared_host_budget: Any = None,
     ram_cache_bytes: int = 0,
@@ -4005,9 +4016,11 @@ def install_streaming(
 
     if shared_host_budget is not None and partial_ram_budget is None:
         raise ValueError("shared_host_budget requires an explicit partial_ram_budget")
-    _refuse_expert_storage_cache(index)
+    if expert_resources is None:
+        _refuse_expert_storage_cache(index)
     if partial_ram_budget is not None:
-        if tier != "disk" or getattr(model.config, "model_type", None) != "llama":
+        if (expert_resources is not None or tier != "disk"
+                or getattr(model.config, "model_type", None) != "llama"):
             raise ValueError("partial RAM currently requires disk streaming of dense Llama")
         if getattr(index, "quant", "none") != "none":
             raise ValueError("partial RAM NF4 model validation is pending; use quant='none'")
@@ -4053,7 +4066,7 @@ def install_streaming(
     expert_readers: Tuple[Any, ...] = ()
     context_fns: List[Any] = [None] * len(layers)
     try:
-        if getattr(index, "expert_layout", "") == "per_expert":
+        if expert_resources is None and getattr(index, "expert_layout", "") == "per_expert":
             expert_pool, expert_readers = _prepare_expert_streaming(
                 layers, shard_dir, index, device=device, codes=codes,
                 two_reads=two_read_experts, grouped_expert_routes=grouped_expert_routes,
@@ -4276,6 +4289,7 @@ def install_streaming(
             hook=handle,
             total_params=int(getattr(index, "total_params", 0) or 0),
             tier=tier,
+            expert_resources=expert_resources,
             expert_pool=expert_pool,
             expert_readers=expert_readers,
         )
@@ -4692,6 +4706,7 @@ def build_streamed_model(
     ngram_source: str = "disk",
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    expert_options: Any = None,
     partial_ram_budget: Any = None,
     shared_host_budget: Any = None,
     ram_cache_bytes: int = 0,
@@ -4708,6 +4723,8 @@ def build_streamed_model(
     """
     if shared_host_budget is not None and partial_ram_budget is None:
         raise ValueError("shared_host_budget requires an explicit partial_ram_budget")
+    if expert_options is not None and partial_ram_budget is not None:
+        raise ValueError("stream_experts does not support stream_partial_ram")
     model = build_meta_skeleton(
         model_id,
         dtype=dtype,
@@ -4718,7 +4735,12 @@ def build_streamed_model(
     # Architecture / Hub-code refusals must run before ANY access to the cache
     # index (B2). The skeleton is meta-only; reject storage-only layouts before
     # materializing extras, decoder buffers or adapters.
-    _refuse_expert_storage_cache(index)
+    if expert_options is None:
+        _refuse_expert_storage_cache(index)
+    else:
+        from soup_cli.utils.expert_training import validate_expert_training
+
+        validate_expert_training(model.config, expert_options, device=device, dtype=dtype)
     external_tensors = dict(getattr(index, "external_tensors", None) or {})
     external_sources: Tuple[Any, ...] = ()
     if external_tensors:
@@ -4732,6 +4754,7 @@ def build_streamed_model(
             external_tensors=external_tensors,
             source=ngram_source,
         )
+    expert_resources = None
     try:
         extras = materialize_extras(model, shard_dir, index, device=device, dtype=dtype)
         materialize_layer_buffers(model, shard_dir, index, device=device)
@@ -4743,6 +4766,16 @@ def build_streamed_model(
         model = attach_adapter(model, lora_config)
         materialize_meta_adapters(model, seed=seed, device=device)
         assert_trainable_adapters_materialized(model)
+        if expert_options is not None:
+            from soup_cli.utils.expert_training import install_expert_training
+
+            expert_resources = install_expert_training(
+                model, shard_dir, index, expert_options, device=device, dtype=dtype,
+                codes=extras.codes,
+            )
+            from soup_cli.utils.expert_training import initialize_deepseek_rotary
+
+            initialize_deepseek_rotary(model, device=device)
         runtime = install_streaming(
             model,
             shard_dir=shard_dir,
@@ -4757,6 +4790,7 @@ def build_streamed_model(
             read_ahead=read_ahead,
             refill_before_backward=refill_before_backward,
             read_ahead_decision=read_ahead_decision,
+            expert_resources=expert_resources,
             partial_ram_budget=partial_ram_budget,
             shared_host_budget=shared_host_budget,
             **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
@@ -4769,6 +4803,8 @@ def build_streamed_model(
             ),
         )
     except BaseException:
+        if expert_resources is not None:
+            expert_resources.close()
         for external in external_sources:
             external.close()
         raise

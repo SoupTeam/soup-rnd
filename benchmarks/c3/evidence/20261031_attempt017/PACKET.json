@@ -24,7 +24,10 @@
   "renamed_reason": "archived launch/preservation scripts are stored as .py.txt so repository lint does not run on frozen bytes",
   "derived_files": {
     "evidence/rental_public.json": "rental.json without endpoint/budget keys",
-    "frozen_gate/isolated_compare.py": "measured copy from the frozen source archive; its SHA256 is in evidence/source_manifest.json"
+    "frozen_gate/isolated_compare.py": "measured copy from the frozen source archive; its SHA256 is in evidence/source_manifest.json",
+    "frozen_gate/io_calibration.py.txt": "exact Git blob from 79df4a847922bf2fb789f428541d261ede9233e8; verified against the unchanged measured source manifest SHA256 and byte count",
+    "frozen_gate/foreign_read_control.py.txt": "exact Git blob from 79df4a847922bf2fb789f428541d261ede9233e8; verified against the unchanged measured source manifest SHA256 and byte count",
+    "frozen_gate/arm_validity.py.txt": "exact Git blob from 79df4a847922bf2fb789f428541d261ede9233e8; verified against the unchanged measured source manifest SHA256 and byte count"
   },
   "replay": "python benchmarks/c3/replay_evidence.py benchmarks/c3/evidence/20261031_attempt017"
 }

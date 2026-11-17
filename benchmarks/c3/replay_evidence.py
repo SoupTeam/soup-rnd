@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.machinery
 import importlib.util
 import json
 import statistics
@@ -76,34 +77,62 @@ def verify_packet(packet: Path, check: Checks) -> dict[str, Any]:
 def load_gates(packet: Path, check: Checks) -> dict[str, Any]:
     manifest = _read(packet / "evidence" / "source_manifest.json")["files"]
     provenance = {}
+    frozen_paths = {}
     for rel in GATE_FILES:
-        same = _sha(REPO / rel) == manifest[rel]["sha256"]
-        provenance[rel] = "identical to measured source" if same else "DIFFERS from measured source"
+        frozen = packet / "frozen_gate" / (Path(rel).name + ".txt")
+        expected = manifest[rel]
+        same = (frozen.is_file() and frozen.stat().st_size == expected["bytes"]
+                and _sha(frozen) == expected["sha256"])
+        provenance[rel] = (
+            "frozen measured copy from the packet" if same else "DIFFERS from measured source"
+        )
         check(f"gate_code:{rel}", same)
+        frozen_paths[rel] = frozen
     frozen = packet / "frozen_gate" / "isolated_compare.py"
     same = _sha(frozen) == manifest["benchmarks/c3/isolated_compare.py"]["sha256"]
     provenance["benchmarks/c3/isolated_compare.py"] = (
         "frozen measured copy from the packet" if same else "DIFFERS from measured source"
     )
     check("gate_code:frozen_isolated_compare", same)
+    if any(not ok for name, ok in check.results.items() if name.startswith("gate_code:")):
+        raise ValueError("frozen gate source hash or size mismatch; refusing to execute it")
     sys.path.insert(0, str(REPO))
-    spec = importlib.util.spec_from_file_location("c3_frozen_isolated_compare", frozen)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    from benchmarks.c3.foreign_read_control import assess as assess_foreign
-    from benchmarks.c3.io_calibration import assess as assess_calibration
-    from benchmarks.harness.arm_validity import CHECKS, Run, arm_outcome, blocks_to_add, repeats
+
+    def load(path: Path):
+        name = "_c3_frozen_" + path.name.replace(".", "_") + "_" + _sha(path)[:16]
+        loader = importlib.machinery.SourceFileLoader(name, str(path))
+        spec = importlib.util.spec_from_file_location(name, path, loader=loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module  # dataclasses resolves annotations through this entry
+        spec.loader.exec_module(module)
+        return module
+
+    calibration = load(frozen_paths[GATE_FILES[0]])
+    # The measured foreign-reader gate imports its calibration constant. Keep
+    # that dependency frozen too, and restore the caller's module cache afterward.
+    dependency = "benchmarks.c3.io_calibration"
+    previous = sys.modules.get(dependency)
+    sys.modules[dependency] = calibration
+    try:
+        foreign = load(frozen_paths[GATE_FILES[1]])
+    finally:
+        if previous is None:
+            sys.modules.pop(dependency, None)
+        else:
+            sys.modules[dependency] = previous
+    validity = load(frozen_paths[GATE_FILES[2]])
+    comparison = load(frozen)
 
     return dict(
         provenance=provenance,
-        compare_results=module.compare_results,
-        assess_foreign=assess_foreign,
-        assess_calibration=assess_calibration,
-        CHECKS=CHECKS,
-        Run=Run,
-        arm_outcome=arm_outcome,
-        blocks_to_add=blocks_to_add,
-        repeats=repeats,
+        compare_results=comparison.compare_results,
+        assess_foreign=foreign.assess,
+        assess_calibration=calibration.assess,
+        CHECKS=validity.CHECKS,
+        Run=validity.Run,
+        arm_outcome=validity.arm_outcome,
+        blocks_to_add=validity.blocks_to_add,
+        repeats=validity.repeats,
     )
 
 

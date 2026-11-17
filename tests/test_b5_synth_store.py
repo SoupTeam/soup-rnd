@@ -385,8 +385,10 @@ def test_the_deepseek_v3_dimensions_give_the_tensor_shapes_of_the_real_model(
 
 @pytest.fixture(scope="module")
 def cold_run(small_store: Path, tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
-    from benchmarks.harness import b5_judge, b5_real_moe
+    from benchmarks.harness import b5_cold, b5_judge, b5_real_moe
 
+    if not b5_cold.supports_page_cache_residency():
+        pytest.skip("cold page-cache run requires Linux mincore")
     root = tmp_path_factory.mktemp("b5-synth-cold-run")
     b5_real_moe.run(_run_args(root, small_store, cold=True))
     return {"rows": b5_judge.read_journal(root / "out" / "journal.jsonl")}
@@ -397,10 +399,10 @@ def _event(rows: list[dict[str, Any]], name: str) -> dict[str, Any]:
     return row
 
 
-def test_a_cold_run_states_the_shape_of_the_store(
-    cold_run: dict[str, Any], small_store: Path
+def test_a_run_states_the_shape_of_the_store(
+    trained: dict[str, Any], small_store: Path
 ) -> None:
-    shape = _event(cold_run["rows"], "shape")
+    shape = _event(trained["rows"], "shape")
 
     assert (shape["layers"], shape["moe_layers"], shape["experts"]) == (3, 2, 8)
     assert (shape["hidden"], shape["expert_size"]) == (64, 64)
@@ -421,8 +423,8 @@ def test_a_cold_run_drops_the_cache_right_before_training_and_says_how(
     assert 0 <= start["unix"] - drop["unix"] < 600
 
 
-def test_every_step_carries_the_disk_read_counter_field(cold_run: dict[str, Any]) -> None:
-    steps = [row for row in cold_run["rows"] if row["event"] == "step"]
+def test_every_step_carries_the_disk_read_counter_field(trained: dict[str, Any]) -> None:
+    steps = [row for row in trained["rows"] if row["event"] == "step"]
 
     assert steps and all("disk_read_bytes" in row for row in steps)
     assert all(row["disk_read_bytes"] is None or row["disk_read_bytes"] >= 0 for row in steps)
@@ -468,8 +470,8 @@ def test_a_refused_write_records_the_refusal_and_writes_nothing(tmp_path: Path) 
     assert not out.exists()
 
 
-def test_the_environment_event_records_the_host_ram_limit_reading(cold_run: dict[str, Any]) -> None:
-    environment = _event(cold_run["rows"], "environment")
+def test_the_environment_event_records_the_host_ram_limit_reading(trained: dict[str, Any]) -> None:
+    environment = _event(trained["rows"], "environment")
 
     assert set(environment["ram_limit"]) >= {"limit_bytes", "swap_max_bytes", "source"}
 

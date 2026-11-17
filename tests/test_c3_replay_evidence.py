@@ -41,3 +41,34 @@ def test_modified_member_is_detected(tmp_path):
     report = replay(packet)
     assert "member:comparison/arm_01_B/result.json" in report["failed_checks"]
     assert report["status"] == "REPLAY_CHECKS_FAILED"
+
+
+def test_replay_uses_measured_gates_when_live_code_changes(monkeypatch):
+    from benchmarks.c3 import foreign_read_control, io_calibration
+    from benchmarks.harness import arm_validity
+
+    def changed(*args, **kwargs):
+        pytest.fail("historical replay used the live gate")
+
+    monkeypatch.setattr(io_calibration, "assess", changed)
+    monkeypatch.setattr(foreign_read_control, "assess", changed)
+    monkeypatch.setattr(arm_validity, "arm_outcome", changed)
+    monkeypatch.setattr(arm_validity, "blocks_to_add", changed)
+    report = replay(ROOT / "20261031_attempt017")
+    assert report["failed_checks"] == []
+    assert report["repetitions"]["blocks_to_add"] == 15
+    assert all(value == "frozen measured copy from the packet"
+               for value in report["gate_code_provenance"].values())
+
+
+@pytest.mark.parametrize("filename", [
+    "io_calibration.py.txt", "foreign_read_control.py.txt", "arm_validity.py.txt",
+    "isolated_compare.py",
+])
+def test_changed_frozen_gate_is_rejected_before_execution(tmp_path, filename):
+    packet = tmp_path / "packet"
+    shutil.copytree(ROOT / "20261031_attempt017", packet)
+    path = packet / "frozen_gate" / filename
+    path.write_bytes(path.read_bytes() + b'\nraise AssertionError("unverified gate executed")\n')
+    with pytest.raises(ValueError, match="frozen gate source hash or size mismatch"):
+        replay(packet)

@@ -1,0 +1,38 @@
+{
+  "inspected_ci_source": "cd6515ac503b15a111050b35db5c33768d506a9b",
+  "workflow_run": 40787435812,
+  "test_job": 123164056274,
+  "lint_job": 123164032250,
+  "confirmed_repairs": [
+    "Seven E501 violations in the historical publication verifier; analyzer AST/output unchanged.",
+    "Global os.name/lstat/fstat monkeypatch poisoned pytest capture; isolate the OS namespace in the module under test.",
+    "CLI readiness test assumed a dirty checkout; exercise both clean and dirty states explicitly.",
+    "Missing training.stream_experts=null in the deliberate schema snapshot; one-line generated change.",
+    "Freeze one-thread CPU arithmetic in the checkpoint fixture and restore torch thread count afterward; the formal runner already uses one thread. No byte-exact check or CUDA math policy is relaxed."
+  ],
+  "additional_linux_failures": [
+    "test_public_builder_loss_gradients_updates_and_close[sequential]",
+    "test_public_builder_loss_gradients_updates_and_close[grouped]"
+  ],
+  "additional_linux_failure_status": "Reproduced both FAIL with default CPU threads; fixed fixture gives 39/39 PASS on Linux torch 2.15.0+cpu, transformers 5.21.0, peft 0.21.2, including integration and security tests. Full repository Ubuntu/Python 3.12 CI, lint, gate and merge freshness now pass on exact head 76d2c4281adae978af300ee039800b8f47735d55.",
+  "local_platform": "Windows, Python 3.12, torch 2.15.0+cpu; CI dependency overlay transformers 5.21.0 / peft 0.21.2",
+  "dependency_overlay": "Separate directory; original CUDA/preparation environment unchanged.",
+  "checks": {
+    "related_initial_passed": 117,
+    "related_initial_skipped": 6,
+    "schema_and_cli_passed": 226,
+    "ci_dependency_selection_passed": 259,
+    "ci_dependency_selection_skipped": 6,
+    "final_diagnostic_cases_passed": 2,
+    "exact_full_ci_ruff_command": "passed",
+    "historical_analyzer_byte_equality": true,
+    "linux_before_fixed_recipe_failed": 2,
+    "linux_fixed_passed": 39,
+    "linux_original_stack_passed": 17
+  },
+  "production_src_changed": false,
+  "new_pretrained_run_started": false,
+  "full_repository_linux_ci_green_claimed": false,
+  "next_steps": "Commit/push the prospective revision-3 time-budget correction, inspect its required CI, freeze canonical Git blobs, run a fresh detached session only after GPU/driver/F1 preflight, and preserve the incomplete revision-2 attempt.",
+  "new_boot": "2142c629-3e42-4d7c-a70f-0b42b8161c4d"
+}

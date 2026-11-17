@@ -1,0 +1,346 @@
+{
+  "schema_version": 1,
+  "task": "D3 public Soup SFT/L2L qualification",
+  "status": "revision_3_after_77a6bc35_no_verdict_launch_environment_error",
+  "launch_environment": {
+    "pythonpath_entries": ["checkout_root", "checkout_root/src"],
+    "required_for_child_processes": true
+  },
+  "execution_enabled": true,
+  "scope_is_full_task_acceptance": false,
+  "model_id": "allenai/OLMoE-1B-7B-0924",
+  "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "checkpoint_files": {
+    "config.json": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335",
+    "model-00001-of-00003.safetensors": "5e3cff7e367794685c241169072c940d200918617d5e2813f1c387dff52d845e",
+    "model-00002-of-00003.safetensors": "15ef5c730ee3cfed7199498788cd2faf337203fc74b529625e7502cdd759f4a7",
+    "model-00003-of-00003.safetensors": "a9abac4ac1b55c9adabac721a02fa39971f103eea9a65c310972b1246de76e04"
+  },
+  "formats": [
+    "dense",
+    "nf4",
+    "nf4-dq"
+  ],
+  "training_modes": [
+    "ordinary",
+    "l2l"
+  ],
+  "correctness_modes": [
+    "native-resident",
+    "sequential",
+    "grouped-resident",
+    "grouped",
+    "triton-resident",
+    "triton"
+  ],
+  "entry_point": {
+    "wrapper": "soup_cli.trainer.sft.SFTTrainerWrapper",
+    "setup": "setup",
+    "train": "train",
+    "l2l": "soup_cli.trainer.l2l_trainer",
+    "adapter_targets": [
+      "q_proj",
+      "v_proj"
+    ]
+  },
+  "resident_reference_definition": "Resident means all routed-expert weights resident, independently restored from the identical prepared bytes using B1 native/bitsandbytes reconstruction. Non-expert layers retain the same public streaming setup. This is not mislabeled as a full-resident-model run.",
+  "reference": "Independent native-expert resident ordinary gradient accumulation; compare public sequential/grouped/Triton ordinary and L2L paths. Also compare each resident/streamed backend pair with identical expert arithmetic and dispatch policy.",
+  "same_kernel_pairs": [
+    [
+      "native-resident",
+      "sequential"
+    ],
+    [
+      "grouped-resident",
+      "grouped"
+    ],
+    [
+      "triton-resident",
+      "triton"
+    ]
+  ],
+  "batch": 1,
+  "tokens": 512,
+  "rows": 7,
+  "gradient_accumulation_steps": 2,
+  "optimizer_steps": 4,
+  "warmup_steps": 1,
+  "timed_steps": 3,
+  "timed_input_tokens": 2560,
+  "input_seed": 1729,
+  "adapter_seed": 19,
+  "data_seed": 29,
+  "adapter_rank": 4,
+  "adapter_alpha": 8,
+  "adapter_dropout": 0.0,
+  "optimizer": {
+    "name": "sgd",
+    "learning_rate": 0.01,
+    "momentum": 0.0,
+    "weight_decay": 0.0,
+    "scheduler": "constant",
+    "warmup": 0,
+    "max_grad_norm": 1.0,
+    "epochs": 1,
+    "gradient_windows": [
+      2,
+      2,
+      2,
+      1
+    ]
+  },
+  "moe_aux_loss_coeff": 0.0,
+  "data": {
+    "kind": "synthetic token IDs/targets through all sixteen pretrained OLMoE layers",
+    "format": "pre_tokenized",
+    "tokenized_path_metadata_required": true,
+    "input_range": "CPU torch.Generator seed 1729; randint(3, config.vocab_size), shape 7x512",
+    "labels": "copy input IDs; labels[:,0]=-100 and every eleventh position=-100",
+    "attention_mask": "all ones",
+    "packing": false,
+    "validation_split": 0.0,
+    "row_order": "Public Trainer sampler seed 29. Retain and compare actual delivered row/token/label hashes per accumulation window.",
+    "label_denominator": "Exact number of nonignored shifted next-token labels in each actual accumulation window, including the one-row final window.",
+    "prepared_shifted_label_counts_per_window": [
+      930,
+      930,
+      930,
+      465
+    ]
+  },
+  "adapter_initialization": "Prepare and pin complete attention LoRA initial factors before freeze. Load matching values after each Trainer setup, preserving actual per-codec adapter dtype (dense FP32; TRL QLoRA BF16). Save dtype/shape/raw bytes and initial state hashes.",
+  "numerics": {
+    "compute_dtype": "bfloat16",
+    "native_bf16_required": true,
+    "blas_library": "cublaslt",
+    "allow_tf32": false,
+    "bf16_reduced_precision_and_split_k": [
+      false,
+      false
+    ],
+    "cublas_workspace_config": ":4096:8",
+    "deterministic_algorithms": true,
+    "autocast": "Explicit CUDA BF16, including all matching save/reload evaluation paths",
+    "evaluation_output": "FP32 logits on both prepared-Trainer and restored-Trainer paths",
+    "attention_implementation": "Record and require identical native implementation across all cells; no attention/CE/kernel patch may differ between arms."
+  },
+  "exactness": "dtype_shape_and_bytes_including_signed_zero",
+  "allow_allclose": false,
+  "allow_noise_floor_tolerance": false,
+  "allow_value_dependent_fallback": false,
+  "numerical_gates": {
+    "forward": "Exact logits/loss/routing and expert outputs, separately stated.",
+    "backward": "Exact input/router gradients in every trained decoder layer and every trainable attention-LoRA parameter; finite values, nonzero effective gradients.",
+    "adapter_updates": "Exact complete adapter state after every real optimizer step; prove a nonzero change from initial state.",
+    "A_A": "Reset initial parameters, optimizer, sampler and CPU/CUDA RNG; two same-process runs reproduce every step, gradients and updates exactly.",
+    "negative": "In the same process, add +0.5 to column 0 of the lexicographically first v_proj lora_B before a reset replay. Logits and at least one nonzero gradient must differ; an ineffective control gives no verdict, not a larger perturbation or relaxed threshold.",
+    "restored": "Restore the exact initial factors, optimizer and RNG after the fixed negative control; replay must match the original exactly.",
+    "save_reload": "Save through wrapper.train(), construct the same public Trainer/dtype recipe, load the saved adapter; factors/dtypes/logits must match exactly. Repeat for ordinary SFT and L2L.",
+    "same_kernel_resident_streamed": "Native per-expert loop paired with native sequential; grouped resident with grouped stream; Triton resident with Triton stream. Keep matrix geometry, row dispatch, activation rounding and scatter order identical within each pair."
+  },
+  "native_rows_max": 128,
+  "native_rows_from": 481,
+  "weight_budget_bytes": 67108864,
+  "activation_budget_bytes": 268435456,
+  "call_budget_bytes": 67108864,
+  "streaming": {
+    "stream_source": "ram",
+    "expert_source": "disk-buffered",
+    "group_widths": {
+      "sequential": 1,
+      "grouped": 4,
+      "triton": 4
+    },
+    "expert_full_dense_stack_allowed": false,
+    "resident_oracles": "Separate correctness-only processes; never left resident during streamed memory/timing arms.",
+    "dispatch": "Native at rows 1..128 and 481+; grouped at 129..480. Empty experts skipped. Require positive grouped dispatch and executed Triton activation for relevant candidate cells; no data-dependent fallback."
+  },
+  "timing_order": [
+    "sequential",
+    "grouped",
+    "triton",
+    "triton",
+    "grouped",
+    "sequential"
+  ],
+  "timing_contrasts": {
+    "grouping": {
+      "positions_zero_based": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "meaning": "sequential versus grouped including restore/load/gather/scatter and optimizer window"
+    },
+    "activation": {
+      "positions_zero_based": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "meaning": "grouped native activation versus grouped Triton activation, same pool and GEMM"
+    }
+  },
+  "timing_definition": "Fresh Linux process per arm. Prepare model and compile/JIT outside the timer. Time complete public Trainer optimizer windows, synchronized at declared boundaries. First full two-row step is warmup; retain the following two full windows and final one-row window as three samples. Primary arm value=sum(wall_seconds)/2560 input tokens. Report every raw step and actual input/target token counts; do not assume 1024 tokens in the partial last window. The pre-optimizer callback stops/synchronizes the forward/backward timer before CPU gradient hashing, then resumes a separate optimizer segment. Stop at on_step_end before parameter hashes; sum both measured segments. Both arms use this same boundary. Precompile all 512 possible Triton row shapes and pool widths before warmup. Hash actual delivered input/label windows outside these segments and compare all parameter gradients/updates to the native oracle.",
+  "pilot_blocks": 5,
+  "max_blocks": 10,
+  "repeat_rule": "For each codec/training stratum, project each shared six-arm symmetric block into two actual ABBA pairs. Reuse unchanged arm_validity.repeats: sigma=sqrt((var(A)+var(B))/2), delta=0.10*mean(A), N=max(2,ceil(7.85*(sigma/delta)^2)). Joint first target=max(5,N_grouping,N_activation) from five pilot blocks. At that joint target recompute once from that prefix; joint final target=max(first,N_grouping,N_activation). No later top-up. If target exceeds ten, retain records and report no-verdict precision budget; never discard/replace a void block.",
+  "profiles": "One independent profiler process per codec/training/backend after warmup. Retain CUPTI Chrome trace, actual cat=kernel ph=X events, complete kernel names, per-layer route histograms and native/grouped matrix counts. Total device launch count is primary; name-based decode/GEMM/activation/scatter attribution is descriptive, with ambiguous kernels explicitly unassigned rather than guessed. CPU op counts are not CUDA launch counts. Missing device events gives no verdict. Profile the first post-warmup optimizer window only; route histograms run on CPU without extra GPU counting kernels. Profile instrumentation is not timing evidence.",
+  "memory": "Separate training allocated/reserved peaks after warmup/reset, before evaluation/reload; synchronize. Record whole-child peak RSS, pinned/staging/arena budgets separately. F1 retains clock records; device-before/after CSV records memory, temperature and power endpoints (not telemetry peaks). No activation-only or optimizer-only result is called total-VRAM reduction.",
+  "attempt_budget": {
+    "correctness_cells": 36,
+    "timing_pilot_cells": 180,
+    "timing_max_cells": 360,
+    "profile_cells": 18,
+    "minimum_total_cells": 234,
+    "maximum_total_cells": 414
+  },
+  "sessions_per_commit": 1,
+  "replacements": 0,
+  "cell_timeout_seconds": 900,
+  "session_timeout_seconds": 129600,
+  "budget_enforcement": "One exclusive session marker per actual source commit, outside user-selectable output names. Record every started child, argv, exit, timeout and exception. Revision 2 at 76d2c428 started 40 cells in its 10800-second cap: 39 completed and the next cell had only 118 seconds remaining of its 900-second cell allowance. The full declared plan is 234 to 414 cells; revision 3 prospectively sets a 129600-second (36-hour) cap, based on the observed session rate, without changing cell counts, numerical gates or replacement policy. At a failure/time/cell stop, retain everything and create no replacement under this rule; a new attempt requires a new committed rule/source.",
+  "hardware": {
+    "instance_id_operator_reported": 58145733,
+    "machine_id": 44906,
+    "gpu_uuid": "GPU-9ca8a267-6510-f280-ca13-adb1deb944f6",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "minimum_vram_bytes": 17179869184,
+    "minimum_available_ram_bytes_before_prepare": 34359738368,
+    "boot_id": "2142c629-3e42-4d7c-a70f-0b42b8161c4d",
+    "virtualization": "KVM",
+    "counter_scope": "guest-visible virtual disk vda only",
+    "observed_torch_total_memory_bytes": 25250627584,
+    "capacity_basis": "Trello/source end-to-end Linux card requirement is 16 GiB+. The actual RTX4090 reports 25,250,627,584 CUDA-visible bytes; GPU UUID/driver remain pinned. An earlier unexecuted draft threshold 25,501,368,320 exceeded this value and was rejected during final host readiness."
+  },
+  "software": {
+    "python": "3.12.15",
+    "torch": "2.14.1+cu130",
+    "cuda": "13.0",
+    "driver": "580.95.05",
+    "triton": "3.8.0",
+    "transformers": "5.19.0",
+    "peft": "0.20.0",
+    "trl": "0.29.1",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0",
+    "cublas_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e"
+  },
+  "disk_counter_source": "guest-diskstats",
+  "physical_host_isolation_claim": false,
+  "validity": "Reuse unchanged arm_validity.ArmWatch and empirical sysfs/guest mapping. Before freeze verify all prepared shard hashes and paths, baseline OK, complete aligned own-shard reads OK and an independent foreign O_DIRECT reader VOID. The existing 2 GiB fixture is instrument readiness only, not actual-shard acceptance. Require per-cell F1 OK, unchanged boot/data/source identities and the sole exposed CUDA workload. Missing required sensors, unknown/void F1, visible foreign workloads, restart or identity changes stop the series with no verdict; physical host/cache isolation remains uncertified.",
+  "decision": {
+    "pass": "All planned correctness and profile cells and repeat-calculated complete timing blocks satisfy exact source/data/control/validity gates. Mark qualification complete pending independent review, not D3 task acceptance.",
+    "fail": "Any exact numerical or restored-state mismatch; any accepted use of a different expert arithmetic/kernel policy within a resident/streamed pair.",
+    "no_verdict": "OOM, interruption, timeout, missing/effective-negative control, missing GPU traces, unknown/void validity, inactive required grouped/Triton path, data/source/hardware drift or exhausted precision/attempt budget.",
+    "speed": "A positive speedup or reduced total VRAM is not required to pass numerical qualification. Report slower and unchanged results without hiding them."
+  },
+  "preparation": {
+    "checkpoint": {
+      "path": "benchmarks/protocols/d3-public-trainer/checkpoint.json",
+      "sha256": "1e84b187251522b75f075ed146a08d14079266aa0801a465ef27864849ca6238"
+    },
+    "shards": {
+      "path": "benchmarks/protocols/d3-public-trainer/shards.json",
+      "sha256": "c08edd10ebab999355f5657bdb54221546ee347eca6cd47566f7192066afb978"
+    },
+    "datasets": {
+      "path": "benchmarks/protocols/d3-public-trainer/datasets.json",
+      "sha256": "c05166b6ca40bc44a2a63a1612d224403de44c0528e076fd8dae598f890b5c98"
+    },
+    "initial_adapters": {
+      "path": "benchmarks/protocols/d3-public-trainer/initial-adapters.json",
+      "sha256": "c4662625864c8618460db3d171a0b33dae08340c6ed4be28a996dd6b43745eee"
+    },
+    "mapping": {
+      "path": "benchmarks/protocols/d3-public-trainer/mapping.json",
+      "sha256": "3f4618e9657ccfb2a53573f25bc29b3d3fa8871ca443c4567e3e1bcf47554775"
+    },
+    "actual_shard_controls": {
+      "path": "benchmarks/protocols/d3-public-trainer/actual-shard-controls.json",
+      "sha256": "875cd688c56b16df48a71fdcdfa605eada27a1683ff59a994e0c9e93e3d7dad5"
+    },
+    "software": {
+      "path": "benchmarks/protocols/d3-public-trainer/software.json",
+      "sha256": "0df0a349fdc4bc098b72ff9af9af2f226437efa17dc8ccf85d7dbdc1d431339b"
+    },
+    "launcher_self_test": {
+      "path": "benchmarks/protocols/d3-public-trainer/launcher-self-test.json",
+      "sha256": "50098a97e90b030f8822483f16b69fd5d6d2b1e4c03040473db9ccb722d2dcfb"
+    }
+  },
+  "promotion": "Revision 3 preserves the revision-2 numerical recipe and all eight preparation bindings. The 76d2c428 formal session completed 36 correctness cells and three timing cells before exhausting its declared three-hour session cap; the incomplete block has no timing verdict and remains retained. Revision 3 requires a fresh clean committed source export, unchanged bound data/software/GPU/boot identities, and one new session marker. No result from the incomplete session is reused as a formal cell.",
+  "retention": "Preserve all historical studies and failed/incomplete formal sessions and all preliminary trainer preflight failures. Keep raw tensors/native oracle, state/route/gradient hashes, logs, F1 records, profiles, source packet, manifests and offline byte-identical analysis. Verify publication from normalized committed bytes in a fresh checkout.",
+  "separate_full_task_items": [
+    "The public SFT/L2L integration is committed in cd6515ac; its first formal session failed the evaluation control. The corrective revision requires a new committed source freeze and an accepted pretrained trainer comparison.",
+    "Current B1 technical interface contract accepted under explicit operator delegation on 2026-10-29. Historical coordination before earlier B1 measurements is not certified; final pretrained qualification remains required.",
+    "Repository Issues UI currently disables New issue and states issue creation is restricted; maintainer tracking decision is outstanding. The historical HTTP 410 attempt is retained.",
+    "The source uses the name grouped fused dequant-GEMM; current routed experts use separate grouped restoration and GEMM. Literal packed-weight dequant+GEMM kernel fusion is not implemented or claimed. Maintainer acceptance must resolve this distinction.",
+    "Source page 10 wrap-only/do-not-build SwiGLU constraint versus retained custom activation experiment requires explicit scope visibility; do not count it as core D3 fusion.",
+    "Current-head repository CI and final owner/reviewer task acceptance remain outstanding."
+  ],
+  "limitations": [
+    "Synthetic IDs and four SGD steps do not establish quality or convergence.",
+    "Frozen experts plus attention LoRA; no routed-expert LoRA, nonzero router auxiliary loss, second derivatives or full-weight fine-tuning.",
+    "Ordinary/L2L results are specific to this source, GPU and recipe; A3 Mistral noise-floor/tolerance criteria do not relax D3 byte exactness.",
+    "Staged grouped NF4 restoration plus GEMM is not one fused packed-weight GEMM kernel.",
+    "Separate owner/reviewer full-task acceptance is still required."
+  ],
+  "readiness_repairs": [
+    "Preserve the native Trainer tensor num_items_in_batch through L2L; Python-int conversion changes CUDA loss rounding. No tolerance relaxation.",
+    "Capture expert output from initial forward as well as derivatives from recomputation: checkpoint early-stop may skip module post-hooks during ordinary backward.",
+    "Correct the unexecuted draft capacity threshold to the source/Trello 16 GiB+ requirement; retain actual CUDA-visible capacity discovery and the rejected draft value. Numerical policy and byte-exact gates are unchanged.",
+    "Revision 2: construct evaluation token IDs on the actual runtime device, not a streamed embedding meta placeholder. Require untied four-layer synthetic controls; retain the failed first pretrained session without reclassification. No numerical tolerance, data/optimizer recipe or timing/attempt budget is relaxed."
+  ],
+  "activation_scope": "The C/Triton arm is an operator-requested research supplement. Source page 10 says SwiGLU should be wrap-only; custom activation fusion is not counted as required D3 dequant/GEMM fusion or automatically accepted production integration. Retain the independent grouping contrast even if the activation result is unfavorable.",
+  "prepared_manifest_path": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-after-restart-r2.json",
+  "formal_output_workspace": "/root/d3-public-trainer-preparation-01/prepared-02",
+  "prepared_path_rule": "Use the exact bound prepared_manifest_path; do not copy/alias the manifest to create another session-marker directory. Keep the single per-commit marker and all started sessions.",
+  "protocol_revision": 3,
+  "previous_formal_attempt": {
+    "git_head": "cd6515ac503b15a111050b35db5c33768d506a9b",
+    "status": "FAIL",
+    "F1": "ok",
+    "started_cells": 1,
+    "accepted_cells": 0,
+    "timing_arms": 0,
+    "evidence": "benchmarks/results/d3-public-trainer-attempt-01-cd6515ac/report.md",
+    "full_archive_sha256": "08b731f604368dc03a21d7def54be095617428d03753aea4504ef65aa5309bcb"
+  },
+  "required_launcher_fixture": {
+    "layers": 4,
+    "experts": 4,
+    "vocab": 64,
+    "tie_word_embeddings": false,
+    "weight_sha256": "541a84fa8513d02da3381a8c2fbc83efe4e3ff89975d958f0cc3505dc91b550d"
+  },
+  "restart_revalidation": {
+    "original_manifest": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-final.json",
+    "original_manifest_sha256": "6d8f2dd2fb35c2c9839b2549fc41ed7dbdd73e402bf72f7d6d5fa0af5fa9d7df",
+    "previous_boot": "420aedd3-7599-46d7-a86e-1e1e51bed1ef",
+    "current_boot": "2142c629-3e42-4d7c-a70f-0b42b8161c4d",
+    "unchanged_input_hashes": 157,
+    "controls": "/root/d3-public-trainer-preparation-01/actual-shard-controls-after-restart-01/controls/report.json",
+    "new_model_execution": false,
+    "prior_failed_session_and_marker_preserved": true
+  },
+  "prior_formal_attempt": {
+    "git_head": "76d2c4281adae978af300ee039800b8f47735d55",
+    "session_path": "/root/d3-public-trainer-preparation-01/prepared-02/formal-76d2c428-01",
+    "status": "incomplete_no_task_verdict",
+    "session_timeout_seconds": 10800,
+    "cells_started": 40,
+    "cells_ok": 39,
+    "correctness_cells_ok": 36,
+    "timing_cells_ok": 3,
+    "timing_cell_without_verdict": "timing-dense-ordinary-01-4-triton",
+    "failure": "The series cap left 118.18 seconds for a cell whose declared timeout is 900 seconds; the cell timed out, then the series stopped at the three-hour cap.",
+    "numerical_failure": false,
+    "accepted_performance_verdict": false,
+    "replacement_attempted": false,
+    "remaining_processes": false,
+    "archive_note": "The remote full output directory remains intact. The initial 2.9 GB archive file is truncated and fails ZIP validation; rebuild to a new unique archive name before publication."
+  }
+}

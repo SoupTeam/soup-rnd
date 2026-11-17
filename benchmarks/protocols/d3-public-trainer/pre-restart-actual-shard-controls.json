@@ -1,0 +1,2040 @@
+{
+  "status": "controls_passed",
+  "kind": "F1 instrument controls, not D3 results",
+  "scope": "guest-visible whole disks; physical-host isolation is not certified",
+  "counter_source": "guest-diskstats",
+  "pid": 8196,
+  "ppid": 1,
+  "controls": [
+    {
+      "case": "baseline",
+      "expected": "ok",
+      "observed": "ok",
+      "direct_bytes": 0,
+      "record": {
+        "arm": "baseline",
+        "round": 0,
+        "run": 0,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1793223401.5385911,
+          "ram_available_bytes": 51199516672,
+          "commit_charge": {
+            "used_bytes": 1024307200,
+            "limit_bytes": 26469183488
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793223407.7732322,
+          "ram_available_bytes": 51117957120,
+          "commit_charge": {
+            "used_bytes": 1037869056,
+            "limit_bytes": 26469183488
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 2550 to 2550 MHz over 2 samples; clock event reasons seen: gpu_idle",
+          "samples": 2,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 2550,
+            "median": 2550.0,
+            "max": 2550
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -1.190000148199033e-06,
+              "sleep_offset_end_s": -8.699998943484388e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 5 power samples, so on mains",
+            "evidence": {
+              "samples": 5,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "ok",
+            "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+            "evidence": {
+              "model_path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_000.safetensors",
+              "device": "vda",
+              "disk_read_bytes_start": 4238992896,
+              "disk_read_bytes_end": 4238992896,
+              "other_disk_read_bytes_start": 342016,
+              "other_disk_read_bytes_end": 342016,
+              "own_read_bytes": 0,
+              "foreign_read_bytes": 0,
+              "foreign_read_bytes_min": 0,
+              "foreign_read_bytes_max": 0,
+              "uninspectable_processes": 6
+            },
+            "readers": [],
+            "unattributed_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "own",
+      "expected": "ok",
+      "observed": "ok",
+      "direct_bytes": 19833356288,
+      "record": {
+        "arm": "own",
+        "round": 0,
+        "run": 1,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1793223410.8538916,
+          "ram_available_bytes": 51127685120,
+          "commit_charge": {
+            "used_bytes": 1037885440,
+            "limit_bytes": 26469183488
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793223424.8676054,
+          "ram_available_bytes": 51109085184,
+          "commit_charge": {
+            "used_bytes": 1013334016,
+            "limit_bytes": 26469183488
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 2550 to 2550 MHz over 4 samples; clock event reasons seen: gpu_idle",
+          "samples": 4,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 2550,
+            "median": 2550.0,
+            "max": 2550
+          },
+          "reasons_seen": {
+            "gpu_idle": 4
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.800000846851617e-07,
+              "sleep_offset_end_s": -6.800000846851617e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 9 power samples, so on mains",
+            "evidence": {
+              "samples": 9,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "ok",
+            "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+            "evidence": {
+              "model_path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_000.safetensors",
+              "device": "vda",
+              "disk_read_bytes_start": 4238992896,
+              "disk_read_bytes_end": 24072349184,
+              "other_disk_read_bytes_start": 342016,
+              "other_disk_read_bytes_end": 342016,
+              "own_read_bytes": 19833356288,
+              "foreign_read_bytes": 0,
+              "foreign_read_bytes_min": 0,
+              "foreign_read_bytes_max": 0,
+              "uninspectable_processes": 6
+            },
+            "readers": [
+              {
+                "pid": 868,
+                "name": "kworker/u65:2-writeback",
+                "read_bytes": 1855488
+              },
+              {
+                "pid": 499,
+                "name": "kworker/u75:1-events_unbound",
+                "read_bytes": 552960
+              }
+            ],
+            "unattributed_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "foreign",
+      "expected": "void",
+      "observed": "void",
+      "direct_bytes": 1073741824,
+      "record": {
+        "arm": "foreign",
+        "round": 0,
+        "run": 2,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "void",
+        "box_stamp_before": {
+          "unix_s": 1793223427.9456043,
+          "ram_available_bytes": 51172765696,
+          "commit_charge": {
+            "used_bytes": 1013350400,
+            "limit_bytes": 26469183488
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793223435.3349605,
+          "ram_available_bytes": 51109232640,
+          "commit_charge": {
+            "used_bytes": 1013334016,
+            "limit_bytes": 26469183488
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 2550 to 2550 MHz over 2 samples; clock event reasons seen: gpu_idle",
+          "samples": 2,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 2550,
+            "median": 2550.0,
+            "max": 2550
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.400005077011883e-07,
+              "sleep_offset_end_s": -6.889995347592048e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 5 power samples, so on mains",
+            "evidence": {
+              "samples": 5,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "void",
+            "reason": "at least 1073741824 bytes of foreign reads on vda (limit 1000000000)",
+            "evidence": {
+              "model_path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_000.safetensors",
+              "device": "vda",
+              "disk_read_bytes_start": 24072349184,
+              "disk_read_bytes_end": 25146091008,
+              "other_disk_read_bytes_start": 342016,
+              "other_disk_read_bytes_end": 342016,
+              "own_read_bytes": 0,
+              "foreign_read_bytes": 1073741824,
+              "foreign_read_bytes_min": 1073741824,
+              "foreign_read_bytes_max": 1073741824,
+              "uninspectable_processes": 6
+            },
+            "readers": [
+              {
+                "pid": 8198,
+                "name": "python",
+                "read_bytes": 1073741824
+              },
+              {
+                "pid": 499,
+                "name": "kworker/u75:1-events_unbound",
+                "read_bytes": 552960
+              },
+              {
+                "pid": 263,
+                "name": "kworker/u64:1-events_unbound",
+                "read_bytes": 110592
+              }
+            ],
+            "unattributed_bytes": 0
+          }
+        }
+      }
+    }
+  ],
+  "mapping": {
+    "status": "mapping_observed_controls_still_required",
+    "kind": "instrument mapping, not D3 results",
+    "scope": "guest-visible whole disks; physical-host isolation is not certified",
+    "counter_source": "guest-diskstats",
+    "files": [
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_000.safetensors",
+        "st_dev": 64769,
+        "inode": 4129660,
+        "size": 805317264,
+        "mtime_ns": 1793223103763078974,
+        "reads": [
+          {
+            "before": {
+              "watched": 4089046528,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4090095104,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4090095104,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4091143680,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_001.safetensors",
+        "st_dev": 64769,
+        "inode": 4129662,
+        "size": 805317264,
+        "mtime_ns": 1793223105075107634,
+        "reads": [
+          {
+            "before": {
+              "watched": 4092192256,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4093240832,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4093240832,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4094289408,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_002.safetensors",
+        "st_dev": 64769,
+        "inode": 4129664,
+        "size": 805317264,
+        "mtime_ns": 1793223107567162068,
+        "reads": [
+          {
+            "before": {
+              "watched": 4095337984,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4096386560,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4096386560,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4097435136,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_003.safetensors",
+        "st_dev": 64769,
+        "inode": 4129666,
+        "size": 805317264,
+        "mtime_ns": 1793223109714208961,
+        "reads": [
+          {
+            "before": {
+              "watched": 4098483712,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4099532288,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4099532288,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4100580864,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_004.safetensors",
+        "st_dev": 64769,
+        "inode": 4129668,
+        "size": 805317264,
+        "mtime_ns": 1793223112934279283,
+        "reads": [
+          {
+            "before": {
+              "watched": 4101629440,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4102678016,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4102678016,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4103726592,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_005.safetensors",
+        "st_dev": 64769,
+        "inode": 4129670,
+        "size": 805317264,
+        "mtime_ns": 1793223115371332498,
+        "reads": [
+          {
+            "before": {
+              "watched": 4104775168,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4105823744,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4105823744,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4106872320,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_006.safetensors",
+        "st_dev": 64769,
+        "inode": 4129672,
+        "size": 805317264,
+        "mtime_ns": 1793223118592402827,
+        "reads": [
+          {
+            "before": {
+              "watched": 4107920896,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4108969472,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4108969472,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4110018048,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_007.safetensors",
+        "st_dev": 64769,
+        "inode": 4129674,
+        "size": 805317264,
+        "mtime_ns": 1793223121308462123,
+        "reads": [
+          {
+            "before": {
+              "watched": 4111066624,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4112115200,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4112115200,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4113163776,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_008.safetensors",
+        "st_dev": 64769,
+        "inode": 4129676,
+        "size": 805317264,
+        "mtime_ns": 1793223124394529489,
+        "reads": [
+          {
+            "before": {
+              "watched": 4114212352,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4115260928,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4115260928,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4116309504,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_009.safetensors",
+        "st_dev": 64769,
+        "inode": 4129678,
+        "size": 805317264,
+        "mtime_ns": 1793223127117588925,
+        "reads": [
+          {
+            "before": {
+              "watched": 4117358080,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4118406656,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4118406656,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4119455232,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_010.safetensors",
+        "st_dev": 64769,
+        "inode": 4129680,
+        "size": 805317264,
+        "mtime_ns": 1793223130158655294,
+        "reads": [
+          {
+            "before": {
+              "watched": 4120503808,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4121552384,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4121552384,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4122600960,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_011.safetensors",
+        "st_dev": 64769,
+        "inode": 4129682,
+        "size": 805317264,
+        "mtime_ns": 1793223133966738393,
+        "reads": [
+          {
+            "before": {
+              "watched": 4123649536,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4124698112,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4124698112,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4125746688,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_012.safetensors",
+        "st_dev": 64769,
+        "inode": 4129684,
+        "size": 805317264,
+        "mtime_ns": 1793223136939803261,
+        "reads": [
+          {
+            "before": {
+              "watched": 4126795264,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4127843840,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4127843840,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4128892416,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_013.safetensors",
+        "st_dev": 64769,
+        "inode": 4129686,
+        "size": 805317264,
+        "mtime_ns": 1793223139881867447,
+        "reads": [
+          {
+            "before": {
+              "watched": 4129940992,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4130989568,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4130989568,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4132038144,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_014.safetensors",
+        "st_dev": 64769,
+        "inode": 4129688,
+        "size": 805317264,
+        "mtime_ns": 1793223143383943840,
+        "reads": [
+          {
+            "before": {
+              "watched": 4133086720,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4134135296,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4134135296,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4135183872,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__dense__checkpoint/experts_015.safetensors",
+        "st_dev": 64769,
+        "inode": 4129690,
+        "size": 805317264,
+        "mtime_ns": 1793223146025001446,
+        "reads": [
+          {
+            "before": {
+              "watched": 4136232448,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4137281024,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4137281024,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4138329600,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_000.safetensors",
+        "st_dev": 64769,
+        "inode": 5935115,
+        "size": 226513936,
+        "mtime_ns": 1793223152239136963,
+        "reads": [
+          {
+            "before": {
+              "watched": 4139378176,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4140426752,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4140426752,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4141475328,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_001.safetensors",
+        "st_dev": 64769,
+        "inode": 5935117,
+        "size": 226513936,
+        "mtime_ns": 1793223153374161712,
+        "reads": [
+          {
+            "before": {
+              "watched": 4142523904,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4143572480,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4143572480,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4144621056,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_002.safetensors",
+        "st_dev": 64769,
+        "inode": 5935119,
+        "size": 226513936,
+        "mtime_ns": 1793223154382183691,
+        "reads": [
+          {
+            "before": {
+              "watched": 4145669632,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4146718208,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4146718208,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4147766784,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_003.safetensors",
+        "st_dev": 64769,
+        "inode": 5935121,
+        "size": 226513936,
+        "mtime_ns": 1793223155424206411,
+        "reads": [
+          {
+            "before": {
+              "watched": 4148815360,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4149863936,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4149863936,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4150912512,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_004.safetensors",
+        "st_dev": 64769,
+        "inode": 5935123,
+        "size": 226513936,
+        "mtime_ns": 1793223156308225685,
+        "reads": [
+          {
+            "before": {
+              "watched": 4151961088,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4153009664,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4153009664,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4154058240,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_005.safetensors",
+        "st_dev": 64769,
+        "inode": 5935125,
+        "size": 226513936,
+        "mtime_ns": 1793223157406249624,
+        "reads": [
+          {
+            "before": {
+              "watched": 4155106816,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4156155392,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4156155392,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4157203968,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_006.safetensors",
+        "st_dev": 64769,
+        "inode": 5935127,
+        "size": 226513936,
+        "mtime_ns": 1793223158314269420,
+        "reads": [
+          {
+            "before": {
+              "watched": 4158252544,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4159301120,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4159301120,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4160349696,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_007.safetensors",
+        "st_dev": 64769,
+        "inode": 5935129,
+        "size": 226513936,
+        "mtime_ns": 1793223159385292769,
+        "reads": [
+          {
+            "before": {
+              "watched": 4161398272,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4162446848,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4162446848,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4163495424,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_008.safetensors",
+        "st_dev": 64769,
+        "inode": 5935131,
+        "size": 226513936,
+        "mtime_ns": 1793223160310312935,
+        "reads": [
+          {
+            "before": {
+              "watched": 4164544000,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4165592576,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4165592576,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4166641152,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_009.safetensors",
+        "st_dev": 64769,
+        "inode": 5935133,
+        "size": 226513936,
+        "mtime_ns": 1793223161208332511,
+        "reads": [
+          {
+            "before": {
+              "watched": 4167689728,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4168738304,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4168738304,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4169786880,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_010.safetensors",
+        "st_dev": 64769,
+        "inode": 5935135,
+        "size": 226513936,
+        "mtime_ns": 1793223162217354505,
+        "reads": [
+          {
+            "before": {
+              "watched": 4170835456,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4171884032,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4171884032,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4172932608,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_011.safetensors",
+        "st_dev": 64769,
+        "inode": 5935137,
+        "size": 226513936,
+        "mtime_ns": 1793223163439381143,
+        "reads": [
+          {
+            "before": {
+              "watched": 4173981184,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4175029760,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4175029760,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4176078336,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_012.safetensors",
+        "st_dev": 64769,
+        "inode": 5935139,
+        "size": 226513936,
+        "mtime_ns": 1793223164507404422,
+        "reads": [
+          {
+            "before": {
+              "watched": 4177126912,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4178175488,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4178175488,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4179224064,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_013.safetensors",
+        "st_dev": 64769,
+        "inode": 5935141,
+        "size": 226513936,
+        "mtime_ns": 1793223165484425717,
+        "reads": [
+          {
+            "before": {
+              "watched": 4180272640,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4181321216,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4181321216,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4182369792,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_014.safetensors",
+        "st_dev": 64769,
+        "inode": 5935143,
+        "size": 226513936,
+        "mtime_ns": 1793223166524448384,
+        "reads": [
+          {
+            "before": {
+              "watched": 4183418368,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4184466944,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4184466944,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4185515520,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4__checkpoint/experts_015.safetensors",
+        "st_dev": 64769,
+        "inode": 5935145,
+        "size": 226513936,
+        "mtime_ns": 1793223167592471660,
+        "reads": [
+          {
+            "before": {
+              "watched": 4186564096,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4187612672,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4187612672,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4188661248,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_000.safetensors",
+        "st_dev": 64769,
+        "inode": 6451211,
+        "size": 207759856,
+        "mtime_ns": 1793223171153549265,
+        "reads": [
+          {
+            "before": {
+              "watched": 4189709824,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4190758400,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4190758400,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4191806976,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_001.safetensors",
+        "st_dev": 64769,
+        "inode": 6451213,
+        "size": 207759856,
+        "mtime_ns": 1793223172258573344,
+        "reads": [
+          {
+            "before": {
+              "watched": 4192855552,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4193904128,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4193904128,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4194952704,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_002.safetensors",
+        "st_dev": 64769,
+        "inode": 6451215,
+        "size": 207759856,
+        "mtime_ns": 1793223173180593435,
+        "reads": [
+          {
+            "before": {
+              "watched": 4196001280,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4197049856,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4197049856,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4198098432,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_003.safetensors",
+        "st_dev": 64769,
+        "inode": 6451217,
+        "size": 207759856,
+        "mtime_ns": 1793223174088613220,
+        "reads": [
+          {
+            "before": {
+              "watched": 4199147008,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4200195584,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4200195584,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4201244160,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_004.safetensors",
+        "st_dev": 64769,
+        "inode": 6451219,
+        "size": 207759856,
+        "mtime_ns": 1793223174956632133,
+        "reads": [
+          {
+            "before": {
+              "watched": 4202292736,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4203341312,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4203341312,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4204389888,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_005.safetensors",
+        "st_dev": 64769,
+        "inode": 6451221,
+        "size": 207759856,
+        "mtime_ns": 1793223175886652396,
+        "reads": [
+          {
+            "before": {
+              "watched": 4205438464,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4206487040,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4206487040,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4207535616,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_006.safetensors",
+        "st_dev": 64769,
+        "inode": 6451223,
+        "size": 207759856,
+        "mtime_ns": 1793223176833673029,
+        "reads": [
+          {
+            "before": {
+              "watched": 4208584192,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4209632768,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4209632768,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4210681344,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_007.safetensors",
+        "st_dev": 64769,
+        "inode": 6451225,
+        "size": 207759856,
+        "mtime_ns": 1793223177913696559,
+        "reads": [
+          {
+            "before": {
+              "watched": 4211729920,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4212778496,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4212778496,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4213827072,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_008.safetensors",
+        "st_dev": 64769,
+        "inode": 6451227,
+        "size": 207759856,
+        "mtime_ns": 1793223178853717038,
+        "reads": [
+          {
+            "before": {
+              "watched": 4214875648,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4215924224,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4215924224,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4216972800,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_009.safetensors",
+        "st_dev": 64769,
+        "inode": 6451229,
+        "size": 207759856,
+        "mtime_ns": 1793223179899739826,
+        "reads": [
+          {
+            "before": {
+              "watched": 4218021376,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4219069952,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4219069952,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4220118528,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_010.safetensors",
+        "st_dev": 64769,
+        "inode": 6451231,
+        "size": 207759856,
+        "mtime_ns": 1793223180955762830,
+        "reads": [
+          {
+            "before": {
+              "watched": 4221167104,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4222215680,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4222215680,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4223264256,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_011.safetensors",
+        "st_dev": 64769,
+        "inode": 6451233,
+        "size": 207759856,
+        "mtime_ns": 1793223182051786705,
+        "reads": [
+          {
+            "before": {
+              "watched": 4224312832,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4225361408,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4225361408,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4226409984,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_012.safetensors",
+        "st_dev": 64769,
+        "inode": 6451235,
+        "size": 207759856,
+        "mtime_ns": 1793223182964806593,
+        "reads": [
+          {
+            "before": {
+              "watched": 4227458560,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4228507136,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4228507136,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4229555712,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_013.safetensors",
+        "st_dev": 64769,
+        "inode": 6451237,
+        "size": 207759856,
+        "mtime_ns": 1793223183856826023,
+        "reads": [
+          {
+            "before": {
+              "watched": 4230604288,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4231652864,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4231652864,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4232701440,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_014.safetensors",
+        "st_dev": 64769,
+        "inode": 6451239,
+        "size": 207759856,
+        "mtime_ns": 1793223184947849787,
+        "reads": [
+          {
+            "before": {
+              "watched": 4233750016,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4234798592,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4234798592,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4235847168,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-public-trainer-preparation-01__prepared-02__nf4-dq__checkpoint/experts_015.safetensors",
+        "st_dev": 64769,
+        "inode": 6451241,
+        "size": 207759856,
+        "mtime_ns": 1793223185831869042,
+        "reads": [
+          {
+            "before": {
+              "watched": 4236895744,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4237944320,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 4237944320,
+              "other": 342016
+            },
+            "after": {
+              "watched": 4238992896,
+              "other": 342016
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      }
+    ]
+  }
+}

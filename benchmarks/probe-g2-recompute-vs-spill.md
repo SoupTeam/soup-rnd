@@ -167,6 +167,11 @@ on exit and on error. Modes: `write`, `read`, `cycle` (the G2 step pattern: laye
 `cycle+weights` (both at once, measured separately). Two paths are not two disks: the
 record names the volume and physical-disk mapping it saw.
 
+Instrument follow-up, 2026-11-07: newly executed arms bound the summary to the
+declared `--duration`, interpolating at that boundary if the sampler wakes late.
+Late raw samples remain in JSONL. The frozen historical sessions and their
+reported summaries are unchanged.
+
 ## 7. What this does NOT measure
 
 - Quality: none is at stake; G1 is bit-exactness.

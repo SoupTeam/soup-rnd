@@ -1,0 +1,90 @@
+{
+  "kind": "D3 revision-3 prospective verification after incomplete revision-2 formal session; not an accepted pretrained comparison",
+  "protocol_revision": 3,
+  "previous_formal_execution_started": true,
+  "previous_pretrained_model_executed": true,
+  "previous_formal_source": "cd6515ac503b15a111050b35db5c33768d506a9b",
+  "previous_formal_status": "fail",
+  "previous_formal_started_cells": 1,
+  "previous_formal_accepted_cells": 0,
+  "revision_2_formal_execution_started": true,
+  "revision_2_pretrained_model_executed": true,
+  "full_task_accepted": false,
+  "preparation_bindings": 8,
+  "prepared_input_files": 157,
+  "actual_expert_shards_mapped": 48,
+  "actual_shard_controls": [
+    "ok",
+    "ok",
+    "void"
+  ],
+  "corrective_synthetic": {
+    "kind": "four-layer untied random-weight OLMoE; not pretrained",
+    "numerical_cells_passed": 36,
+    "cuda_profiles_passed": 18,
+    "streamed_embedding_meta": true,
+    "streamed_large_boundaries": 2,
+    "prototype_rule": "tested-r2-numerical-recipe.json",
+    "note": "The developmental run used the retained revision-1 numerical recipe with the corrected gate/self-test. Revision-2 planner/readiness changes are pure CPU controls, separately tested. All production sources and executed numerical helpers match the new receipt."
+  },
+  "corrective_cpu": {
+    "tests_passed": 74,
+    "junit_cases": 74,
+    "cpu_archive_payloads": 32,
+    "full_repository_ruff": "passed for src/soup_cli, scripts, tests; selected new harness/verifier also clean",
+    "prior_regression": "untied meta-input guard fails before correction and passes after"
+  },
+  "historical_cpu": {
+    "broad_passed": 999,
+    "broad_skipped": 8,
+    "gpu_deselected": 116,
+    "rerun_after_correction": false,
+    "production_src_files_changed_by_correction": 0
+  },
+  "published_archives": {
+    "unchanged_setup_payloads": 6731,
+    "setup_nested_crcs": 3,
+    "unchanged_cpu_payloads": 621,
+    "corrective_untied_payloads": 3568,
+    "corrective_cpu_payloads": 32,
+    "retained_full_untied_payloads_checked": 3867,
+    "retained_full_failed_attempt_payloads_checked": 26
+  },
+  "actual_host_and_prepared_full_hash_check": "passed after the corrective synthetic preflight; no active CUDA workload",
+  "remaining_launch_blockers": [
+    "operator commit/push of revision-3 prospective 36-hour budget and session audit",
+    "canonical committed Git-blob export/freeze for that new head",
+    "fresh GPU/driver/F1 readiness check immediately before starting the single revision-3 session"
+  ],
+  "project_commit_or_push_performed": false,
+  "scope": "Revision-2 session data is retained but incomplete; no throughput comparison or final D3 acceptance is claimed. Revision 3 changes only the prospective time envelope, not numerical gates or cell budgets.",
+  "ci_repairs": {
+    "confirmed_causes": "publication lint, globally patched OS functions, dirty-checkout assumption, missing schema default, unfrozen CPU threads",
+    "linux_failed_before": 2,
+    "linux_passed_after": 39,
+    "local_ci_dependency_selection_passed": 259,
+    "full_repository_ci_on_new_commit": "passed on 76d2c4281adae978af300ee039800b8f47735d55",
+    "exact_numerical_checks_relaxed": false,
+    "cpu_parity_scope": "one CPU thread; previous count restored by fixture"
+  },
+  "after_restart": {
+    "original_manifest": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-final.json",
+    "original_manifest_sha256": "6d8f2dd2fb35c2c9839b2549fc41ed7dbdd73e402bf72f7d6d5fa0af5fa9d7df",
+    "previous_boot": "420aedd3-7599-46d7-a86e-1e1e51bed1ef",
+    "current_boot": "2142c629-3e42-4d7c-a70f-0b42b8161c4d",
+    "unchanged_input_hashes": 157,
+    "controls": "/root/d3-public-trainer-preparation-01/actual-shard-controls-after-restart-01/controls/report.json",
+    "new_model_execution": false,
+    "prior_failed_session_and_marker_preserved": true
+  },
+  "revision_2_formal_status": "incomplete_no_task_verdict",
+  "revision_2_cells_started": 40,
+  "revision_2_cells_ok": 39,
+  "revision_2_correctness_cells_ok": 36,
+  "revision_2_timing_cells_ok": 3,
+  "revision_2_unresolved_cell": "timing-dense-ordinary-01-4-triton: session cap left 118.18 seconds against a 900 second cell cap",
+  "revision_2_numerical_failure": false,
+  "revision_2_accepted_performance_verdict": false,
+  "revision_3_formal_execution_started": false,
+  "revision_3_pretrained_model_executed": false
+}

@@ -1,0 +1,132 @@
+{
+  "observed_on_client_date": "2026-10-29",
+  "source_markdown": {
+    "name": "rndTASK_agent_context(1).md",
+    "sha256": "3d10785f13a85c2f03e646dc4ad1488ca071b671d596933c26e2d5576372402c",
+    "source_pdf": "rndTASK.pdf, 2026-10-05",
+    "pages_checked": [
+      6,
+      10,
+      17,
+      18,
+      19
+    ],
+    "original_pdf_independently_reopened": false,
+    "additional_constraint": "Page 10 says not to build SwiGLU (Liger wrap-only); the retained custom Triton activation experiment is separately identified as an operator-requested research supplement, not evidence of packed NF4 dequant/GEMM fusion or automatic compliance with that constraint."
+  },
+  "trello": {
+    "url": "https://trello.com/c/G6t5xoIj",
+    "title": "[D3] Группировать вычисления экспертов MoE",
+    "list": "Обработка Фидбека",
+    "displayed_checklist_percent": 100,
+    "priority_dependencies": "P1; Дизайн до B1.4; implementation после B1.2 + F4 baseline",
+    "deliverable": "Описание дизайна, задача в репозитории, изменение grouped kernel и сравнение с циклом по экспертам.",
+    "acceptance": "Результат проходит bit-exact сравнение с последовательным expert loop. В resident/streamed проверке один эксперт использует одинаковый kernel. Отдельно показано влияние grouping на скорость, память и число запусков.",
+    "resources": "Linux CUDA GPU sm_80+ с Triton, 16 GB+ для end-to-end gate, small MoE и profiler.",
+    "checked_items": [
+      "До финальных B1-замеров согласовать дизайн с MoE-разработчиком.",
+      "Сгруппировать восстановление весов и матричные операции экспертов.",
+      "Не создавать целиком плотный MoE-слой.",
+      "Проверить пустых экспертов и разное число токенов на эксперт.",
+      "Сравнить с последовательным expert loop и измерить число запусков GPU-операций."
+    ],
+    "interpretation": "Displayed ticks are a board observation, not independent task acceptance."
+  },
+  "github": {
+    "pr": "https://github.com/SoupTeam/soup-rnd/pull/28",
+    "head_observed": "76d2c4281adae978af300ee039800b8f47735d55",
+    "latest_review": "https://github.com/SoupTeam/soup-rnd/pull/28#pullrequestreview-5605458361",
+    "review_state": "CHANGES_REQUESTED",
+    "prior_forward_only_approval_state": "DISMISSED",
+    "required": "Full assigned acceptance mapping, remaining implementation/validation, B1 coordination and explicit blockers; no owner-unapproved scope reduction.",
+    "issues_observation": {
+      "url": "https://github.com/SoupTeam/soup-rnd/issues",
+      "new_issue_disabled": true,
+      "message": "Issue creation is restricted in this repository."
+    },
+    "current_note": "The operator completed the merge and committed/pushed the CI corrections at 76d2c42. Required current-head tests, lint, gate and merge freshness pass. The revision-2 full pretrained session later stopped incomplete at its three-hour cap; revision 3 is being prepared prospectively."
+  },
+  "dependencies": {
+    "b1_1_pr": 24,
+    "b1_2_pr": 25,
+    "f4_pr": 11,
+    "a3_pr": 34,
+    "working_head": "98706ed06319603db802fda1a86b5b7f1f97b33e",
+    "pending_main_merge": "9d8b1d7b4b3eabc1634a1f6c2318814c640535c3",
+    "a3_merge_in_main": "da1fc473",
+    "note": "B1.1/B1.2/F4 exist; the A3 trainer is in the pending main merge. Separate B1.3 acceptance is not inferred from this D3 integration.",
+    "a3_tolerance_not_inherited": true,
+    "b1_1_merge_in_main": "4b90b8d3",
+    "b1_2_merge_in_main": "fdf067fc",
+    "f4_merge_in_main": "84042a12",
+    "snapshot_context": "working_head and pending_main_merge describe the retained pre-operator-commit snapshot",
+    "completed_merge_head": "cd6515ac503b15a111050b35db5c33768d506a9b",
+    "current_note": "The operator completed the merge, including A3. The first formal session failed; only corrective benchmark/control code and evidence now await another commit. B1.3 acceptance is not inferred."
+  },
+  "open_full_task_items": [
+    "The revision-2 public SFT/L2L session at 76d2c42 started 40 cells: 36 correctness and three timing cells completed, then a timing cell had no verdict when the three-hour session cap expired. No throughput verdict is accepted. Revision 3 must be committed/frozen and run within a cap aligned to the 234–414-cell budget.",
+    "Current B1 technical interface contract accepted under explicit operator delegation on 2026-10-29. Historical coordination before earlier B1 measurements is not certified; final pretrained qualification remains required.",
+    "Repository Issues UI currently disables New issue and states issue creation is restricted; maintainer tracking decision is outstanding. The historical HTTP 410 attempt is retained.",
+    "The source uses the name grouped fused dequant-GEMM; current routed experts use separate grouped restoration and GEMM. Literal packed-weight dequant+GEMM kernel fusion is not implemented or claimed. Maintainer acceptance must resolve this distinction.",
+    "Source page 10 wrap-only/do-not-build SwiGLU constraint versus retained custom activation experiment requires explicit scope visibility; do not count it as core D3 fusion.",
+    "Current-head repository CI and final owner/reviewer task acceptance remain outstanding."
+  ],
+  "b1_interface_decision": {
+    "status": "current_contract_accepted_with_pretrained_qualification_pending",
+    "date": "2026-10-29",
+    "authority": "Operator identified as B1 owner and explicitly delegated the technical decision based on evidence and requirements.",
+    "basis": [
+      "Existing per_expert/NF4 metadata retained; no format fork.",
+      "Runtime owns bounded storage and lease/resource lifetime; unsupported configurations fail early.",
+      "Frozen routed experts, native first derivatives and explicit attention-LoRA SFT/L2L opt-in.",
+      "Selected CPU and synthetic CUDA parity/control/cleanup evidence; trained public-trainer verdict still pending."
+    ],
+    "historical_coordination_claim": false,
+    "full_task_acceptance": false
+  },
+  "operator_commit_and_first_formal_attempt": {
+    "git_head": "cd6515ac503b15a111050b35db5c33768d506a9b",
+    "source_export_verified_files": 767,
+    "prepared_files_verified": 157,
+    "status": "FAIL in first native dense ordinary cell post-training evaluation",
+    "F1": "ok",
+    "accepted_cells": 0,
+    "timing_arms": 0,
+    "diagnosis": "Evaluation IDs were placed on streamed embedding meta placeholder; deterministic untied CPU regression fails before fix and passes after runtime-device correction.",
+    "uncommitted_corrective_source": true,
+    "new_formal_session_not_started": true
+  },
+  "current_ci_repair": {
+    "confirmed_causes": "publication lint, globally patched OS functions, dirty-checkout assumption, missing schema default, unfrozen CPU threads",
+    "linux_failed_before": 2,
+    "linux_passed_after": 39,
+    "local_ci_dependency_selection_passed": 259,
+    "full_repository_ci_on_new_commit": "passed on exact head 76d2c4281adae978af300ee039800b8f47735d55",
+    "exact_numerical_checks_relaxed": false,
+    "cpu_parity_scope": "one CPU thread; previous count restored by fixture"
+  },
+  "operator_commit_and_revision_2_formal_attempt": {
+    "git_head": "76d2c4281adae978af300ee039800b8f47735d55",
+    "status": "incomplete_no_task_verdict",
+    "cells_started": 40,
+    "cells_ok": 39,
+    "correctness_cells_ok": 36,
+    "timing_cells_ok": 3,
+    "unresolved_cell": "timing-dense-ordinary-01-4-triton",
+    "cause": "Three-hour session cap expired; only 118.18 seconds remained for a cell with a 900-second cap.",
+    "numerical_failure": false,
+    "accepted_performance_verdict": false,
+    "session_path": "/root/d3-public-trainer-preparation-01/prepared-02/formal-76d2c428-01",
+    "full_session_archive": "Recovery archive required; original archive file is truncated and invalid."
+  },
+  "revision_3_prospective_session": {
+    "status": "prepared_locally_awaiting_operator_commit_and_push",
+    "session_timeout_seconds": 129600,
+    "session_hours": 36,
+    "minimum_cells": 234,
+    "maximum_cells": 414,
+    "replacements": 0,
+    "sessions_per_commit": 1,
+    "reuses_revision_2_cells": false
+  }
+}

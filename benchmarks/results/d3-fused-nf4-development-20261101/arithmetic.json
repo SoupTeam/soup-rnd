@@ -1,0 +1,862 @@
+{
+  "kind": "unqualified D3 fused packed NF4 development screen",
+  "torch": "2.14.1+cu130",
+  "bitsandbytes": "0.50.2",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "capability": [
+    8,
+    6
+  ],
+  "seed": 314159,
+  "backend": "hybrid_wmma",
+  "source_sha256": {
+    "benchmarks/harness/d3_fused_nf4_gate.py": "f8e6113a9773103c0a5832cf16c908219c8066de4fd8bb7a2925f3c086f32102",
+    "src/soup_cli/utils/expert_group_fused.py": "133935cec871b211aa6083d4da5c6bab1bcf66ee4a20b3a22be5f325c02bc33a",
+    "src/soup_cli/utils/expert_group_fused_wmma.py": "299b513eab86ec48ea43450d73585d2845e9122a5a641290385c11e2eee8614f"
+  },
+  "cells": [
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": false,
+      "transpose": false,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": false,
+      "transpose": false,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": false,
+      "transpose": true,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": false,
+      "transpose": true,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": false,
+      "kind": "control",
+      "negative_effective": true,
+      "restored_exact": true
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": true,
+      "transpose": false,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": true,
+      "transpose": false,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": true,
+      "transpose": true,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": true,
+      "transpose": true,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        2048
+      ],
+      "nested": true,
+      "kind": "control",
+      "negative_effective": true,
+      "restored_exact": true
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": false,
+      "transpose": false,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": false,
+      "transpose": false,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": false,
+      "transpose": true,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": false,
+      "transpose": true,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": false,
+      "kind": "control",
+      "negative_effective": true,
+      "restored_exact": true
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": true,
+      "transpose": false,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": true,
+      "transpose": false,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": true,
+      "transpose": true,
+      "rows": [
+        0,
+        1,
+        17,
+        129
+      ],
+      "planned_paths": [
+        "empty",
+        "native-small",
+        "native-small",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": true,
+      "transpose": true,
+      "rows": [
+        31,
+        128,
+        481,
+        512
+      ],
+      "planned_paths": [
+        "native-small",
+        "native-small",
+        "fused",
+        "fused"
+      ],
+      "experts": [
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        },
+        {
+          "group_singleton_exact": true,
+          "group_native_exact": true,
+          "finite": true,
+          "native_differing_bits": 0,
+          "native_max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "shape": [
+        2048,
+        1024
+      ],
+      "nested": true,
+      "kind": "control",
+      "negative_effective": true,
+      "restored_exact": true
+    }
+  ],
+  "status": "development_numerics_pass",
+  "production_enabled": false,
+  "failures": []
+}

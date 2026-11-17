@@ -1,0 +1,4 @@
+Use the recorded CPU environment and overlay the archived source-snapshot.zip.
+Set OMP_NUM_THREADS=1, MKL_NUM_THREADS=1 and HF_HUB_OFFLINE=1.
+
+python -m pytest tests/test_b1_expert_forward.py tests/test_b1_expert_shard.py tests/test_b2_deepseek_v3_stream.py tests/test_d3_expert_activation.py tests/test_d3_expert_derivatives.py tests/test_d3_grouped_expert.py tests/test_d3_trainer_integration.py tests/test_d3_training_model.py tests/test_disk_tier_stripe_setup.py tests/test_issue833_gpu_marker.py tests/test_l2l_ordinary_mode.py tests/test_l2l_rng.py tests/test_l2l_step.py tests/test_l2l_trainer_labels.py tests/test_l2l_trainer_mode.py tests/test_l2l_trainer_window.py tests/test_stream_adapter_preflight.py tests/test_v07200.py tests/test_v07202.py tests/test_v07203.py tests/test_v07204.py -m "not gpu" --no-cov -q --tb=short --junitxml=d3-trainer-final-cpu.xml

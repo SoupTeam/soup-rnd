@@ -1,0 +1,70 @@
+{
+  "task": "D3 full-model trained OLMoE optimizer-step comparison",
+  "schema_version": 1,
+  "scope": "trained OLMoE optimizer-step numerical and descriptive GPU comparison; synthetic token IDs, no quality claim",
+  "model_id": "allenai/OLMoE-1B-7B-0924",
+  "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "checkpoint_files": {
+    "config.json": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335",
+    "model-00001-of-00003.safetensors": "5e3cff7e367794685c241169072c940d200918617d5e2813f1c387dff52d845e",
+    "model-00002-of-00003.safetensors": "15ef5c730ee3cfed7199498788cd2faf337203fc74b529625e7502cdd759f4a7",
+    "model-00003-of-00003.safetensors": "a9abac4ac1b55c9adabac721a02fa39971f103eea9a65c310972b1246de76e04"
+  },
+  "formats": ["dense", "nf4", "nf4-dq"],
+  "modes": ["native", "sequential", "grouped-resident", "grouped", "triton-resident", "triton"],
+  "timing_pair": ["grouped", "triton"],
+  "batch": 1,
+  "tokens": 512,
+  "input_seed": 1234,
+  "adapter_seed": 25,
+  "adapter_rank": 4,
+  "learning_rate": 0.5,
+  "steps": 4,
+  "warmup_steps": 1,
+  "timed_steps": 3,
+  "measurement_blocks_per_codec": 5,
+  "sessions_per_commit": 1,
+  "replacements": 0,
+  "weight_budget_bytes": 67108864,
+  "gemm_call_budget_bytes": 67108864,
+  "activation_budget_bytes": 268435456,
+  "native_rows_max": 128,
+  "attempt_budget": {
+    "correctness_cells": 18,
+    "timing_cells": 60,
+    "profile_cells": 6,
+    "total_cells": 84
+  },
+  "expected_cell_count": 84,
+  "execution_enabled": true,
+  "software": {
+    "python": "3.12.15",
+    "torch": "2.14.1+cu130",
+    "cuda": "13.0",
+    "driver": "595.99.02",
+    "transformers": "5.19.0",
+    "triton": "3.8.0",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0"
+  },
+  "gpu_uuid": "GPU-46abdddd-2f6a-a368-5b31-a7d0c0a4a9ef",
+  "cublas_library_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e",
+  "mapping_sha256": "53cad15f1cc03cbe21fb80c3689ab565e7eac680d856d53b63de7d73634ad43e",
+  "controls_sha256": "1cb4673409c99b8646fbf56d229ec4e1de8ebc2b0c3d946d37ce20ca2e2a50ff",
+  "setup_archive_sha256": "7a0ac80bb07ef6ee88e61e3e7cf9e86a25fff5a45c439a620a9eb07e19b93b6f",
+  "bundle_sha256": {
+    "dense": "bcf2fb639b2d2116495bc60811dea4cdcdda27603e58eb76804b8f866fa9dfb8",
+    "nf4": "ba2a9b96804d0512f10b25169845bd87aad0c1ca5feee8520dab0d73dc612444",
+    "nf4-dq": "3dd7074c2eefbebbe85550600e71903983753f378cab8787669f457689770613"
+  },
+  "execution": "Commit the exact source, rule and setup archive before creating a clean-Git source packet. One new Linux process per cell. Compare full native optimizer-step tensors and adapter state; no TF32; native BF16 only; one visible idle GPU. Five grouped/triton ABBA blocks per format, holding grouped GEMM and pool width constant to isolate the fused activation backend. No replacement attempts; stop on any mismatch, OOM or unknown/void F1.",
+  "acceptance": "All 18 correctness cells, 60 timed cells and six profile cells are retained with passing F1, exact source/data/software identity, route and dispatch evidence, finite loss and gradients, and exact native-oracle tensors/adapter states. Analysis remains descriptive and requires independent review.",
+  "failed_run": "Any mismatch is fail; OOM, interruption, missing dependency, uninspectable validity or identity mismatch is no-verdict. Preserve every attempt. No rerun/replacement under this frozen budget.",
+  "limitations": [
+    "Synthetic token IDs and four SGD steps establish numerical plumbing only; they do not measure quality, convergence or useful training.",
+    "The comparison concerns the frozen residual adapter and tested complete OLMoE forward/backward path, not a supported Soup trainer feature.",
+    "The storage instrument identifies container-visible overlay loop0 only; physical NVMe identity, host isolation and physical-device throughput are not certified.",
+    "RTX 3090 24 GB results do not establish performance or capacity for an 8 GB reference GPU or other hosts.",
+    "The source-preparation bundle attempt that initially rejected loop0 is retained as a failed preparation attempt; it is not a trained-model arm."
+  ]
+}

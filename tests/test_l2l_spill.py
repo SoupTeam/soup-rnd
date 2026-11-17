@@ -1126,6 +1126,7 @@ def test_a_volume_without_unbuffered_io_is_refused(tmp_path, monkeypatch, local_
         raise OSError(errno.EINVAL, "Invalid argument")
 
     monkeypatch.setattr(l2l_activations, "_open_unbuffered", refuse)
+    monkeypatch.setattr(l2l_spill, "filesystem_refusal", lambda path: None)
     monkeypatch.setattr(l2l_spill.shutil, "disk_usage", lambda p: types.SimpleNamespace(
         free=10**15))
     with pytest.raises(l2l_spill.SpillRefusedError, match=r"(?s)unbuffered.*l2l_spill_dir"):
@@ -1138,6 +1139,7 @@ def test_a_drive_short_of_the_file_plus_the_margin_is_refused(
 ):
     from soup_cli.utils import l2l_spill
 
+    monkeypatch.setattr(l2l_spill, "filesystem_refusal", lambda path: None)
     monkeypatch.setattr(l2l_spill.shutil, "disk_usage", lambda p: types.SimpleNamespace(
         free=GIB + 12 * MIB - 1))
     with pytest.raises(l2l_spill.SpillRefusedError) as caught:
@@ -1170,6 +1172,7 @@ def disks(monkeypatch, local_volume):
         return frozenset(answer), ", ".join(answer)
 
     monkeypatch.setattr(l2l_spill, "physical_disks", physical)
+    monkeypatch.setattr(l2l_spill, "filesystem_refusal", lambda path: None)
     monkeypatch.setattr(l2l_spill, "_round_trip", lambda directory: None)
     monkeypatch.setattr(l2l_spill.shutil, "disk_usage", lambda p: types.SimpleNamespace(
         free=10**15))

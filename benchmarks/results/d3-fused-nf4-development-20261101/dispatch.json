@@ -1,0 +1,204 @@
+{
+  "kind": "development primitive dispatch/memory, not whole-model VRAM",
+  "source_sha256": {
+    "benchmarks/harness/d3_fused_nf4_dispatch.py": "01e314f44ba990cd8fd1d433e1e46eb70683f9df11d1058efdf53274600674ff",
+    "src/soup_cli/utils/expert_group_fused.py": "133935cec871b211aa6083d4da5c6bab1bcf66ee4a20b3a22be5f325c02bc33a",
+    "src/soup_cli/utils/expert_group_fused_wmma.py": "299b513eab86ec48ea43450d73585d2845e9122a5a641290385c11e2eee8614f",
+    "src/soup_cli/utils/expert_group_gemm.py": "0953f10da8a66a0fb3c7c4f4e2236c8e48c67016d50df01a66398428defa89ad"
+  },
+  "cells": [
+    {
+      "name": "2048-2048-nested0-dx0",
+      "plan": {
+        "output_bytes": 5124096,
+        "descriptor_bytes": 512,
+        "call_bytes": 5124608,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 5124608,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "8179a1e516c69a9c6b3fae8870d2636666a285bf35abb1068787131f695465ea",
+      "pass": true
+    },
+    {
+      "name": "2048-2048-nested0-dx1",
+      "plan": {
+        "output_bytes": 5124096,
+        "descriptor_bytes": 512,
+        "call_bytes": 5124608,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 5124608,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "d487e71d6e13354cd73cca3050eb51263ff85c923c2ee3c7862249e35753ee3f",
+      "pass": true
+    },
+    {
+      "name": "2048-2048-nested1-dx0",
+      "plan": {
+        "output_bytes": 5124096,
+        "descriptor_bytes": 512,
+        "call_bytes": 5124608,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 5124608,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "872ec9448386328d598b4ec6e0938a4d0503dd82714d71bf85fff6689e6f988d",
+      "pass": true
+    },
+    {
+      "name": "2048-2048-nested1-dx1",
+      "plan": {
+        "output_bytes": 5124096,
+        "descriptor_bytes": 512,
+        "call_bytes": 5124608,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 5124608,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "87edb97268f1961cad5f2c22dcd000915cdb36931ec493c89482a1c24db09e51",
+      "pass": true
+    },
+    {
+      "name": "2048-1024-nested0-dx0",
+      "plan": {
+        "output_bytes": 5124096,
+        "descriptor_bytes": 512,
+        "call_bytes": 5124608,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 5124608,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "2b6234bd79eb482f88c3686bd760ce4814055927e2d7f444f35e34716ad36015",
+      "pass": true
+    },
+    {
+      "name": "2048-1024-nested0-dx1",
+      "plan": {
+        "output_bytes": 2562048,
+        "descriptor_bytes": 512,
+        "call_bytes": 2562560,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 2562560,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "e022e1743342deb300d6aa9815f03dc6b1e520c22c172f4cb0e490c460c9e000",
+      "pass": true
+    },
+    {
+      "name": "2048-1024-nested1-dx0",
+      "plan": {
+        "output_bytes": 5124096,
+        "descriptor_bytes": 512,
+        "call_bytes": 5124608,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 5124608,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "902d6d8ecc6a252f11dab186ee030870e75ea07ce30d4ec83adb7d379aa0b419",
+      "pass": true
+    },
+    {
+      "name": "2048-1024-nested1-dx1",
+      "plan": {
+        "output_bytes": 2562048,
+        "descriptor_bytes": 512,
+        "call_bytes": 2562560,
+        "dense_weight_bytes": 0,
+        "fused_experts": 4,
+        "fallback_experts": 0,
+        "max_rows": 512,
+        "groups": 4
+      },
+      "allocator_delta_bytes": 2562560,
+      "input_state_unchanged": true,
+      "kernels": [
+        "fused"
+      ],
+      "gpu_activities": [
+        "Memcpy HtoD (Pageable -> Device)",
+        "fused"
+      ],
+      "trace_sha256": "97c1df9cc95d9d8074c7cb9604e43aaed370e44707ace7979e11fa6ce8f65bc5",
+      "pass": true
+    }
+  ],
+  "status": "development_dispatch_pass"
+}

@@ -1,0 +1,69 @@
+{
+  "task": "D3 bounded grouped NF4 expert compute",
+  "schema_version": 1,
+  "status": "draft",
+  "formal_execution_enabled": false,
+  "scope": "Development candidate: bounded grouped NF4 restore and restricted hybrid grouped GEMM. Formal performance, end-to-end gate and D3 acceptance remain open.",
+  "candidate_recipe": {
+    "formats": ["BF16", "NF4", "nested NF4"],
+    "training_weight_geometries_K_N": [[2048, 2048], [1024, 2048]],
+    "synthetic_control_geometries_K_N": [[32, 32], [16, 32]],
+    "routing": "ascending active expert IDs, group width 1/2/4; original activation, route weighting and scatter order",
+    "reference_math": "Caller explicitly selects cuBLASLt and BF16 reduced_precision/split_k=(False, False), identically in A/B and resident/streamed controls. Runtime refuses other settings and never changes them itself.",
+    "small_rows": "0 rows: no operation. 1 through 16 rows: explicit native torch.mm out path. More than 16: cublasGemmGroupedBatchedEx. This is an intentionally hybrid candidate, not all-expert GEMM fusion.",
+    "memory": "64 MiB expert-weight arena; separate 4 MiB cuBLAS workspace; 64 MiB per-call outputs/pointers; conservative 256 MiB activation/routing tensor budget. These are not total VRAM or allocator-reservation bounds.",
+    "scope_limit": "No claim of bit-exact substitution under the old default cuBLAS dispatch, no unvalidated geometry, no public trainer/default or backward integration. Retain the unsuccessful group-all and one-row-only diagnostics."
+  },
+  "dependencies": {
+    "B1.2": "PR #25, based on 3f03496397adf41479a4a8e8bd39c70ca052e6f7; merge still pending at preparation",
+    "F4": "PR #11 merged; descriptive baseline only, no formal validity verdict",
+    "A1_A2_A3": "not prerequisites for this isolated forward-kernel preparation",
+    "backward": "requires a separate derivative gate and B1.3 integration; never inferred from forward"
+  },
+  "reuse": {
+    "expert_codec_and_reader": "src/soup_cli/utils/expert_shard.py, unchanged B1.1 format",
+    "sequential_baseline_and_budget": "src/soup_cli/utils/expert_stream.py, unchanged B1.2",
+    "native_and_nf4_reference": "benchmarks/harness/b1_expert_forward_gate.py",
+    "trained_checkpoint": "B1.2 protocol pins allenai/OLMoE-1B-7B-0924 at 6d84c48581ece794365f2b8e9cfb043c68ade9c5 with four full file hashes",
+    "historical_shapes_only": "F4 OLMoE H=2048/I=1024/E=64/k=8 and granite H=1024/I=512/E=32/k=8",
+    "not_reused_as_valid_experiment": "F4 unmatched A/B/C/C2/D differences, best-of timing, discarded routing weights, and modeled dense normalization"
+  },
+  "hardware": {
+    "development": "CPU unit/instrument tests locally; Linux CUDA sm_80+ native BF16 and Triton for kernel tests. RTX 3060 is suitable for small fixtures.",
+    "end_to_end": "Linux Ampere or newer, at least 16 GB GPU memory (decimal minimum used by preflight) and enough RAM/checkpoint storage; RTX 3090 24 GB is one option",
+    "two_physical_ssds_required": false,
+    "disk_claim": "Local checkpoint/shards only; no cold-SSD throughput or striping claim",
+    "current_rental_action": "none; prepare and pass local controls before booking a GPU window"
+  },
+  "correctness_matrix": {
+    "formats": ["BF16", "NF4", "nested NF4"],
+    "group_widths": [1, 2, 4],
+    "synthetic_routing": ["balanced", "skewed-unused", "all-experts", "empty", "one-token", "tail-dimensions"],
+    "trained_layers": [0, 7, 15],
+    "references": ["unchanged B1.2 sequential eager code with the same explicit cuBLASLt/no-split-K policy", "independent resident weights from identical stored bytes", "resident and streamed controls with identical new compute class/backend", "same grouped primitive with group width 1"],
+    "numerics": "torch.equal outputs, dtype/shape identity, finite values and nonzero positive controls; no tolerance substitution",
+    "negative_control": "Change the down weights of an active expert in the same process; output must differ. Empty routing is a separate no-load control, not a negative-control PASS.",
+    "memory": "Explicit group weight arena includes all packed/dense/sidecar/code/scratch/padding bytes; also measure total allocated and reserved peaks with resident reference released.",
+    "ownership": "Retain every slot until compute finishes; refuse insufficient budgets before reads or allocation, concurrent leases and unsupported cases; close on errors.",
+    "ordering": "One fetch per active expert, no fetch for empty experts; deterministic expert order, identical routing weights and accumulation order. Never materialize a dense stack of all experts."
+  },
+  "prospective_performance_design": {
+    "gate": "Do not time a candidate that fails exactness, negative controls, ownership or memory controls",
+    "arms": ["A", "B", "B", "A"],
+    "meaning": "A=unchanged B1.2, B=bounded candidate, identical source weights/inputs/routes/precision; one child process per arm",
+    "initial_fixed_budget": "Proposal: width 4, pinned trained layer 7, all three formats. Five ABBA pilot blocks per configuration under ADR 0003, then its deterministic additions with a ten-block cap per configuration. Zero replacement blocks: any invalid arm stops that configuration and is retained. N beyond the cap means insufficient precision, not success. Freeze the final counts/rules before execution.",
+    "samples_proposed": {"warmup": 5, "measured": 20},
+    "metrics": ["all wall-clock samples including load/gather/scatter/synchronization", "CUDA event samples separately", "total allocated/reserved baseline and peaks", "host RSS and staging", "logical reads", "exported CUDA kernel count and raw trace", "versions, SM clocks, temperature, power and visible peers"],
+    "profiling": "Separate warm profiling invocation with identical workload; require real CUDA kernel events. CPU operator counts and missing CUPTI never certify fewer GPU launches.",
+    "success_rule": "Not frozen. Record all samples and position-matched ratios; choose numeric speed/memory/launch thresholds and complete F1 validity rows before execution, without looking at formal arms."
+  },
+  "remaining_before_formal_run": [
+    "Coordinate merge/review of B1.1/B1.2 and agree D3 interface before B1.4 final measurements.",
+    "Review the restricted hybrid GEMM geometry, shared math policy, small-row dispatch and separate memory budgets; do not present the declared native small-row path as fused GEMM or a default-dispatch replacement.",
+    "Prove bit-exact arithmetic and scatter ordering against unchanged B1.2; a tutorial allclose check does not satisfy D3.",
+    "Add candidate-versus-reference tests, trained-layer gate, corruption/ownership controls, performance driver and replay analyzer.",
+    "Choose and test the end-to-end recipe; forward-only B1.2 does not establish a training path. Coordinate B1.3 if that path is used.",
+    "Freeze actual GPU/software/candidate settings, arena/workspace budgets, validity thresholds, sample counts and attempt budget in a new committed executable protocol.",
+    "Run and inspect GPU preflight, including profiler visibility, before the formal window; then commit/freeze the final rule before its first arm."
+  ]
+}

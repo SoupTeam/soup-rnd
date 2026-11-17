@@ -1,0 +1,95 @@
+{
+  "kind": "CPU recipe restriction and evidence tooling review follow-up; no new CUDA run",
+  "base_commit": "95edd02621d4d1670d3d9f505b20503eb2bf69ef",
+  "source_state": "uncommitted working-tree fixes; operator commits/pushes",
+  "platform": {
+    "system": "Windows",
+    "machine": "AMD64",
+    "python": "3.12.14"
+  },
+  "admitted_cpu_recipe": {
+    "systems": [
+      "Linux",
+      "Windows"
+    ],
+    "machines": [
+      "x86_64",
+      "AMD64"
+    ],
+    "weight_dtype": "float32",
+    "cpu_threads": 1
+  },
+  "apple_silicon_cpu_qualified": false,
+  "apple_failure_reproduced_on_this_host": false,
+  "unqualified_cpu_refused_before_cache_access_and_arenas": true,
+  "exact_gate_relaxed": false,
+  "tests": [
+    {
+      "label": "cpu-newdeps",
+      "dependencies": {
+        "torch": "2.15.0+cpu",
+        "trl": "0.29.1",
+        "transformers": "5.21.1",
+        "peft": "0.21.2"
+      },
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "analysis-sft-newdeps",
+      "dependencies": {
+        "torch": "2.15.0+cpu",
+        "trl": "0.29.1",
+        "transformers": "5.21.1",
+        "peft": "0.21.2",
+        "ijson": "3.6.0"
+      },
+      "tests": 130,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "cpu-originaldeps",
+      "dependencies": {
+        "torch": "2.15.0+cpu",
+        "trl": "0.29.1",
+        "transformers": "5.19.0",
+        "peft": "0.20.0"
+      },
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "all-d3-newdeps",
+      "dependencies": {
+        "torch": "2.15.0+cpu",
+        "transformers": "5.21.1",
+        "peft": "0.21.2",
+        "trl": "0.29.1",
+        "ijson": "3.6.0"
+      },
+      "tests": 481,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "gpu_cases_deselected": 94
+    }
+  ],
+  "working_tree_source_sha256": {
+    "benchmarks/harness/d3_fused_trainer_analysis.py": "43a20923e431c0f5d862e97a92a9a9b77a40906411f3b134ecf9cb6963b8dbce",
+    "benchmarks/harness/d3_review_replay.py": "1caf09d6fe33b96c10624a9110f461bb23d9d4ca2ad291a26e5608d5931373ed",
+    "benchmarks/harness/d3_trainer_analysis.py": "0c0227c5e4cbbcf6389092481fc140ebce328e51c276b19c2d88422cae37e2e2",
+    "src/soup_cli/trainer/sft.py": "a32ed9086edc2cab8e16beb6eddf8d4aa153d3859d72d5056fb6fd29b82673e8",
+    "src/soup_cli/utils/expert_training.py": "e0e0b75b51e62ac99c180917927525f3a40a49e2d475f390698ace4c7ed0fff5",
+    "tests/test_d3_cpu_recipe.py": "bc85ec486f7314dd6c39e4bd2ccbd8fe266c02d83e017c884a327f8baead1776",
+    "tests/test_d3_review_replay.py": "58b3ddfc65e1bafc7e29bae9c21e56e3e3b211bd5b9eef5d416f6438acd3d8da",
+    "tests/test_d3_trainer_gate.py": "183e49d72b5a192993866698850fd06a9175583ec54d09300a414cb5fddda6fe",
+    "tests/test_d3_trainer_integration.py": "ad90b8426687ccbaa85fb0e4fc3a40b14f1988166a4c0ac54c8bacf46cb2053c"
+  },
+  "scope": "Tests on two Windows x86-64 dependency recipes; simulated refusal tests are not a Mac hardware execution. Full repository CI and final reviewer acceptance remain separate."
+}

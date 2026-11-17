@@ -131,6 +131,44 @@ def test_a_short_last_window_matches_accumulation(streamed, tmp_path, rows, k, w
     _assert_same_run(ga, l2l, windows)
 
 
+@pytest.mark.parametrize("lengths", [[8, 8, 8], [5, 8, 3]])
+def test_native_loss_keeps_trainers_tensor_denominator(
+    streamed, tmp_path, monkeypatch, lengths  # noqa: F811
+):
+    """A5 window dispatch must preserve D3's loss operand, including the final short window."""
+    import torch
+    from transformers import Trainer
+
+    model, runtime = streamed
+    causal = model.get_base_model()
+    original_loss = causal.loss_function
+    windows, denominators = [], []
+
+    class ObservedTrainer(Trainer):
+        def get_batch_samples(self, *args, **kwargs):
+            samples, count = super().get_batch_samples(*args, **kwargs)
+            assert isinstance(count, torch.Tensor)
+            windows.append(count)
+            return samples, count
+
+    def record_loss(*args, **kwargs):
+        count = kwargs["num_items_in_batch"]
+        assert count is windows[-1]
+        denominators.append(count)
+        return original_loss(*args, **kwargs)
+
+    monkeypatch.setattr(causal, "_loss_function", record_loss, raising=False)
+    data = _MaskedRows(lengths, [[], [(0, 2)], []])
+    result = _train(ObservedTrainer, model, runtime, tmp_path, data, l2l=True, k=2)
+    try:
+        assert len(windows) == result.state.steps == 2
+        assert len(denominators) == 3
+        assert denominators[0] is denominators[1] is windows[0]
+        assert denominators[2] is windows[1]
+    finally:
+        result.state.close()
+
+
 @pytest.mark.parametrize("schedule", ["linear", "cosine"])
 @pytest.mark.parametrize("budget", [{"num_train_epochs": 2}, {"max_steps": 5}])
 def test_the_lr_of_every_step_matches_accumulation(streamed, tmp_path, schedule, budget):  # noqa: F811

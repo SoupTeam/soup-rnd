@@ -82,5 +82,3 @@ def test_moonlight_capacity_does_not_inherit_671b_requirements():
                                  profile_id=profile.profile_id)
     with pytest.raises(ValueError, match="1.4TB"):
         prepare.require_capacity(profile.min_free_bytes, memory)
-
-

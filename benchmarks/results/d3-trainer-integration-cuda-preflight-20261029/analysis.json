@@ -1,0 +1,196 @@
+{
+  "kind": "synthetic CUDA public trainer development preflight",
+  "formal_pretrained_qualification": false,
+  "archive_sha256": "4f28a7d6937ccd28132723f7bfd309589a631fd9912578a54c60651d04114884",
+  "manifest_entries_verified": 548,
+  "development_source_files_verified": 741,
+  "passed_cells": 18,
+  "exact_grouped_triton_comparisons": 12,
+  "exact_adapter_reload_checks": 18,
+  "cross_mode": [
+    {
+      "codec": "none",
+      "backend": "sequential",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "none",
+      "backend": "grouped",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "none",
+      "backend": "triton",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "nf4",
+      "backend": "sequential",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "nf4",
+      "backend": "grouped",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "nf4",
+      "backend": "triton",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "nf4-dq",
+      "backend": "sequential",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "nf4-dq",
+      "backend": "grouped",
+      "exact_final_adapters": true
+    },
+    {
+      "codec": "nf4-dq",
+      "backend": "triton",
+      "exact_final_adapters": true
+    }
+  ],
+  "cells": [
+    {
+      "codec": "none",
+      "l2l": false,
+      "backend": "sequential",
+      "status": "passed"
+    },
+    {
+      "codec": "none",
+      "l2l": false,
+      "backend": "grouped",
+      "status": "passed"
+    },
+    {
+      "codec": "none",
+      "l2l": false,
+      "backend": "triton",
+      "status": "passed"
+    },
+    {
+      "codec": "none",
+      "l2l": true,
+      "backend": "sequential",
+      "status": "passed"
+    },
+    {
+      "codec": "none",
+      "l2l": true,
+      "backend": "grouped",
+      "status": "passed"
+    },
+    {
+      "codec": "none",
+      "l2l": true,
+      "backend": "triton",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4",
+      "l2l": false,
+      "backend": "sequential",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4",
+      "l2l": false,
+      "backend": "grouped",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4",
+      "l2l": false,
+      "backend": "triton",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4",
+      "l2l": true,
+      "backend": "sequential",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4",
+      "l2l": true,
+      "backend": "grouped",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4",
+      "l2l": true,
+      "backend": "triton",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": false,
+      "backend": "sequential",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": false,
+      "backend": "grouped",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": false,
+      "backend": "triton",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": true,
+      "backend": "sequential",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": true,
+      "backend": "grouped",
+      "status": "passed"
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": true,
+      "backend": "triton",
+      "status": "passed"
+    }
+  ],
+  "instrument_controls": [
+    {
+      "case": "baseline",
+      "outcome": "ok"
+    },
+    {
+      "case": "own",
+      "outcome": "ok"
+    },
+    {
+      "case": "foreign",
+      "outcome": "void"
+    }
+  ],
+  "retained_failed_preflight_attempts": [
+    {
+      "path": "evidence/smoke-01/",
+      "traceback": "Traceback (most recent call last):\n  File \"/root/d3-trainer-cuda-development-58145733.py\", line 91, in main\n    wrapper.setup(dict(train=rows, val=[]))\n  File \"/root/d3-trainer-development-01/source/src/soup_cli/trainer/sft.py\", line 792, in setup\n    self._setup_streaming_transformers(cfg, tcfg)\n  File \"/root/d3-trainer-development-01/source/src/soup_cli/trainer/stream_setup.py\", line 1069, in _setup_streaming_transformers\n    model, runtime = build_streamed_model(\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-development-01/source/src/soup_cli/utils/layer_stream_runtime.py\", line 3716, in build_streamed_model\n    expert_resources = install_expert_training(\n                       ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-development-01/source/src/soup_cli/utils/expert_training.py\", line 216, in install_expert_training\n    stack.close()\n  File \"/root/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 618, in close\n    self.__exit__(None, None, None)\n  File \"/root/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 610, in __exit__\n    raise exc_details[1]\n  File \"/root/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 595, in __exit__\n    if cb(*exc_details):\n       ^^^^^^^^^^^^^^^^\n  File \"/root/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 478, in _exit_wrapper\n    callback(*args, **kwds)\n  File \"/root/d3-trainer-development-01/source/src/soup_cli/utils/expert_training.py\", line 89, in restore\n    cuda.matmul.allow_bf16_reduced_precision_reduction_split_k = previous[3]\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-venv/lib/python3.12/site-packages/torch/backends/cuda/__init__.py\", line 214, in __setattr__\n    raise AttributeError(\"Unknown attribute \" + name)\nAttributeError: Unknown attribute allow_bf16_reduced_precision_reduction_split_k\n"
+    },
+    {
+      "path": "evidence/matrix-r2/none-0-sequential/",
+      "traceback": "Traceback (most recent call last):\n  File \"/root/d3-trainer-cuda-development-58145733.py\", line 150, in main\n    assert logits.dtype == capture.logits.dtype and digest(logits) == digest(capture.logits)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+    },
+    {
+      "path": "evidence/matrix-r3/nf4-0-sequential/",
+      "traceback": "Traceback (most recent call last):\n  File \"/root/d3-trainer-cuda-development-58145733.py\", line 73, in main\n    config = SoupConfig(base=str(checkpoint), output=str(case / 'adapter'),\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-venv/lib/python3.12/site-packages/pydantic/main.py\", line 280, in __init__\n    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\npydantic_core._pydantic_core.ValidationError: 1 validation error for SoupConfig\ntraining.quantization\n  Input should be '4bit', '8bit', 'none', 'gptq', 'awq', 'hqq:1bit', 'hqq:2bit', 'hqq:3bit', 'hqq:4bit', 'hqq:5bit', 'hqq:6bit', 'hqq:8bit', 'aqlm', 'eetq', 'mxfp4', 'fp8' or 'bitnet_1.58' [type=literal_error, input_value='nf4', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.14/v/literal_error\n"
+    }
+  ],
+  "counter_scope": "guest-visible virtual disk; no physical host isolation certification"
+}

@@ -94,6 +94,7 @@ PROC_DIR = "/proc"
 
 DISKSTATS_PATH = "/proc/diskstats"
 SYS_BLOCK_DIR = "/sys/block"
+CGROUP_IO_STAT_PATH = "/sys/fs/cgroup/io.stat"
 NOT_PHYSICAL_DISK_PREFIXES = ("loop", "ram", "zram")
 
 #: /proc/diskstats counts 512-byte sectors whatever the hardware sector size.
@@ -288,6 +289,58 @@ def other_disk_reads(device: str) -> Optional[int]:
             if fields[2] in disks:
                 total += int(fields[5]) * DISKSTATS_SECTOR_BYTES
     return total
+
+
+def cgroup_io_reads() -> Dict[str, int]:
+    """Read bytes by device from the current cgroup-v2 ``io.stat`` counter.
+
+    Unlike ``/proc/diskstats``, this is scoped to the current cgroup rather than
+    machine-global activity. Overlay/backing-device attribution must still be
+    validated by the frozen mapping and F1 controls. Missing rows mean zero.
+    """
+    result: Dict[str, int] = {}
+    with open(CGROUP_IO_STAT_PATH, encoding="ascii") as handle:
+        for line in handle:
+            fields = line.split()
+            if not fields:
+                continue
+            device = fields[0]
+            parts = device.split(":")
+            if (len(parts) != 2 or not all(part.isdecimal() for part in parts)
+                    or device in result):
+                raise ValueError("invalid or duplicate cgroup I/O device")
+            values = dict(field.split("=", 1) for field in fields[1:] if "=" in field)
+            if "rbytes" not in values:
+                raise ValueError("cgroup I/O row is missing rbytes")
+            read_bytes = int(values["rbytes"])
+            if read_bytes < 0:
+                raise ValueError("negative cgroup read bytes")
+            result[device] = read_bytes
+    if not result:
+        raise ValueError("cgroup I/O statistics are empty")
+    return result
+
+
+def _block_device_number(device: str) -> str:
+    """Resolve a /proc/diskstats device name to its major:minor identity."""
+    with open(os.path.join(SYS_BLOCK_DIR, device, "dev"), encoding="ascii") as handle:
+        value = handle.read().strip()
+    parts = value.split(":")
+    if len(parts) != 2 or not all(part.isdecimal() for part in parts):
+        raise ValueError(f"invalid sysfs block-device identity for {device}")
+    return value
+
+
+def cgroup_disk_reads(device: str) -> Optional[int]:
+    """Bytes read from ``device`` in the current cgroup-v2 hierarchy."""
+    number = _block_device_number(device)
+    return cgroup_io_reads().get(number, 0)
+
+
+def cgroup_other_disk_reads(device: str) -> Optional[int]:
+    """Cgroup-v2 reads from every exposed device except the watched device."""
+    number = _block_device_number(device)
+    return sum(reads for key, reads in cgroup_io_reads().items() if key != number)
 
 
 class ProcessRead(TypedDict):
@@ -1091,8 +1144,7 @@ def arm_outcome(checks: Dict[str, Dict[str, object]], required: Collection[str])
 
 
 class _LinuxChecks:
-    """The Linux checks: boot-time offset and suspend count for sleep, the kernel's
-    power supplies for power, and the disk-wide read counter for foreign reads."""
+    """The Linux checks: suspend, power, and foreign reads from injected counters."""
 
     def __init__(
         self,

@@ -77,6 +77,22 @@ def test_profiling_a_nonexistent_cuda_device_is_refused() -> None:
             OpCounter(profile_cuda=True).__enter__()
 
 
+def test_process_io_accepts_platforms_without_read_chars(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    import psutil
+
+    from benchmarks.harness import b14_path_report
+
+    counters = SimpleNamespace(read_bytes=17)
+    process = SimpleNamespace(io_counters=lambda: counters)
+    monkeypatch.setattr(psutil, "Process", lambda: process)
+
+    # Platforms which expose only one counter cannot provide the complete
+    # read_bytes/read_chars pair expected by the report schema.
+    assert b14_path_report._process_io() is None
+
+
 # --------------------------------------------------------------------------
 # measure_path on the tiny synthetic checkpoint, CPU.
 # --------------------------------------------------------------------------

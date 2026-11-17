@@ -1,0 +1,132 @@
+{
+  "task": "D3 full-model trained OLMoE optimizer-step comparison",
+  "schema_version": 5,
+  "scope": "trained OLMoE optimizer-step numerical and descriptive GPU comparison; synthetic token IDs, no quality claim",
+  "model_id": "allenai/OLMoE-1B-7B-0924",
+  "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "checkpoint_files": {
+    "config.json": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335",
+    "model-00001-of-00003.safetensors": "5e3cff7e367794685c241169072c940d200918617d5e2813f1c387dff52d845e",
+    "model-00002-of-00003.safetensors": "15ef5c730ee3cfed7199498788cd2faf337203fc74b529625e7502cdd759f4a7",
+    "model-00003-of-00003.safetensors": "a9abac4ac1b55c9adabac721a02fa39971f103eea9a65c310972b1246de76e04"
+  },
+  "formats": [
+    "dense",
+    "nf4",
+    "nf4-dq"
+  ],
+  "modes": [
+    "native",
+    "sequential",
+    "grouped-resident",
+    "grouped",
+    "triton-resident",
+    "triton"
+  ],
+  "timing_pair": [
+    "grouped",
+    "triton"
+  ],
+  "batch": 1,
+  "tokens": 512,
+  "input_seed": 1234,
+  "adapter_seed": 25,
+  "adapter_rank": 4,
+  "learning_rate": 0.5,
+  "steps": 4,
+  "warmup_steps": 1,
+  "timed_steps": 3,
+  "measurement_blocks_per_codec": 5,
+  "sessions_per_commit": 1,
+  "replacements": 0,
+  "weight_budget_bytes": 67108864,
+  "gemm_call_budget_bytes": 67108864,
+  "activation_budget_bytes": 268435456,
+  "native_rows_max": 128,
+  "attempt_budget": {
+    "correctness_cells": 18,
+    "timing_cells": 60,
+    "profile_cells": 6,
+    "total_cells": 84
+  },
+  "expected_cell_count": 84,
+  "execution_enabled": true,
+  "software": {
+    "python": "3.12.15",
+    "torch": "2.14.1+cu130",
+    "cuda": "13.0",
+    "driver": "595.99.02",
+    "transformers": "5.19.0",
+    "triton": "3.8.0",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0"
+  },
+  "gpu_uuid": "GPU-46abdddd-2f6a-a368-5b31-a7d0c0a4a9ef",
+  "cublas_library_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e",
+  "mapping_sha256": "4d14ef905b4c0ea6c5a45b1942f1925dc7bba495c981061046a83ad93bf09bd8",
+  "controls_sha256": "2b733f9df2caed285fdad8d41fb87ecaa1ba1178d58c531899c4d2b54e772acd",
+  "setup_archive_sha256": "85d1f600354997f5d9b008cef1f5b1ec4aee524a225080a2fc1646922270aaa7",
+  "bundle_sha256": {
+    "dense": "bcf2fb639b2d2116495bc60811dea4cdcdda27603e58eb76804b8f866fa9dfb8",
+    "nf4": "ba2a9b96804d0512f10b25169845bd87aad0c1ca5feee8520dab0d73dc612444",
+    "nf4-dq": "3dd7074c2eefbebbe85550600e71903983753f378cab8787669f457689770613"
+  },
+  "execution": "Commit the exact source, rule and setup archive before creating a clean-Git source packet. One new Linux process per cell. Compare full native optimizer-step tensors and adapter state; no TF32; native BF16 only; one visible idle GPU. Five grouped/triton ABBA blocks per format, holding grouped GEMM and pool width constant to isolate the fused activation backend. No replacement attempts; stop on any mismatch, OOM or unknown/void F1.",
+  "acceptance": "All 18 correctness cells, 60 timed cells and six profile cells are retained with passing F1, exact source/data/software identity, route and dispatch evidence, finite loss and gradients, and exact native-oracle tensors/adapter states. Analysis remains descriptive and requires independent review.",
+  "failed_run": "Any mismatch is fail; OOM, interruption, missing dependency, uninspectable validity or identity mismatch is no-verdict. Preserve every attempt. No rerun/replacement under this frozen budget.",
+  "limitations": [
+    "Synthetic token IDs and four SGD steps establish numerical plumbing only; they do not measure quality, convergence or useful training.",
+    "The comparison concerns the frozen residual adapter and tested complete OLMoE forward/backward path, not a supported Soup trainer feature.",
+    "The storage instrument identifies container-visible overlay loop0 only; physical NVMe identity, host isolation and physical-device throughput are not certified.",
+    "RTX 3090 24 GB results do not establish performance or capacity for an 8 GB reference GPU or other hosts.",
+    "The source-preparation bundle attempt that initially rejected loop0 is retained as a failed preparation attempt; it is not a trained-model arm."
+  ],
+  "prior_attempts": [
+    {
+      "commit": "a26f49484f88522ad7e34f6e3cb13b6893d45328",
+      "protocol_sha256": "1aaf1cd0f8d37a058d322c95c299a18351f25472b3623c31b74cab0bde1e8e46",
+      "session_id": "7ecbb5b9d3544bc0b9f7f68b041fc108",
+      "attempt_archive_sha256": "1e30d95875f51dfe2544a23c051be38e185eb01bb2d1140c5d87dbe3a86fb444",
+      "status": "incomplete",
+      "completed_cells": 1,
+      "no_verdict_cell": "correctness-dense-native",
+      "cause": "tensor_hash failed on the scalar loss after the full native optimizer step; F1 was ok",
+      "treatment": "Retain as a separate no-verdict attempt; do not count as a replacement or passing result."
+    },
+    {
+      "commit": "23bad80765ae3a02c19887e0ba5c3bc8550d225e",
+      "protocol_sha256": "2e7a2709eeaaa564223914a88e8d34ebb97056ebd26567c9818bbb714f6738f0",
+      "session_id": "730ef9ec393745068b3c776dd198ddce",
+      "attempt_archive_sha256": "09fba45f4cb84dbb7880c40fb0d4982c4a0a65c8e186617d9a034dd48d2774a0",
+      "status": "incomplete",
+      "completed_cells": 0,
+      "attempted_cell": "correctness-dense-native",
+      "cause": "operator-created supervisor wrapper had CRLF line endings; the cuBLAS path received a trailing carriage return and failed identity validation before model construction",
+      "treatment": "Retain as a separate no-verdict attempt; no model step/F1/measurement ran. Create launch files with LF and require a fresh frozen commit/protocol."
+    },
+    {
+      "commit": "46937f49994edd5667769ba4ec4f161d2154997f",
+      "protocol_sha256": "83af5ce45389f7f1796380459bcce3b55b08ff26d7d55e617e95d50fb49ac8a1",
+      "session_id": "d1238f4a055a4f189e5e69304f87b29e",
+      "attempt_archive_sha256": "611e81b81abae294ce5661b778ce738ede665b82877efea56b3d00b38bfe9b9c",
+      "status": "incomplete",
+      "completed_cells": 1,
+      "passed_cell": "correctness-dense-native",
+      "no_verdict_cell": "correctness-dense-sequential",
+      "cause": "series passed --oracle to the child CLI, but the frozen child parser did not accept that argument; the next cell was rejected before model construction",
+      "treatment": "Retain the native cell and failed invocation separately; do not treat this as a comparison or replacement. Add the missing child argument, verify native-to-candidate dispatch, then use a new frozen commit/protocol."
+    },
+    {
+      "commit": "3492ed83c2cd122ec0ad6318a2f40af6295ebcbc",
+      "protocol_sha256": "8a253f6c6f968d49e80bd235fa6eb9c0ac8f8f137c6384d239c5517e04fe180f",
+      "session_id": "bb01c3a357ee4f1aaefda153734762e5",
+      "attempt_archive_sha256": "80afca9d960093b826772ca2372d135eab2d8648e36c20a794a86f03a6fba0b3",
+      "status": "incomplete",
+      "completed_cells": 0,
+      "attempted_cell": "correctness-dense-native",
+      "cause": "after a container restart, the live shard st_dev changed from 46 to 49; the frozen mapping was correctly rejected before model construction",
+      "treatment": "Retain as a no-verdict attempt with no replacement under revision 4. Revision 5 refreshes mapping and independently passing F1 controls; require a new frozen commit before any formal cell."
+    }
+  ],
+  "container_restart_policy": "Any container or instance restart invalidates the prior mapping. Rediscover all shards and pass independent baseline/own/foreign F1 controls before freezing; identity mismatch is no-verdict and never an automatic replacement."
+}

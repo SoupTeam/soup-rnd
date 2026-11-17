@@ -1,0 +1,56 @@
+{
+  "kind": "D3 formal session timeout audit and prospective revision-3 budget",
+  "observed_utc_date": "2026-10-29",
+  "previous_session": {
+    "git_head": "76d2c4281adae978af300ee039800b8f47735d55",
+    "session_id": "formal-76d2c428-01",
+    "started_utc": "2026-10-29T12:01:00.036808+00:00",
+    "finished_utc": "2026-10-29T15:01:33.805299+00:00",
+    "declared_session_cap_seconds": 10800,
+    "session_status": "incomplete",
+    "series_returncode": 1,
+    "analysis_status": "incomplete_no_task_verdict",
+    "cells_started": 40,
+    "cells_ok": 39,
+    "correctness_cells_ok": 36,
+    "timing_cells_ok": 3,
+    "unresolved_cell": "timing-dense-ordinary-01-4-triton",
+    "unresolved_cell_timeout_seconds": 118.181941679999,
+    "declared_cell_timeout_seconds": 900,
+    "outcome": "Session time cap exhausted; not a numerical mismatch, OOM, or F1 failure. No timing block or task verdict is accepted.",
+    "live_training_processes_after_stop": 0,
+    "raw_session_files": 2606,
+    "raw_session_directory_bytes": 4833104148,
+    "raw_session_path": "/root/d3-public-trainer-preparation-01/prepared-02/formal-76d2c428-01",
+    "truncated_archive_path": "/root/d3-public-trainer-results-76d2c428.zip",
+    "truncated_archive_bytes": 3023399538,
+    "truncated_archive_zip_valid": false,
+    "archive_recovery_required": true
+  },
+  "prospective_revision_3": {
+    "minimum_cells": 234,
+    "maximum_cells": 414,
+    "observed_session_hours_for_40_started_cells": 3.01,
+    "estimated_hours_minimum_at_observed_rate": 17.61,
+    "estimated_hours_maximum_at_observed_rate": 31.15,
+    "session_cap_hours": 36,
+    "cell_timeout_seconds": 900,
+    "sessions_per_commit": 1,
+    "replacements": 0,
+    "numerical_recipe_changed": false,
+    "attempt_cell_budget_changed": false,
+    "results_from_previous_session_reused": false
+  },
+  "current_head_ci": {
+    "git_head": "76d2c4281adae978af300ee039800b8f47735d55",
+    "ubuntu_tests": "success",
+    "lint": "success",
+    "gate": "success",
+    "merge_freshness": "success"
+  },
+  "limitations": [
+    "The previous 39 successful cells are retained as evidence, but the incomplete series has no formal throughput verdict.",
+    "The new session must use a new committed source revision and exclusive session marker.",
+    "The GPU must pass the frozen launcher host checks immediately before the new session; this audit did not claim a new CUDA preflight."
+  ]
+}
