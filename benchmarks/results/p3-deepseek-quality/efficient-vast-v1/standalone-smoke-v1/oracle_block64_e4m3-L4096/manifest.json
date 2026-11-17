@@ -1,0 +1,709 @@
+{
+  "adapter_delta": {
+    "accumulation_dtype": "float64",
+    "delta_l2": 0.10524994241624734,
+    "element_count": 297216,
+    "final_adapter_manifest_sha256": "16924a54e25125e5997dc6a4d7307a6e0725d261e9b97a257d081a6472796b41",
+    "final_parameter_sha256": "cbf69c1bdddd4c507bf0b2e78abc49e334419d694d7ee7db81547a5129c20a47",
+    "initial_adapter_sha256": "ef9e7990555d95f7a67238cff46623c80b311e4791ce4e0bb4ea069237004ddc",
+    "initial_l2": 9.928376379034816,
+    "initial_parameter_sha256": "5e8b1c25d7ea7de40966fd1a168b32c730f6f782fe4e77a6e8e6b3ecb06ba50c",
+    "metric": "global_frobenius_l2",
+    "relative_l2": 0.010600921882705576,
+    "tensor_count": 20
+  },
+  "adapter_update_proved": true,
+  "arm": "oracle_block64_e4m3",
+  "attention_policy": {
+    "contract": {
+      "alternative_noise_floor_backend": "MATH",
+      "arms": [
+        "bf16_l2l",
+        "oracle_block64_e4m3"
+      ],
+      "backend_selection": "sdpa_kernel([requested_backend])",
+      "change_length_batch_or_accumulation_on_oom": false,
+      "compute_dtype": "bfloat16",
+      "created_utc": "2026-11-10T19:21:01.300363+00:00",
+      "determinism": {
+        "algorithms_enabled": true,
+        "allow_tf32": false,
+        "autocast": false,
+        "warn_only": false
+      },
+      "fallback_allowed": false,
+      "gradient_gate": {
+        "accumulation_steps": 8,
+        "main_backend": "EFFICIENT_ATTENTION",
+        "microbatch_length": 64,
+        "noise_floor_backend": "MATH",
+        "prefix_tokens": 512,
+        "thresholds_unchanged": true
+      },
+      "hardware": {
+        "minimum_cuda_capability": [
+          8,
+          0
+        ],
+        "native_bf16_required": true,
+        "offer_and_spending_limit_require_prior_approval": true,
+        "provider": "Vast.ai",
+        "t4_qualification_allowed": false
+      },
+      "layouts": [
+        {
+          "accumulation_steps": 4,
+          "batch_size": 1,
+          "length": 1024
+        },
+        {
+          "accumulation_steps": 1,
+          "batch_size": 1,
+          "length": 4096
+        }
+      ],
+      "main_backend": "EFFICIENT_ATTENTION",
+      "model": {
+        "attention_heads": 128,
+        "config_sha256": "cbf0b95dc614de208a109bb5fd4e7eed11385e9c68411d2c17db5319443035d9",
+        "id": "deepseek-ai/DeepSeek-V3",
+        "query_key_head_dim": 192,
+        "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+        "value_head_dim": 128
+      },
+      "optimizer_and_quality_criteria_unchanged": true,
+      "require_8gb_fit": false,
+      "required_execution_evidence": [
+        "observed_forward_operator",
+        "observed_backward_operator",
+        "actual_cuda_kernel_names",
+        "observed_query_key_value_shapes",
+        "dtype",
+        "device",
+        "deterministic_flags"
+      ],
+      "schema": "p3-deepseek-quality-attention-protocol-v1",
+      "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+      "seed": 23,
+      "trainable_dtype": "float32",
+      "training_pack_manifest_sha256": "c7809f47dd44b1f0cb67a01db63406c381872013dc5bc8df58aedc83d68b1936"
+    },
+    "path": "benchmarks/results/p3-deepseek-quality/attention-protocol-v1.json",
+    "sha256": "fc887c5a996bd58536ef0325b61405cd73a2a83cf363fcc4156204ab180e1ed6"
+  },
+  "completed_steps": 3,
+  "digest_chain": "bf79f0af7c97cf86eb243612c6a8a6fc6d427f25f2d6ee4bf91865a9b4f9306e",
+  "files": {
+    "RUNNING.json": "009bb0c0867aec19c110f4b543a8f7809fb7bbd1a20cb8366281a2815b8cb9fb",
+    "adapter-delta.json": "a54fb1da4dc0ff8b04874860d67bde8576d1ce8d1c8f03c7e30ff801e0bead60",
+    "checkpoints/step-000001/adapter.safetensors": "9f51866f5a8f2a2c16b6569d37578fc402c5dc3d23b79db2ff659cc6639954d1",
+    "checkpoints/step-000001/manifest.json": "ff6d0eb1b179f6f7610d61a38cd2eccf6207c6d7d7968bbf6a304c22366b0121",
+    "checkpoints/step-000001/training-state.pt": "aa9e6086befb39912f9996d1884783864c8db9a56d1f89fbae4f8980377dc769",
+    "checkpoints/step-000002/adapter.safetensors": "c42c2781f0e88c42b21cf061f5253d7fd60592e35c7efdd55f17ea1fdeb26d84",
+    "checkpoints/step-000002/manifest.json": "352f29164481baaa39fc6ce6dd30b7fe992a3c97739683125199668e1518541d",
+    "checkpoints/step-000002/training-state.pt": "423ee172fe1de62abb3d17bc868a44a53676bbd26b7b6772cf9b256795fbca7a",
+    "checkpoints/step-000003/adapter.safetensors": "aba4fbc9b6f67cbfa604f152a0f3c0dd26b8a765d79750fcf8ade88179915fac",
+    "checkpoints/step-000003/manifest.json": "0dfa7e9f42eb38a4de50e17d69c122a83656f5fb34fd31004f1e65d20c9e8c5c",
+    "checkpoints/step-000003/training-state.pt": "0f2904eb44000871139fdff6bce2009cbe54e819176ec60c851f854411f4310a",
+    "final_adapter/README.md": "10371e721c81d020574d886899ab3bc06af7624414ccfec0d0bb5ff58d78a1bb",
+    "final_adapter/adapter_config.json": "ef27b8d5147ac527c867c29f6cfc1678871beb774b93a3418a8c348f046acb1f",
+    "final_adapter/adapter_model.safetensors": "2cb5f2c66e3157451d73c083eafafebef51f29f043d89c00083dd36b18df4743",
+    "final_adapter/manifest.json": "16924a54e25125e5997dc6a4d7307a6e0725d261e9b97a257d081a6472796b41",
+    "step-1-gradients.json": "5f244a177fa77ddebdbb559d01af12c762ba59370f34f46db3c12dd1ccd4b554",
+    "step-1-gradients.safetensors": "a7eb22b03e60b372b6625a4a334e2ad79676d3d1cd87f9473310194025e61b31",
+    "steps.jsonl": "b73917b5a7765e28401f1b39dae02931f934a2668eed047f9d91a1f99f4bc8f9"
+  },
+  "final_adapter": {
+    "files": {
+      "README.md": "10371e721c81d020574d886899ab3bc06af7624414ccfec0d0bb5ff58d78a1bb",
+      "adapter_config.json": "ef27b8d5147ac527c867c29f6cfc1678871beb774b93a3418a8c348f046acb1f",
+      "adapter_model.safetensors": "2cb5f2c66e3157451d73c083eafafebef51f29f043d89c00083dd36b18df4743"
+    },
+    "identity": {
+      "arm": "oracle_block64_e4m3",
+      "attention_policy": {
+        "contract": {
+          "alternative_noise_floor_backend": "MATH",
+          "arms": [
+            "bf16_l2l",
+            "oracle_block64_e4m3"
+          ],
+          "backend_selection": "sdpa_kernel([requested_backend])",
+          "change_length_batch_or_accumulation_on_oom": false,
+          "compute_dtype": "bfloat16",
+          "created_utc": "2026-11-10T19:21:01.300363+00:00",
+          "determinism": {
+            "algorithms_enabled": true,
+            "allow_tf32": false,
+            "autocast": false,
+            "warn_only": false
+          },
+          "fallback_allowed": false,
+          "gradient_gate": {
+            "accumulation_steps": 8,
+            "main_backend": "EFFICIENT_ATTENTION",
+            "microbatch_length": 64,
+            "noise_floor_backend": "MATH",
+            "prefix_tokens": 512,
+            "thresholds_unchanged": true
+          },
+          "hardware": {
+            "minimum_cuda_capability": [
+              8,
+              0
+            ],
+            "native_bf16_required": true,
+            "offer_and_spending_limit_require_prior_approval": true,
+            "provider": "Vast.ai",
+            "t4_qualification_allowed": false
+          },
+          "layouts": [
+            {
+              "accumulation_steps": 4,
+              "batch_size": 1,
+              "length": 1024
+            },
+            {
+              "accumulation_steps": 1,
+              "batch_size": 1,
+              "length": 4096
+            }
+          ],
+          "main_backend": "EFFICIENT_ATTENTION",
+          "model": {
+            "attention_heads": 128,
+            "config_sha256": "cbf0b95dc614de208a109bb5fd4e7eed11385e9c68411d2c17db5319443035d9",
+            "id": "deepseek-ai/DeepSeek-V3",
+            "query_key_head_dim": 192,
+            "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+            "value_head_dim": 128
+          },
+          "optimizer_and_quality_criteria_unchanged": true,
+          "require_8gb_fit": false,
+          "required_execution_evidence": [
+            "observed_forward_operator",
+            "observed_backward_operator",
+            "actual_cuda_kernel_names",
+            "observed_query_key_value_shapes",
+            "dtype",
+            "device",
+            "deterministic_flags"
+          ],
+          "schema": "p3-deepseek-quality-attention-protocol-v1",
+          "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+          "seed": 23,
+          "trainable_dtype": "float32",
+          "training_pack_manifest_sha256": "c7809f47dd44b1f0cb67a01db63406c381872013dc5bc8df58aedc83d68b1936"
+        },
+        "path": "benchmarks/results/p3-deepseek-quality/attention-protocol-v1.json",
+        "sha256": "fc887c5a996bd58536ef0325b61405cd73a2a83cf363fcc4156204ab180e1ed6"
+      },
+      "cache": {
+        "buffers": 2,
+        "double_quant": false,
+        "dtype": "bfloat16",
+        "expert_layout": "per_expert",
+        "index_sha256": "f5f1b5f5422bb4efd20b4d02fd16309b7fd326462cb6e546552697b2ee03dcac",
+        "n_layers": 2,
+        "path": "/root/p3-efficient-smoke/standalone-smoke-v1/cache",
+        "quant": "nf4",
+        "quant_device": "cuda",
+        "read_ahead": 1,
+        "source_fingerprint": "1ed3f3e2d16a90bd36b23f08806f373116d3f0d891d651054f67d6c21f8b96d0",
+        "source_parameters": 8185608,
+        "tier": "disk"
+      },
+      "completed_steps": 3,
+      "initial_adapter_sha256": "ef9e7990555d95f7a67238cff46623c80b311e4791ce4e0bb4ea069237004ddc",
+      "length": 4096,
+      "pack_sha256": "377bbf83525a9c84a4e19e577884bd30178e79b05a28bdddcee722b0ec133a4e",
+      "protocol_sha256": null,
+      "seed": 23,
+      "source": {
+        "cache_source_fingerprint": "1ed3f3e2d16a90bd36b23f08806f373116d3f0d891d651054f67d6c21f8b96d0",
+        "config_sha256": "225c4298c139d0d30f72f1f38b5a03c419d80fa30ff1553d4b9f0d407cf7dde5",
+        "files": {
+          "model.safetensors": {
+            "bytes": 32748384,
+            "mtime_ns": 1794342955770812200
+          }
+        },
+        "model_id": null,
+        "path": "/root/p3-efficient-smoke/standalone-smoke-v1/weights",
+        "production_qualified": false,
+        "revision": null,
+        "shape": {
+          "first_k_dense_replace": 1,
+          "hidden_size": 128,
+          "kv_lora_rank": 32,
+          "model_type": "deepseek_v3",
+          "n_routed_experts": 8,
+          "num_experts_per_tok": 2,
+          "num_hidden_layers": 2,
+          "q_lora_rank": 32,
+          "vocab_size": 64
+        },
+        "source_verification": "source_stat_fingerprint_and_config_sha256",
+        "weight_bytes": 32748384,
+        "weight_files": 1
+      }
+    },
+    "manifest_sha256": "16924a54e25125e5997dc6a4d7307a6e0725d261e9b97a257d081a6472796b41",
+    "parameter_sha256": "cbf69c1bdddd4c507bf0b2e78abc49e334419d694d7ee7db81547a5129c20a47",
+    "path": "final_adapter",
+    "save_guard": "assert_streamed_adapter_saved passed",
+    "schema": "p3-deepseek-quality-adapter-v1"
+  },
+  "final_parameter_sha256": "cbf69c1bdddd4c507bf0b2e78abc49e334419d694d7ee7db81547a5129c20a47",
+  "hardware": {
+    "bf16_supported": true,
+    "capability": [
+      8,
+      6
+    ],
+    "cuda_version": "13.0",
+    "device": "cuda:0",
+    "name": "NVIDIA GeForce RTX 3060",
+    "native_bf16": true,
+    "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+  },
+  "identity": {
+    "arm": "oracle_block64_e4m3",
+    "attention_policy": {
+      "contract": {
+        "alternative_noise_floor_backend": "MATH",
+        "arms": [
+          "bf16_l2l",
+          "oracle_block64_e4m3"
+        ],
+        "backend_selection": "sdpa_kernel([requested_backend])",
+        "change_length_batch_or_accumulation_on_oom": false,
+        "compute_dtype": "bfloat16",
+        "created_utc": "2026-11-10T19:21:01.300363+00:00",
+        "determinism": {
+          "algorithms_enabled": true,
+          "allow_tf32": false,
+          "autocast": false,
+          "warn_only": false
+        },
+        "fallback_allowed": false,
+        "gradient_gate": {
+          "accumulation_steps": 8,
+          "main_backend": "EFFICIENT_ATTENTION",
+          "microbatch_length": 64,
+          "noise_floor_backend": "MATH",
+          "prefix_tokens": 512,
+          "thresholds_unchanged": true
+        },
+        "hardware": {
+          "minimum_cuda_capability": [
+            8,
+            0
+          ],
+          "native_bf16_required": true,
+          "offer_and_spending_limit_require_prior_approval": true,
+          "provider": "Vast.ai",
+          "t4_qualification_allowed": false
+        },
+        "layouts": [
+          {
+            "accumulation_steps": 4,
+            "batch_size": 1,
+            "length": 1024
+          },
+          {
+            "accumulation_steps": 1,
+            "batch_size": 1,
+            "length": 4096
+          }
+        ],
+        "main_backend": "EFFICIENT_ATTENTION",
+        "model": {
+          "attention_heads": 128,
+          "config_sha256": "cbf0b95dc614de208a109bb5fd4e7eed11385e9c68411d2c17db5319443035d9",
+          "id": "deepseek-ai/DeepSeek-V3",
+          "query_key_head_dim": 192,
+          "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+          "value_head_dim": 128
+        },
+        "optimizer_and_quality_criteria_unchanged": true,
+        "require_8gb_fit": false,
+        "required_execution_evidence": [
+          "observed_forward_operator",
+          "observed_backward_operator",
+          "actual_cuda_kernel_names",
+          "observed_query_key_value_shapes",
+          "dtype",
+          "device",
+          "deterministic_flags"
+        ],
+        "schema": "p3-deepseek-quality-attention-protocol-v1",
+        "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+        "seed": 23,
+        "trainable_dtype": "float32",
+        "training_pack_manifest_sha256": "c7809f47dd44b1f0cb67a01db63406c381872013dc5bc8df58aedc83d68b1936"
+      },
+      "path": "benchmarks/results/p3-deepseek-quality/attention-protocol-v1.json",
+      "sha256": "fc887c5a996bd58536ef0325b61405cd73a2a83cf363fcc4156204ab180e1ed6"
+    },
+    "cache": {
+      "buffers": 2,
+      "double_quant": false,
+      "dtype": "bfloat16",
+      "expert_layout": "per_expert",
+      "index_sha256": "f5f1b5f5422bb4efd20b4d02fd16309b7fd326462cb6e546552697b2ee03dcac",
+      "n_layers": 2,
+      "path": "/root/p3-efficient-smoke/standalone-smoke-v1/cache",
+      "quant": "nf4",
+      "quant_device": "cuda",
+      "read_ahead": 1,
+      "source_fingerprint": "1ed3f3e2d16a90bd36b23f08806f373116d3f0d891d651054f67d6c21f8b96d0",
+      "source_parameters": 8185608,
+      "tier": "disk"
+    },
+    "execution": {
+      "allow_tf32": false,
+      "attention_backend": "EFFICIENT_ATTENTION",
+      "attention_policy": {
+        "contract": {
+          "alternative_noise_floor_backend": "MATH",
+          "arms": [
+            "bf16_l2l",
+            "oracle_block64_e4m3"
+          ],
+          "backend_selection": "sdpa_kernel([requested_backend])",
+          "change_length_batch_or_accumulation_on_oom": false,
+          "compute_dtype": "bfloat16",
+          "created_utc": "2026-11-10T19:21:01.300363+00:00",
+          "determinism": {
+            "algorithms_enabled": true,
+            "allow_tf32": false,
+            "autocast": false,
+            "warn_only": false
+          },
+          "fallback_allowed": false,
+          "gradient_gate": {
+            "accumulation_steps": 8,
+            "main_backend": "EFFICIENT_ATTENTION",
+            "microbatch_length": 64,
+            "noise_floor_backend": "MATH",
+            "prefix_tokens": 512,
+            "thresholds_unchanged": true
+          },
+          "hardware": {
+            "minimum_cuda_capability": [
+              8,
+              0
+            ],
+            "native_bf16_required": true,
+            "offer_and_spending_limit_require_prior_approval": true,
+            "provider": "Vast.ai",
+            "t4_qualification_allowed": false
+          },
+          "layouts": [
+            {
+              "accumulation_steps": 4,
+              "batch_size": 1,
+              "length": 1024
+            },
+            {
+              "accumulation_steps": 1,
+              "batch_size": 1,
+              "length": 4096
+            }
+          ],
+          "main_backend": "EFFICIENT_ATTENTION",
+          "model": {
+            "attention_heads": 128,
+            "config_sha256": "cbf0b95dc614de208a109bb5fd4e7eed11385e9c68411d2c17db5319443035d9",
+            "id": "deepseek-ai/DeepSeek-V3",
+            "query_key_head_dim": 192,
+            "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+            "value_head_dim": 128
+          },
+          "optimizer_and_quality_criteria_unchanged": true,
+          "require_8gb_fit": false,
+          "required_execution_evidence": [
+            "observed_forward_operator",
+            "observed_backward_operator",
+            "actual_cuda_kernel_names",
+            "observed_query_key_value_shapes",
+            "dtype",
+            "device",
+            "deterministic_flags"
+          ],
+          "schema": "p3-deepseek-quality-attention-protocol-v1",
+          "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+          "seed": 23,
+          "trainable_dtype": "float32",
+          "training_pack_manifest_sha256": "c7809f47dd44b1f0cb67a01db63406c381872013dc5bc8df58aedc83d68b1936"
+        },
+        "path": "benchmarks/results/p3-deepseek-quality/attention-protocol-v1.json",
+        "sha256": "fc887c5a996bd58536ef0325b61405cd73a2a83cf363fcc4156204ab180e1ed6"
+      },
+      "autocast": false,
+      "cublas_workspace_config": ":4096:8",
+      "cuda_capability": [
+        8,
+        6
+      ],
+      "cuda_version": "13.0",
+      "deterministic_algorithms": true,
+      "device": "cuda",
+      "gate_environment": {
+        "cublas_workspace_config": ":4096:8",
+        "cuda": "13.0",
+        "gpu": {
+          "bf16_supported": true,
+          "capability": [
+            8,
+            6
+          ],
+          "name": "NVIDIA GeForce RTX 3060",
+          "native_bf16": true
+        },
+        "packages": {
+          "accelerate": "1.15.0",
+          "bitsandbytes": "0.50.2",
+          "peft": "0.21.2",
+          "safetensors": "0.8.0",
+          "transformers": "5.19.0"
+        },
+        "torch": "2.11.0+cu130"
+      },
+      "gpu": "NVIDIA GeForce RTX 3060",
+      "hardware": {
+        "bf16_supported": true,
+        "capability": [
+          8,
+          6
+        ],
+        "cuda_version": "13.0",
+        "device": "cuda:0",
+        "name": "NVIDIA GeForce RTX 3060",
+        "native_bf16": true,
+        "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+      },
+      "packages": {
+        "accelerate": "1.15.0",
+        "bitsandbytes": "0.50.2",
+        "peft": "0.21.2",
+        "safetensors": "0.8.0",
+        "torch": "2.11.0",
+        "transformers": "5.19.0"
+      },
+      "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "source_files": {
+        "benchmarks.harness.l2l_mistral_stand": "1d67b09eec080097021804ac37c3b81ed3075e994fae4a3179be7b460b1e9f01",
+        "benchmarks.harness.l2l_schedule": "8018c9fe7c049acc3c6c94971b9092c2eb60e3559e8e79287541809ddecad9ca",
+        "benchmarks.harness.p3_deepseek_fp8_smoke": "90eef1d4b18b3aae4f3a2f9278f19c1c6a9b91148580a963ace2dbd64ea74850",
+        "benchmarks.harness.p3_deepseek_oracle": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71",
+        "benchmarks.harness.p3_deepseek_quality_attention": "2784ea20b1cce847304b57a0b89ef9aaab56ccf7e5529488395cc8113394c46c",
+        "benchmarks.harness.p3_deepseek_quality_data": "7f346a2cffafc3c2de51ad17cf96e74339b71d0cfb26434cd40a206c07643440",
+        "benchmarks.harness.p3_deepseek_quality_model": "7568586dff8da136c63839fe2ee9f3868d052e9e5826aed2e4cbc0ce075acfa0",
+        "benchmarks.harness.p3_deepseek_quality_train": "ede43da3ed5b59bf87f4e15a3f1af77e680720f7ccf4d4567a1105b460e97550",
+        "benchmarks.harness.p3_fp8_smoke": "7edb19a663e9314a2f2977651f7977f7abe3dadc66d72acc0060768ef428be2c",
+        "benchmarks.harness.p3_realdata_codec": "2e47ee7be982a23df5bd930eb2ae69fc8267d6a85019090b83bb7ba9542582e1",
+        "benchmarks.harness.p3_stage2_training": "7e8afe6cb777fbdd38975d0bbb8fe4eb62ca69bdce04e70e921c43f79bf0b204",
+        "benchmarks/results/p3-deepseek-quality/attention-protocol-v1.json": "fc887c5a996bd58536ef0325b61405cd73a2a83cf363fcc4156204ab180e1ed6",
+        "soup_cli.utils.budgeted_activations": "65cd05120c6f28fc1faf0b2c92560c82ad59f8578d25587cecf6514581825900",
+        "soup_cli.utils.expert_stream": "ca6c63f37b6eb8b8f424003c16a0c2a6ce70d26a840a6f75583cb5c1ef274140",
+        "soup_cli.utils.host_memory_budget": "2997f5200df82b2a0f28cb88784f7a13744512a1cf96b5dc2eedbe2393eebcac",
+        "soup_cli.utils.l2l_step": "4499724ff25f7efb83d7ea9f5cee15f85f67feb85504e3987f0c5d770b3eef80",
+        "soup_cli.utils.layer_shard": "19bab3bec81bd7fa76f927899b7d46cd2a86dad2274d2f33a4b7239be8ab0a47",
+        "soup_cli.utils.layer_stream_runtime": "f7cd36c92b6576e1a32fedda1ec5875fb7c4748675eab351e7e81b736e13c7f8"
+      },
+      "torch_threads": 28,
+      "warn_only": false
+    },
+    "gradient_gate": null,
+    "host_limit_bytes": null,
+    "host_limit_policy": "available_psutil_cgroup_min_before_window",
+    "initial_adapter_sha256": "ef9e7990555d95f7a67238cff46623c80b311e4791ce4e0bb4ea069237004ddc",
+    "initial_parameter_sha256": "5e8b1c25d7ea7de40966fd1a168b32c730f6f782fe4e77a6e8e6b3ecb06ba50c",
+    "input_tokens_per_step": 4096,
+    "k": 1,
+    "length": 4096,
+    "micro_batch_size": 1,
+    "optimizer": {
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "clip_max_norm": 1.0,
+      "eps": 1e-08,
+      "lr": 0.0002,
+      "name": "AdamW",
+      "weight_decay": 0.01
+    },
+    "pack_sha256": "377bbf83525a9c84a4e19e577884bd30178e79b05a28bdddcee722b0ec133a4e",
+    "pilot_prefreeze": false,
+    "precision": {
+      "attention_implementation": "sdpa",
+      "autocast": false,
+      "base_parameter_dtype_counts": {
+        "torch.bfloat16": 12,
+        "torch.float32": 16
+      },
+      "compute_dtype": "bfloat16",
+      "lora": {
+        "alpha": 4,
+        "dropout": 0.0,
+        "rank": 2,
+        "targets": [
+          "q_a_proj",
+          "q_b_proj",
+          "kv_a_proj_with_mqa",
+          "kv_b_proj",
+          "o_proj"
+        ]
+      },
+      "trainable_dtype": "float32",
+      "trainable_elements": 297216,
+      "trainable_tensors": 20
+    },
+    "protocol_sha256": null,
+    "scheduler": {
+      "horizon": 3,
+      "name": "cosine",
+      "warmup_steps": 2
+    },
+    "seed": 23,
+    "source": {
+      "cache_source_fingerprint": "1ed3f3e2d16a90bd36b23f08806f373116d3f0d891d651054f67d6c21f8b96d0",
+      "config_sha256": "225c4298c139d0d30f72f1f38b5a03c419d80fa30ff1553d4b9f0d407cf7dde5",
+      "files": {
+        "model.safetensors": {
+          "bytes": 32748384,
+          "mtime_ns": 1794342955770812200
+        }
+      },
+      "model_id": null,
+      "path": "/root/p3-efficient-smoke/standalone-smoke-v1/weights",
+      "production_qualified": false,
+      "revision": null,
+      "shape": {
+        "first_k_dense_replace": 1,
+        "hidden_size": 128,
+        "kv_lora_rank": 32,
+        "model_type": "deepseek_v3",
+        "n_routed_experts": 8,
+        "num_experts_per_tok": 2,
+        "num_hidden_layers": 2,
+        "q_lora_rank": 32,
+        "vocab_size": 64
+      },
+      "source_verification": "source_stat_fingerprint_and_config_sha256",
+      "weight_bytes": 32748384,
+      "weight_files": 1
+    },
+    "steps": 3,
+    "test_fixture": true
+  },
+  "infrastructure_loss": null,
+  "initial_adapter_sha256": "ef9e7990555d95f7a67238cff46623c80b311e4791ce4e0bb4ea069237004ddc",
+  "input_token_count": 12288,
+  "length": 4096,
+  "model": {
+    "cache": {
+      "buffers": 2,
+      "double_quant": false,
+      "dtype": "bfloat16",
+      "expert_layout": "per_expert",
+      "index_sha256": "f5f1b5f5422bb4efd20b4d02fd16309b7fd326462cb6e546552697b2ee03dcac",
+      "n_layers": 2,
+      "path": "/root/p3-efficient-smoke/standalone-smoke-v1/cache",
+      "quant": "nf4",
+      "quant_device": "cuda",
+      "read_ahead": 1,
+      "source_fingerprint": "1ed3f3e2d16a90bd36b23f08806f373116d3f0d891d651054f67d6c21f8b96d0",
+      "source_parameters": 8185608,
+      "tier": "disk"
+    },
+    "precision": {
+      "attention_implementation": "sdpa",
+      "autocast": false,
+      "base_parameter_dtype_counts": {
+        "torch.bfloat16": 12,
+        "torch.float32": 16
+      },
+      "compute_dtype": "bfloat16",
+      "lora": {
+        "alpha": 4,
+        "dropout": 0.0,
+        "rank": 2,
+        "targets": [
+          "q_a_proj",
+          "q_b_proj",
+          "kv_a_proj_with_mqa",
+          "kv_b_proj",
+          "o_proj"
+        ]
+      },
+      "trainable_dtype": "float32",
+      "trainable_elements": 297216,
+      "trainable_tensors": 20
+    },
+    "source": {
+      "cache_source_fingerprint": "1ed3f3e2d16a90bd36b23f08806f373116d3f0d891d651054f67d6c21f8b96d0",
+      "config_sha256": "225c4298c139d0d30f72f1f38b5a03c419d80fa30ff1553d4b9f0d407cf7dde5",
+      "files": {
+        "model.safetensors": {
+          "bytes": 32748384,
+          "mtime_ns": 1794342955770812200
+        }
+      },
+      "model_id": null,
+      "path": "/root/p3-efficient-smoke/standalone-smoke-v1/weights",
+      "production_qualified": false,
+      "revision": null,
+      "shape": {
+        "first_k_dense_replace": 1,
+        "hidden_size": 128,
+        "kv_lora_rank": 32,
+        "model_type": "deepseek_v3",
+        "n_routed_experts": 8,
+        "num_experts_per_tok": 2,
+        "num_hidden_layers": 2,
+        "q_lora_rank": 32,
+        "vocab_size": 64
+      },
+      "source_verification": "source_stat_fingerprint_and_config_sha256",
+      "weight_bytes": 32748384,
+      "weight_files": 1
+    }
+  },
+  "pilot_prefreeze": false,
+  "quality_evaluated": false,
+  "resumed_from_step": 0,
+  "run_identity_sha256": "42a43a7877570abd85c1412178af1b5da5c71b292337e7d29c624164202b8394",
+  "runtime": {
+    "accounted_peak_bytes": null,
+    "buffer_bytes": 4610304,
+    "buffers": 2,
+    "device": "cuda",
+    "disk_bytes": 4519680,
+    "expert_buffer_bytes": 63488,
+    "expert_bytes_read": 456192,
+    "expert_fetches": 33,
+    "host_allocated_bytes": 4550656,
+    "large_buffer_bytes": 16384,
+    "large_loads": 7,
+    "layer_loads": 7,
+    "layer_restores": 16,
+    "n_layers": 2,
+    "pinned": false,
+    "pinned_bytes": 0,
+    "read_ahead": 1,
+    "resident_bytes": 0,
+    "resident_tensor_bytes_served": 0,
+    "staging_bytes": 4534272,
+    "store_bytes": 4519680,
+    "tier": "disk",
+    "total_params": 8185608
+  },
+  "schema": "p3-deepseek-quality-run-v1",
+  "seed": 23,
+  "status": "COMPLETE",
+  "valid_target_count": 12275
+}

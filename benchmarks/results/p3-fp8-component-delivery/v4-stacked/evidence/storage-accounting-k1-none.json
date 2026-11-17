@@ -1,0 +1,170 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "codec": "none",
+      "k": 1,
+      "status": "PASS",
+      "resolved_plan": {
+        "requested_k": 1,
+        "effective_k": 1,
+        "available_host_bytes": 5368709120,
+        "activation_bytes": 63963136,
+        "routing_record_bytes": 237568,
+        "routing_comparison_bytes": 4096,
+        "n_layers": 61,
+        "n_moe_layers": 58,
+        "experts_per_token": 8,
+        "max_shape": [
+          1,
+          64,
+          7168
+        ],
+        "dtype": "bfloat16",
+        "pin": true,
+        "codec": "none",
+        "device_type": "cuda",
+        "saved_expert_input_bytes": null,
+        "host_bytes": 64204800
+      },
+      "reservation_matches_resolved_plan": true,
+      "store_before": {
+        "kind": "tensor storage and budget observations, not process RAM",
+        "class": "BudgetedActivationStore",
+        "mb_capacity_shapes": [
+          [
+            458752
+          ]
+        ],
+        "n_layers": 61,
+        "capacity_k": 1,
+        "storage_observed": {
+          "owned_host_storage_bytes": 55967744
+        },
+        "allocation_estimate": null,
+        "allocation_estimate_kind": "conservative product estimator; includes allocator rounding and one output peak; device transient is not host memory",
+        "budget": {
+          "kind": "observed accounting reservation; not an RSS limit",
+          "limit_bytes": 5368709120,
+          "fixed_reserved_bytes": 0,
+          "live_used_bytes": 64204800,
+          "available_bytes": 5304504320
+        },
+        "stats": {
+          "chunk_bytes": 917504,
+          "resident_chunks": 61,
+          "spilled_chunks": 0,
+          "spill_layers": 0,
+          "pinned": true,
+          "direct": null,
+          "bytes_written": 0,
+          "bytes_read": 0,
+          "put_wait_s": 0.0,
+          "get_wait_s": 0.0,
+          "spill_left_behind": null
+        }
+      },
+      "store_after": {
+        "kind": "tensor storage and budget observations, not process RAM",
+        "class": "BudgetedActivationStore",
+        "mb_capacity_shapes": [
+          [
+            458752
+          ]
+        ],
+        "n_layers": 61,
+        "capacity_k": 1,
+        "storage_observed": {
+          "owned_host_storage_bytes": 55967744
+        },
+        "allocation_estimate": null,
+        "allocation_estimate_kind": "conservative product estimator; includes allocator rounding and one output peak; device transient is not host memory",
+        "budget": {
+          "kind": "observed accounting reservation; not an RSS limit",
+          "limit_bytes": 5368709120,
+          "fixed_reserved_bytes": 0,
+          "live_used_bytes": 64204800,
+          "available_bytes": 5304504320
+        },
+        "stats": {
+          "chunk_bytes": 917504,
+          "resident_chunks": 61,
+          "spilled_chunks": 0,
+          "spill_layers": 0,
+          "pinned": true,
+          "direct": null,
+          "bytes_written": 0,
+          "bytes_read": 0,
+          "put_wait_s": 0.0,
+          "get_wait_s": 0.0,
+          "spill_left_behind": null
+        }
+      },
+      "reservation_unchanged_through_roundtrip": true,
+      "puts": 61,
+      "gets": 61,
+      "restore_e1": {
+        "rel_l2": 0.0,
+        "rms_row_rel": 0.0,
+        "max_abs": 0.0,
+        "max_abs_over_absmax": 0.0,
+        "worst_row_rel": 0.0,
+        "err_sq": 0.0,
+        "ref_sq": 9574711.103088742,
+        "rows": 3904,
+        "row_rel_sq_sum": 0.0
+      },
+      "roundtrip_bitwise": true,
+      "route_reservation_bytes": 241664,
+      "routing_storage_observed": false,
+      "host_tensor_payload_formula_bytes": 55967744,
+      "memory_observed": {
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_rss_before_bytes": 774258688,
+        "cuda_allocated_before_bytes": 918016,
+        "cuda_reserved_before_bytes": 2097152,
+        "scope": "Storage-only allocation, put/get, G4 comparison and process baseline; no weights, optimizer or expert graphs. Routing bytes are leased, not filled route tensors.",
+        "wall_seconds": 0.34302140999989206,
+        "process_rss_after_bytes": 1078407168,
+        "process_rss_sampled_peak_bytes": 1078407168,
+        "process_rss_samples": 35,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_lifetime_rss_high_water_bytes": 1078112256,
+        "cuda_allocated_peak_bytes": 13765120,
+        "cuda_reserved_peak_bytes": 25165824,
+        "cuda_allocated_after_bytes": 918016,
+        "cuda_reserved_after_bytes": 25165824,
+        "sampling_errors": []
+      },
+      "persistent_storage_matches_shape_formula": true,
+      "budget_used_after_close_bytes": 0
+    }
+  ],
+  "minimum_useful_host_saving_fraction": 0.25,
+  "hard_host_reservation_limit_bytes": 5368709120,
+  "minimum_useful_shape": {
+    "layers": 61,
+    "hidden": 7168,
+    "tokens_per_mb": 64,
+    "k": 64
+  },
+  "scope": "BF16/FP8 store comparison only, not training acceptance or 8 GB fit",
+  "excluded_consumers": [
+    "model and optimizer",
+    "expert arena/graphs",
+    "caller-retained hidden states/gradients",
+    "allocator caches and Python metadata",
+    "physical routing tensors"
+  ],
+  "attached_input": {
+    "root": "/kaggle/input/models/deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+    "config_sha256": "4422016f41c506339e0510a32812a63da554dc9febd5f1368e7240ded14e4a27",
+    "index_sha256": "a2c5d238ab1e8301a117336e9797e0d3551cb8f6dc9dc787318b23d8f54c9248",
+    "referenced_shards_present": 163,
+    "whole_model_allocated": false,
+    "training_671b_steps": 0
+  },
+  "process_isolation": "One fresh child per codec/k; no preceding store cache",
+  "nonfinite_metric_paths": []
+}

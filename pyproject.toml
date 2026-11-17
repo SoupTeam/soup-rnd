@@ -257,6 +257,8 @@ artifacts = [
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+# Byte-exact copies of code an archived run executed; result-index.json pins their hashes.
+extend-exclude = ["benchmarks/results/p3-moonlight-quality/unattended-eval-v1"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]

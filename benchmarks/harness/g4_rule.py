@@ -36,10 +36,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import g4_activation_codec as codecs  # noqa: E402
 
+from soup_cli.utils import activation_codec  # noqa: E402
+
 PASS, FAIL, NONE = "pass", "fail", "no verdict"
-CANDIDATES = codecs.CANDIDATES
-CONTROL = codecs.COARSE
-EXACT = codecs.IDENTITY
+CANDIDATES = activation_codec.CANDIDATES
+CONTROL = activation_codec.COARSE
+EXACT = activation_codec.IDENTITY
 MAIN_SEED = 1
 NOISE_SEED = 2
 CPU_LABEL = "SYNTHETIC/CPU PILOT"
@@ -58,9 +60,9 @@ GRAD_MIN_COSINE = 0.99
 #: V4: the largest element error over its row's absmax that each codec's definition
 #: allows, bf16 rounding of the restored value included.
 ELEMENT_BOUND = {
-    codecs.INT8: 1 / 254 + 2.0**-8,
-    codecs.FP8: 2.0**-4 + 2.0**-8,
-    codecs.COARSE: 1 / 14 + 2.0**-8,
+    activation_codec.INT8: 1 / 254 + 2.0**-8,
+    activation_codec.FP8: 2.0**-4 + 2.0**-8,
+    activation_codec.COARSE: 1 / 14 + 2.0**-8,
 }
 
 # -- the quality gate (§3.3) ---------------------------------------------------

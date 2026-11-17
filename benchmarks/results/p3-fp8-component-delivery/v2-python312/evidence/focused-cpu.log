@@ -1,0 +1,905 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.2, pluggy-1.7.0 -- /kaggle/working/py312/bin/python
+cachedir: .pytest_cache
+rootdir: /kaggle/working/soup
+configfile: pyproject.toml
+plugins: anyio-4.16.0, cov-7.1.0
+collecting ... collected 595 items / 36 deselected / 559 selected
+
+tests/test_fp8_activations.py::test_fp8_allocation_charges_each_pinned_payload_and_one_scale_slab PASSED [  0%]
+tests/test_fp8_activations.py::test_cpu_codec_scratch_is_host_memory_not_device_memory PASSED [  0%]
+tests/test_fp8_activations.py::test_codec_tile_scratch_does_not_grow_with_full_window_rows PASSED [  0%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides0] PASSED [  0%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides1] PASSED [  0%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides2] PASSED [  1%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides3] PASSED [  1%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides4] PASSED [  1%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides5] PASSED [  1%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides6] PASSED [  1%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides7] PASSED [  1%]
+tests/test_fp8_activations.py::test_invalid_estimator_inputs_are_refused[overrides8] PASSED [  2%]
+tests/test_fp8_activations.py::test_shared_fp8_matches_the_original_g4_operation_order[bfloat16] PASSED [  2%]
+tests/test_fp8_activations.py::test_shared_fp8_matches_the_original_g4_operation_order[float32] PASSED [  2%]
+tests/test_fp8_activations.py::test_shared_g4_codecs_keep_zero_denormal_and_extreme_absmax_exact[int8] PASSED [  2%]
+tests/test_fp8_activations.py::test_shared_g4_codecs_keep_zero_denormal_and_extreme_absmax_exact[fp8_e4m3] PASSED [  2%]
+tests/test_fp8_activations.py::test_shared_g4_codecs_keep_zero_denormal_and_extreme_absmax_exact[int4] PASSED [  3%]
+tests/test_fp8_activations.py::test_shared_fp8_refuses_nonfinite_values[nan] PASSED [  3%]
+tests/test_fp8_activations.py::test_shared_fp8_refuses_nonfinite_values[inf] PASSED [  3%]
+tests/test_fp8_activations.py::test_shared_fp8_refuses_nonfinite_values[-inf] PASSED [  3%]
+tests/test_fp8_activations.py::test_owned_host_storage_and_live_lease_match_the_shared_breakdown PASSED [  3%]
+tests/test_fp8_activations.py::test_ragged_slots_restore_each_original_shape_and_return_independent_outputs PASSED [  3%]
+tests/test_fp8_activations.py::test_noncontiguous_input_is_encoded_in_bounded_row_tiles PASSED [  4%]
+tests/test_fp8_activations.py::test_short_windows_clear_old_shapes_and_nonfinite_status_between_steps PASSED [  4%]
+tests/test_fp8_activations.py::test_a_finite_overwrite_cannot_hide_an_earlier_nonfinite_boundary PASSED [  4%]
+tests/test_fp8_activations.py::test_put_rejects_capacity_overflow_or_changed_hidden_width[shape0] PASSED [  4%]
+tests/test_fp8_activations.py::test_put_rejects_capacity_overflow_or_changed_hidden_width[shape1] PASSED [  4%]
+tests/test_fp8_activations.py::test_put_rejects_capacity_overflow_or_changed_hidden_width[shape2] PASSED [  5%]
+tests/test_fp8_activations.py::test_keys_cannot_escape_the_reserved_layer_and_microbatch_slots[key0] PASSED [  5%]
+tests/test_fp8_activations.py::test_keys_cannot_escape_the_reserved_layer_and_microbatch_slots[key1] PASSED [  5%]
+tests/test_fp8_activations.py::test_keys_cannot_escape_the_reserved_layer_and_microbatch_slots[key2] PASSED [  5%]
+tests/test_fp8_activations.py::test_keys_cannot_escape_the_reserved_layer_and_microbatch_slots[key3] PASSED [  5%]
+tests/test_fp8_activations.py::test_keys_cannot_escape_the_reserved_layer_and_microbatch_slots[key4] PASSED [  5%]
+tests/test_fp8_activations.py::test_insufficient_budget_is_rejected_before_the_first_tensor_allocation PASSED [  6%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides0] PASSED [  6%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides1] PASSED [  6%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides2] PASSED [  6%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides3] PASSED [  6%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides4] PASSED [  6%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides5] PASSED [  7%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides6] PASSED [  7%]
+tests/test_fp8_activations.py::test_invalid_store_layout_leaves_no_reservation[overrides7] PASSED [  7%]
+tests/test_fp8_activations.py::test_partial_constructor_failure_drops_storage_before_releasing_the_lease PASSED [  7%]
+tests/test_fp8_activations.py::test_compression_exception_preserves_the_lease_until_explicit_close PASSED [  7%]
+tests/test_fp8_activations.py::test_decode_exception_tracebacks_do_not_keep_owned_storage_after_close PASSED [  8%]
+tests/test_fp8_activations.py::test_failed_cuda_drain_retains_storage_and_lease_until_close_retry PASSED [  8%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes0] PASSED [  8%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes1] PASSED [  8%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes2] PASSED [  8%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes3] PASSED [  8%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes4] PASSED [  9%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes5] PASSED [  9%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes6] PASSED [  9%]
+tests/test_fp8_l2l_trainer.py::test_codec_refuses_settings_outside_its_sft_consumer[changes7] PASSED [  9%]
+tests/test_fp8_l2l_trainer.py::test_codec_rejects_unknown_spelling PASSED [  9%]
+tests/test_fp8_l2l_trainer.py::test_fp8_store_preserves_hidden_rows_and_grows_each_position PASSED [ 10%]
+tests/test_fp8_l2l_trainer.py::test_unknown_or_too_small_ram_budget_never_falls_back[None] PASSED [ 10%]
+tests/test_fp8_l2l_trainer.py::test_unknown_or_too_small_ram_budget_never_falls_back[0] PASSED [ 10%]
+tests/test_fp8_l2l_trainer.py::test_unknown_or_too_small_ram_budget_never_falls_back[1] PASSED [ 10%]
+tests/test_fp8_l2l_trainer.py::test_fp8_uses_c3_activation_partition_without_touching_weights PASSED [ 10%]
+tests/test_fp8_l2l_trainer.py::test_resolved_plan_reserves_routing_across_growth_and_rejects_oversize PASSED [ 10%]
+tests/test_fp8_l2l_trainer.py::test_plan_allocation_bound_is_checked_before_replacing_store PASSED [ 11%]
+tests/test_fp8_l2l_trainer.py::test_plan_requires_matching_codec_and_explicit_allocator PASSED [ 11%]
+tests/test_fp8_l2l_trainer.py::test_incompatible_plan_metadata_refuses_before_allocation[changes0] PASSED [ 11%]
+tests/test_fp8_l2l_trainer.py::test_incompatible_plan_metadata_refuses_before_allocation[changes1] PASSED [ 11%]
+tests/test_fp8_l2l_trainer.py::test_incompatible_plan_metadata_refuses_before_allocation[changes2] PASSED [ 11%]
+tests/test_fp8_l2l_trainer.py::test_incompatible_plan_metadata_refuses_before_allocation[changes3] PASSED [ 11%]
+tests/test_fp8_l2l_trainer.py::test_incompatible_plan_metadata_refuses_before_allocation[changes4] PASSED [ 12%]
+tests/test_fp8_l2l_trainer.py::test_resolved_plan_constructor_failure_releases_routing_lease PASSED [ 12%]
+tests/test_fp8_l2l_trainer.py::test_empty_or_malformed_windows_refuse_without_storage[shapes0] PASSED [ 12%]
+tests/test_fp8_l2l_trainer.py::test_empty_or_malformed_windows_refuse_without_storage[shapes1] PASSED [ 12%]
+tests/test_fp8_l2l_trainer.py::test_empty_or_malformed_windows_refuse_without_storage[shapes2] PASSED [ 12%]
+tests/test_fp8_l2l_trainer.py::test_empty_or_malformed_windows_refuse_without_storage[shapes3] PASSED [ 13%]
+tests/test_fp8_l2l_trainer.py::test_fp8_rejects_incompatible_compute_dtype_before_allocation[float16] PASSED [ 13%]
+tests/test_fp8_l2l_trainer.py::test_fp8_rejects_incompatible_compute_dtype_before_allocation[int32] PASSED [ 13%]
+tests/test_fp8_l2l_trainer.py::test_failed_store_drain_retains_routing_reservation_and_blocks_weight_cleanup PASSED [ 13%]
+tests/test_fp8_l2l_trainer.py::test_training_exit_drains_fp8_store_and_routing_lease[RuntimeError] PASSED [ 13%]
+tests/test_fp8_l2l_trainer.py::test_training_exit_drains_fp8_store_and_routing_lease[KeyboardInterrupt] PASSED [ 13%]
+tests/test_fp8_l2l_trainer.py::test_custom_loss_cannot_silently_use_sft_only_codec PASSED [ 14%]
+tests/test_fp8_l2l_trainer.py::test_public_builder_refuses_unresolved_accumulation_without_rescheduling PASSED [ 14%]
+tests/test_fp8_l2l_trainer.py::test_sft_trainer_mixed_lengths_short_window_normalization_and_cleanup[1-expected_counts0-expected_stores0-cpu] PASSED [ 14%]
+tests/test_fp8_l2l_trainer.py::test_sft_trainer_mixed_lengths_short_window_normalization_and_cleanup[4-expected_counts1-expected_stores1-cpu] PASSED [ 14%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[top_k-none] PASSED [ 14%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[top_k-fp8_e4m3] PASSED [ 15%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[moe_layers-none] PASSED [ 15%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[moe_layers-fp8_e4m3] PASSED [ 15%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_host-none] PASSED [ 15%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_host-fp8_e4m3] PASSED [ 15%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_c3-none] PASSED [ 15%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_c3-fp8_e4m3] PASSED [ 16%]
+tests/test_fp8_l2l_trainer.py::test_replacing_plan_cannot_reuse_an_undersized_routing_lease PASSED [ 16%]
+tests/test_fp8_l2l_trainer.py::test_routing_refusal_traceback_releases_owned_records[False-cpu] PASSED [ 16%]
+tests/test_fp8_l2l_trainer.py::test_routing_refusal_traceback_releases_owned_records[True-cpu] PASSED [ 16%]
+tests/test_fp8_l2l_trainer.py::test_live_routes_cannot_exceed_the_resolved_comparison_budget PASSED [ 16%]
+tests/test_fp8_l2l_trainer.py::test_native_resolved_routing_budget_runs_full_then_short_windows PASSED [ 16%]
+tests/test_moe_l2l_budget.py::test_exact_fit_keeps_requested_window[bfloat16-False-1680] PASSED [ 17%]
+tests/test_moe_l2l_budget.py::test_exact_fit_keeps_requested_window[float32-False-3360] PASSED [ 17%]
+tests/test_moe_l2l_budget.py::test_exact_fit_keeps_requested_window[bfloat16-True-3072] PASSED [ 17%]
+tests/test_moe_l2l_budget.py::test_exact_fit_keeps_requested_window[float32-True-6144] PASSED [ 17%]
+tests/test_moe_l2l_budget.py::test_selection_uses_remaining_budget_and_all_integer_window_sizes PASSED [ 17%]
+tests/test_moe_l2l_budget.py::test_rejects_budget_too_small_for_one_microbatch[0] PASSED [ 18%]
+tests/test_moe_l2l_budget.py::test_rejects_budget_too_small_for_one_microbatch[1139] PASSED [ 18%]
+tests/test_moe_l2l_budget.py::test_rejects_unsupported_dimensions_and_dtype[invalid0] PASSED [ 18%]
+tests/test_moe_l2l_budget.py::test_rejects_unsupported_dimensions_and_dtype[invalid1] PASSED [ 18%]
+tests/test_moe_l2l_budget.py::test_rejects_unsupported_dimensions_and_dtype[invalid2] PASSED [ 18%]
+tests/test_moe_l2l_budget.py::test_rejects_unsupported_dimensions_and_dtype[invalid3] PASSED [ 18%]
+tests/test_moe_l2l_budget.py::test_rejects_unsupported_dimensions_and_dtype[invalid4] PASSED [ 19%]
+tests/test_moe_l2l_budget.py::test_rejects_unsupported_dimensions_and_dtype[invalid5] PASSED [ 19%]
+tests/test_moe_l2l_budget.py::test_plan_covers_cpu_store_and_route_tensors_under_one_budget PASSED [ 19%]
+tests/test_moe_l2l_budget.py::test_plan_covers_native_deepseek_l2l_buffers PASSED [ 19%]
+tests/test_moe_l2l_budget.py::test_fp8_plan_selects_largest_fitting_window_including_scratch[cpu] PASSED [ 19%]
+tests/test_moe_l2l_budget.py::test_fp8_plan_selects_largest_fitting_window_including_scratch[cuda] PASSED [ 20%]
+tests/test_moe_l2l_budget.py::test_fp8_plan_reserves_real_variable_shape_store_and_releases_it PASSED [ 20%]
+tests/test_moe_l2l_budget.py::test_memory_plan_refuses_out_of_envelope_window[change0] PASSED [ 20%]
+tests/test_moe_l2l_budget.py::test_memory_plan_refuses_out_of_envelope_window[change1] PASSED [ 20%]
+tests/test_moe_l2l_budget.py::test_memory_plan_refuses_out_of_envelope_window[change2] PASSED [ 20%]
+tests/test_moe_l2l_budget.py::test_memory_plan_refuses_out_of_envelope_window[change3] PASSED [ 20%]
+tests/test_moe_l2l_budget.py::test_memory_plan_refuses_out_of_envelope_window[change4] PASSED [ 21%]
+tests/test_moe_l2l_budget.py::test_memory_plan_refuses_out_of_envelope_window[change5] PASSED [ 21%]
+tests/test_moe_l2l_budget.py::test_memory_plan_refuses_out_of_envelope_window[change6] PASSED [ 21%]
+tests/test_moe_l2l_budget.py::test_fp8_minimum_includes_scratch_and_routing_before_admission[cpu-False-237] PASSED [ 21%]
+tests/test_moe_l2l_budget.py::test_fp8_minimum_includes_scratch_and_routing_before_admission[cuda-True-42] PASSED [ 21%]
+tests/test_moe_l2l_budget.py::test_fp8_scale_slab_rounding_changes_the_admitted_window[113-2] PASSED [ 22%]
+tests/test_moe_l2l_budget.py::test_fp8_scale_slab_rounding_changes_the_admitted_window[114-3] PASSED [ 22%]
+tests/test_c3_public_l2l.py::test_maximum_window_is_reserved_before_cache_including_pinned_rounding[False-101376] PASSED [ 22%]
+tests/test_c3_public_l2l.py::test_maximum_window_is_reserved_before_cache_including_pinned_rounding[True-196608] PASSED [ 22%]
+tests/test_c3_public_l2l.py::test_fp8_partition_covers_cpu_transient_and_variable_shape_storage PASSED [ 22%]
+tests/test_c3_public_l2l.py::test_combined_fp8_moe_c3_reserves_routing_before_weights_and_keeps_it_during_growth PASSED [ 22%]
+tests/test_c3_public_l2l.py::test_fp8_device_mismatch_keeps_existing_store_and_lease PASSED [ 23%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes0] PASSED [ 23%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes1] PASSED [ 23%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes2] PASSED [ 23%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes3] PASSED [ 23%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes4] PASSED [ 23%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes5] PASSED [ 24%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes6] PASSED [ 24%]
+tests/test_c3_public_l2l.py::test_windows_cannot_borrow_cache_partition[changes7] PASSED [ 24%]
+tests/test_c3_public_l2l.py::test_insufficient_fixed_budget_refuses_before_any_weight_allocation PASSED [ 24%]
+tests/test_c3_public_l2l.py::test_shape_replacement_releases_old_activation_lease_and_oversize_retains_it PASSED [ 24%]
+tests/test_c3_public_l2l.py::test_mixed_length_window_fits_reserved_partition PASSED [ 25%]
+tests/test_c3_public_l2l.py::test_failed_activation_drain_prevents_weight_cleanup PASSED [ 25%]
+tests/test_c3_public_l2l.py::test_public_setup_and_optimizer_update_use_reserved_l2l_store[none] FAILED [ 25%]
+tests/test_c3_public_l2l.py::test_public_setup_and_optimizer_update_use_reserved_l2l_store[fp8_e4m3] FAILED [ 25%]
+tests/test_c3_public_l2l.py::test_public_hf_loop_matches_disk_only_l2l[cpu] PASSED [ 25%]
+tests/test_c3_l2l_shared_runtime.py::test_shared_runtime_l2l_matches_disk_l2l[cpu-0] PASSED [ 25%]
+tests/test_c3_l2l_shared_runtime.py::test_shared_runtime_l2l_matches_disk_l2l[cpu-2] PASSED [ 26%]
+tests/test_c3_l2l_shared_runtime.py::test_shared_runtime_l2l_matches_disk_l2l[cpu-4] PASSED [ 26%]
+tests/test_c3_l2l_shared_runtime.py::test_shared_budget_is_not_silently_ignored PASSED [ 26%]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[1-0.0] PASSED [ 26%]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[1-0.05] PASSED [ 26%]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[2-0.0] PASSED [ 27%]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[2-0.05] PASSED [ 27%]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[4-0.0] PASSED [ 27%]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[4-0.05] PASSED [ 27%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-1] PASSED [ 27%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-2] PASSED [ 27%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-neftune-1] PASSED [ 28%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-neftune-2] PASSED [ 28%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[head-shared44-dropout-1] PASSED [ 28%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[head-shared44-dropout-2] PASSED [ 28%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[combined46-dropout-1] PASSED [ 28%]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[combined46-dropout-2] PASSED [ 28%]
+tests/test_b13_l2l_moe.py::test_embedding_vjp_keeps_backward_outside_forward_autocast[1] PASSED [ 29%]
+tests/test_b13_l2l_moe.py::test_embedding_vjp_keeps_backward_outside_forward_autocast[2] PASSED [ 29%]
+tests/test_b13_l2l_moe.py::test_the_fixture_is_not_degenerate_dropout_changes_what_the_reference_computes PASSED [ 29%]
+tests/test_b13_l2l_moe.py::test_router_top_k_is_varied_independently_of_k[1-2-6-0.0] PASSED [ 29%]
+tests/test_b13_l2l_moe.py::test_router_top_k_is_varied_independently_of_k[1-2-6-0.05] PASSED [ 29%]
+tests/test_b13_l2l_moe.py::test_router_top_k_is_varied_independently_of_k[3-1-4-0.0] PASSED [ 30%]
+tests/test_b13_l2l_moe.py::test_router_top_k_is_varied_independently_of_k[3-1-4-0.05] PASSED [ 30%]
+tests/test_b13_l2l_moe.py::test_consecutive_windows_on_one_stepper_equal_accumulation[0.0] PASSED [ 30%]
+tests/test_b13_l2l_moe.py::test_consecutive_windows_on_one_stepper_equal_accumulation[0.05] PASSED [ 30%]
+tests/test_b13_l2l_moe.py::test_sft_masked_labels_equal_accumulation[0.0] PASSED [ 30%]
+tests/test_b13_l2l_moe.py::test_sft_masked_labels_equal_accumulation[0.05] PASSED [ 30%]
+tests/test_b13_l2l_moe.py::test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again PASSED [ 31%]
+tests/test_b13_l2l_moe.py::test_negative_control_perturbing_only_backward_reloads_changes_grads_not_losses PASSED [ 31%]
+tests/test_b13_l2l_moe.py::test_negative_control_state_not_applied_on_the_recompute_changes_the_grads PASSED [ 31%]
+tests/test_b13_l2l_moe.py::test_the_routing_guard_stops_a_recompute_that_drew_other_dropout_masks PASSED [ 31%]
+tests/test_b13_l2l_moe.py::test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_again[forward] PASSED [ 31%]
+tests/test_b13_l2l_moe.py::test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_again[recompute] PASSED [ 32%]
+tests/test_b13_l2l_moe.py::test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_again[backward] PASSED [ 32%]
+tests/test_b13_l2l_moe.py::test_guard_checks_actual_routing_before_loading_and_releases_each_pair[choice] PASSED [ 32%]
+tests/test_b13_l2l_moe.py::test_guard_checks_actual_routing_before_loading_and_releases_each_pair[shape] PASSED [ 32%]
+tests/test_b13_l2l_moe.py::test_guard_checks_actual_routing_before_loading_and_releases_each_pair[extra-call] PASSED [ 32%]
+tests/test_b13_l2l_moe.py::test_guard_checks_actual_routing_before_loading_and_releases_each_pair[missing-call] PASSED [ 32%]
+tests/test_b13_l2l_moe.py::test_guard_preserves_differentiable_router_weights PASSED [ 33%]
+tests/test_b13_l2l_moe.py::test_public_launch_still_refuses_deepseek_but_internal_step_accepts_it PASSED [ 33%]
+tests/test_b13_l2l_moe.py::test_expert_loads_remain_visible_in_trainer_logs_and_dense_fields_stay_unchanged PASSED [ 33%]
+tests/test_b13_l2l_moe.py::test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga[1] PASSED [ 33%]
+tests/test_b13_l2l_moe.py::test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga[2] PASSED [ 33%]
+tests/test_b13_l2l_moe.py::test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga[4] PASSED [ 33%]
+tests/test_b13_l2l_moe.py::test_seeded_dropout_runs_repeat_exactly_and_another_seed_changes_gradients PASSED [ 34%]
+tests/test_b13_l2l_moe.py::test_eager_attention_and_lora_dropout_replay_match_resident_accumulation PASSED [ 34%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[1-False-False] PASSED [ 34%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[2-False-False] PASSED [ 34%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[4-False-False] PASSED [ 34%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[2-True-False] PASSED [ 35%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[4-True-False] PASSED [ 35%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[1-False-True] PASSED [ 35%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[2-False-True] PASSED [ 35%]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[4-False-True] PASSED [ 35%]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[embedding32-1] PASSED [ 35%]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[embedding32-2] PASSED [ 36%]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[head-shared44-dropout-1] PASSED [ 36%]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[head-shared44-dropout-2] PASSED [ 36%]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[combined46-dropout-1] PASSED [ 36%]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[combined46-dropout-2] PASSED [ 36%]
+tests/test_l2l_trainer_mode.py::test_l2l_defaults_to_false_and_leaves_existing_configs_alone PASSED [ 37%]
+tests/test_l2l_trainer_mode.py::test_l2l_loads_with_stream_layers_and_accumulation PASSED [ 37%]
+tests/test_l2l_trainer_mode.py::test_l2l_with_k_equal_one_is_accepted PASSED [ 37%]
+tests/test_l2l_trainer_mode.py::test_l2l_without_stream_layers_is_refused PASSED [ 37%]
+tests/test_l2l_trainer_mode.py::test_l2l_with_nonzero_lora_dropout_is_accepted PASSED [ 37%]
+tests/test_l2l_trainer_mode.py::test_l2l_for_a_task_other_than_sft_is_refused PASSED [ 37%]
+tests/test_l2l_trainer_mode.py::test_lora_dropout_is_only_checked_when_l2l_is_on PASSED [ 38%]
+tests/test_l2l_trainer_mode.py::test_guard_accepts_llama_and_mistral[llama] PASSED [ 38%]
+tests/test_l2l_trainer_mode.py::test_guard_accepts_llama_and_mistral[mistral] PASSED [ 38%]
+tests/test_l2l_trainer_mode.py::test_guard_refuses_another_architecture PASSED [ 38%]
+tests/test_l2l_trainer_mode.py::test_guard_accepts_attention_dropout PASSED [ 38%]
+tests/test_l2l_trainer_mode.py::test_guard_refuses_several_gpus PASSED   [ 38%]
+tests/test_l2l_trainer_mode.py::test_guard_refuses_fp16_because_the_grad_scaler_is_bypassed PASSED [ 39%]
+tests/test_l2l_trainer_mode.py::test_one_optimizer_step_per_window_and_same_adapters_as_accumulation[1] PASSED [ 39%]
+tests/test_l2l_trainer_mode.py::test_one_optimizer_step_per_window_and_same_adapters_as_accumulation[2] PASSED [ 39%]
+tests/test_l2l_trainer_mode.py::test_bf16_autocast_of_the_trainer_reaches_the_l2l_step PASSED [ 39%]
+tests/test_l2l_trainer_mode.py::test_neftune_noise_sequence_is_the_one_accumulation_draws PASSED [ 39%]
+tests/test_l2l_trainer_mode.py::test_trainer_with_lora_dropout_matches_accumulation_at_k2 PASSED [ 40%]
+tests/test_l2l_trainer_mode.py::test_lora_dropout_changes_the_adapters_the_trainer_trains PASSED [ 40%]
+tests/test_l2l_trainer_mode.py::test_eager_attention_dropout_alone_matches_accumulation_at_k2 PASSED [ 40%]
+tests/test_l2l_trainer_mode.py::test_has_dropout_sees_lora_attention_and_config_dropout PASSED [ 40%]
+tests/test_l2l_trainer_mode.py::test_neftune_with_dropout_is_refused PASSED [ 40%]
+tests/test_l2l_trainer_mode.py::test_mixed_length_windows_with_lora_dropout_are_refused PASSED [ 40%]
+tests/test_l2l_trainer_mode.py::test_sdpa_attention_dropout_is_refused_before_the_first_step PASSED [ 41%]
+tests/test_l2l_trainer_mode.py::test_mixed_length_windows_with_attention_dropout_only_are_refused PASSED [ 41%]
+tests/test_l2l_trainer_mode.py::test_activation_store_is_refused_before_it_is_allocated PASSED [ 41%]
+tests/test_l2l_trainer_mode.py::test_activation_plan_keeps_what_fits_and_spills_nothing_without_a_budget PASSED [ 41%]
+tests/test_l2l_trainer_mode.py::test_activation_plan_charges_pinned_chunks_at_the_next_power_of_two PASSED [ 41%]
+tests/test_l2l_trainer_mode.py::test_neftune_with_mixed_length_windows_is_refused PASSED [ 42%]
+tests/test_l2l_trainer_mode.py::test_mixed_length_windows_without_neftune_still_train PASSED [ 42%]
+tests/test_l2l_trainer_mode.py::test_counters_reach_the_training_log PASSED [ 42%]
+tests/test_l2l_trainer_mode.py::test_windows_with_rows_of_different_lengths_match_accumulation PASSED [ 42%]
+tests/test_l2l_trainer_mode.py::test_left_padded_rows_are_refused PASSED [ 42%]
+tests/test_l2l_trainer_mode.py::test_without_attached_state_the_subclass_is_the_base_trainer PASSED [ 42%]
+tests/test_l2l_trainer_mode.py::test_sft_wrapper_builds_the_l2l_trainer_and_logs_counters PASSED [ 43%]
+tests/test_l2l_trainer_mode.py::test_sft_wrapper_without_l2l_builds_the_ordinary_trainer PASSED [ 43%]
+tests/test_l2l_trainer_mode.py::test_sft_wrapper_refuses_an_unsupported_model_at_launch PASSED [ 43%]
+tests/test_l2l_trainer_mode.py::test_activation_plan_sums_the_real_chunk_sizes PASSED [ 43%]
+tests/test_l2l_trainer_mode.py::test_the_store_for_a_window_of_very_different_lengths_is_sized_per_micro_batch PASSED [ 43%]
+tests/test_l2l_trainer_mode.py::test_sft_wrapper_sizes_positions_from_the_window_not_max_length PASSED [ 44%]
+tests/test_l2l_trainer_window.py::test_a_short_last_window_matches_accumulation[7-3-3] PASSED [ 44%]
+tests/test_l2l_trainer_window.py::test_a_short_last_window_matches_accumulation[8-3-3] PASSED [ 44%]
+tests/test_l2l_trainer_window.py::test_a_short_last_window_matches_accumulation[5-4-2] PASSED [ 44%]
+tests/test_l2l_trainer_window.py::test_a_short_last_window_matches_accumulation[3-4-1] PASSED [ 44%]
+tests/test_l2l_trainer_window.py::test_the_lr_of_every_step_matches_accumulation[budget0-linear] PASSED [ 44%]
+tests/test_l2l_trainer_window.py::test_the_lr_of_every_step_matches_accumulation[budget0-cosine] PASSED [ 45%]
+tests/test_l2l_trainer_window.py::test_the_lr_of_every_step_matches_accumulation[budget1-linear] PASSED [ 45%]
+tests/test_l2l_trainer_window.py::test_the_lr_of_every_step_matches_accumulation[budget1-cosine] PASSED [ 45%]
+tests/test_l2l_trainer_window.py::test_max_steps_counts_windows_across_epochs[3] PASSED [ 45%]
+tests/test_l2l_trainer_window.py::test_max_steps_counts_windows_across_epochs[5] PASSED [ 45%]
+tests/test_l2l_trainer_window.py::test_the_store_survives_short_windows_without_growing PASSED [ 45%]
+tests/test_l2l_trainer_window.py::test_a_short_window_before_a_full_one_replaces_the_store PASSED [ 46%]
+tests/test_l2l_trainer_window.py::test_resume_does_not_shift_the_windows FAILED [ 46%]
+tests/test_l2l_trainer_window.py::test_rows_of_different_lengths_match_accumulation_bit_for_bit[1-7] PASSED [ 46%]
+tests/test_l2l_trainer_window.py::test_rows_of_different_lengths_match_accumulation_bit_for_bit[2-4] PASSED [ 46%]
+tests/test_l2l_trainer_window.py::test_rows_of_different_lengths_match_accumulation_bit_for_bit[4-2] PASSED [ 46%]
+tests/test_l2l_trainer_labels.py::test_masked_labels_in_different_places_match_accumulation[2] PASSED [ 47%]
+tests/test_l2l_trainer_labels.py::test_masked_labels_in_different_places_match_accumulation[4] PASSED [ 47%]
+tests/test_l2l_trainer_labels.py::test_a_micro_batch_of_only_masked_labels_gives_no_nan[2] PASSED [ 47%]
+tests/test_l2l_trainer_labels.py::test_a_micro_batch_of_only_masked_labels_gives_no_nan[4] PASSED [ 47%]
+tests/test_l2l_trainer_labels.py::test_rows_of_different_lengths_with_masked_labels_match_accumulation[2] PASSED [ 47%]
+tests/test_l2l_trainer_labels.py::test_rows_of_different_lengths_with_masked_labels_match_accumulation[4] PASSED [ 47%]
+tests/test_l2l_trainer_labels.py::test_k1_with_masked_labels_matches_accumulation PASSED [ 48%]
+tests/test_l2l_spill_trainer.py::test_spill_gives_the_losses_and_gradients_of_the_resident_store[2-6] PASSED [ 48%]
+tests/test_l2l_spill_trainer.py::test_spill_gives_the_losses_and_gradients_of_the_resident_store[4-7] PASSED [ 48%]
+tests/test_l2l_spill_trainer.py::test_rows_of_different_lengths_spill_and_stay_equal[2] PASSED [ 48%]
+tests/test_l2l_spill_trainer.py::test_rows_of_different_lengths_spill_and_stay_equal[4] PASSED [ 48%]
+tests/test_l2l_spill_trainer.py::test_a_short_last_window_spills_and_stays_equal PASSED [ 49%]
+tests/test_l2l_spill_trainer.py::test_resume_with_spill_equals_resume_without FAILED [ 49%]
+tests/test_l2l_spill_trainer.py::test_one_store_and_one_file_serve_windows_of_every_length PASSED [ 49%]
+tests/test_l2l_spill_trainer.py::test_activations_that_fit_change_nothing PASSED [ 49%]
+tests/test_l2l_spill_trainer.py::test_a_budget_below_every_layer_spilled_stops_before_allocating PASSED [ 49%]
+tests/test_l2l_spill_trainer.py::test_an_exception_or_ctrl_c_removes_the_spill_file[exc0] PASSED [ 49%]
+tests/test_l2l_spill_trainer.py::test_an_exception_or_ctrl_c_removes_the_spill_file[exc1] PASSED [ 50%]
+tests/test_l2l_spill_trainer.py::test_a_full_drive_mid_step_names_size_and_directory_and_removes_the_file PASSED [ 50%]
+tests/test_l2l_spill_trainer.py::test_train_sweeps_files_of_dead_runs_first PASSED [ 50%]
+tests/test_l2l_spill_trainer.py::test_only_a_larger_position_rebuilds_the_store_and_makes_a_second_file PASSED [ 50%]
+tests/test_l2l_spill_trainer.py::test_growth_releases_old_allocations_and_store_before_reading_ram_budget[400000-5-8] PASSED [ 50%]
+tests/test_l2l_spill_trainer.py::test_growth_releases_old_allocations_and_store_before_reading_ram_budget[600000-0-6] PASSED [ 50%]
+tests/test_l2l_spill_trainer.py::test_cuda_growth_releases_idle_pinned_cache_before_rebudget_or_warns_without_public_api[True] PASSED [ 51%]
+tests/test_l2l_spill_trainer.py::test_cuda_growth_releases_idle_pinned_cache_before_rebudget_or_warns_without_public_api[False] PASSED [ 51%]
+tests/test_l2l_spill_trainer.py::test_cuda_windows_that_fit_keep_one_plan_without_flushing_pinned_cache PASSED [ 51%]
+tests/test_l2l_spill_trainer.py::test_an_explicit_spill_dir_is_used PASSED [ 51%]
+tests/test_l2l_spill_trainer.py::test_the_disk_tier_keeps_the_default_dir_off_the_weights_disk[False] PASSED [ 51%]
+tests/test_l2l_spill_trainer.py::test_the_disk_tier_keeps_the_default_dir_off_the_weights_disk[True] PASSED [ 52%]
+tests/test_l2l_activation_failures.py::test_noncuda_put_completes_host_transfer_before_consumer_reads[resident] PASSED [ 52%]
+tests/test_l2l_activation_failures.py::test_noncuda_put_completes_host_transfer_before_consumer_reads[spilled] PASSED [ 52%]
+tests/test_l2l_activation_failures.py::test_noncuda_resident_get_completes_before_host_slot_is_reused PASSED [ 52%]
+tests/test_l2l_activation_failures.py::test_noncuda_spilled_get_completes_before_read_ring_is_reused PASSED [ 52%]
+tests/test_l2l_activation_failures.py::test_variable_capacity_resident_allocation_failure_releases_partial_store PASSED [ 52%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[RuntimeError-before-start-writer] PASSED [ 53%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[RuntimeError-before-start-reader] PASSED [ 53%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[RuntimeError-after-start-writer] PASSED [ 53%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[RuntimeError-after-start-reader] PASSED [ 53%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[KeyboardInterrupt-before-start-writer] PASSED [ 53%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[KeyboardInterrupt-before-start-reader] PASSED [ 54%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[KeyboardInterrupt-after-start-writer] PASSED [ 54%]
+tests/test_l2l_activation_failures.py::test_constructor_thread_start_failure_releases_file_workers_and_buffers[KeyboardInterrupt-after-start-reader] PASSED [ 54%]
+tests/test_l2l_activation_failures.py::test_constructor_queue_failure_releases_file_and_partial_allocations[write-queue] PASSED [ 54%]
+tests/test_l2l_activation_failures.py::test_constructor_queue_failure_releases_file_and_partial_allocations[read-queue] PASSED [ 54%]
+tests/test_l2l_activation_failures.py::test_constructor_ring_failure_releases_file_and_partial_buffers[first-write] PASSED [ 54%]
+tests/test_l2l_activation_failures.py::test_constructor_ring_failure_releases_file_and_partial_buffers[second-write] PASSED [ 55%]
+tests/test_l2l_activation_failures.py::test_constructor_ring_failure_releases_file_and_partial_buffers[read] PASSED [ 55%]
+tests/test_l2l_activation_failures.py::test_close_releases_allocations_while_store_reference_remains[resident] PASSED [ 55%]
+tests/test_l2l_activation_failures.py::test_close_releases_allocations_while_store_reference_remains[spilled] PASSED [ 55%]
+tests/test_l2l_activation_failures.py::test_close_completes_read_ring_event_before_releasing_source PASSED [ 55%]
+tests/test_l2l_activation_failures.py::test_ring_acquire_failure_retains_source_until_deferred_copy_completes PASSED [ 55%]
+tests/test_l2l_activation_failures.py::test_close_can_retry_after_interrupted_worker_join PASSED [ 56%]
+tests/test_l2l_activation_failures.py::test_close_waits_for_worker_completion_when_interrupted_join_returns_early PASSED [ 56%]
+tests/test_l2l_activation_failures.py::test_close_retains_pending_sources_when_event_synchronization_fails[read-ring] PASSED [ 56%]
+tests/test_l2l_activation_failures.py::test_close_retains_pending_sources_when_event_synchronization_fails[write-queue] PASSED [ 56%]
+tests/test_l2l_activation_failures.py::test_close_completes_transfer_after_writer_event_failure PASSED [ 56%]
+tests/test_l2l_activation_failures.py::test_close_releases_buffers_retained_by_chained_worker_error PASSED [ 57%]
+tests/test_l2l_activation_failures.py::test_raw_io_splits_at_sector_aligned_platform_limit_without_copying[whole] PASSED [ 57%]
+tests/test_l2l_activation_failures.py::test_raw_io_splits_at_sector_aligned_platform_limit_without_copying[partial] PASSED [ 57%]
+tests/test_l2l_activation_failures.py::test_raw_io_zero_progress_still_raises_short_transfer[read] PASSED [ 57%]
+tests/test_l2l_activation_failures.py::test_raw_io_zero_progress_still_raises_short_transfer[write] PASSED [ 57%]
+tests/test_l2l_step.py::test_shipped_l2l_step_equals_gradient_accumulation[1] PASSED [ 57%]
+tests/test_l2l_step.py::test_shipped_l2l_step_equals_gradient_accumulation[2] PASSED [ 58%]
+tests/test_l2l_step.py::test_shipped_l2l_step_equals_gradient_accumulation[4] PASSED [ 58%]
+tests/test_l2l_step.py::test_harness_reexports_the_shipped_core PASSED   [ 58%]
+tests/test_l2l_step.py::test_stats_exposes_the_restore_counter PASSED    [ 58%]
+tests/test_l2l_step.py::test_count_loads_reads_the_runtime_counters_without_patching PASSED [ 58%]
+tests/test_l2l_step.py::test_l2l_counters_exist_after_a_step_and_are_zero_before PASSED [ 59%]
+tests/test_l2l_step.py::test_k1_l2l_loads_what_gradient_accumulation_loads PASSED [ 59%]
+tests/test_l2l_step.py::test_k4_does_not_load_four_times_what_k1_loads PASSED [ 59%]
+tests/test_l2l_step.py::test_restores_are_zero_without_quantization PASSED [ 59%]
+tests/test_l2l_step.py::test_nf4_restores_are_counted_and_do_not_grow_with_k[1] PASSED [ 59%]
+tests/test_l2l_step.py::test_nf4_restores_are_counted_and_do_not_grow_with_k[2] PASSED [ 59%]
+tests/test_l2l_step.py::test_nf4_restores_are_counted_and_do_not_grow_with_k[4] PASSED [ 60%]
+tests/test_l2l_step.py::test_nf4_restores_agree_between_l2l_and_accumulation PASSED [ 60%]
+tests/test_l2l_step.py::test_l2l_step_with_masked_labels_equals_gradient_accumulation PASSED [ 60%]
+tests/test_l2l_step.py::test_l2l_step_with_rows_of_different_lengths_equals_gradient_accumulation[1] PASSED [ 60%]
+tests/test_l2l_step.py::test_l2l_step_with_rows_of_different_lengths_equals_gradient_accumulation[2] PASSED [ 60%]
+tests/test_l2l_step.py::test_l2l_step_with_rows_of_different_lengths_equals_gradient_accumulation[4] PASSED [ 61%]
+tests/test_issue621_recipe_snapshot.py::TestFixtureCoversExactlyTheCurrentCatalog::test_fixture_and_catalog_have_the_same_recipe_names PASSED [ 61%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[baichuan-sft] PASSED [ 61%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[biomistral-7b-sft] PASSED [ 61%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[codellama-13b-sft] PASSED [ 61%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[codellama-70b-sft] PASSED [ 61%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-ocr-sft] PASSED [ 62%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-32b-grpo] PASSED [ 62%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-8b-grpo] PASSED [ 62%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-distill-llama-8b-dpo] PASSED [ 62%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-distill-llama-8b-sft] PASSED [ 62%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-distill-qwen-1.5b-dpo] PASSED [ 62%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-distill-qwen-1.5b-sft] PASSED [ 63%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-distill-qwen-7b-dpo] PASSED [ 63%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-r1-distill-qwen-7b-sft] PASSED [ 63%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v3-7b-sft] PASSED [ 63%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v3-pipeline] PASSED [ 63%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v3-reasoning] PASSED [ 64%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v4-flash-dpo] PASSED [ 64%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v4-flash-grpo] PASSED [ 64%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v4-flash-sft] PASSED [ 64%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v4-pro-dpo] PASSED [ 64%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v4-pro-grpo] PASSED [ 64%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[deepseek-v4-pro-sft] PASSED [ 65%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[devstral-sft] PASSED [ 65%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[embedding-gemma-sft] PASSED [ 65%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[gemma2-2b-sft] PASSED [ 65%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[gemma3-12b-sft] PASSED [ 65%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[gemma3-27b-dpo] PASSED [ 66%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[gemma3-27b-sft] PASSED [ 66%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[gemma3-4b-sft-mlx] PASSED [ 66%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[glm-4.6-sft] PASSED [ 66%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[glm-5-sft] PASSED [ 66%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[glm-5.1-dpo] PASSED [ 66%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[glm-5.1-grpo] PASSED [ 67%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[glm-5.1-sft] PASSED [ 67%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[gpt-oss-120b-sft] PASSED [ 67%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[gpt-oss-20b-sft] PASSED [ 67%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[granite-4-sft] PASSED [ 67%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[grpo-env-calculator] PASSED [ 67%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[grpo-env-guess-number] PASSED [ 68%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[grpo-env-retrieval-qa] PASSED [ 68%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[internvl-2.5-8b-sft] PASSED [ 68%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[internvl-3-5-sft] PASSED [ 68%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2-sft] PASSED [ 68%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2-thinking-grpo] PASSED [ 69%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2.5-dpo] PASSED [ 69%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2.5-grpo] PASSED [ 69%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2.5-sft] PASSED [ 69%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2.6-dpo] PASSED [ 69%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2.6-grpo] PASSED [ 69%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[kimi-k2.6-sft] PASSED [ 70%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[lfm2-sft] PASSED [ 70%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama2-13b-finance-sft] PASSED [ 70%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3-70b-fsdp2] PASSED [ 70%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-70b-sft] PASSED [ 70%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-dpo] PASSED [ 71%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-embed] PASSED [ 71%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-grpo] PASSED [ 71%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-ipo] PASSED [ 71%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-kto] PASSED [ 71%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-longctx] PASSED [ 71%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-orpo] PASSED [ 72%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-ppo] PASSED [ 72%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-sft] PASSED [ 72%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-sft-mlx] PASSED [ 72%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.1-8b-simpo] PASSED [ 72%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.2-11b-vision] PASSED [ 72%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.2-1b-sft] PASSED [ 73%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.2-3b-sft] PASSED [ 73%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.2-vision-90b-sft] PASSED [ 73%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama3.2-vision-grpo] PASSED [ 73%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama4-scout-17b-dpo] PASSED [ 73%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama4-scout-17b-grpo] PASSED [ 74%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama4-scout-17b-sft] PASSED [ 74%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llama4-scout-tools] PASSED [ 74%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llasa-tts] PASSED [ 74%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[llava-next-sft] PASSED [ 74%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[magicoder-7b-sft] PASSED [ 74%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[magistral-small-sft] PASSED [ 75%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[mathstral-7b-sft] PASSED [ 75%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[medgemma-sft] PASSED [ 75%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[meditron-7b-sft] PASSED [ 75%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[minicpm-v-2.6-sft] PASSED [ 75%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[minimax-m2-sft] PASSED [ 76%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[minimax-m3-sft] PASSED [ 76%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[ministral-sft] PASSED [ 76%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[mistral-7b-dpo] PASSED [ 76%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[mistral-7b-sft] PASSED [ 76%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[mistral-medium-3-5-sft] PASSED [ 76%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[mistral-small-3-sft] PASSED [ 77%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[nemotron-4-340b-sft] PASSED [ 77%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[online-dpo-smollm2-135m] PASSED [ 77%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[orpheus-tts-sft] PASSED [ 77%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[oute-tts] PASSED [ 77%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[paddle-ocr-sft] PASSED [ 77%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[phi3.5-mini-sft] PASSED [ 78%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[phi4-14b-sft] PASSED [ 78%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[phi4-reasoning-grpo] PASSED [ 78%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[pixtral-12b-sft] PASSED [ 78%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[pixtral-dpo] PASSED [ 78%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qvq-72b-sft] PASSED [ 79%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen-image-sft] PASSED [ 79%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2-audio-7b-sft] PASSED [ 79%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2-vl-72b-sft] PASSED [ 79%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2-vl-7b-sft] PASSED [ 79%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-0.5b-sft] PASSED [ 79%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-1.5b-sft] PASSED [ 80%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-3b-sft] PASSED [ 80%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-72b-sft] PASSED [ 80%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-7b-dpo] PASSED [ 80%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-7b-grpo] PASSED [ 80%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-7b-pretrain] PASSED [ 81%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-7b-reward] PASSED [ 81%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-7b-sft] PASSED [ 81%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-coder-1.5b-sft] PASSED [ 81%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-coder-14b-sft] PASSED [ 81%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-coder-32b-sft] PASSED [ 81%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-coder-7b-sft] PASSED [ 82%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-math-1.5b-sft] PASSED [ 82%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen2.5-math-7b-sft] PASSED [ 82%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-14b-sft] PASSED [ 82%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-30b-a3b-reasoning-grpo] PASSED [ 82%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-30b-a3b-sft] PASSED [ 83%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-32b-sft] PASSED [ 83%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-32b-zeropp] PASSED [ 83%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-8b-grpo] PASSED [ 83%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-8b-sft] PASSED [ 83%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-8b-sft-mlx] PASSED [ 83%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-8b-tools] PASSED [ 84%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3-coder-30b-sft] PASSED [ 84%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-0.8b-grpo] PASSED [ 84%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-0.8b-sft] PASSED [ 84%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-122b-a10b-sft] PASSED [ 84%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-27b-sft] PASSED [ 84%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-2b-grpo] PASSED [ 85%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-2b-sft] PASSED [ 85%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-35b-a3b-dpo] PASSED [ 85%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-35b-a3b-grpo] PASSED [ 85%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-35b-a3b-sft] PASSED [ 85%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-397b-a17b-sft] PASSED [ 86%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-4b-pretrain] PASSED [ 86%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-4b-sft] PASSED [ 86%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-9b-dpo] PASSED [ 86%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-9b-grpo] PASSED [ 86%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.5-9b-sft] PASSED [ 86%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.6-27b-dpo] PASSED [ 87%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.6-27b-grpo] PASSED [ 87%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.6-27b-sft] PASSED [ 87%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.6-35b-a3b-dpo] PASSED [ 87%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.6-35b-a3b-grpo] PASSED [ 87%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.6-35b-a3b-sft] PASSED [ 88%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwen3.8-27b-sft] PASSED [ 88%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[qwq-32b-grpo] PASSED [ 88%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[r1-distill-llama-70b-grpo] PASSED [ 88%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[r1-distill-qwen-1.5b-grpo] PASSED [ 88%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[r1-distill-qwen-14b-grpo] PASSED [ 88%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[r1-distill-qwen-7b-grpo] PASSED [ 89%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[ra-dit-llama3-8b] PASSED [ 89%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[ra-dit-retriever] PASSED [ 89%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[raft-llama3-8b] PASSED [ 89%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[seamlessm4t-v2-sft] PASSED [ 89%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[smollm2-1.7b-sft] PASSED [ 89%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[smollm2-135m-sft] PASSED [ 90%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[smollm2-360m-sft] PASSED [ 90%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[smollm3-3b-sft] PASSED [ 90%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[smolvlm-256m-sft] PASSED [ 90%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[voxtral-sft] PASSED [ 90%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[whisper-base-asr] PASSED [ 91%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[whisper-large-v3-asr] PASSED [ 91%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[whisper-large-v3-ft] PASSED [ 91%]
+tests/test_issue621_recipe_snapshot.py::TestEveryRecipeMatchesItsCommittedDelta::test_recipe_delta_matches_its_snapshot[whisper-tiny-asr] PASSED [ 91%]
+tests/test_issue621_recipe_snapshot.py::TestTheSnapshotIsNotVacuous::test_a_changed_field_value_is_detected PASSED [ 91%]
+tests/test_issue621_recipe_snapshot.py::TestTheSnapshotIsNotVacuous::test_identical_dicts_have_no_diff PASSED [ 91%]
+tests/test_a4_g4_compose.py::test_g4_chunk_sizes_are_the_contract[shape0-int8-2-2097152-2048] PASSED [ 92%]
+tests/test_a4_g4_compose.py::test_g4_chunk_sizes_are_the_contract[shape1-fp8_e4m3-2-2097152-2048] PASSED [ 92%]
+tests/test_a4_g4_compose.py::test_g4_chunk_sizes_are_the_contract[shape2-bf16-2-4194304-0] PASSED [ 92%]
+tests/test_a4_g4_compose.py::test_g4_chunk_sizes_are_the_contract[shape3-bf16-4-147456-0] PASSED [ 92%]
+tests/test_a4_g4_compose.py::test_g4_chunk_sizes_are_the_contract[shape4-int4-4-8192-1024] PASSED [ 92%]
+tests/test_a4_g4_compose.py::test_g4_chunk_sizes_are_the_contract[shape5-int4-4-524288-1024] PASSED [ 93%]
+tests/test_a4_g4_compose.py::test_g4_chunk_sizes_are_the_contract[shape6-int4-4-18496-256] PASSED [ 93%]
+tests/test_a4_g4_compose.py::test_the_planner_gets_the_sizes_unrounded_and_rounds_each_allocation_once PASSED [ 93%]
+tests/test_a4_g4_compose.py::test_an_unaligned_int4_payload_is_refused_by_both_sides PASSED [ 93%]
+tests/test_a4_g4_compose.py::test_a_small_real_g4_store_holds_exactly_the_plan_and_round_trips[int8-float32-0.5] PASSED [ 93%]
+tests/test_a4_g4_compose.py::test_a_small_real_g4_store_holds_exactly_the_plan_and_round_trips[int8-float32-min] PASSED [ 93%]
+tests/test_a4_g4_compose.py::test_a_small_real_g4_store_holds_exactly_the_plan_and_round_trips[bf16-float32-0.5] PASSED [ 94%]
+tests/test_a4_g4_compose.py::test_a_small_real_g4_store_holds_exactly_the_plan_and_round_trips[int4-float32-min] PASSED [ 94%]
+tests/test_a4_activation_budget.py::test_pinned_rounding_is_the_next_power_of_two PASSED [ 94%]
+tests/test_a4_activation_budget.py::test_the_minimum_is_the_rings_at_their_rounded_size PASSED [ 94%]
+tests/test_a4_activation_budget.py::test_exact_fit_pins_everything_and_one_byte_short_spills PASSED [ 94%]
+tests/test_a4_activation_budget.py::test_resident_layers_are_exactly_what_the_budget_buys[0] PASSED [ 94%]
+tests/test_a4_activation_budget.py::test_resident_layers_are_exactly_what_the_budget_buys[1] PASSED [ 95%]
+tests/test_a4_activation_budget.py::test_resident_layers_are_exactly_what_the_budget_buys[5] PASSED [ 95%]
+tests/test_a4_activation_budget.py::test_resident_layers_are_exactly_what_the_budget_buys[23] PASSED [ 95%]
+tests/test_a4_activation_budget.py::test_a_budget_past_all_pinned_minus_the_rings_pins_everything PASSED [ 95%]
+tests/test_a4_activation_budget.py::test_the_lowest_layers_spill_first PASSED [ 95%]
+tests/test_a4_activation_budget.py::test_every_layer_spilled_at_the_minimum PASSED [ 96%]
+tests/test_a4_activation_budget.py::test_below_the_minimum_is_refused_with_the_arithmetic PASSED [ 96%]
+tests/test_a4_activation_budget.py::test_k1_with_deep_rings_cannot_save_ram_by_spilling PASSED [ 96%]
+tests/test_a4_activation_budget.py::test_a_cheaper_all_pinned_store_wins_over_the_spill_minimum PASSED [ 96%]
+tests/test_a4_activation_budget.py::test_rounding_decides_how_many_layers_fit PASSED [ 96%]
+tests/test_a4_activation_budget.py::test_spill_disk_short_is_refused_with_the_arithmetic PASSED [ 96%]
+tests/test_a4_activation_budget.py::test_an_all_pinned_plan_needs_no_spill_space PASSED [ 97%]
+tests/test_a4_activation_budget.py::test_an_unaligned_chunk_cannot_spill_but_can_stay_pinned PASSED [ 97%]
+tests/test_a4_activation_budget.py::test_the_floor_is_one_slab_paid_whether_the_payload_spills_or_not PASSED [ 97%]
+tests/test_a4_activation_budget.py::test_a_power_of_two_scale_chunk_in_a_slab_that_is_not_rounds_up PASSED [ 97%]
+tests/test_a4_activation_budget.py::test_worked_mistral_7b_int8_example_by_hand PASSED [ 97%]
+tests/test_a4_activation_budget.py::test_the_priority_order_charges_each_term_before_the_next PASSED [ 98%]
+tests/test_a4_activation_budget.py::test_granularity_waste_is_under_one_layer PASSED [ 98%]
+tests/test_a4_activation_budget.py::test_invalid_inputs_are_refused PASSED [ 98%]
+tests/test_a4_activation_budget.py::test_the_layout_matches_what_the_real_store_allocates PASSED [ 98%]
+tests/test_a4_activation_budget.py::test_split_gives_weights_first_then_activations_then_spare PASSED [ 98%]
+tests/test_a4_activation_budget.py::test_split_spills_when_the_weights_leave_too_little PASSED [ 98%]
+tests/test_a4_activation_budget.py::test_split_refuses_with_the_whole_budget_in_the_message PASSED [ 99%]
+tests/test_a4_activation_budget.py::test_arm_budgets PASSED              [ 99%]
+tests/test_a4_activation_budget.py::test_max_k_without_spill_is_the_pinned_bound PASSED [ 99%]
+tests/test_a4_activation_budget.py::test_max_k_with_spill_is_bounded_by_the_spill_volume PASSED [ 99%]
+tests/test_a4_activation_budget.py::test_tokens_per_step_reports_both_sides PASSED [ 99%]
+tests/test_a4_activation_budget.py::test_budget_from_box_takes_the_smaller_of_ram_and_commit PASSED [100%]
+
+=================================== FAILURES ===================================
+_____ test_public_setup_and_optimizer_update_use_reserved_l2l_store[none] ______
+/kaggle/working/soup/tests/test_c3_public_l2l.py:265: in test_public_setup_and_optimizer_update_use_reserved_l2l_store
+    wrapper.setup(dataset)
+/kaggle/working/soup/src/soup_cli/trainer/sft.py:765: in setup
+    self._setup_streaming_transformers(cfg, tcfg)
+/kaggle/working/soup/src/soup_cli/trainer/stream_setup.py:1173: in _setup_streaming_transformers
+    self._c3_l2l_plan = plan_c3_l2l(
+/kaggle/working/soup/src/soup_cli/utils/c3_l2l_budget.py:97: in plan_c3_l2l
+    raise ValueError("C3 L2L supports float32 or bfloat16 activations")
+E   ValueError: C3 L2L supports float32 or bfloat16 activations
+----------------------------- Captured stdout call -----------------------------
+Loading tokenizer: 
+/kaggle/working/test-tmp/pytest-of-root/pytest-0/test_public_setup_and_optimize0
+/model
+Adapter persistent tensors: 896 parameters; weights=3584, gradients=3584, 
+optimizer=7168 CUDA bytes; CPU tensors=32 bytes. Excludes base buffers, 
+activations and optimizer temporaries.
+disk kind overridden: using training.stream_disk_kind='nvme' (detected 'ssd')
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 0.00 GB                                                     │
+│ Soup materialized copy: 0.00 GB (no write required)                          │
+│ Layer-shard cache: 0.00 GB (write required)                                  │
+│ Projected total on disk: 0.00 GB                                             │
+│ Additional writes before training: 0.00 GB                                   │
+│ Free on target volume (layer-shard cache): 14.68 GB                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> 
+/kaggle/working/test-tmp/pytest-of-root/pytest-0/test_public_setup_and_optimize0
+/cache/kaggle__working__test-tmp__pytest-of-root__pytest-0__test_public_setup_an
+d_optimize0__model
+Re-sharding layer cache: cache index is missing or unreadable.
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch llama, tier disk                                 │
+│   base         streamed from disk across 2 layers, staged by an async reader │
+│ (no resident copy)                                                           │
+│   host staging read_ahead 2 -> 0 MB (page-locked when the box allows)        │
+│   VRAM buffers 2 x 0 MB + 1 x 0 MB large-layer slot = 0 MB                   │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~0.01 GB at batch 1 x seq 64 (logits 0.00 GB)                 │
+│   free VRAM    15.51 GB                                                      │
+│   forecast     115239718-169470173 tok/s — a compute-bound bound, not a      │
+│ promise                                                                      │
+│                (from 20.99 TFLOPS measured on this card now using float16 @  │
+│ 1080 MHz)                                                                    │
+│   ! accumulating 2x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 2 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+│   ! training.stream_pin=false forces PAGEABLE host memory — the base store   │
+│ on the RAM tier, the async reader's staging on the disk tier. Host-to-device │
+│ copies become synchronous, which costs overlap: measured GPU utilisation     │
+│ drops from ~97% to ~79%, and page-locking is worth up to 6.56x measured      │
+│ throughput (Qwen2.5-32B NF4), 7.41x on a synthetic. Unset stream_pin to let  │
+│ the box page-lock when it can.                                               │
+│   ! streaming from disk because stream_source='disk' was set, not because    │
+│ RAM was short. An async reader stages training.stream_read_ahead layers in   │
+│ host RAM (page-locked where the box allows) rather than holding the base     │
+│ resident, and is slower than the RAM tier it is being used instead of —      │
+│ measured 1.9-2.3x its step time with the store fully cached, on one box      │
+│ (benchmarks/gate-971-async-nvme-source.md).                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+___ test_public_setup_and_optimizer_update_use_reserved_l2l_store[fp8_e4m3] ____
+/kaggle/working/soup/tests/test_c3_public_l2l.py:265: in test_public_setup_and_optimizer_update_use_reserved_l2l_store
+    wrapper.setup(dataset)
+/kaggle/working/soup/src/soup_cli/trainer/sft.py:765: in setup
+    self._setup_streaming_transformers(cfg, tcfg)
+/kaggle/working/soup/src/soup_cli/trainer/stream_setup.py:1173: in _setup_streaming_transformers
+    self._c3_l2l_plan = plan_c3_l2l(
+/kaggle/working/soup/src/soup_cli/utils/c3_l2l_budget.py:97: in plan_c3_l2l
+    raise ValueError("C3 L2L supports float32 or bfloat16 activations")
+E   ValueError: C3 L2L supports float32 or bfloat16 activations
+----------------------------- Captured stdout call -----------------------------
+Loading tokenizer: 
+/kaggle/working/test-tmp/pytest-of-root/pytest-0/test_public_setup_and_optimize1
+/model
+Adapter persistent tensors: 896 parameters; weights=3584, gradients=3584, 
+optimizer=7168 CUDA bytes; CPU tensors=32 bytes. Excludes base buffers, 
+activations and optimizer temporaries.
+disk kind overridden: using training.stream_disk_kind='nvme' (detected 'ssd')
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 0.00 GB                                                     │
+│ Soup materialized copy: 0.00 GB (no write required)                          │
+│ Layer-shard cache: 0.00 GB (write required)                                  │
+│ Projected total on disk: 0.00 GB                                             │
+│ Additional writes before training: 0.00 GB                                   │
+│ Free on target volume (layer-shard cache): 14.68 GB                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> 
+/kaggle/working/test-tmp/pytest-of-root/pytest-0/test_public_setup_and_optimize1
+/cache/kaggle__working__test-tmp__pytest-of-root__pytest-0__test_public_setup_an
+d_optimize1__model
+Re-sharding layer cache: cache index is missing or unreadable.
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch llama, tier disk                                 │
+│   base         streamed from disk across 2 layers, staged by an async reader │
+│ (no resident copy)                                                           │
+│   host staging read_ahead 2 -> 0 MB (page-locked when the box allows)        │
+│   VRAM buffers 2 x 0 MB + 1 x 0 MB large-layer slot = 0 MB                   │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~0.01 GB at batch 1 x seq 64 (logits 0.00 GB)                 │
+│   free VRAM    15.44 GB                                                      │
+│   forecast     250081272-367766576 tok/s — a compute-bound bound, not a      │
+│ promise                                                                      │
+│                (from 45.54 TFLOPS measured on this card now using float16 @  │
+│ 900 MHz)                                                                     │
+│   ! accumulating 2x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 2 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+│   ! training.stream_pin=false forces PAGEABLE host memory — the base store   │
+│ on the RAM tier, the async reader's staging on the disk tier. Host-to-device │
+│ copies become synchronous, which costs overlap: measured GPU utilisation     │
+│ drops from ~97% to ~79%, and page-locking is worth up to 6.56x measured      │
+│ throughput (Qwen2.5-32B NF4), 7.41x on a synthetic. Unset stream_pin to let  │
+│ the box page-lock when it can.                                               │
+│   ! streaming from disk because stream_source='disk' was set, not because    │
+│ RAM was short. An async reader stages training.stream_read_ahead layers in   │
+│ host RAM (page-locked where the box allows) rather than holding the base     │
+│ resident, and is slower than the RAM tier it is being used instead of —      │
+│ measured 1.9-2.3x its step time with the store fully cached, on one box      │
+│ (benchmarks/gate-971-async-nvme-source.md).                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+____________________ test_resume_does_not_shift_the_windows ____________________
+tests/test_l2l_trainer_window.py:214: in test_resume_does_not_shift_the_windows
+    resumed = _train(
+tests/test_l2l_trainer_window.py:83: in _train
+    trainer.train(resume_from_checkpoint=resume)
+src/soup_cli/trainer/l2l_trainer.py:731: in train
+    return super().train(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/trainer.py:1562: in train
+    return inner_training_loop(
+../py312/lib/python3.12/site-packages/transformers/trainer.py:1646: in _inner_training_loop
+    self._run_epoch(
+../py312/lib/python3.12/site-packages/transformers/trainer.py:1892: in _run_epoch
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/trainer/l2l_trainer.py:780: in training_step
+    losses, counters = run_window(
+src/soup_cli/trainer/l2l_trainer.py:704: in run_window
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference, **routing)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:554: in run
+    losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:622: in _run
+    hidden[mb] = self._layer(
+src/soup_cli/utils/l2l_step.py:481: in _layer
+    out = module(hidden, *call.args, **call.kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1603: in forward
+    return self._body(hidden_states, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1649: in _body
+    return functional_call(
+../py312/lib/python3.12/site-packages/torch/_functorch/functional_call.py:154: in functional_call
+    return nn.utils.stateless._functional_call(
+../py312/lib/python3.12/site-packages/torch/nn/utils/stateless.py:279: in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/modeling_layers.py:110: in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/models/llama/modeling_llama.py:297: in forward
+    hidden_states, _ = self.self_attn(
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/models/llama/modeling_llama.py:243: in forward
+    query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/peft/tuners/lora/layer.py:1102: in forward
+    result = result + lora_B(lora_A(dropout(x))) * scaling
+                             ^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/linear.py:134: in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: Expected all tensors to be on the same device, but got mat2 is on cuda:0, different from other tensors on cpu (when checking argument in method wrapper_CUDA_mm)
+----------------------------- Captured stdout call -----------------------------
+{'loss': '4.156', 'grad_norm': '1.064', 'learning_rate': '0', 'l2l_steps': 1, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001389', 'l2l_layer_loads': 4, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.4286'}
+{'loss': '4.192', 'grad_norm': '1.037', 'learning_rate': '0.5', 'l2l_steps': 2, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001389', 'l2l_layer_loads': 7, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.8571'}
+{'loss': '4.133', 'grad_norm': '1.703', 'learning_rate': '0.4', 'l2l_steps': 3, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001389', 'l2l_layer_loads': 10, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1'}
+{'loss': '4.041', 'grad_norm': '0.9552', 'learning_rate': '0.3', 'l2l_steps': 4, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001389', 'l2l_layer_loads': 13, 'l2l_large_loads': 8, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1.429'}
+{'loss': '4.173', 'grad_norm': '1.027', 'learning_rate': '0.2', 'l2l_steps': 5, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001389', 'l2l_layer_loads': 16, 'l2l_large_loads': 10, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1.857'}
+{'loss': '3.987', 'grad_norm': '1.732', 'learning_rate': '0.1', 'l2l_steps': 6, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001389', 'l2l_layer_loads': 19, 'l2l_large_loads': 12, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '2'}
+{'train_runtime': '0.3919', 'train_samples_per_second': '35.72', 'train_steps_per_second': '15.31', 'train_loss': '4.114', 'epoch': '2'}
+----------------------------- Captured stderr call -----------------------------
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+[transformers] Warning: The following arguments do not match the ones in the `trainer_state.json` within the checkpoint directory: 
+	save_steps: 500 (from args) != 1 (from trainer_state.json)
+_________________ test_resume_with_spill_equals_resume_without _________________
+tests/test_l2l_spill_trainer.py:263: in test_resume_with_spill_equals_resume_without
+    runs[name] = _run(model, runtime, tmp_path, data, name=name, free=free,
+tests/test_l2l_spill_trainer.py:173: in _run
+    trainer.train(resume_from_checkpoint=resume)
+src/soup_cli/trainer/l2l_trainer.py:731: in train
+    return super().train(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/trainer.py:1562: in train
+    return inner_training_loop(
+../py312/lib/python3.12/site-packages/transformers/trainer.py:1646: in _inner_training_loop
+    self._run_epoch(
+../py312/lib/python3.12/site-packages/transformers/trainer.py:1892: in _run_epoch
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/trainer/l2l_trainer.py:780: in training_step
+    losses, counters = run_window(
+src/soup_cli/trainer/l2l_trainer.py:704: in run_window
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference, **routing)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:554: in run
+    losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:622: in _run
+    hidden[mb] = self._layer(
+src/soup_cli/utils/l2l_step.py:481: in _layer
+    out = module(hidden, *call.args, **call.kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1603: in forward
+    return self._body(hidden_states, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1649: in _body
+    return functional_call(
+../py312/lib/python3.12/site-packages/torch/_functorch/functional_call.py:154: in functional_call
+    return nn.utils.stateless._functional_call(
+../py312/lib/python3.12/site-packages/torch/nn/utils/stateless.py:279: in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/modeling_layers.py:110: in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/models/llama/modeling_llama.py:297: in forward
+    hidden_states, _ = self.self_attn(
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/transformers/models/llama/modeling_llama.py:243: in forward
+    query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/peft/tuners/lora/layer.py:1102: in forward
+    result = result + lora_B(lora_A(dropout(x))) * scaling
+                             ^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../py312/lib/python3.12/site-packages/torch/nn/modules/linear.py:134: in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: Expected all tensors to be on the same device, but got mat2 is on cuda:0, different from other tensors on cpu (when checking argument in method wrapper_CUDA_mm)
+----------------------------- Captured stdout call -----------------------------
+{'loss': '4.155', 'grad_norm': '0.5786', 'learning_rate': '0', 'l2l_steps': 1, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001159', 'l2l_layer_loads': 14, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.4286'}
+{'loss': '4.152', 'grad_norm': '0.3526', 'learning_rate': '0.5', 'l2l_steps': 2, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001159', 'l2l_layer_loads': 27, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.8571'}
+{'loss': '4.169', 'grad_norm': '0.7147', 'learning_rate': '0.4', 'l2l_steps': 3, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001159', 'l2l_layer_loads': 40, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1'}
+{'loss': '4.105', 'grad_norm': '0.2966', 'learning_rate': '0.3', 'l2l_steps': 4, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001159', 'l2l_layer_loads': 53, 'l2l_large_loads': 8, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1.429'}
+{'loss': '4.151', 'grad_norm': '0.6126', 'learning_rate': '0.2', 'l2l_steps': 5, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001159', 'l2l_layer_loads': 66, 'l2l_large_loads': 10, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1.857'}
+{'loss': '4.11', 'grad_norm': '0.362', 'learning_rate': '0.1', 'l2l_steps': 6, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.001159', 'l2l_layer_loads': 79, 'l2l_large_loads': 12, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '2'}
+{'train_runtime': '0.7915', 'train_samples_per_second': '17.69', 'train_steps_per_second': '7.581', 'train_loss': '4.14', 'epoch': '2'}
+----------------------------- Captured stderr call -----------------------------
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+=============================== warnings summary ===============================
+tests/test_fp8_l2l_trainer.py: 14 warnings
+  /kaggle/working/py312/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_c3_public_l2l.py::test_public_setup_and_optimizer_update_use_reserved_l2l_store[none]
+FAILED tests/test_c3_public_l2l.py::test_public_setup_and_optimizer_update_use_reserved_l2l_store[fp8_e4m3]
+FAILED tests/test_l2l_trainer_window.py::test_resume_does_not_shift_the_windows
+FAILED tests/test_l2l_spill_trainer.py::test_resume_with_spill_equals_resume_without
+==== 4 failed, 555 passed, 36 deselected, 14 warnings in 116.57s (0:01:56) =====

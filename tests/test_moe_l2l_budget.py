@@ -240,3 +240,109 @@ def test_plan_covers_native_deepseek_l2l_buffers(tmp_path, monkeypatch, budget_b
         for hook in hooks:
             hook.remove()
         rig.close()
+
+
+@pytest.mark.parametrize("device_type", ["cpu", "cuda"])
+def test_fp8_plan_selects_largest_fitting_window_including_scratch(device_type):
+    from soup_cli.utils.fp8_activations import fp8_activation_allocation
+
+    allocation = fp8_activation_allocation(
+        n_layers=3, mb_shapes=[(2, 5, 7)] * 4, pin=False,
+        compute_dtype="bfloat16", device_type=device_type,
+    )
+    exact_bytes = allocation.host_bytes + 4 * 2 * 10 * 3 * 8 + 10 * 3 * 8
+    args = {
+        **PLAN_ARGS, "requested_k": 64, "codec": "fp8_e4m3", "device_type": device_type,
+    }
+    budget = HostMemoryBudget(exact_bytes + 100, reserved_bytes=100)
+    plan = plan_moe_l2l(budget, **args)
+    assert plan.effective_k == 4
+    assert plan.host_bytes == exact_bytes
+    assert plan.activation_bytes == allocation.host_bytes
+    assert budget.used_bytes == 100
+    smaller = plan_moe_l2l(HostMemoryBudget(exact_bytes - 1), **args)
+    assert smaller.effective_k == 3
+
+
+def test_fp8_plan_reserves_real_variable_shape_store_and_releases_it():
+    import torch
+
+    from soup_cli.utils.fp8_activations import FP8ActivationStore
+
+    budget = HostMemoryBudget(100_000)
+    plan = plan_moe_l2l(budget, **PLAN_ARGS, codec="fp8_e4m3", device_type="cpu")
+    shapes = [(2, 5, 7), (1, 2, 7), (1, 4, 7), (2, 3, 7)]
+    plan.validate_microbatches(
+        n_layers=3, shapes=shapes, dtype="bfloat16", pin=False, codec="fp8_e4m3"
+    )
+    routing = budget.reserve(
+        "routing", plan.routing_record_bytes + plan.routing_comparison_bytes
+    )
+    store = FP8ActivationStore(
+        host_budget=budget, n_layers=3, k=4, chunk_shape=(2, 5, 7),
+        mb_shapes=shapes, dtype=torch.bfloat16, device="cpu", pin=False,
+    )
+    try:
+        for mb, shape in enumerate(shapes):
+            value = torch.ones(shape, dtype=torch.bfloat16)
+            store.put(2, mb, value)
+            assert torch.equal(store.get(2, mb), value)
+        assert budget.used_bytes <= plan.host_bytes
+        store.end_step()
+    finally:
+        store.close()
+        routing.close()
+    assert budget.used_bytes == 0
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"shapes": [(2, 5, 7)] * 5},
+        {"shapes": [(2, 6, 7)]},
+        {"shapes": [(2, 5, 8)]},
+        {"dtype": "float32"},
+        {"codec": "none"},
+        {"pin": True},
+        {"n_layers": 4},
+    ],
+)
+def test_memory_plan_refuses_out_of_envelope_window(change):
+    plan = plan_moe_l2l(
+        HostMemoryBudget(100_000), **PLAN_ARGS, codec="fp8_e4m3", device_type="cpu"
+    )
+    window = dict(
+        n_layers=3, shapes=[(2, 5, 7)], dtype="bfloat16", pin=False, codec="fp8_e4m3"
+    )
+    with pytest.raises(ValueError, match="plan"):
+        plan.validate_microbatches(**{**window, **change})
+
+
+@pytest.mark.parametrize("device_type,pin,minimum", [("cpu", False, 237), ("cuda", True, 42)])
+def test_fp8_minimum_includes_scratch_and_routing_before_admission(device_type, pin, minimum):
+    # Two 5-byte payloads, 8 scale bytes; CPU BF16 scratch is 203 bytes.
+    # CUDA pins the payloads to 8 bytes each and reserves 2 host scratch bytes.
+    # One 8-byte route record and one comparison are required on both devices.
+    options = dict(
+        n_layers=2, n_moe_layers=1, max_shape=(1, 1, 5), experts_per_token=1,
+        requested_k=64, dtype="bfloat16", pin=pin, codec="fp8_e4m3",
+        device_type=device_type,
+    )
+    plan = plan_moe_l2l(HostMemoryBudget(minimum), **options)
+    assert plan.effective_k == 1
+    assert plan.host_bytes == minimum
+    with pytest.raises(MemoryError, match="k=1 needs"):
+        plan_moe_l2l(HostMemoryBudget(minimum - 1), **options)
+
+
+@pytest.mark.parametrize("limit,expected_k", [(113, 2), (114, 3)])
+def test_fp8_scale_slab_rounding_changes_the_admitted_window(limit, expected_k):
+    # k=3: six 5-byte payloads round to 48; the 24-byte scale slab rounds to 32.
+    # Add 2 host scratch bytes, 24 route-record bytes and an 8-byte comparison.
+    plan = plan_moe_l2l(
+        HostMemoryBudget(limit), n_layers=2, n_moe_layers=1, max_shape=(1, 1, 5),
+        experts_per_token=1, requested_k=64, dtype="bfloat16", pin=True,
+        codec="fp8_e4m3", device_type="cuda",
+    )
+    assert plan.effective_k == expected_k
+    assert plan.host_bytes == (74 if expected_k == 2 else 114)

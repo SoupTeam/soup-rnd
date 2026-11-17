@@ -1,0 +1,12 @@
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_bf16_fixture.py:170:101
+    |
+168 |                     target[expert].copy_(value)
+169 |                     if target.dtype != torch.bfloat16 or not torch.equal(target[expert], value):
+170 |                         raise OracleMismatchError(f"resident expert differs from stored BF16: {key}")
+    |                                                                                                     ^
+171 |                     states[f"layer{layer_index}/{key}"] = {
+172 |                         "spec": index.expert_quant_specs[part].to_json(),
+    |
+
+Found 1 error.

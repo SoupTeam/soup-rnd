@@ -33,7 +33,7 @@ def test_default_recipe_uses_the_accumulation_steps_as_effective_k():
     assert (recipe.activation_codec, recipe.auto_k) == ("none", False)
 
 
-def test_unavailable_codec_is_refused_at_launch_by_name():
+def test_fp8_codec_is_refused_at_launch_by_name():
     from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
 
     with pytest.raises(ValueError, match="fp8_e4m3.*not available"):
@@ -279,10 +279,15 @@ def test_public_deepseek_auto_k_reserves_and_uses_one_window(
         plan = wrapper._c3_l2l_plan
         assert recipe.requested_k == cfg.training.gradient_accumulation_steps == 64
         assert recipe.effective_k == plan.max_microbatches == expected_k
-        assert plan.activations.limit_bytes == expected_k * 3 * 64 * 32 * 4
+        memory = wrapper.trainer._soup_l2l.memory_plan
+        routing = memory.routing_record_bytes + memory.routing_comparison_bytes
+        assert (memory.effective_k, memory.codec) == (expected_k, "none")
+        assert plan.routing_bytes == routing > 0
+        assert plan.activations.limit_bytes == expected_k * 3 * 64 * 32 * 4 + routing
         assert plan.weights.reserved_bytes <= available
         assert wrapper.trainer.args.gradient_accumulation_steps == expected_k
         assert wrapper.trainer._soup_l2l.c3_plan is plan
+        assert wrapper.trainer._soup_l2l.host_budget is plan.activations
         capacities = []
 
         class ObserveStore(TrainerCallback):
@@ -300,5 +305,85 @@ def test_public_deepseek_auto_k_reserves_and_uses_one_window(
         assert load_recipe(wrapper._output_dir) == recipe
         rows = [row for row in wrapper.trainer.state.log_history if "loss" in row]
         assert {row["l2l_effective_k"] for row in rows} == {expected_k}
+    finally:
+        wrapper._close_stream_runtime()
+
+
+@pytest.mark.parametrize("available", [400_000, 1_000_000])
+def test_public_deepseek_auto_k_fits_a_larger_fp8_window_in_the_same_ram(
+    tmp_path, monkeypatch, available,
+):
+    """The FP8 plan (payload, scales, scratch, routing) reaches C3, HF and the store."""
+    from benchmarks.harness.b13_moe_fixture import moe_weights_dir
+    from soup_cli.config.schema import SoupConfig
+    from soup_cli.trainer.sft import SFTTrainerWrapper
+    from soup_cli.utils import l2l_spill
+    from soup_cli.utils.fp8_activations import fp8_activation_allocation
+    from soup_cli.utils.host_memory_budget import HostMemoryBudget
+    from soup_cli.utils.moe_l2l_budget import plan_moe_l2l
+    from tests.test_l2l_probe_harness import hermetic_ram
+    from tests.test_v07201 import _write_tiny_tokenizer
+
+    weights = moe_weights_dir(tmp_path)
+    _write_tiny_tokenizer(weights)
+    hermetic_ram(monkeypatch, tmp_path)
+    # The launch keeps FP8 closed; this research path opens it to check the plumbing.
+    monkeypatch.setattr("soup_cli.utils.l2l_recipe.AVAILABLE_CODECS", ("none", "fp8_e4m3"))
+    monkeypatch.setattr(
+        l2l_spill, "ram_budget", lambda: l2l_spill.RamBudget(None, available, None, {}, None),
+    )
+    monkeypatch.setenv("SOUP_LAYER_STREAM_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("ACCELERATE_USE_CPU", "true")
+    monkeypatch.chdir(tmp_path)
+    cfg = SoupConfig.model_validate({
+        "base": str(weights), "output": str(tmp_path / "out"),
+        "data": {"train": "train.jsonl", "max_length": 64, "chat_template": "chatml"},
+        "training": {
+            "stream_layers": True, "stream_expert_layout": "per_expert", "stream_source": "disk",
+            "stream_disk_kind": "nvme", "stream_pin": False, "quantization": "4bit",
+            "bnb_4bit_use_double_quant": False,
+            "l2l": True, "l2l_auto_k": True, "l2l_activation_codec": "fp8_e4m3",
+            "batch_size": 1, "gradient_accumulation_steps": 64,
+            "epochs": 1, "logging_steps": 1, "save_steps": 1000,
+            "lora": {"r": 2, "alpha": 4, "dropout": 0, "target_modules": ["q_a_proj"]},
+        },
+    })
+    dataset = {"train": [
+        {"messages": [{"role": "user", "content": "hi " * (row % 5 + 1)},
+                      {"role": "assistant", "content": "hello world"}]}
+        for row in range(8)
+    ]}
+    wrapper = SFTTrainerWrapper(cfg, device="cpu")
+    try:
+        wrapper.setup(dataset)
+        state = wrapper.trainer._soup_l2l
+        memory, plan = state.memory_plan, wrapper._c3_l2l_plan
+        k = memory.effective_k
+        none_k = plan_moe_l2l(
+            HostMemoryBudget(memory.available_host_bytes),
+            n_layers=3, n_moe_layers=memory.n_moe_layers, max_shape=(1, 64, 32),
+            experts_per_token=memory.experts_per_token, requested_k=64, dtype="float32",
+            pin=False, codec="none", device_type="cpu",
+            host_workspace_bytes_per_batch=memory.window_host_bytes // k,
+        ).effective_k
+        assert 2 <= none_k < k < 64
+        assert (memory.codec, plan.codec, state.activation_codec) == ("fp8_e4m3",) * 3
+        assert wrapper._l2l_recipe.effective_k == plan.max_microbatches == k
+        assert wrapper.trainer.args.gradient_accumulation_steps == k
+        routing = memory.routing_record_bytes + memory.routing_comparison_bytes
+        scaled = fp8_activation_allocation(
+            n_layers=3, mb_shapes=[(1, 64, 32)] * k, pin=False,
+            compute_dtype="float32", device_type="cpu",
+        )
+        assert memory.activation_bytes == scaled.host_bytes
+        assert plan.activations.limit_bytes == scaled.host_bytes + routing
+        assert state.host_budget is plan.activations
+        # On this random-weight fixture, FP8 rounding flips natural routes. The guard
+        # must refuse the step rather than return gradients of another routing.
+        with pytest.raises(RuntimeError, match="routing guard: layer .* micro-batch"):
+            wrapper.train()
+        assert wrapper.trainer.state.global_step == 0
+        assert state.store is None
+        assert plan.activations.used_bytes == 0
     finally:
         wrapper._close_stream_runtime()

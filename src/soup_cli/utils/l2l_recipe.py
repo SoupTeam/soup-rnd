@@ -15,7 +15,8 @@ from typing import Any, Optional
 
 RECIPE_NAME = "l2l_recipe.json"
 
-#: Codecs the launch accepts. ``fp8_e4m3`` joins when the FP8 store exists.
+#: Codecs the launch accepts. ``fp8_e4m3`` stays closed until a natural-routing MoE step
+#: passes G4 E3; the trainer and planner accept it through the API (``L2LState``).
 AVAILABLE_CODECS = ("none",)
 
 

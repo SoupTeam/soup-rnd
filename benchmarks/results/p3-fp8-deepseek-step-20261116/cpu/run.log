@@ -1,0 +1,64 @@
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 244.45it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Failed to load CPU gemm_4bit_forward from kernels-community: No module named 'kernels'. Please make sure you already `pip install kernels` and the kernels >= 0.11.1
+/home/agent/projects/soup-rnd-p3-fp8/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py:3303: FutureWarning: `is_gradient_checkpointing` is deprecated and will be removed in v6. Use `is_activation_checkpointing` instead.
+  warnings.warn(
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 291.66it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Failed to load CPU gemm_4bit_forward from kernels-community: No module named 'kernels'. Please make sure you already `pip install kernels` and the kernels >= 0.11.1
+/home/agent/projects/soup-rnd-p3-fp8/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py:3303: FutureWarning: `is_gradient_checkpointing` is deprecated and will be removed in v6. Use `is_activation_checkpointing` instead.
+  warnings.warn(
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 293.14it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Failed to load CPU gemm_4bit_forward from kernels-community: No module named 'kernels'. Please make sure you already `pip install kernels` and the kernels >= 0.11.1
+/home/agent/projects/soup-rnd-p3-fp8/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py:3303: FutureWarning: `is_gradient_checkpointing` is deprecated and will be removed in v6. Use `is_activation_checkpointing` instead.
+  warnings.warn(
+k=1 bf16: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.184646129608154, 
+"store_host_bytes": 49152, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 932904960, 
+"process_rss_high_water_bytes": 931131392, "cuda_allocated_peak_bytes": null, "error": null, 
+"e1_rms_row_rel_max": 0.0, "e1_worst_row_rel_max": 0.0, "e1_pass": true, "e2_rms_row_rel_max": 0.0, "e2_pass":
+true}
+k=1 fp8: {"status": "ROUTING_REFUSED", "routing": {"complete": false, "layer": 2, "microbatch": 0, 
+"changed_tokens": 3, "tokens": 64, "message": "routing guard: layer 2 micro-batch 0 was routed differently in 
+the recompute than in the forward (3 of 64 tokens chose other experts), so its gradients would not be those of
+the forward. The router's weights, its correction bias or its input changed between the two."}, "window_loss":
+null, "store_host_bytes": 305921, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 910278656, 
+"process_rss_high_water_bytes": 908460032, "cuda_allocated_peak_bytes": null, "error": null}
+k=1 fp8_oracle: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.184646129608154, 
+"store_host_bytes": 305921, "oracle_host_bytes": 155408, "step_rss_sampled_peak_bytes": 933175296, 
+"process_rss_high_water_bytes": 931123200, "cuda_allocated_peak_bytes": null, "error": null, 
+"e1_rms_row_rel_max": 0.02595859589570533, "e1_worst_row_rel_max": 0.029622740708393488, "e1_pass": true, 
+"e2_rms_row_rel_max": 0.040307483269895826, "e2_pass": true, "e3": {"global_rel_l2": 0.05338005291091987, 
+"min_cosine": 0.9966842015358438, "tensors": 30, "pass": false}, "loss_abs_diff": 0.0}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 262.54it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Failed to load CPU gemm_4bit_forward from kernels-community: No module named 'kernels'. Please make sure you already `pip install kernels` and the kernels >= 0.11.1
+/home/agent/projects/soup-rnd-p3-fp8/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py:3303: FutureWarning: `is_gradient_checkpointing` is deprecated and will be removed in v6. Use `is_activation_checkpointing` instead.
+  warnings.warn(
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 295.98it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Failed to load CPU gemm_4bit_forward from kernels-community: No module named 'kernels'. Please make sure you already `pip install kernels` and the kernels >= 0.11.1
+/home/agent/projects/soup-rnd-p3-fp8/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py:3303: FutureWarning: `is_gradient_checkpointing` is deprecated and will be removed in v6. Use `is_activation_checkpointing` instead.
+  warnings.warn(
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 266.85it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Failed to load CPU gemm_4bit_forward from kernels-community: No module named 'kernels'. Please make sure you already `pip install kernels` and the kernels >= 0.11.1
+/home/agent/projects/soup-rnd-p3-fp8/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py:3303: FutureWarning: `is_gradient_checkpointing` is deprecated and will be removed in v6. Use `is_activation_checkpointing` instead.
+  warnings.warn(
+k=4 bf16: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.189848184585571, 
+"store_host_bytes": 196608, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 983433216, 
+"process_rss_high_water_bytes": 981610496, "cuda_allocated_peak_bytes": null, "error": null, 
+"e1_rms_row_rel_max": 0.0, "e1_worst_row_rel_max": 0.0, "e1_pass": true, "e2_rms_row_rel_max": 0.0, "e2_pass":
+true}
+k=4 fp8: {"status": "ROUTING_REFUSED", "routing": {"complete": false, "layer": 2, "microbatch": 0, 
+"changed_tokens": 3, "tokens": 64, "message": "routing guard: layer 2 micro-batch 0 was routed differently in 
+the recompute than in the forward (3 of 64 tokens chose other experts), so its gradients would not be those of
+the forward. The router's weights, its correction bias or its input changed between the two."}, "window_loss":
+null, "store_host_bytes": 381953, "oracle_host_bytes": 0, "step_rss_sampled_peak_bytes": 935653376, 
+"process_rss_high_water_bytes": 934252544, "cuda_allocated_peak_bytes": null, "error": null}
+k=4 fp8_oracle: {"status": "COMPLETE", "routing": {"complete": true}, "window_loss": 4.189848184585571, 
+"store_host_bytes": 381953, "oracle_host_bytes": 166160, "step_rss_sampled_peak_bytes": 983449600, 
+"process_rss_high_water_bytes": 981934080, "cuda_allocated_peak_bytes": null, "error": null, 
+"e1_rms_row_rel_max": 0.025818331742986828, "e1_worst_row_rel_max": 0.03001367533633173, "e1_pass": true, 
+"e2_rms_row_rel_max": 0.03975509799827437, "e2_pass": true, "e3": {"global_rel_l2": 0.05507760875092923, 
+"min_cosine": 0.9961199379673644, "tensors": 30, "pass": false}, "loss_abs_diff": 0.0}
