@@ -41,16 +41,16 @@ def g4(compose):
     ((1, 256, 4095), "int4", 4, 256 * 2048, 4 * 256),
     ((1, 64, 577), "int4", 4, 64 * 289, 4 * 64),
 ])
-def test_g4_chunk_sizes_are_the_contract(compose, g4, shape, codec, element, payload, scale):
-    sizes = compose.chunk_sizes(g4, shape, codec, element)
+def test_g4_chunk_sizes_are_the_contract(compose, shape, codec, element, payload, scale):
+    sizes = compose.chunk_sizes(shape, codec, element)
     assert sizes == {"payload": payload, "scale": scale, "compressed": payload + scale}
 
 
-def test_the_planner_gets_the_sizes_unrounded_and_rounds_each_allocation_once(compose, g4):
+def test_the_planner_gets_the_sizes_unrounded_and_rounds_each_allocation_once(compose):
     """Mistral-7B int8 at k=4 over 32 layers, ring 4, pinned: the 2 MiB payload is not
     rounded again, the ring buffer (2 MiB + 4096) page-locks 4 MiB, and the 32 x 4 scale
     chunks of 2,048 B are one 262,144 B slab."""
-    sizes = compose.chunk_sizes(g4, (1, 512, 4096), "int8", 2)
+    sizes = compose.chunk_sizes((1, 512, 4096), "int8", 2)
     budget_bytes, plan, refusal = compose.plan_for(sizes, "min", n_layers=32, k=4, ring=4,
                                                    pin=True)
     assert refusal is None and plan.spill_layers == 32

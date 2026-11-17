@@ -120,7 +120,9 @@ def build_moe_streamed(
     randomize_b: bool = True,
     tier: str = "ram",
     read_ahead: int = 2,
+    **build_options: Any,
 ) -> MoeStreamed:
+    """``build_options`` go to ``build_streamed_model`` unchanged (the complete levers)."""
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
 
     if index is None:
@@ -140,6 +142,7 @@ def build_moe_streamed(
         double_quant=storage == "nf4-nested",
         tier=tier,
         read_ahead=read_ahead,
+        **build_options,
     )
     if randomize_b:
         fixture.randomize_adapters(model)

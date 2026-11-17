@@ -3597,9 +3597,10 @@ class TrainingConfig(BaseModel):
         description=(
             "BETA — how training.l2l stores the activations between layers. 'none' keeps them "
             "in the compute dtype. 'fp8_e4m3' is accepted by the schema, but the launch "
-            "refuses it until the FP8 store exists. The value is recorded in the run's "
-            "l2l_recipe.json, and a resume with another codec is refused. Only valid with "
-            "training.l2l=true."
+            "refuses it: on MoE models FP8 rounding changes recompute routes and the routing "
+            "guard stops the step, and FP8 gradients exceed the G4 E3 bound. The trainer API "
+            "accepts it for research. The value is recorded in the run's l2l_recipe.json, and "
+            "a resume with another codec is refused. Only valid with training.l2l=true."
         ),
     )
     l2l_auto_k: bool = Field(
@@ -6660,6 +6661,22 @@ class SoupConfig(BaseModel):
                 raise ValueError(
                     "stream_experts requires explicit moe_aux_loss_coeff=0; "
                     "router auxiliary-loss integration is not supported"
+                )
+        if tcfg.l2l_activation_codec != "none":
+            if (
+                not tcfg.l2l
+                or not tcfg.stream_layers
+                or self.task != "sft"
+                or self.backend != "transformers"
+                or self.modality != "text"
+                or self.data.format == "raft"
+                or tcfg.multipack
+            ):
+                raise ValueError(
+                    "training.l2l_activation_codec='fp8_e4m3' requires the streamed "
+                    "transformers text SFT L2L trainer: set task='sft', l2l=true and "
+                    "stream_layers=true; RAFT and multipack use different trainers and do "
+                    "not read this setting."
                 )
         if tcfg.l2l_spill_dir is not None and not tcfg.l2l:
             raise ValueError(

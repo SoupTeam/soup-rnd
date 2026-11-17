@@ -1,0 +1,546 @@
+{
+  "adapter_after_sha256": "73c382a8fb68fad04288329f1e99428532278b264a25e5cd6aa43c5994a20eaf",
+  "adapter_before_sha256": "73c382a8fb68fad04288329f1e99428532278b264a25e5cd6aa43c5994a20eaf",
+  "adapter_unchanged": true,
+  "attention": {
+    "backend_flags": {
+      "cudnn": false,
+      "efficient": false,
+      "flash": false,
+      "math": true
+    },
+    "backend_requested": "MATH",
+    "deterministic_flags": {
+      "algorithms_enabled": true,
+      "allow_tf32": false,
+      "cudnn_allow_tf32": false,
+      "cudnn_benchmark": false,
+      "cudnn_deterministic": true,
+      "warn_only": false
+    },
+    "executed_sdpa_calls": 48,
+    "hardware": {
+      "bf16_supported": true,
+      "capability": [
+        8,
+        6
+      ],
+      "cuda_version": "13.0",
+      "device": "cuda:0",
+      "name": "NVIDIA GeForce RTX 3060",
+      "native_bf16": true,
+      "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+    },
+    "instrumentation": {
+      "full_window_trace": false,
+      "max_profiled_operations": 80,
+      "max_signatures": 16,
+      "profiled_operations": 4,
+      "profiling_errors": [],
+      "retains_tensors": false,
+      "scope": "bounded_attention_operators",
+      "signature_limit_exceeded": false
+    },
+    "samples": [
+      {
+        "backward": {
+          "cuda_kernel_names": [
+            "ampere_sgemm_128x128_nn",
+            "ampere_sgemm_128x128_nt",
+            "ampere_sgemm_128x128_tn",
+            "void (anonymous namespace)::softmax_warp_backward<float, float, float, 6, false, false>(float*, float const*, float const*, int, int, int, bool const*)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul>)"
+          ],
+          "operators": [
+            "aten::_softmax_backward_data",
+            "aten::as_strided",
+            "aten::bmm",
+            "aten::mul",
+            "aten::transpose"
+          ]
+        },
+        "device": "cuda",
+        "device_index": 0,
+        "dtype": "torch.bfloat16",
+        "forward": {
+          "cuda_kernel_names": [
+            "ampere_sgemm_128x128_nn",
+            "ampere_sgemm_128x128_tn",
+            "void (anonymous namespace)::softmax_warp_forward<float, float, float, 6, false, false>(float*, float const*, int, int, int, bool const*, int, bool)",
+            "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1} const&)::{lambda(int)#1})",
+            "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1})",
+            "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1})",
+            "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, at::native::and_kernel_cuda(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(bool, bool)#1}>, unsigned int, bool, 4, 4> >(at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, at::native::and_kernel_cuda(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(bool, bool)#1}>, unsigned int, bool, 4, 4>)",
+            "void at::native::triu_tril_kernel<bool, int, false, 8, false>(at::cuda::detail::TensorInfo<bool, int>, at::cuda::detail::TensorInfo<bool const, int>, long, long, int)",
+            "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::isneginf_kernel_impl(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::isneginf_kernel_impl(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<bool>, std::array<char*, 1ul> >(int, at::native::FillFunctor<bool>, std::array<char*, 1ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul>)"
+          ],
+          "operators": [
+            "aten::_reshape_alias",
+            "aten::_safe_softmax",
+            "aten::_scaled_dot_product_attention_math",
+            "aten::_softmax",
+            "aten::_to_copy",
+            "aten::_unsafe_view",
+            "aten::add_",
+            "aten::all",
+            "aten::as_strided",
+            "aten::bmm",
+            "aten::copy_",
+            "aten::empty",
+            "aten::empty_strided",
+            "aten::expand",
+            "aten::fill_",
+            "aten::isneginf",
+            "aten::matmul",
+            "aten::mul",
+            "aten::ones",
+            "aten::reshape",
+            "aten::resize_",
+            "aten::scalar_tensor",
+            "aten::scaled_dot_product_attention",
+            "aten::set_",
+            "aten::softmax",
+            "aten::to",
+            "aten::transpose",
+            "aten::tril",
+            "aten::view",
+            "aten::where"
+          ]
+        },
+        "key_device": "cuda",
+        "key_device_index": 0,
+        "key_dtype": "torch.bfloat16",
+        "key_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "query_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "value_device": "cuda",
+        "value_device_index": 0,
+        "value_dtype": "torch.bfloat16",
+        "value_shape": [
+          1,
+          2,
+          64,
+          8
+        ]
+      }
+    ],
+    "unique_calls": [
+      {
+        "device": "cuda",
+        "device_index": 0,
+        "dtype": "torch.bfloat16",
+        "key_device": "cuda",
+        "key_device_index": 0,
+        "key_dtype": "torch.bfloat16",
+        "key_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "query_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "value_device": "cuda",
+        "value_device_index": 0,
+        "value_dtype": "torch.bfloat16",
+        "value_shape": [
+          1,
+          2,
+          64,
+          8
+        ]
+      }
+    ]
+  },
+  "backend_requested": "MATH",
+  "cleanup_errors": [],
+  "diagnostic_errors": [],
+  "gradient_artifact": {
+    "bytes": 16393,
+    "path": "gradients.pt",
+    "sha256": "f8c8cc5539d46c0a177fde2f773f0fccd252e1c5434977c44bd03ec08d4338d1"
+  },
+  "gradient_checks": {
+    "base_model.model.model.layers.0.self_attn.kv_a_proj_with_mqa.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.kv_a_proj_with_mqa.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 48,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        24,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.kv_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.kv_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.o_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.o_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_a_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_a_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        16,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_a_proj_with_mqa.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_a_proj_with_mqa.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 48,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        24,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.o_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.o_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_a_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_a_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        16,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_a_proj_with_mqa.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_a_proj_with_mqa.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 48,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        24,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.o_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.o_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_a_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_a_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        16,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    }
+  },
+  "host_budget_after_close_bytes": 0,
+  "host_budget_bytes": 2147483648,
+  "initial_adapter_sha256": "1fb33861b1230d66af06243d55a609198f20e888c72ede050321457986557ace",
+  "instrumentation": "synchronous per-pair CPU transfer, SHA256 and disk archive; included in wall time, not a training speed measurement",
+  "layer_forward_counts": [
+    8,
+    8,
+    8
+  ],
+  "losses": [
+    0.5176332592964172,
+    0.4839535653591156,
+    0.5263260006904602,
+    0.5263260006904602,
+    0.5263260006904602,
+    0.5263260006904602,
+    0.5263260006904602,
+    0.5263260006904602
+  ],
+  "name": "ga_floor",
+  "optimizer_applied": false,
+  "routing_guard": "ordinary_streamed_GA",
+  "runtime_load_deltas": {
+    "expert_bytes_read": 331776,
+    "expert_fetches": 384,
+    "large_loads": 16,
+    "layer_loads": 24,
+    "restores": 0
+  },
+  "status": "COMPLETE",
+  "valid_target_count": 498,
+  "wall_seconds": 2.6713226507417858
+}

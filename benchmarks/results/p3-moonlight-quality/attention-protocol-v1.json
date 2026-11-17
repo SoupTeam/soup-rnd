@@ -1,0 +1,73 @@
+{
+  "alternative_noise_floor_backend": "MATH",
+  "arms": [
+    "bf16_l2l",
+    "oracle_block64_e4m3"
+  ],
+  "backend_selection": "sdpa_kernel([requested_backend])",
+  "change_length_batch_or_accumulation_on_oom": false,
+  "compute_dtype": "bfloat16",
+  "created_utc": "2026-11-10T19:21:01.300363+00:00",
+  "determinism": {
+    "algorithms_enabled": true,
+    "allow_tf32": false,
+    "autocast": false,
+    "warn_only": false
+  },
+  "fallback_allowed": false,
+  "gradient_gate": {
+    "accumulation_steps": 8,
+    "main_backend": "EFFICIENT_ATTENTION",
+    "microbatch_length": 64,
+    "noise_floor_backend": "MATH",
+    "prefix_tokens": 512,
+    "thresholds_unchanged": true
+  },
+  "hardware": {
+    "minimum_cuda_capability": [
+      8,
+      0
+    ],
+    "native_bf16_required": true,
+    "offer_and_spending_limit_require_prior_approval": true,
+    "provider": "Vast.ai",
+    "t4_qualification_allowed": false
+  },
+  "layouts": [
+    {
+      "accumulation_steps": 4,
+      "batch_size": 1,
+      "length": 1024
+    },
+    {
+      "accumulation_steps": 1,
+      "batch_size": 1,
+      "length": 4096
+    }
+  ],
+  "main_backend": "EFFICIENT_ATTENTION",
+  "model": {
+    "attention_heads": 16,
+    "config_sha256": "64513a4aa6ffd2337215ea80c880491ad54a180ffb66a53dd9e178c6f8e9f76c",
+    "id": "moonshotai/Moonlight-16B-A3B",
+    "query_key_head_dim": 192,
+    "revision": "476b36a473d4467f94469414bef6cee75c9c8172",
+    "value_head_dim": 128
+  },
+  "optimizer_and_quality_criteria_unchanged": true,
+  "require_8gb_fit": false,
+  "required_execution_evidence": [
+    "observed_forward_operator",
+    "observed_backward_operator",
+    "actual_cuda_kernel_names",
+    "observed_query_key_value_shapes",
+    "dtype",
+    "device",
+    "deterministic_flags"
+  ],
+  "schema": "p3-deepseek-quality-attention-protocol-v1",
+  "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+  "seed": 23,
+  "trainable_dtype": "float32",
+  "training_pack_manifest_sha256": "2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4"
+}

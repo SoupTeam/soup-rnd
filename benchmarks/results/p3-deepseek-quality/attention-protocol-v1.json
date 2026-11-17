@@ -1,0 +1,73 @@
+{
+  "alternative_noise_floor_backend": "MATH",
+  "arms": [
+    "bf16_l2l",
+    "oracle_block64_e4m3"
+  ],
+  "backend_selection": "sdpa_kernel([requested_backend])",
+  "change_length_batch_or_accumulation_on_oom": false,
+  "compute_dtype": "bfloat16",
+  "created_utc": "2026-11-10T19:21:01.300363+00:00",
+  "determinism": {
+    "algorithms_enabled": true,
+    "allow_tf32": false,
+    "autocast": false,
+    "warn_only": false
+  },
+  "fallback_allowed": false,
+  "gradient_gate": {
+    "accumulation_steps": 8,
+    "main_backend": "EFFICIENT_ATTENTION",
+    "microbatch_length": 64,
+    "noise_floor_backend": "MATH",
+    "prefix_tokens": 512,
+    "thresholds_unchanged": true
+  },
+  "hardware": {
+    "minimum_cuda_capability": [
+      8,
+      0
+    ],
+    "native_bf16_required": true,
+    "offer_and_spending_limit_require_prior_approval": true,
+    "provider": "Vast.ai",
+    "t4_qualification_allowed": false
+  },
+  "layouts": [
+    {
+      "accumulation_steps": 4,
+      "batch_size": 1,
+      "length": 1024
+    },
+    {
+      "accumulation_steps": 1,
+      "batch_size": 1,
+      "length": 4096
+    }
+  ],
+  "main_backend": "EFFICIENT_ATTENTION",
+  "model": {
+    "attention_heads": 128,
+    "config_sha256": "cbf0b95dc614de208a109bb5fd4e7eed11385e9c68411d2c17db5319443035d9",
+    "id": "deepseek-ai/DeepSeek-V3",
+    "query_key_head_dim": 192,
+    "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+    "value_head_dim": 128
+  },
+  "optimizer_and_quality_criteria_unchanged": true,
+  "require_8gb_fit": false,
+  "required_execution_evidence": [
+    "observed_forward_operator",
+    "observed_backward_operator",
+    "actual_cuda_kernel_names",
+    "observed_query_key_value_shapes",
+    "dtype",
+    "device",
+    "deterministic_flags"
+  ],
+  "schema": "p3-deepseek-quality-attention-protocol-v1",
+  "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+  "seed": 23,
+  "trainable_dtype": "float32",
+  "training_pack_manifest_sha256": "c7809f47dd44b1f0cb67a01db63406c381872013dc5bc8df58aedc83d68b1936"
+}

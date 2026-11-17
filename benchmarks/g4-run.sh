@@ -81,9 +81,10 @@ check)
   # The codecs only cast (no FP8 GEMM), so any CUDA card must round-trip them on the device.
   PYTHONPATH="$ROOT/src:$ROOT/benchmarks/harness" "$PY" -c "
 import torch, g4_activation_codec as c
+from soup_cli.utils.activation_codec import round_trip
 x = torch.randn(4, 512, 4096, device='cuda', dtype=torch.bfloat16)
 for name in ('int8', 'fp8_e4m3', 'int4'):
-    err = c.restore_error(x, c.round_trip(x, name))
+    err = c.restore_error(x, round_trip(x, name))
     print(name, 'cuda round trip rms row rel', round(err['rms_row_rel'], 5))
 "
   ;;

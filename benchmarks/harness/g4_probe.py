@@ -56,9 +56,11 @@ import l2l_activations  # noqa: E402
 import l2l_schedule  # noqa: E402
 import stream_probe  # noqa: E402
 
+from soup_cli.utils import activation_codec  # noqa: E402
+
 CPU_LABEL = "SYNTHETIC/CPU PILOT"
-ERROR_CODECS = (codecs.INT8, codecs.FP8, codecs.COARSE)
-TRAIN_CODECS = (codecs.IDENTITY,) + codecs.CANDIDATES
+ERROR_CODECS = (activation_codec.INT8, activation_codec.FP8, activation_codec.COARSE)
+TRAIN_CODECS = (activation_codec.IDENTITY,) + activation_codec.CANDIDATES
 HARNESS = Path(__file__).resolve().parent
 ROOT = HARNESS.parents[1]
 PACKAGES = ("torch", "transformers", "peft", "bitsandbytes", "accelerate", "safetensors",
@@ -141,7 +143,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--lora-targets", default="q_proj,k_proj,v_proj,o_proj")
     parser.add_argument("--seed", type=int, default=1, help="LoRA initialisation seed")
     parser.add_argument("--dolly", default=None, help=f"local {g4_data.FILENAME}")
-    parser.add_argument("--codec", choices=TRAIN_CODECS, default=codecs.IDENTITY)
+    parser.add_argument("--codec", choices=TRAIN_CODECS, default=activation_codec.IDENTITY)
     parser.add_argument("--error-sets", type=int, default=2)
     parser.add_argument("--bench-reps", type=int, default=50)
     parser.add_argument("--steps", type=int, default=0,
@@ -193,7 +195,7 @@ def _sha256(path: Path) -> Optional[str]:
 
 #: The shipped modules the step actually executes; the harness's l2l_activations.py and
 #: l2l_schedule.py only re-export them, so their own hashes do not cover the running code.
-EXECUTED_SOURCES = ("l2l_step.py", "l2l_rng.py", "l2l_activations.py")
+EXECUTED_SOURCES = ("l2l_step.py", "l2l_rng.py", "l2l_activations.py", "activation_codec.py")
 
 
 def harness_hashes() -> Dict[str, Optional[str]]:
@@ -410,7 +412,7 @@ class RecordingStore:
         with torch.no_grad():
             out = call_layer(self._step, layer, tensor)
             for name in self._names:
-                x_hat = codecs.round_trip(tensor, name)
+                x_hat = activation_codec.round_trip(tensor, name)
                 out_hat = call_layer(self._step, layer, x_hat)
                 metrics = self.parts[name]
                 metrics["restore"][layer].append(codecs.restore_error(tensor, x_hat))
@@ -452,14 +454,16 @@ def microbench(ctx: Context, x: Any, reps: int) -> Dict[str, Any]:
 
     results: Dict[str, Any] = {"chunk_shape": list(x.shape), "reps": reps,
                                "timer": "cuda-event" if ctx.is_cuda else "perf_counter"}
-    for name in (codecs.IDENTITY,) + ERROR_CODECS:
-        payload, scale = codecs.encode(x, name)
+    for name in (activation_codec.IDENTITY,) + ERROR_CODECS:
+        payload, scale = activation_codec.encode(x, name)
         host = torch.empty(payload.shape, dtype=payload.dtype, pin_memory=ctx.is_cuda)
         compress, restore, copy = [], [], []
         for rep in range(reps + 5):
-            (p, s), c_s = _timed(ctx, lambda: codecs.store_compress(x, name)[:2]
-                                 if name != codecs.IDENTITY else codecs.encode(x, name))
-            _, r_s = _timed(ctx, lambda: codecs.decode(p, s, name, x.dtype, int(x.shape[-1])))
+            (p, s), c_s = _timed(ctx, lambda: activation_codec.store_compress(x, name)[:2]
+                                 if name != activation_codec.IDENTITY
+                                 else activation_codec.encode(x, name))
+            _, r_s = _timed(ctx, lambda: activation_codec.decode(
+                p, s, name, x.dtype, int(x.shape[-1])))
             _, d_s = _timed(ctx, lambda: host.copy_(payload, non_blocking=True))
             if rep >= 5:
                 compress.append(c_s)
@@ -468,8 +472,8 @@ def microbench(ctx: Context, x: Any, reps: int) -> Dict[str, Any]:
         results[name] = {
             "payload_bytes": int(payload.numel() * payload.element_size()),
             "scale_bytes": int(scale.numel() * 4) if scale is not None else 0,
-            "compress": summarize_times(compress if name != codecs.IDENTITY else []),
-            "restore": summarize_times(restore if name != codecs.IDENTITY else []),
+            "compress": summarize_times(compress if name != activation_codec.IDENTITY else []),
+            "restore": summarize_times(restore if name != activation_codec.IDENTITY else []),
             "d2h_copy": summarize_times(copy),
         }
     return results
@@ -531,7 +535,7 @@ def mode_error(ctx: Context, sink: Any) -> None:
         rec_losses, recorded = run(recorder)
         if sample is None:
             sample = recorder.sample
-        ident_losses, ident = run(ctx.store(codecs.IDENTITY, args.k))
+        ident_losses, ident = run(ctx.store(activation_codec.IDENTITY, args.k))
         record: Dict[str, Any] = {
             "set": index,
             "ga_vs_l2l": l2l_schedule.compare(ga, plain),
@@ -636,7 +640,7 @@ def mode_train(ctx: Context, sink: Any) -> None:
             t0 = time.perf_counter()
             try:
                 losses = step.run(ids[index * args.k:(index + 1) * args.k], store)
-            except codecs.NonFiniteActivationError as exc:
+            except activation_codec.NonFiniteActivationError as exc:
                 # The step is refused before the optimizer sees it; the arm stops and
                 # V7 reads "stopped", like a non-finite loss.
                 sink.payload["stopped"] = f"step {index}: {exc}"

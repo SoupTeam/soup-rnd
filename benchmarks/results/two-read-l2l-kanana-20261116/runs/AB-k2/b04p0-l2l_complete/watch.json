@@ -1,0 +1,99 @@
+{
+  "arm": "AB:l2l_complete",
+  "round": 9,
+  "run": 17,
+  "label": "t08-two-read",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "ok",
+  "box_stamp_before": {
+    "unix_s": 1794782797.2934535,
+    "ram_available_bytes": 71309783040,
+    "commit_charge": {
+      "used_bytes": 62591864832,
+      "limit_bytes": 75736989696
+    },
+    "power_source": "mains",
+    "gpu_processes": [],
+    "gpu_memory_used_mib": 2,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1794783136.4553528,
+    "ram_available_bytes": 71321505792,
+    "commit_charge": {
+      "used_bytes": 62594883584,
+      "limit_bytes": 75736989696
+    },
+    "power_source": "mains",
+    "gpu_processes": [],
+    "gpu_memory_used_mib": 2,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 772 to 2910 MHz over 166 samples; clock event reasons seen: none",
+    "samples": 166,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 772,
+      "median": 2842.0,
+      "max": 2910
+    },
+    "reasons_seen": {}
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+        "sleep_offset_start_s": -1.6088597476482391e-07,
+        "sleep_offset_end_s": -2.7194619178771973e-07,
+        "suspend_count_start": 0,
+        "suspend_count_end": 0
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 171 power samples, so on mains",
+      "evidence": {
+        "samples": 171,
+        "off_mains_samples": [],
+        "battery_present": false,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": false,
+          "online": {}
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 65536 bytes of foreign reads on nvme0n1 (limit 12681437184)",
+      "evidence": {
+        "model_path": "/root/volume/cache",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 66521561604608,
+        "disk_read_bytes_end": 66775190413824,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 253628743680,
+        "foreign_read_bytes": 65536,
+        "foreign_read_bytes_min": 65536,
+        "foreign_read_bytes_max": 65536,
+        "uninspectable_processes": 0,
+        "foreign_read_fraction": 0.05,
+        "limit_bytes": 12681437184
+      },
+      "readers": [],
+      "unattributed_bytes": 65536
+    }
+  }
+}

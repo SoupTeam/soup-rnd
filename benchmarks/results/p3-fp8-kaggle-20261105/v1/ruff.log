@@ -1,0 +1,87 @@
+E501 Line too long (103 > 100)
+   --> benchmarks/harness/p3_fp8_memory.py:167:101
+    |
+165 |             raise ValueError("nonfinite attached embedding/router tensor")
+166 |         if not weight.is_floating_point() or weight.element_size() < 2:
+167 |             raise ValueError("router weight is quantized; bounded probe requires its native fp32/bf16")
+    |                                                                                                     ^^^
+168 |         config = DeepseekV3Config.from_dict(config_dict)
+169 |         router = DeepseekV3TopkRouter(config).requires_grad_(False).to(device)
+    |
+
+F821 Undefined name `source`
+   --> benchmarks/harness/p3_fp8_memory.py:316:24
+    |
+315 |             def chunk(layer: int, mb: int) -> Any:
+316 |                 return source * ((layer + 1) / layers) + (mb % 7) * 0.03125
+    |                        ^^^^^^
+317 |
+318 |             error_parts: dict[int, list[dict[str, float]]] = {layer: [] for layer in range(layers)}
+    |
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_fp8_smoke.py:526:101
+    |
+526 | def _negative_control(fixture: Any, state: Any, ids: list[Any], labels: list[Any]) -> dict[str, Any]:
+    |                                                                                                     ^
+527 |     """Change expert IDs only in recompute; the existing guard must stop the step."""
+528 |     import torch
+    |
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_fp8_smoke.py:549:101
+    |
+547 |     for module in fixture.streamed.modules():
+548 |         if isinstance(module, streamed_experts_class()):
+549 |             handles.append(module.register_forward_pre_hook(corrupt, with_kwargs=True, prepend=True))
+    |                                                                                                     ^
+550 |     result: dict[str, Any] = {
+551 |         "status": "FAIL", "control": "uncompressed store, changed recompute expert IDs",
+    |
+
+E501 Line too long (104 > 100)
+   --> benchmarks/harness/p3_fp8_smoke.py:621:101
+    |
+619 |             "config": fixture.config.to_dict(),
+620 |             "trainable_tensors": len(trainables(fixture.streamed)),
+621 |             "trainable_elements": sum(param.numel() for param in trainables(fixture.streamed).values()),
+    |                                                                                                     ^^^^
+622 |             "lora_targets": list(ALL_TARGETS), "dtype": "float32", "seed": 61,
+623 |             "dropout": 0.0, "giant_model_training": False,
+    |
+
+E501 Line too long (104 > 100)
+   --> benchmarks/harness/p3_fp8_smoke.py:898:101
+    |
+896 |         result["matches_r1_671b_architecture_shape"] = shape_matches
+897 |         if not shape_matches:
+898 |             raise ValueError("attached config does not match the 61-layer/7168-hidden/256-expert shape")
+    |                                                                                                     ^^^^
+899 |         try:
+900 |             from .p3_fp8_memory import embedding_router_probe, full_shape_store_probes
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> benchmarks/harness/p3_fp8_smoke.py:932:9
+    |
+930 |               weight_map=weight_map, device=device,
+931 |           )
+932 | /         from safetensors import safe_open
+933 | |
+934 | |         import torch
+    | |____________________^
+935 |
+936 |           with safe_open(str(shard), framework="pt", device="cpu") as handle:
+    |
+help: Organize imports
+    |
+931 |         )
+    -         from safetensors import safe_open
+    -
+932 |         import torch
+933 +         from safetensors import safe_open
+934 |
+    |
+
+Found 7 errors.
+[*] 1 fixable with `--fix`.

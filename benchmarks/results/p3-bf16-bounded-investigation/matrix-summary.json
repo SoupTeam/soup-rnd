@@ -1,0 +1,907 @@
+{
+  "matched_windows": 96,
+  "controls_all_bitwise": true,
+  "leases_all_zero": true,
+  "fp8_route_refusals": 75,
+  "completed_provisional_fp8_steps": 21,
+  "g4_gradient_update_step_passes": 3,
+  "fp8_cases_accepted": 0,
+  "rows": [
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "OBSERVED",
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "FAIL",
+        "FAIL",
+        "FAIL"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "OBSERVED",
+        "REFUSED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "FAIL",
+        "BLOCKED",
+        "PASS"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "OBSERVED",
+        "REFUSED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "FAIL",
+        "BLOCKED",
+        "FAIL"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "OBSERVED",
+        "REFUSED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "FAIL",
+        "BLOCKED",
+        "FAIL"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "discovery",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "FAIL",
+        "FAIL"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "FAIL"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "FAIL"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "p3",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "OBSERVED",
+        "OBSERVED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "FAIL",
+        "FAIL",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "PASS"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "dense",
+      "adapters": "broad",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "OBSERVED",
+        "REFUSED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "FAIL",
+        "BLOCKED",
+        "FAIL"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "p3",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 1,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "OBSERVED",
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "FAIL",
+        "FAIL",
+        "PASS"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 4,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 16,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    },
+    {
+      "input_set": "holdout",
+      "weight_format": "nf4",
+      "adapters": "broad",
+      "k": 64,
+      "bf16_control_bitwise": true,
+      "a3": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_arms": [
+        "REFUSED",
+        "REFUSED",
+        "REFUSED"
+      ],
+      "fp8_step_gradient_update_gates": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "fp8_decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      }
+    }
+  ]
+}

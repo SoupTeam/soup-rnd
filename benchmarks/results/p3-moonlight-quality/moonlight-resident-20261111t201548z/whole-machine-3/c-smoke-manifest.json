@@ -1,0 +1,1697 @@
+{
+  "attempts": [
+    {
+      "attention": {
+        "backend_flags": {
+          "cudnn": false,
+          "efficient": true,
+          "flash": false,
+          "math": false
+        },
+        "backend_requested": "EFFICIENT_ATTENTION",
+        "deterministic_flags": {
+          "algorithms_enabled": true,
+          "allow_tf32": false,
+          "cudnn_allow_tf32": false,
+          "cudnn_benchmark": false,
+          "cudnn_deterministic": true,
+          "warn_only": false
+        },
+        "executed_sdpa_calls": 1,
+        "hardware": {
+          "bf16_supported": true,
+          "capability": [
+            8,
+            9
+          ],
+          "cuda_version": "13.0",
+          "device": "cuda:0",
+          "name": "NVIDIA GeForce RTX 4090",
+          "native_bf16": true,
+          "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+        },
+        "instrumentation": {
+          "full_window_trace": false,
+          "max_profiled_operations": 80,
+          "max_signatures": 16,
+          "profiled_operations": 2,
+          "profiling_errors": [],
+          "retains_tensors": false,
+          "scope": "bounded_attention_operators",
+          "signature_limit_exceeded": false
+        },
+        "profile_id": "moonlight-16b-a3b",
+        "samples": [
+          {
+            "backward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassB_bf16_aligned_128x64_k65536_sm80(PyTorchMemEffAttention::AttentionBackwardKernel<cutlass::arch::Sm80, cutlass::bfloat16_t, true, false, false, 128, 64, 65536, false>::Params)",
+                "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_backward",
+                "aten::_scaled_dot_product_efficient_attention_backward",
+                "aten::as_strided",
+                "aten::clone",
+                "aten::contiguous",
+                "aten::copy_",
+                "aten::empty",
+                "aten::empty_like",
+                "aten::fill_",
+                "aten::transpose"
+              ]
+            },
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "forward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassF_bf16_aligned_32x128_gmem_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 32, 128, 65536, true, true>::Params)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_forward",
+                "aten::_scaled_dot_product_efficient_attention",
+                "aten::as_strided",
+                "aten::empty",
+                "aten::fill_",
+                "aten::scaled_dot_product_attention",
+                "aten::transpose"
+              ]
+            },
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              1024,
+              128
+            ]
+          }
+        ],
+        "unique_calls": [
+          {
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              1024,
+              128
+            ]
+          }
+        ]
+      },
+      "backend": "EFFICIENT_ATTENTION",
+      "batch": 1,
+      "dtype": "bfloat16",
+      "finite_output_and_gradients": true,
+      "heads": 16,
+      "length": 1024,
+      "memory": {
+        "cuda_allocated_after_bytes": 0,
+        "cuda_allocated_before_bytes": 0,
+        "cuda_allocated_peak_bytes": 56755200,
+        "cuda_reserved_after_bytes": 58720256,
+        "cuda_reserved_before_bytes": 0,
+        "cuda_reserved_peak_bytes": 58720256,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 974139392,
+        "process_rss_after_bytes": 971362304,
+        "process_rss_before_bytes": 823824384,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 975495168,
+        "process_rss_samples": 12,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 0.11195233798935078
+      },
+      "name": "attention-EFFICIENT_ATTENTION-L1024-repeat-0",
+      "output_qkv_gradient_sha256": [
+        "c4d53b9421524dcd9099098bc42ede2834812237269ed906cf87c928afb513de",
+        "d19dd9a0ab7e24e9a0b3497712dbbfe28de7cfb93c6a749303d4642c36c1c3e0",
+        "4cbbd2a3fd2b48eb541b27312bb75ee56ecf4f3a8437d0b93355be4054bd0c38",
+        "da20d560a94ff29c6afd0e1c5100705b2316a998a42e434c216dddc556ea9d16"
+      ],
+      "profile_id": "moonlight-16b-a3b",
+      "qk_dim": 192,
+      "qualification_only": true,
+      "repeat": 0,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "v_dim": 128,
+      "wall_seconds": 0.22128555199014954
+    },
+    {
+      "attention": {
+        "backend_flags": {
+          "cudnn": false,
+          "efficient": true,
+          "flash": false,
+          "math": false
+        },
+        "backend_requested": "EFFICIENT_ATTENTION",
+        "deterministic_flags": {
+          "algorithms_enabled": true,
+          "allow_tf32": false,
+          "cudnn_allow_tf32": false,
+          "cudnn_benchmark": false,
+          "cudnn_deterministic": true,
+          "warn_only": false
+        },
+        "executed_sdpa_calls": 1,
+        "hardware": {
+          "bf16_supported": true,
+          "capability": [
+            8,
+            9
+          ],
+          "cuda_version": "13.0",
+          "device": "cuda:0",
+          "name": "NVIDIA GeForce RTX 4090",
+          "native_bf16": true,
+          "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+        },
+        "instrumentation": {
+          "full_window_trace": false,
+          "max_profiled_operations": 80,
+          "max_signatures": 16,
+          "profiled_operations": 2,
+          "profiling_errors": [],
+          "retains_tensors": false,
+          "scope": "bounded_attention_operators",
+          "signature_limit_exceeded": false
+        },
+        "profile_id": "moonlight-16b-a3b",
+        "samples": [
+          {
+            "backward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassB_bf16_aligned_128x64_k65536_sm80(PyTorchMemEffAttention::AttentionBackwardKernel<cutlass::arch::Sm80, cutlass::bfloat16_t, true, false, false, 128, 64, 65536, false>::Params)",
+                "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_backward",
+                "aten::_scaled_dot_product_efficient_attention_backward",
+                "aten::as_strided",
+                "aten::clone",
+                "aten::contiguous",
+                "aten::copy_",
+                "aten::empty",
+                "aten::empty_like",
+                "aten::fill_",
+                "aten::transpose"
+              ]
+            },
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "forward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassF_bf16_aligned_32x128_gmem_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 32, 128, 65536, true, true>::Params)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_forward",
+                "aten::_scaled_dot_product_efficient_attention",
+                "aten::as_strided",
+                "aten::empty",
+                "aten::fill_",
+                "aten::scaled_dot_product_attention",
+                "aten::transpose"
+              ]
+            },
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              1024,
+              128
+            ]
+          }
+        ],
+        "unique_calls": [
+          {
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              1024,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              1024,
+              128
+            ]
+          }
+        ]
+      },
+      "backend": "EFFICIENT_ATTENTION",
+      "batch": 1,
+      "bitwise_repeat_equal": true,
+      "dtype": "bfloat16",
+      "finite_output_and_gradients": true,
+      "heads": 16,
+      "length": 1024,
+      "memory": {
+        "cuda_allocated_after_bytes": 0,
+        "cuda_allocated_before_bytes": 0,
+        "cuda_allocated_peak_bytes": 56755200,
+        "cuda_reserved_after_bytes": 58720256,
+        "cuda_reserved_before_bytes": 0,
+        "cuda_reserved_peak_bytes": 58720256,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 978063360,
+        "process_rss_after_bytes": 975822848,
+        "process_rss_before_bytes": 967356416,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 975822848,
+        "process_rss_samples": 4,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 0.030366861989023164
+      },
+      "name": "attention-EFFICIENT_ATTENTION-L1024-repeat-1",
+      "output_qkv_gradient_sha256": [
+        "c4d53b9421524dcd9099098bc42ede2834812237269ed906cf87c928afb513de",
+        "d19dd9a0ab7e24e9a0b3497712dbbfe28de7cfb93c6a749303d4642c36c1c3e0",
+        "4cbbd2a3fd2b48eb541b27312bb75ee56ecf4f3a8437d0b93355be4054bd0c38",
+        "da20d560a94ff29c6afd0e1c5100705b2316a998a42e434c216dddc556ea9d16"
+      ],
+      "profile_id": "moonlight-16b-a3b",
+      "qk_dim": 192,
+      "qualification_only": true,
+      "repeat": 1,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "v_dim": 128,
+      "wall_seconds": 0.03136520000407472
+    },
+    {
+      "attention": {
+        "backend_flags": {
+          "cudnn": false,
+          "efficient": true,
+          "flash": false,
+          "math": false
+        },
+        "backend_requested": "EFFICIENT_ATTENTION",
+        "deterministic_flags": {
+          "algorithms_enabled": true,
+          "allow_tf32": false,
+          "cudnn_allow_tf32": false,
+          "cudnn_benchmark": false,
+          "cudnn_deterministic": true,
+          "warn_only": false
+        },
+        "executed_sdpa_calls": 1,
+        "hardware": {
+          "bf16_supported": true,
+          "capability": [
+            8,
+            9
+          ],
+          "cuda_version": "13.0",
+          "device": "cuda:0",
+          "name": "NVIDIA GeForce RTX 4090",
+          "native_bf16": true,
+          "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+        },
+        "instrumentation": {
+          "full_window_trace": false,
+          "max_profiled_operations": 80,
+          "max_signatures": 16,
+          "profiled_operations": 2,
+          "profiling_errors": [],
+          "retains_tensors": false,
+          "scope": "bounded_attention_operators",
+          "signature_limit_exceeded": false
+        },
+        "profile_id": "moonlight-16b-a3b",
+        "samples": [
+          {
+            "backward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassB_bf16_aligned_128x64_k65536_sm80(PyTorchMemEffAttention::AttentionBackwardKernel<cutlass::arch::Sm80, cutlass::bfloat16_t, true, false, false, 128, 64, 65536, false>::Params)",
+                "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_backward",
+                "aten::_scaled_dot_product_efficient_attention_backward",
+                "aten::as_strided",
+                "aten::clone",
+                "aten::contiguous",
+                "aten::copy_",
+                "aten::empty",
+                "aten::empty_like",
+                "aten::fill_",
+                "aten::transpose"
+              ]
+            },
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "forward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassF_bf16_aligned_32x128_gmem_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 32, 128, 65536, true, true>::Params)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_forward",
+                "aten::_scaled_dot_product_efficient_attention",
+                "aten::as_strided",
+                "aten::empty",
+                "aten::fill_",
+                "aten::scaled_dot_product_attention",
+                "aten::transpose"
+              ]
+            },
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              4096,
+              128
+            ]
+          }
+        ],
+        "unique_calls": [
+          {
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              4096,
+              128
+            ]
+          }
+        ]
+      },
+      "backend": "EFFICIENT_ATTENTION",
+      "batch": 1,
+      "dtype": "bfloat16",
+      "finite_output_and_gradients": true,
+      "heads": 16,
+      "length": 4096,
+      "memory": {
+        "cuda_allocated_after_bytes": 0,
+        "cuda_allocated_before_bytes": 0,
+        "cuda_allocated_peak_bytes": 220726272,
+        "cuda_reserved_after_bytes": 222298112,
+        "cuda_reserved_before_bytes": 0,
+        "cuda_reserved_peak_bytes": 222298112,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 1032777728,
+        "process_rss_after_bytes": 1001009152,
+        "process_rss_before_bytes": 963366912,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 1030373376,
+        "process_rss_samples": 13,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 0.13757238097605295
+      },
+      "name": "attention-EFFICIENT_ATTENTION-L4096-repeat-0",
+      "output_qkv_gradient_sha256": [
+        "e0573010ed500883ca453ab3aac06fc4f9520460b6132ac81e7c93e9a604adf6",
+        "d51c402ba242d2d448efe049324ce57814043fcb605b5d97a78021a20e16d419",
+        "f68707539297342f683f88664e046bebd75158e1d5e242d4a7d27dc57c2dec0b",
+        "e377dfd605da68a1fee41e886093c9df09e2c18030d05ae978c2fe2aa5982ca9"
+      ],
+      "profile_id": "moonlight-16b-a3b",
+      "qk_dim": 192,
+      "qualification_only": true,
+      "repeat": 0,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "v_dim": 128,
+      "wall_seconds": 0.1384576789860148
+    },
+    {
+      "attention": {
+        "backend_flags": {
+          "cudnn": false,
+          "efficient": true,
+          "flash": false,
+          "math": false
+        },
+        "backend_requested": "EFFICIENT_ATTENTION",
+        "deterministic_flags": {
+          "algorithms_enabled": true,
+          "allow_tf32": false,
+          "cudnn_allow_tf32": false,
+          "cudnn_benchmark": false,
+          "cudnn_deterministic": true,
+          "warn_only": false
+        },
+        "executed_sdpa_calls": 1,
+        "hardware": {
+          "bf16_supported": true,
+          "capability": [
+            8,
+            9
+          ],
+          "cuda_version": "13.0",
+          "device": "cuda:0",
+          "name": "NVIDIA GeForce RTX 4090",
+          "native_bf16": true,
+          "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+        },
+        "instrumentation": {
+          "full_window_trace": false,
+          "max_profiled_operations": 80,
+          "max_signatures": 16,
+          "profiled_operations": 2,
+          "profiling_errors": [],
+          "retains_tensors": false,
+          "scope": "bounded_attention_operators",
+          "signature_limit_exceeded": false
+        },
+        "profile_id": "moonlight-16b-a3b",
+        "samples": [
+          {
+            "backward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassB_bf16_aligned_128x64_k65536_sm80(PyTorchMemEffAttention::AttentionBackwardKernel<cutlass::arch::Sm80, cutlass::bfloat16_t, true, false, false, 128, 64, 65536, false>::Params)",
+                "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_backward",
+                "aten::_scaled_dot_product_efficient_attention_backward",
+                "aten::as_strided",
+                "aten::clone",
+                "aten::contiguous",
+                "aten::copy_",
+                "aten::empty",
+                "aten::empty_like",
+                "aten::fill_",
+                "aten::transpose"
+              ]
+            },
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "forward": {
+              "cuda_kernel_names": [
+                "fmha_cutlassF_bf16_aligned_32x128_gmem_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 32, 128, 65536, true, true>::Params)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)"
+              ],
+              "operators": [
+                "aten::_efficient_attention_forward",
+                "aten::_scaled_dot_product_efficient_attention",
+                "aten::as_strided",
+                "aten::empty",
+                "aten::fill_",
+                "aten::scaled_dot_product_attention",
+                "aten::transpose"
+              ]
+            },
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              4096,
+              128
+            ]
+          }
+        ],
+        "unique_calls": [
+          {
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              4096,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              4096,
+              128
+            ]
+          }
+        ]
+      },
+      "backend": "EFFICIENT_ATTENTION",
+      "batch": 1,
+      "bitwise_repeat_equal": true,
+      "dtype": "bfloat16",
+      "finite_output_and_gradients": true,
+      "heads": 16,
+      "length": 4096,
+      "memory": {
+        "cuda_allocated_after_bytes": 0,
+        "cuda_allocated_before_bytes": 0,
+        "cuda_allocated_peak_bytes": 220726272,
+        "cuda_reserved_after_bytes": 222298112,
+        "cuda_reserved_before_bytes": 0,
+        "cuda_reserved_peak_bytes": 222298112,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 1032777728,
+        "process_rss_after_bytes": 1001046016,
+        "process_rss_before_bytes": 1001005056,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 1017823232,
+        "process_rss_samples": 11,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 0.12692607499775477
+      },
+      "name": "attention-EFFICIENT_ATTENTION-L4096-repeat-1",
+      "output_qkv_gradient_sha256": [
+        "e0573010ed500883ca453ab3aac06fc4f9520460b6132ac81e7c93e9a604adf6",
+        "d51c402ba242d2d448efe049324ce57814043fcb605b5d97a78021a20e16d419",
+        "f68707539297342f683f88664e046bebd75158e1d5e242d4a7d27dc57c2dec0b",
+        "e377dfd605da68a1fee41e886093c9df09e2c18030d05ae978c2fe2aa5982ca9"
+      ],
+      "profile_id": "moonlight-16b-a3b",
+      "qk_dim": 192,
+      "qualification_only": true,
+      "repeat": 1,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "v_dim": 128,
+      "wall_seconds": 0.1278489719843492
+    },
+    {
+      "attention": {
+        "backend_flags": {
+          "cudnn": false,
+          "efficient": false,
+          "flash": false,
+          "math": true
+        },
+        "backend_requested": "MATH",
+        "deterministic_flags": {
+          "algorithms_enabled": true,
+          "allow_tf32": false,
+          "cudnn_allow_tf32": false,
+          "cudnn_benchmark": false,
+          "cudnn_deterministic": true,
+          "warn_only": false
+        },
+        "executed_sdpa_calls": 1,
+        "hardware": {
+          "bf16_supported": true,
+          "capability": [
+            8,
+            9
+          ],
+          "cuda_version": "13.0",
+          "device": "cuda:0",
+          "name": "NVIDIA GeForce RTX 4090",
+          "native_bf16": true,
+          "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+        },
+        "instrumentation": {
+          "full_window_trace": false,
+          "max_profiled_operations": 80,
+          "max_signatures": 16,
+          "profiled_operations": 4,
+          "profiling_errors": [],
+          "retains_tensors": false,
+          "scope": "bounded_attention_operators",
+          "signature_limit_exceeded": false
+        },
+        "profile_id": "moonlight-16b-a3b",
+        "samples": [
+          {
+            "backward": {
+              "cuda_kernel_names": [
+                "ampere_sgemm_128x128_nn",
+                "ampere_sgemm_128x128_nt",
+                "ampere_sgemm_128x128_tn",
+                "void (anonymous namespace)::softmax_warp_backward<float, float, float, 6, false, false>(float*, float const*, float const*, int, int, int, bool const*)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul>)"
+              ],
+              "operators": [
+                "aten::_softmax_backward_data",
+                "aten::as_strided",
+                "aten::bmm",
+                "aten::mul",
+                "aten::transpose"
+              ]
+            },
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "forward": {
+              "cuda_kernel_names": [
+                "ampere_sgemm_128x128_nn",
+                "ampere_sgemm_128x128_tn",
+                "void (anonymous namespace)::softmax_warp_forward<float, float, float, 6, false, false>(float*, float const*, int, int, int, bool const*, int, bool)",
+                "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1} const&)::{lambda(int)#1})",
+                "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1})",
+                "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, at::native::and_kernel_cuda(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(bool, bool)#1}>, unsigned int, bool, 4, 4> >(at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, at::native::and_kernel_cuda(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(bool, bool)#1}>, unsigned int, bool, 4, 4>)",
+                "void at::native::triu_tril_kernel<bool, int, false, 8, false>(at::cuda::detail::TensorInfo<bool, int>, at::cuda::detail::TensorInfo<bool const, int>, long, long, int)",
+                "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::isneginf_kernel_impl(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::isneginf_kernel_impl(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<bool>, std::array<char*, 1ul> >(int, at::native::FillFunctor<bool>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul>)"
+              ],
+              "operators": [
+                "aten::_reshape_alias",
+                "aten::_safe_softmax",
+                "aten::_scaled_dot_product_attention_math",
+                "aten::_softmax",
+                "aten::_to_copy",
+                "aten::_unsafe_view",
+                "aten::add_",
+                "aten::all",
+                "aten::as_strided",
+                "aten::bmm",
+                "aten::copy_",
+                "aten::empty",
+                "aten::empty_strided",
+                "aten::expand",
+                "aten::fill_",
+                "aten::isneginf",
+                "aten::matmul",
+                "aten::mul",
+                "aten::ones",
+                "aten::reshape",
+                "aten::resize_",
+                "aten::scalar_tensor",
+                "aten::scaled_dot_product_attention",
+                "aten::set_",
+                "aten::softmax",
+                "aten::to",
+                "aten::transpose",
+                "aten::tril",
+                "aten::view",
+                "aten::where"
+              ]
+            },
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              64,
+              128
+            ]
+          }
+        ],
+        "unique_calls": [
+          {
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              64,
+              128
+            ]
+          }
+        ]
+      },
+      "backend": "MATH",
+      "batch": 1,
+      "dtype": "bfloat16",
+      "finite_output_and_gradients": true,
+      "heads": 16,
+      "length": 64,
+      "memory": {
+        "cuda_allocated_after_bytes": 67108864,
+        "cuda_allocated_before_bytes": 0,
+        "cuda_allocated_peak_bytes": 72352768,
+        "cuda_reserved_after_bytes": 73400320,
+        "cuda_reserved_before_bytes": 0,
+        "cuda_reserved_peak_bytes": 73400320,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 1130684416,
+        "process_rss_after_bytes": 1132326912,
+        "process_rss_before_bytes": 1001041920,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 1132326912,
+        "process_rss_samples": 11,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 0.09935709700221196
+      },
+      "name": "attention-MATH-L64-repeat-0",
+      "output_qkv_gradient_sha256": [
+        "e653da7463cb1fe97dfa58c750151bd0f6529e143f8c7296fadbe09370f3a67a",
+        "011349bfc80b9201c2081ae2b75772a3cf31222603b838d66c3e318fbae24ca4",
+        "f102f3a953a84dc88bcbe5e5d894d8c18b59324613617398f9c46d2f6d6d8184",
+        "e803678364c4e3710c49bbaba2ccbb859cac17db751e1b441b6f6ded766ed716"
+      ],
+      "profile_id": "moonlight-16b-a3b",
+      "qk_dim": 192,
+      "qualification_only": true,
+      "repeat": 0,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "v_dim": 128,
+      "wall_seconds": 0.10043691500322893
+    },
+    {
+      "attention": {
+        "backend_flags": {
+          "cudnn": false,
+          "efficient": false,
+          "flash": false,
+          "math": true
+        },
+        "backend_requested": "MATH",
+        "deterministic_flags": {
+          "algorithms_enabled": true,
+          "allow_tf32": false,
+          "cudnn_allow_tf32": false,
+          "cudnn_benchmark": false,
+          "cudnn_deterministic": true,
+          "warn_only": false
+        },
+        "executed_sdpa_calls": 1,
+        "hardware": {
+          "bf16_supported": true,
+          "capability": [
+            8,
+            9
+          ],
+          "cuda_version": "13.0",
+          "device": "cuda:0",
+          "name": "NVIDIA GeForce RTX 4090",
+          "native_bf16": true,
+          "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+        },
+        "instrumentation": {
+          "full_window_trace": false,
+          "max_profiled_operations": 80,
+          "max_signatures": 16,
+          "profiled_operations": 4,
+          "profiling_errors": [],
+          "retains_tensors": false,
+          "scope": "bounded_attention_operators",
+          "signature_limit_exceeded": false
+        },
+        "profile_id": "moonlight-16b-a3b",
+        "samples": [
+          {
+            "backward": {
+              "cuda_kernel_names": [
+                "ampere_sgemm_128x128_nn",
+                "ampere_sgemm_128x128_nt",
+                "ampere_sgemm_128x128_tn",
+                "void (anonymous namespace)::softmax_warp_backward<float, float, float, 6, false, false>(float*, float const*, float const*, int, int, int, bool const*)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul>)"
+              ],
+              "operators": [
+                "aten::_softmax_backward_data",
+                "aten::as_strided",
+                "aten::bmm",
+                "aten::mul",
+                "aten::transpose"
+              ]
+            },
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "forward": {
+              "cuda_kernel_names": [
+                "ampere_sgemm_128x128_nn",
+                "ampere_sgemm_128x128_tn",
+                "void (anonymous namespace)::softmax_warp_forward<float, float, float, 6, false, false>(float*, float const*, int, int, int, bool const*, int, bool)",
+                "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool, float, float)#1} const&)::{lambda(int)#1})",
+                "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1})",
+                "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, at::native::and_kernel_cuda(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(bool, bool)#1}>, unsigned int, bool, 4, 4> >(at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, at::native::and_kernel_cuda(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(bool, bool)#1}>, unsigned int, bool, 4, 4>)",
+                "void at::native::triu_tril_kernel<bool, int, false, 8, false>(at::cuda::detail::TensorInfo<bool, int>, at::cuda::detail::TensorInfo<bool const, int>, long, long, int)",
+                "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::isneginf_kernel_impl(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::isneginf_kernel_impl(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<bool>, std::array<char*, 1ul> >(int, at::native::FillFunctor<bool>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul>)"
+              ],
+              "operators": [
+                "aten::_reshape_alias",
+                "aten::_safe_softmax",
+                "aten::_scaled_dot_product_attention_math",
+                "aten::_softmax",
+                "aten::_to_copy",
+                "aten::_unsafe_view",
+                "aten::add_",
+                "aten::all",
+                "aten::as_strided",
+                "aten::bmm",
+                "aten::copy_",
+                "aten::empty",
+                "aten::empty_strided",
+                "aten::expand",
+                "aten::fill_",
+                "aten::isneginf",
+                "aten::matmul",
+                "aten::mul",
+                "aten::ones",
+                "aten::reshape",
+                "aten::resize_",
+                "aten::scalar_tensor",
+                "aten::scaled_dot_product_attention",
+                "aten::set_",
+                "aten::softmax",
+                "aten::to",
+                "aten::transpose",
+                "aten::tril",
+                "aten::view",
+                "aten::where"
+              ]
+            },
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              64,
+              128
+            ]
+          }
+        ],
+        "unique_calls": [
+          {
+            "device": "cuda",
+            "device_index": 0,
+            "dtype": "torch.bfloat16",
+            "key_device": "cuda",
+            "key_device_index": 0,
+            "key_dtype": "torch.bfloat16",
+            "key_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "query_shape": [
+              1,
+              16,
+              64,
+              192
+            ],
+            "value_device": "cuda",
+            "value_device_index": 0,
+            "value_dtype": "torch.bfloat16",
+            "value_shape": [
+              1,
+              16,
+              64,
+              128
+            ]
+          }
+        ]
+      },
+      "backend": "MATH",
+      "batch": 1,
+      "bitwise_repeat_equal": true,
+      "dtype": "bfloat16",
+      "finite_output_and_gradients": true,
+      "heads": 16,
+      "length": 64,
+      "memory": {
+        "cuda_allocated_after_bytes": 67108864,
+        "cuda_allocated_before_bytes": 67108864,
+        "cuda_allocated_peak_bytes": 73023488,
+        "cuda_reserved_after_bytes": 73400320,
+        "cuda_reserved_before_bytes": 67108864,
+        "cuda_reserved_peak_bytes": 73400320,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 1130881024,
+        "process_rss_after_bytes": 1132421120,
+        "process_rss_before_bytes": 1132322816,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 1132421120,
+        "process_rss_samples": 3,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 0.013242000015452504
+      },
+      "name": "attention-MATH-L64-repeat-1",
+      "output_qkv_gradient_sha256": [
+        "e653da7463cb1fe97dfa58c750151bd0f6529e143f8c7296fadbe09370f3a67a",
+        "011349bfc80b9201c2081ae2b75772a3cf31222603b838d66c3e318fbae24ca4",
+        "f102f3a953a84dc88bcbe5e5d894d8c18b59324613617398f9c46d2f6d6d8184",
+        "e803678364c4e3710c49bbaba2ccbb859cac17db751e1b441b6f6ded766ed716"
+      ],
+      "profile_id": "moonlight-16b-a3b",
+      "qk_dim": 192,
+      "qualification_only": true,
+      "repeat": 1,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "v_dim": 128,
+      "wall_seconds": 0.01431747799506411
+    },
+    {
+      "exact_mla": true,
+      "fixture_profile_id": "deepseek-v3",
+      "initial_adapter_sha256": "5ab6487eb8d890048d69ba371d79808a3fdd36f85bb055c237698b5c22b5575f",
+      "memory": {
+        "cuda_allocated_after_bytes": 72852992,
+        "cuda_allocated_before_bytes": 67108864,
+        "cuda_allocated_peak_bytes": 73375232,
+        "cuda_reserved_after_bytes": 94371840,
+        "cuda_reserved_before_bytes": 67108864,
+        "cuda_reserved_peak_bytes": 94371840,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 1351983104,
+        "process_rss_after_bytes": 1325240320,
+        "process_rss_before_bytes": 1137295360,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 1353543680,
+        "process_rss_samples": 352,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 5.59448444499867
+      },
+      "name": "fixture-preparation",
+      "pack_sha256": "a338290045e209c084bf47d9b7c634fda83e04fb5ff4698e324aee4e3f0189ce",
+      "profile_id": "moonlight-16b-a3b",
+      "qualification_only": true,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "shared_initial": true,
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "wall_seconds": 5.595331571996212
+    },
+    {
+      "arm": "bf16_l2l",
+      "completed_steps": 3,
+      "fixture_profile_id": "deepseek-v3",
+      "initial_adapter_sha256": "5ab6487eb8d890048d69ba371d79808a3fdd36f85bb055c237698b5c22b5575f",
+      "k": 4,
+      "length": 1024,
+      "memory": {
+        "cuda_allocated_after_bytes": 78595584,
+        "cuda_allocated_before_bytes": 72852992,
+        "cuda_allocated_peak_bytes": 575029248,
+        "cuda_reserved_after_bytes": 752877568,
+        "cuda_reserved_before_bytes": 94371840,
+        "cuda_reserved_peak_bytes": 752877568,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 2102059008,
+        "process_rss_after_bytes": 2102611968,
+        "process_rss_before_bytes": 1325223936,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 2103848960,
+        "process_rss_samples": 147,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 2.0353700729901902
+      },
+      "micro_batch_size": 1,
+      "name": "bf16_l2l-L1024",
+      "profile_id": "moonlight-16b-a3b",
+      "qualification_only": true,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "steps": 3,
+      "test_fixture": true,
+      "training_manifest": "training/bf16_l2l-L1024/manifest.json",
+      "training_manifest_sha256": "2b50f0226ac0bd9a3b1566f770274f4d8c3a15d49f871d110d0b00fa6c3b83eb",
+      "wall_seconds": 2.036092822003411
+    },
+    {
+      "arm": "oracle_block64_e4m3",
+      "completed_steps": 3,
+      "fixture_profile_id": "deepseek-v3",
+      "initial_adapter_sha256": "5ab6487eb8d890048d69ba371d79808a3fdd36f85bb055c237698b5c22b5575f",
+      "k": 4,
+      "length": 1024,
+      "memory": {
+        "cuda_allocated_after_bytes": 78595584,
+        "cuda_allocated_before_bytes": 78595584,
+        "cuda_allocated_peak_bytes": 575029248,
+        "cuda_reserved_after_bytes": 752877568,
+        "cuda_reserved_before_bytes": 752877568,
+        "cuda_reserved_peak_bytes": 752877568,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 2113761280,
+        "process_rss_after_bytes": 2114449408,
+        "process_rss_before_bytes": 2102595584,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 2115686400,
+        "process_rss_samples": 121,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 1.7514405979891308
+      },
+      "micro_batch_size": 1,
+      "name": "oracle_block64_e4m3-L1024",
+      "profile_id": "moonlight-16b-a3b",
+      "qualification_only": true,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "steps": 3,
+      "test_fixture": true,
+      "training_manifest": "training/oracle_block64_e4m3-L1024/manifest.json",
+      "training_manifest_sha256": "e167918f2bfa65994d9d070df66f25ba5558daa6397c7d4bf34bf87a3d02a051",
+      "wall_seconds": 1.7521960170124657
+    },
+    {
+      "arm": "bf16_l2l",
+      "completed_steps": 3,
+      "fixture_profile_id": "deepseek-v3",
+      "initial_adapter_sha256": "5ab6487eb8d890048d69ba371d79808a3fdd36f85bb055c237698b5c22b5575f",
+      "k": 1,
+      "length": 4096,
+      "memory": {
+        "cuda_allocated_after_bytes": 78595584,
+        "cuda_allocated_before_bytes": 78595584,
+        "cuda_allocated_peak_bytes": 1997502464,
+        "cuda_reserved_after_bytes": 3848273920,
+        "cuda_reserved_before_bytes": 752877568,
+        "cuda_reserved_peak_bytes": 3848273920,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 2117271552,
+        "process_rss_after_bytes": 2117787648,
+        "process_rss_before_bytes": 2114433024,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 2119024640,
+        "process_rss_samples": 116,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 1.7019750030012801
+      },
+      "micro_batch_size": 1,
+      "name": "bf16_l2l-L4096",
+      "profile_id": "moonlight-16b-a3b",
+      "qualification_only": true,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "steps": 3,
+      "test_fixture": true,
+      "training_manifest": "training/bf16_l2l-L4096/manifest.json",
+      "training_manifest_sha256": "0f974921acd1b22adcd9c16aaafea94986a9ca2452ea89aba055ec9395b2803b",
+      "wall_seconds": 1.7027516219823156
+    },
+    {
+      "arm": "oracle_block64_e4m3",
+      "completed_steps": 3,
+      "fixture_profile_id": "deepseek-v3",
+      "initial_adapter_sha256": "5ab6487eb8d890048d69ba371d79808a3fdd36f85bb055c237698b5c22b5575f",
+      "k": 1,
+      "length": 4096,
+      "memory": {
+        "cuda_allocated_after_bytes": 78595584,
+        "cuda_allocated_before_bytes": 78595584,
+        "cuda_allocated_peak_bytes": 1997502464,
+        "cuda_reserved_after_bytes": 3848273920,
+        "cuda_reserved_before_bytes": 3848273920,
+        "cuda_reserved_peak_bytes": 3848273920,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 2119237632,
+        "process_rss_after_bytes": 2119999488,
+        "process_rss_before_bytes": 2117771264,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 2121236480,
+        "process_rss_samples": 131,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 1.8945454029890243
+      },
+      "micro_batch_size": 1,
+      "name": "oracle_block64_e4m3-L4096",
+      "profile_id": "moonlight-16b-a3b",
+      "qualification_only": true,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "steps": 3,
+      "test_fixture": true,
+      "training_manifest": "training/oracle_block64_e4m3-L4096/manifest.json",
+      "training_manifest_sha256": "34e30c588eeae1af40d8814c47d720d1888d23d266b503a49236a61e60f53b37",
+      "wall_seconds": 1.8953177809889894
+    },
+    {
+      "fixture_profile_id": "deepseek-v3",
+      "memory": {
+        "cuda_allocated_after_bytes": 78595584,
+        "cuda_allocated_before_bytes": 78595584,
+        "cuda_allocated_peak_bytes": 81485312,
+        "cuda_reserved_after_bytes": 3848273920,
+        "cuda_reserved_before_bytes": 3848273920,
+        "cuda_reserved_peak_bytes": 3848273920,
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_lifetime_rss_high_water_bytes": 2119237632,
+        "process_rss_after_bytes": 2120974336,
+        "process_rss_before_bytes": 2119983104,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_rss_sampled_peak_bytes": 2121023488,
+        "process_rss_samples": 9,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "sampling_errors": [],
+        "scope": "Fixture-only whole-process/allocator observation, including residency, profiling and earlier allocator caches; not full-model resource capacity. Training windows reset CUDA peak counters internally: use their individual memory receipts for window peaks, not this enclosing allocator peak.",
+        "wall_seconds": 0.19635350501630455
+      },
+      "name": "resource-only-forward",
+      "observations": [
+        {
+          "attention": [],
+          "batch_size": 1,
+          "input_indices": [
+            0
+          ],
+          "input_tokens": 4,
+          "largest_native_logits_bytes": 384,
+          "logits_estimated_peak_bytes": 6144,
+          "memory": {
+            "cuda_allocated_after_bytes": 78659072,
+            "cuda_allocated_before_bytes": 78659072,
+            "cuda_allocated_peak_bytes": 81485312,
+            "cuda_reserved_after_bytes": 3848273920,
+            "cuda_reserved_before_bytes": 3848273920,
+            "cuda_reserved_peak_bytes": 3848273920,
+            "kind": "observed process/allocator bytes; not activation-only memory",
+            "process_lifetime_rss_high_water_bytes": 2119237632,
+            "process_rss_after_bytes": 2121023488,
+            "process_rss_before_bytes": 2120097792,
+            "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+            "process_rss_sampled_peak_bytes": 2121023488,
+            "process_rss_samples": 3,
+            "process_rss_sampling_interval_seconds": 0.01,
+            "sampling_errors": [],
+            "scope": "Development inputs, native streamed forward and unlabelled FP32 log-softmax scratch. Includes model/allocator residency. No quality outcome or gradient.",
+            "wall_seconds": 0.017396903014741838
+          },
+          "native_forward_calls": 1,
+          "padded_input_tokens": 4,
+          "planned_native_forward_calls": 1,
+          "position_chunk_sizes": [
+            3
+          ],
+          "position_count": 3,
+          "profile_id": "deepseek-v3",
+          "status": "COMPLETE",
+          "wall_seconds": 0.018340420996537432,
+          "width": 4
+        }
+      ],
+      "profile_id": "moonlight-16b-a3b",
+      "qualification_only": true,
+      "quality_evaluated": false,
+      "resource_admission_sufficient": false,
+      "scientific_admission": false,
+      "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+      "status": "COMPLETE",
+      "test_fixture": true,
+      "wall_seconds": 0.19712715299101546
+    }
+  ],
+  "attention_policy": {
+    "contract": {
+      "alternative_noise_floor_backend": "MATH",
+      "arms": [
+        "bf16_l2l",
+        "oracle_block64_e4m3"
+      ],
+      "backend_selection": "sdpa_kernel([requested_backend])",
+      "change_length_batch_or_accumulation_on_oom": false,
+      "compute_dtype": "bfloat16",
+      "created_utc": "2026-11-10T19:21:01.300363+00:00",
+      "determinism": {
+        "algorithms_enabled": true,
+        "allow_tf32": false,
+        "autocast": false,
+        "warn_only": false
+      },
+      "fallback_allowed": false,
+      "gradient_gate": {
+        "accumulation_steps": 8,
+        "main_backend": "EFFICIENT_ATTENTION",
+        "microbatch_length": 64,
+        "noise_floor_backend": "MATH",
+        "prefix_tokens": 512,
+        "thresholds_unchanged": true
+      },
+      "hardware": {
+        "minimum_cuda_capability": [
+          8,
+          0
+        ],
+        "native_bf16_required": true,
+        "offer_and_spending_limit_require_prior_approval": true,
+        "provider": "Vast.ai",
+        "t4_qualification_allowed": false
+      },
+      "layouts": [
+        {
+          "accumulation_steps": 4,
+          "batch_size": 1,
+          "length": 1024
+        },
+        {
+          "accumulation_steps": 1,
+          "batch_size": 1,
+          "length": 4096
+        }
+      ],
+      "main_backend": "EFFICIENT_ATTENTION",
+      "model": {
+        "attention_heads": 16,
+        "config_sha256": "64513a4aa6ffd2337215ea80c880491ad54a180ffb66a53dd9e178c6f8e9f76c",
+        "id": "moonshotai/Moonlight-16B-A3B",
+        "query_key_head_dim": 192,
+        "revision": "476b36a473d4467f94469414bef6cee75c9c8172",
+        "value_head_dim": 128
+      },
+      "optimizer_and_quality_criteria_unchanged": true,
+      "require_8gb_fit": false,
+      "required_execution_evidence": [
+        "observed_forward_operator",
+        "observed_backward_operator",
+        "actual_cuda_kernel_names",
+        "observed_query_key_value_shapes",
+        "dtype",
+        "device",
+        "deterministic_flags"
+      ],
+      "schema": "p3-deepseek-quality-attention-protocol-v1",
+      "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+      "seed": 23,
+      "trainable_dtype": "float32",
+      "training_pack_manifest_sha256": "2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4"
+    },
+    "path": "benchmarks/results/p3-moonlight-quality/attention-protocol-v1.json",
+    "sha256": "b7ec8f56ca073a1397a7d4579d6b32550b18b148c67a9f1be2fbc50c873d1363"
+  },
+  "deadline": "Caller must use the process-only stage helper; no in-process hard deadline.",
+  "device": "cuda",
+  "dtype": "bfloat16",
+  "files": {
+    "RUNNING.json": "fbd7d68b023260d097695432941c423cf1d920c3062da1f104399fa576d7f68d",
+    "driver.py.txt": "12539d9d95a1a8a7551953c8c3f8b3a33ccce635fb689ad0c14e387a92a9d1c8",
+    "fixtures/cache/experts_001.safetensors": "1fc308551c444db6561e9441a4a44f076c1c4af1fba6aa6bf41ebaa6019e1250",
+    "fixtures/cache/extras.safetensors": "086e1532886e77b11824ce625935df623096892f0ada947c17c142d56225a2ba",
+    "fixtures/cache/index.json": "b74bd6d9059ec09f90482e39890ab4a4dc6672500c14db460aab5aecac1309d8",
+    "fixtures/cache/large_embed_tokens.safetensors": "19c945ae91aa25f95ddae8c37e2a0ea91847dddd19b7464c6eac73d82ef792b5",
+    "fixtures/cache/large_lm_head.safetensors": "e12b9a6ece60f7ae1b14cba48279a598a6dc329de1d9ec3f3993f787e17433ed",
+    "fixtures/cache/layer_000.safetensors": "06300c419f3d8fd660175c3b983eda281bf87a0400f6d7e0c6a7dab6bb486c7b",
+    "fixtures/cache/layer_001.safetensors": "8226cb989b3005b11761e6e83ce3c3d2f738a71383e580c0bfd9b36a4096aec5",
+    "fixtures/initial.safetensors": "5ab6487eb8d890048d69ba371d79808a3fdd36f85bb055c237698b5c22b5575f",
+    "fixtures/quality-train-pack/pack/document-spans.jsonl": "eb745e733ace1439224259b90c4f56d8c7001da0ae9c6323f8d0c22c84dfa816",
+    "fixtures/quality-train-pack/pack/manifest.json": "a338290045e209c084bf47d9b7c634fda83e04fb5ff4698e324aee4e3f0189ce",
+    "fixtures/quality-train-pack/pack/row-usage.jsonl": "8cc7d7fd5a13c8c4f571e60d99adeb785196d0495acb444cfb2af06013b7615c",
+    "fixtures/quality-train-pack/pack/tokenizer/tokenizer.json": "6fbd85ac15d22dced91511c234936952f732c10a3a2e51413051c9b9b2960b57",
+    "fixtures/quality-train-pack/pack/tokenizer/tokenizer_config.json": "8630f1f94f74b8def7de6bacd4540dd8e09087e14329b1c148c6c314137ea79c",
+    "fixtures/quality-train-pack/pack/training-sources.jsonl": "472a3bca624812dcd0fdc200168a358a4747757210ebc8ec80a90034b01ddb1e",
+    "fixtures/quality-train-pack/pack/windows-L1024.json": "cdc9a742f0c54a0ab5b5c17220f28397462d2d2bb443675089c5da1bf37e5a8f",
+    "fixtures/quality-train-pack/pack/windows-L4096.json": "bdcdfbea011aabaff3ec047fd52c8aa00fbeb93c2d59f72f7390b561b96ef5e4",
+    "fixtures/quality-train-pack/sources.jsonl": "472a3bca624812dcd0fdc200168a358a4747757210ebc8ec80a90034b01ddb1e",
+    "fixtures/quality-train-pack/train-fixture/tokenizer.json": "6fbd85ac15d22dced91511c234936952f732c10a3a2e51413051c9b9b2960b57",
+    "fixtures/quality-train-pack/train-fixture/tokenizer_config.json": "8630f1f94f74b8def7de6bacd4540dd8e09087e14329b1c148c6c314137ea79c",
+    "fixtures/weights/config.json": "225c4298c139d0d30f72f1f38b5a03c419d80fa30ff1553d4b9f0d407cf7dde5",
+    "fixtures/weights/generation_config.json": "949c159d41b8f60717c0222413e6c1b1c0e66b99a27c14527a33c90addb782fa",
+    "fixtures/weights/model.safetensors": "c5c72ff2bbac2d42d9602391a64898c9728f7ee38fb9d9628a53d3357adab644",
+    "receipts/attention-EFFICIENT_ATTENTION-L1024-repeat-0-start.json": "3f23e063165be54971d1cb22966cc3f11d05e965df7eea42e30036597918ae71",
+    "receipts/attention-EFFICIENT_ATTENTION-L1024-repeat-0.json": "475a0797ad538dc59c89c75c08c3ce76ff92057b298e4294cc6923b4cdd87ebd",
+    "receipts/attention-EFFICIENT_ATTENTION-L1024-repeat-1-start.json": "5235d642e4bcc632582447c46b3df4f9f6ddded6e944e2fd65dcc37dea99e581",
+    "receipts/attention-EFFICIENT_ATTENTION-L1024-repeat-1.json": "1762e125c7dacba06da2319867be1a249fd9856f44a244413eaf7f9d72a6cfda",
+    "receipts/attention-EFFICIENT_ATTENTION-L4096-repeat-0-start.json": "bd18bea73acb0dd448705a13f54614bee8dd2aa09603b7d736e2b4901c93d3ab",
+    "receipts/attention-EFFICIENT_ATTENTION-L4096-repeat-0.json": "4fe54eb735f3ec6f810815e19c671a4b0ae48c51e705e1ae84f887f0fb2acaa7",
+    "receipts/attention-EFFICIENT_ATTENTION-L4096-repeat-1-start.json": "d7b31dd0a968697a68fc17b538778149fe6875560326054646da41a3160fdd7b",
+    "receipts/attention-EFFICIENT_ATTENTION-L4096-repeat-1.json": "f99e5e147f587d7afa345123bf5b54ef8400c200a4745538e60b5d0101289c88",
+    "receipts/attention-MATH-L64-repeat-0-start.json": "64c3167a466453d7e3f207ac475f20edee87ab2b716ce941d1db6584b8591733",
+    "receipts/attention-MATH-L64-repeat-0.json": "3c9bc18cb46d2933e60d9678dbf8e5216a071d9cff21fb7109c19c765828b562",
+    "receipts/attention-MATH-L64-repeat-1-start.json": "871831bfe6f7436a4b713b4010940cb0fc8cf7bfad6ddeba5fa6e8a9af90e154",
+    "receipts/attention-MATH-L64-repeat-1.json": "81a8246a48a3794a82c52b2999f473aabaab46ded1ae19a108ebfc14bead371c",
+    "receipts/bf16_l2l-L1024-start.json": "597313a0a3bab0d95e3525b6499183a22f616e4e94b221dddcc8d378ed36e879",
+    "receipts/bf16_l2l-L1024.json": "becd2aa523d2b50c66d74437e629ef185de6d680d096140ad9aff9e996906516",
+    "receipts/bf16_l2l-L4096-start.json": "9eb58aa02aae6991be1cba8d87d8c49ad96c8e3415360a3f1c0a7b26dc13e8c9",
+    "receipts/bf16_l2l-L4096.json": "ae568f662398c99e87b4fbbd27f9e20dfbdce64ac91fa96359e732cd84e796ab",
+    "receipts/fixture-preparation-start.json": "2f4991f5cb6924761460c92553cb1dc08d0dce65b4fb648db2f6084c1b3d189d",
+    "receipts/fixture-preparation.json": "b25f27e0300b72b6b1247738184cc730ace2ad538ee6b7d750e52babc7e03bb6",
+    "receipts/oracle_block64_e4m3-L1024-start.json": "feb4849bfb8a8b4d5aa5d517a8eddd85dcd9fcc65f379f21710391a7262687d8",
+    "receipts/oracle_block64_e4m3-L1024.json": "8f42ce9c5b5534715b52a53fbb44d2266803c9bc30eada357d87e43de5e780a4",
+    "receipts/oracle_block64_e4m3-L4096-start.json": "7155804918c650d1d76c50b1451ce27dcefbdf9f263fa03e911279573e2cf955",
+    "receipts/oracle_block64_e4m3-L4096.json": "8319c3128d245ae11d41f043e41e7343135464acb1447b56441e34ccfa9e0eff",
+    "receipts/resource-forward-batch-0001-start.json": "320731c26f9a157e33e13a9fecb9710727f4d2f78a9c14131a278811b5aca2c6",
+    "receipts/resource-forward-batch-0001.json": "44e441835f3c896c6a55c73cfed9936f73d0314df78384255e18b35e01736571",
+    "receipts/resource-only-forward-start.json": "c093ca547165812273e32675b4c172ad5c38da86014384ff7db9f1b7b50bc4b7",
+    "receipts/resource-only-forward.json": "d1d2c676f235949c0b931399a3a4ec73846263c48d1c4aba8eb78bccdd7e4c4d",
+    "training/bf16_l2l-L1024/RUNNING.json": "0cceebc5e4b47b1c71c6896400651cecc981946335ad269a54bf696dd62442ad",
+    "training/bf16_l2l-L1024/adapter-delta.json": "63734c4b028a4358392ad7c2aca8031d1724e2b0e64b6105fe96b238269fa1bb",
+    "training/bf16_l2l-L1024/checkpoints/step-000001/adapter.safetensors": "2742ca8c6c10c692ca2084c390b07dd1da5407cd2428bc81ec9a682dce0fa5f3",
+    "training/bf16_l2l-L1024/checkpoints/step-000001/manifest.json": "90cb11d72d593da6aa34a8bb18ef33587c953238a023ae901945053ae82289cf",
+    "training/bf16_l2l-L1024/checkpoints/step-000001/training-state.pt": "cce4835bb85e376db275e53f011ff2a7d4ee7255b100574563625959e65a5464",
+    "training/bf16_l2l-L1024/checkpoints/step-000002/adapter.safetensors": "5a5e148e14d5077f5c84115fa9a9c347e30c1383afc9c60cbad8d11cb02f9ddd",
+    "training/bf16_l2l-L1024/checkpoints/step-000002/manifest.json": "c04c88b4f2d9ccde0e4a7e7f35e2c752e3d57e7f659acfb1ebcf7dd0cffbe4e4",
+    "training/bf16_l2l-L1024/checkpoints/step-000002/training-state.pt": "55b1e4c0bfea0117ac7d4b3a8bdcc252a2a59b6e8b1f62ac5f9de63b5ede9d3c",
+    "training/bf16_l2l-L1024/checkpoints/step-000003/adapter.safetensors": "8a02dd896d5dcf71f14752c9f818c346703f0dcf8aa60c4c1766ca2640faedda",
+    "training/bf16_l2l-L1024/checkpoints/step-000003/manifest.json": "6e949ea0345fa975f5c513559f8e141fbad80073c63482205420ba5321963011",
+    "training/bf16_l2l-L1024/checkpoints/step-000003/training-state.pt": "cffc8ef65415993f1a3478175c54ccb2f0496f097f79d7c8224cdcc5a7fb0c9c",
+    "training/bf16_l2l-L1024/final_adapter/README.md": "d37d864838be142d0f9251c0be915ae791361b532c9ea45a3437a295179b7593",
+    "training/bf16_l2l-L1024/final_adapter/adapter_config.json": "29ebcdf8a61907a1a185112e86b646aba99c192d2c290806659f6aadd3d81d33",
+    "training/bf16_l2l-L1024/final_adapter/adapter_model.safetensors": "4312acfc6f3d79d1fbfe2a36fbbec9ab1483a0c6367d44e314d43593555d2ba5",
+    "training/bf16_l2l-L1024/final_adapter/manifest.json": "689fc567802f15326e2f45e1bd123f972935bd48d18d3b2ada0e4361326e28ac",
+    "training/bf16_l2l-L1024/manifest.json": "2b50f0226ac0bd9a3b1566f770274f4d8c3a15d49f871d110d0b00fa6c3b83eb",
+    "training/bf16_l2l-L1024/step-1-gradients.json": "e0425548fb042d417f6199887eb68009b5c4dcd92f7f024f4096a60bfef2a6b1",
+    "training/bf16_l2l-L1024/step-1-gradients.safetensors": "89ee810041955ef0b0b36946191a4d517c5081c64dea9ae95c1c3a87f16bf4ec",
+    "training/bf16_l2l-L1024/steps.jsonl": "a8fbefacb884e4cded3adabb557b7d15d0dacb7ccd2de77027aa999a19de0023",
+    "training/bf16_l2l-L4096/RUNNING.json": "b53547b6234c8217a02c83b08983f83115538187eec5e15b0ff582952d3a991a",
+    "training/bf16_l2l-L4096/adapter-delta.json": "ce51df78e068a5d64a98c8c54ea7b52f4e20e6298a26f9b55f5236a7563778bf",
+    "training/bf16_l2l-L4096/checkpoints/step-000001/adapter.safetensors": "6ca1ebc9e05a88aa7ebe48af0e772600066e2cdff8456e93d83e0f1c2deaf852",
+    "training/bf16_l2l-L4096/checkpoints/step-000001/manifest.json": "23076c23e5334bc2444b630d38985eff92fb80209405d157cd912b5fe032b076",
+    "training/bf16_l2l-L4096/checkpoints/step-000001/training-state.pt": "eddfbc85de982e6df1692c8f63000d6582cc9264261e876f239126b1f6ccff89",
+    "training/bf16_l2l-L4096/checkpoints/step-000002/adapter.safetensors": "f8f7c85ac4e58c11386f31ed34f3099a385218edd7342bfa1b93dc623cb38652",
+    "training/bf16_l2l-L4096/checkpoints/step-000002/manifest.json": "0b0e00efd1c3f824b8e0429faa3dded0fa7695cf622335fb009eb6e967f7f3f8",
+    "training/bf16_l2l-L4096/checkpoints/step-000002/training-state.pt": "9159103e6b0700096a6af60a5eadd4d0af5643533115fbf526ada189f7d7ef84",
+    "training/bf16_l2l-L4096/checkpoints/step-000003/adapter.safetensors": "31a35de02eb6d2b0c8a735d2b2455304274399b722f826af82bc530532d7f33d",
+    "training/bf16_l2l-L4096/checkpoints/step-000003/manifest.json": "e1717e83dc9a425eb6a4271b7139cbe7984d9a0d9d5e0e1e8ca7ca56373f2ffc",
+    "training/bf16_l2l-L4096/checkpoints/step-000003/training-state.pt": "2bcc73434de30f0f6c552c2fa31d9d3351d9887ce99822e23f4281f49f55d89b",
+    "training/bf16_l2l-L4096/final_adapter/README.md": "d37d864838be142d0f9251c0be915ae791361b532c9ea45a3437a295179b7593",
+    "training/bf16_l2l-L4096/final_adapter/adapter_config.json": "29ebcdf8a61907a1a185112e86b646aba99c192d2c290806659f6aadd3d81d33",
+    "training/bf16_l2l-L4096/final_adapter/adapter_model.safetensors": "5389c2c901c4b62ed137987a8ced5b085c5024e4e47a2dcfd88ef5932270d20e",
+    "training/bf16_l2l-L4096/final_adapter/manifest.json": "840400787d83e39ea3e041bdbae16c3a8c70cbdb2ad51a85f2f126d787d868d5",
+    "training/bf16_l2l-L4096/manifest.json": "0f974921acd1b22adcd9c16aaafea94986a9ca2452ea89aba055ec9395b2803b",
+    "training/bf16_l2l-L4096/step-1-gradients.json": "5c727bcd6f1340dd67212763613f00f88a7b309292037fdba16d86ef1d80088a",
+    "training/bf16_l2l-L4096/step-1-gradients.safetensors": "a488eae49292cbe18bf2f502a1e237dc910585fbef6402ab8467508f855b374a",
+    "training/bf16_l2l-L4096/steps.jsonl": "9fc64b0be71099739f2d70a5065011dc047c68600ed57cd4a8b8c0fb794cd06c",
+    "training/oracle_block64_e4m3-L1024/RUNNING.json": "a0fd614120c9c4b6ede1f37e84c1bcd965fddb80d5b4a4477c08aa60dc2ff81a",
+    "training/oracle_block64_e4m3-L1024/adapter-delta.json": "29ed8a528aaceee4372a10107fe4683a14ae58680be364bef9b6d5ce4121cf2a",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000001/adapter.safetensors": "2742ca8c6c10c692ca2084c390b07dd1da5407cd2428bc81ec9a682dce0fa5f3",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000001/manifest.json": "da01f6e4536f5590a44a8faf5bcf879ddbc0c103178de1fd3e33239794782124",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000001/training-state.pt": "5e89e10bb20f2884d7161919d0b5c8d994f5ed94d6776b5c5633b4ae0e616433",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000002/adapter.safetensors": "48b882175ddf4ee9b5fd363ad97b6d8d09353a72a7c57a0cbb1682b164421ec7",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000002/manifest.json": "e2732de8c4c00889765fb7d93d4e6d0a117e4f999756493411a44a45237d03ff",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000002/training-state.pt": "0da2c859398ce706ed54b3021a586c56d5c795ef98f2f15da9a1a92d8fa7f034",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000003/adapter.safetensors": "d3ee56d11f6636738d3e7fd80ed9ca82135bf5a204b7757bf038a371a0d4ea4a",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000003/manifest.json": "2b0951740c958d2251927102fe2d821001fb8847050b6b4f41f5ddefb9bc9a64",
+    "training/oracle_block64_e4m3-L1024/checkpoints/step-000003/training-state.pt": "94c15c73f431aa5d73fc073b2f81b78d626ac61a5e4105339a59d1d94ed16061",
+    "training/oracle_block64_e4m3-L1024/final_adapter/README.md": "d37d864838be142d0f9251c0be915ae791361b532c9ea45a3437a295179b7593",
+    "training/oracle_block64_e4m3-L1024/final_adapter/adapter_config.json": "29ebcdf8a61907a1a185112e86b646aba99c192d2c290806659f6aadd3d81d33",
+    "training/oracle_block64_e4m3-L1024/final_adapter/adapter_model.safetensors": "a48300f2bb77d910b7f0733bd7b090d9e4fa41a2a7ee858ee43caa1f74a8e543",
+    "training/oracle_block64_e4m3-L1024/final_adapter/manifest.json": "b5459093d9beffec8218858a404f02c14b0cebcc728c3c7f2001bf2560f90462",
+    "training/oracle_block64_e4m3-L1024/manifest.json": "e167918f2bfa65994d9d070df66f25ba5558daa6397c7d4bf34bf87a3d02a051",
+    "training/oracle_block64_e4m3-L1024/step-1-gradients.json": "7cfb81be8cb189f5fb31f63bdb3b2c16cd67120eb575eef57488b0152144f577",
+    "training/oracle_block64_e4m3-L1024/step-1-gradients.safetensors": "ebf39493df0f812e98982f39a782785863ab4de11b91196d58e67486e1e4dd6c",
+    "training/oracle_block64_e4m3-L1024/steps.jsonl": "c2298dd997591c529b1210507923c0e0804383e2f1a38bf7400d7567f4823dbf",
+    "training/oracle_block64_e4m3-L4096/RUNNING.json": "5c83c18d4775b1fd7501d2fe87bc0822fa0ac02ac25affdabce2c9a46d541cd9",
+    "training/oracle_block64_e4m3-L4096/adapter-delta.json": "fd2f0f43773ed1afb61cbb06a2aea19484cf5e230406d59795f5addeb5dfd475",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000001/adapter.safetensors": "6ca1ebc9e05a88aa7ebe48af0e772600066e2cdff8456e93d83e0f1c2deaf852",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000001/manifest.json": "be43d16516905d8715a4fc6464bd438b6f192313b640bb14d1a91ef9953c6185",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000001/training-state.pt": "91255fec8a9d8d042f4754fc4e017243370f061cd0078bec95d5d92afe175bb9",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000002/adapter.safetensors": "38d6c91867bb8935fb9e76f8427a24e817317bf79e1bc153252a59dc5e54daaf",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000002/manifest.json": "936407c1550df1a1e77956aed3d8a9549d3d9a02a7749397daeeea609ff9ac00",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000002/training-state.pt": "3986f31a61fe97139e29e88c5c55794da043783980ab3a1589784f8d25ae5857",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000003/adapter.safetensors": "dc5ec9810b2faddec0a395e15e4ab6131ee5f0268c0ccccb9a4f80e3fba29d68",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000003/manifest.json": "84b5199024c17a25501b37ae94dc059303f7081a37f0207dec8b0e502c87487e",
+    "training/oracle_block64_e4m3-L4096/checkpoints/step-000003/training-state.pt": "94ad444cbfb4265ef1ad3c18f58ace3730a4d5832e3196c5152804232f483756",
+    "training/oracle_block64_e4m3-L4096/final_adapter/README.md": "d37d864838be142d0f9251c0be915ae791361b532c9ea45a3437a295179b7593",
+    "training/oracle_block64_e4m3-L4096/final_adapter/adapter_config.json": "29ebcdf8a61907a1a185112e86b646aba99c192d2c290806659f6aadd3d81d33",
+    "training/oracle_block64_e4m3-L4096/final_adapter/adapter_model.safetensors": "30ebae38b9c4fd524bd572d09d26eabc56e2576f2a14ba1bc080aac83ac1da87",
+    "training/oracle_block64_e4m3-L4096/final_adapter/manifest.json": "4439bbea17ccbeb3519004c3cdedd6b869fb945d3d424fed94dfc8657dda26fe",
+    "training/oracle_block64_e4m3-L4096/manifest.json": "34e30c588eeae1af40d8814c47d720d1888d23d266b503a49236a61e60f53b37",
+    "training/oracle_block64_e4m3-L4096/step-1-gradients.json": "26b229101285c66e1d32a9964f034e6c6222a275b8c541bfe70c954e281746f3",
+    "training/oracle_block64_e4m3-L4096/step-1-gradients.safetensors": "59d58c4c37043fda37f815f12a504c7bb13d1c56b884d1c9a4240f581ab45b9f",
+    "training/oracle_block64_e4m3-L4096/steps.jsonl": "eb585d098b2c69ae6cd35262928f2a5681775f05ef8334ef205feb83323c7ca4"
+  },
+  "first_scheduler_learning_rate": 0,
+  "fixture": {
+    "exact_mla": true,
+    "fixture_profile_id": "deepseek-v3",
+    "full_model_parity_evaluated": false,
+    "initial_adapter_sha256": "5ab6487eb8d890048d69ba371d79808a3fdd36f85bb055c237698b5c22b5575f",
+    "pack_sha256": "a338290045e209c084bf47d9b7c634fda83e04fb5ff4698e324aee4e3f0189ce",
+    "profile_id": "moonlight-16b-a3b",
+    "qualification_only": true,
+    "test_fixture": true
+  },
+  "fixture_profile_id": "deepseek-v3",
+  "full_model_parity_evaluated": false,
+  "hardware": {
+    "bf16_supported": true,
+    "capability": [
+      8,
+      9
+    ],
+    "cuda_version": "13.0",
+    "device": "cuda:0",
+    "name": "NVIDIA GeForce RTX 4090",
+    "native_bf16": true,
+    "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+  },
+  "profile_id": "moonlight-16b-a3b",
+  "qualification_only": true,
+  "quality_evaluated": false,
+  "retry_allowed": false,
+  "schema": "p3-deepseek-quality-smoke-v1",
+  "scientific_admission": false,
+  "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+  "seed": 23,
+  "source_dependencies_sha256": {
+    "benchmarks/harness/b13_moe_fixture.py": "ec909820cd418afd5fcd42dfeb4769aa55e076e4fca971364af7c6096f3ac795",
+    "benchmarks/harness/p3_deepseek_quality_attention.py": "772469cfc2881305ad92aea632688b556786cc7e1695f650f67dd4332655c39c",
+    "benchmarks/harness/p3_deepseek_quality_data.py": "b5553ecbd78ec8d31cc8bc609522b911165d2d9e3c300df3c0e6495af7e8a9d0",
+    "benchmarks/harness/p3_deepseek_quality_model.py": "16955dcf58b3121dbefde395ef46bb9a1afed31607a5a4a1516d9ada0dd56a95",
+    "benchmarks/harness/p3_deepseek_quality_profiles.py": "32799a37dbe4fbf15c68e64b50feb6d2a846d650e4de5ce2be88fa6cb690225d",
+    "benchmarks/harness/p3_deepseek_quality_timing.py": "3e5b0612975c8f98c3a91ab2a0b4fc6799b1bcc182dc398117fb2304559c0ec6",
+    "benchmarks/harness/p3_deepseek_quality_train.py": "aeaf375c74a29ecc5866fc860637eec497c89f3f3ca3476379cb7d395a312a0a",
+    "benchmarks/harness/p3_fp8_smoke.py": "7edb19a663e9314a2f2977651f7977f7abe3dadc66d72acc0060768ef428be2c",
+    "benchmarks/results/p3-deepseek-quality/efficient-vast-v1/sdpa-probe-v1/probe.py.txt": "2be253d80d05cde0fd2a67601fce65b011548b9689f5a0374c9001e7d984074d",
+    "benchmarks/results/p3-deepseek-quality/efficient-vast-v1/standalone-smoke-v1/driver.py.txt": "00b891653588424b42b3f267e23444c068f8ecae560ce911292ddc91cf4e8935",
+    "tests/test_p3_deepseek_quality_data.py": "7ad029d7f24b6f0b091fc12f025b98d0077dfaec2c8899eff5087b74f3a3c9f7",
+    "tests/test_p3_deepseek_quality_model.py": "f6263b1469c82c2673876a041e51e9f723420d28062a9197e6f181ca2ca708e3",
+    "tests/test_p3_deepseek_quality_train.py": "d04fa970367dddc9c32c11675c970c7edda6b55ecefd02be4b45736a07f8ff80"
+  },
+  "status": "COMPLETE",
+  "steps_per_arm_and_length": 3,
+  "test_fixture": true,
+  "training_lengths": [
+    1024,
+    4096
+  ],
+  "wall_seconds": 18.540071669995086
+}

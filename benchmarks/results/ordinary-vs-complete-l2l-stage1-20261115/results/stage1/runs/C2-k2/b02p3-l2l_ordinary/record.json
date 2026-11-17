@@ -1,0 +1,188 @@
+{
+  "arm": "l2l_ordinary",
+  "mode": "l2l",
+  "k": 2,
+  "kind": "synthetic",
+  "seed": 20261114,
+  "device": "cuda",
+  "updates": 8,
+  "warmup": 2,
+  "seq": 512,
+  "levers_requested": [],
+  "levers_applied": {},
+  "levers_off_on_this_device": [],
+  "sdpa_backend": "default",
+  "deterministic": "off",
+  "median_step_seconds": 59.36651982541662,
+  "measured_step_seconds": [
+    60.47113516298123,
+    59.934106254950166,
+    57.56194247701205,
+    60.80040902690962,
+    58.79893339588307,
+    57.53765340195969
+  ],
+  "setup_seconds": 11.4446334191598,
+  "run_seconds": 486.4250606561545,
+  "rows": [
+    {
+      "update": 0,
+      "step_seconds": 61.17096041701734,
+      "update_seconds": 61.281248725019395,
+      "loss": 13.03215503692627,
+      "layer_loads": 94,
+      "expert_fetches": 31824,
+      "expert_bytes_read": 77465471616,
+      "peak_rss_bytes": 3959648256
+    },
+    {
+      "update": 1,
+      "step_seconds": 58.45715474220924,
+      "update_seconds": 58.460987493162975,
+      "loss": 12.964105129241943,
+      "layer_loads": 93,
+      "expert_fetches": 32295,
+      "expert_bytes_read": 78611972280,
+      "peak_rss_bytes": 3964514304
+    },
+    {
+      "update": 2,
+      "step_seconds": 60.47113516298123,
+      "update_seconds": 60.47849927586503,
+      "loss": 12.897703647613525,
+      "layer_loads": 93,
+      "expert_fetches": 31899,
+      "expert_bytes_read": 77648035416,
+      "peak_rss_bytes": 3965054976
+    },
+    {
+      "update": 3,
+      "step_seconds": 59.934106254950166,
+      "update_seconds": 59.93685883888975,
+      "loss": 12.949183940887451,
+      "layer_loads": 93,
+      "expert_fetches": 31638,
+      "expert_bytes_read": 77012713392,
+      "peak_rss_bytes": 3965054976
+    },
+    {
+      "update": 4,
+      "step_seconds": 57.56194247701205,
+      "update_seconds": 57.564607655862346,
+      "loss": 12.956000328063965,
+      "layer_loads": 93,
+      "expert_fetches": 31842,
+      "expert_bytes_read": 77509286928,
+      "peak_rss_bytes": 3965325312
+    },
+    {
+      "update": 5,
+      "step_seconds": 60.80040902690962,
+      "update_seconds": 60.80354569409974,
+      "loss": 12.885821342468262,
+      "layer_loads": 93,
+      "expert_fetches": 31641,
+      "expert_bytes_read": 77020015944,
+      "peak_rss_bytes": 3965325312
+    },
+    {
+      "update": 6,
+      "step_seconds": 58.79893339588307,
+      "update_seconds": 58.802215561969206,
+      "loss": 12.90796422958374,
+      "layer_loads": 93,
+      "expert_fetches": 31437,
+      "expert_bytes_read": 76523442408,
+      "peak_rss_bytes": 3965325312
+    },
+    {
+      "update": 7,
+      "step_seconds": 57.53765340195969,
+      "update_seconds": 57.540365723893046,
+      "loss": 12.81764268875122,
+      "layer_loads": 93,
+      "expert_fetches": 31107,
+      "expert_bytes_read": 75720161688,
+      "peak_rss_bytes": 3965325312
+    }
+  ],
+  "hits_window0": null,
+  "reads_per_hit": null,
+  "expert_fetches_window0": 31824,
+  "expert_fetches_per_window": [
+    31824,
+    32295,
+    31899,
+    31638,
+    31842,
+    31641,
+    31437,
+    31107
+  ],
+  "layer_loads_per_window": [
+    94,
+    93,
+    93,
+    93,
+    93,
+    93,
+    93,
+    93
+  ],
+  "tokens_per_second": 17.24877932901154,
+  "vram_peak_allocated_bytes": 1466629632,
+  "vram_peak_reserved_bytes": 1782579200,
+  "rss_bytes": {
+    "after_setup": 3494588416,
+    "after_warmup": 3964514304,
+    "after_last": 3965591552
+  },
+  "host_cache_bytes": {
+    "after_warmup": null,
+    "after_last": null
+  },
+  "gpu_clock": {
+    "samples": 456,
+    "throttled_samples": 0,
+    "reason_counts": {},
+    "unavailable_samples": 0,
+    "sm_clock_mhz": {
+      "min": 2625,
+      "median": 2895.0,
+      "max": 2917
+    }
+  },
+  "model_revision": "0d31365acf656e5f9a593cacc4913e9c0d36cb1c",
+  "repo_commit": null,
+  "versions": {
+    "torch": "2.15.0",
+    "transformers": "5.23.0",
+    "peft": "0.21.3",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0",
+    "soup-cli": "0.75.0"
+  },
+  "python": "3.12.3",
+  "ram_limit": {
+    "source": "/sys/fs/cgroup/memory.max",
+    "limit_bytes": 91161100288,
+    "current_bytes": 72281772032,
+    "peak_bytes": null,
+    "swap_source": "/sys/fs/cgroup/memory.swap.max",
+    "swap_max_bytes": 0,
+    "swap_total_bytes": 8589930496,
+    "version": 2
+  },
+  "lora": {
+    "r": 4,
+    "alpha": 8,
+    "targets": [
+      "q_proj",
+      "kv_b_proj",
+      "o_proj"
+    ]
+  },
+  "tier": "disk",
+  "double_quant": true,
+  "gpu": "NVIDIA GeForce RTX 5070"
+}

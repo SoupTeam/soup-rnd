@@ -1259,3 +1259,5 @@ def test_block_with_a_void_run_is_replaced_and_does_not_count(validity):
 def test_blocks_needed_rejects_input_it_cannot_size(validity, runs, message):
     with pytest.raises(ValueError, match=message):
         validity.blocks_needed(_blocks(validity, *runs))
+
+\n

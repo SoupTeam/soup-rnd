@@ -1,0 +1,65 @@
+.............................................s..........                 [100%]
+=============================== warnings summary ===============================
+tests/test_c3_public_l2l.py: 14 warnings
+  /usr/local/lib/python3.13/dist-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+tests/test_b13_expert_backward_cuda.py::test_cuda_installed_silu_backward_preserves_the_outer_stream[None]
+tests/test_b13_expert_backward_cuda.py::test_cuda_installed_silu_backward_preserves_the_outer_stream[non-reentrant]
+tests/test_b13_expert_backward_cuda.py::test_cuda_installed_silu_backward_preserves_the_outer_stream[reentrant]
+  tests/test_b13_expert_backward_cuda.py:97: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_e3_l2l_equals_resident_eager_accumulation[1-0.0]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_e3_l2l_equals_resident_eager_accumulation[1-0.05]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_e3_l2l_equals_resident_eager_accumulation[2-0.0]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_e3_l2l_equals_resident_eager_accumulation[2-0.05]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_e3_l2l_equals_resident_eager_accumulation[4-0.0]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_e3_l2l_equals_resident_eager_accumulation[4-0.05]
+  tests/test_b13_l2l_moe_cuda.py:37: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("dropout", [0.0, 0.05])
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_backward_only_corruption_changes_grads_not_losses
+  tests/test_b13_l2l_moe_cuda.py:49: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_cuda_backward_only_corruption_changes_grads_not_losses(
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_broken_rng_replay_changes_grads_not_losses
+  tests/test_b13_l2l_moe_cuda.py:58: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_cuda_broken_rng_replay_changes_grads_not_losses(
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_consecutive_windows_and_masked_labels_stay_exact[0.0]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_consecutive_windows_and_masked_labels_stay_exact[0.05]
+  tests/test_b13_l2l_moe_cuda.py:67: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("dropout", [0.0, 0.05])
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_router_top_k_varies_independently_of_accumulation[1]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_router_top_k_varies_independently_of_accumulation[3]
+  tests/test_b13_l2l_moe_cuda.py:89: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("top_k", [1, 3])
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_fp32_model_under_bf16_forward_amp_matches_resident_ga
+  tests/test_b13_l2l_moe_cuda.py:106: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_cuda_fp32_model_under_bf16_forward_amp_matches_resident_ga(
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_eager_attention_and_lora_dropout_replay_match_resident_ga
+  tests/test_b13_l2l_moe_cuda.py:114: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_cuda_eager_attention_and_lora_dropout_replay_match_resident_ga(
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[embedding32-1]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[embedding32-2]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[embedding32-neftune-1]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[embedding32-neftune-2]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[head-shared44-dropout-1]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[head-shared44-dropout-2]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[combined46-dropout-1]
+tests/test_b13_l2l_moe_cuda.py::test_cuda_supported_trainables_match_repeated_resident_ga[combined46-dropout-2]
+  tests/test_b13_l2l_moe_cuda.py:122: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("k", [1, 2])
+
+tests/test_b13_l2l_moe_cuda.py::test_cuda_embedding_vjp_under_bf16_forward_amp_matches_resident_ga
+  tests/test_b13_l2l_moe_cuda.py:143: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_cuda_embedding_vjp_under_bf16_forward_amp_matches_resident_ga(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------- generated xml file: /kaggle/working/evidence/gpu-tests.xml ----------
+55 passed, 1 skipped, 1864 deselected, 40 warnings in 46.22s

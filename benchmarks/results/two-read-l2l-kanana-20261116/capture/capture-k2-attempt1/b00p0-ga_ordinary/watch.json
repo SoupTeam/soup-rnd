@@ -1,0 +1,117 @@
+{
+  "arm": "capture:ga_ordinary",
+  "round": 1,
+  "run": 1,
+  "label": "t08-two-read",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1794762841.3780398,
+    "ram_available_bytes": 65986478080,
+    "commit_charge": {
+      "used_bytes": 74806005760,
+      "limit_bytes": 75736989696
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 2317,
+        "type": "C",
+        "name": "/root/volume/venv/bin/python",
+        "used_mib": 2110
+      }
+    ],
+    "gpu_memory_used_mib": 2120,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1794763364.3793418,
+    "ram_available_bytes": 70668410880,
+    "commit_charge": {
+      "used_bytes": 67549753344,
+      "limit_bytes": 75736989696
+    },
+    "power_source": "mains",
+    "gpu_processes": [],
+    "gpu_memory_used_mib": 2,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 2602 to 2902 MHz over 257 samples; clock event reasons seen: none",
+    "samples": 257,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 2602,
+      "median": 2880,
+      "max": 2902
+    },
+    "reasons_seen": {}
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+        "sleep_offset_start_s": -5.969777703285217e-07,
+        "sleep_offset_end_s": -4.7404319047927856e-07,
+        "suspend_count_start": 0,
+        "suspend_count_end": 0
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 263 power samples, so on mains",
+      "evidence": {
+        "samples": 263,
+        "off_mains_samples": [],
+        "battery_present": false,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": false,
+          "online": {}
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "void",
+      "reason": "at least 100900990976 bytes of foreign reads on nvme0n1 (limit 34114005401)",
+      "evidence": {
+        "model_path": "/root/volume/cache",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 48882184592384,
+        "disk_read_bytes_end": 49665365691392,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 682280108032,
+        "foreign_read_bytes": 100900990976,
+        "foreign_read_bytes_min": 100900990976,
+        "foreign_read_bytes_max": 100900990976,
+        "uninspectable_processes": 0,
+        "foreign_read_fraction": 0.05,
+        "limit_bytes": 34114005401
+      },
+      "readers": [
+        {
+          "pid": 1,
+          "name": "sh",
+          "read_bytes": 682506170368
+        },
+        {
+          "pid": 346,
+          "name": "sshd",
+          "read_bytes": 147456
+        }
+      ],
+      "unattributed_bytes": 0
+    }
+  }
+}

@@ -1,0 +1,781 @@
+{
+  "aux_report_sha256": "3b56a594a381822bd33c11cea01d6ff5b1d2ef9508522924f148b1431f62f27a",
+  "delta_admission": "Explicit model/prepare normalization and profile-aware consumer deltas; independently reviewed, then bound by final source packet and frozen study protocol. Not claimed byte-identical to the historical aux probe.",
+  "normalization": "CRLF to LF only; Python source semantics unchanged",
+  "reviewed_wrapper_deltas": [
+    "benchmarks/harness/p3_deepseek_quality_attention.py",
+    "benchmarks/harness/p3_deepseek_quality_data.py",
+    "benchmarks/harness/p3_deepseek_quality_eval.py",
+    "benchmarks/harness/p3_deepseek_quality_gate.py",
+    "benchmarks/harness/p3_deepseek_quality_model.py",
+    "benchmarks/harness/p3_deepseek_quality_prepare.py",
+    "benchmarks/harness/p3_deepseek_quality_train.py"
+  ],
+  "schema": "p3-moonlight-aux-source-continuity-v1",
+  "unchanged_sources": {
+    "benchmarks/harness/b13_moe_fixture.py": {
+      "normalized_text_sha256": "371298d30aa252bd97d364103eceef2038d253f676b84a3605a55330eadb0d8e",
+      "source_sha256": "ec909820cd418afd5fcd42dfeb4769aa55e076e4fca971364af7c6096f3ac795"
+    },
+    "benchmarks/harness/g4_activation_codec.py": {
+      "normalized_text_sha256": "c72c428aafdf685ab96a403bd32d49514b37099874bfa3aae2886db26acc9ac3",
+      "source_sha256": "67b94b73920cdb3b1bb54a38330f8d59f52195d3dc5e26384ad3eb69823ec743"
+    },
+    "benchmarks/harness/g4_rule.py": {
+      "normalized_text_sha256": "aa646f779811386277e7ff88be430f6b64c56dc6a908c3807c8da83e97e97de2",
+      "source_sha256": "3157cfeda02f98f514cdb48089a9cea2f911d4ae0512ab5ab051e94c5dfec5ee"
+    },
+    "benchmarks/harness/host_box.py": {
+      "normalized_text_sha256": "80ef5d5e15595aa3d2f5c9689ba1fef301ffbb7aca632cf1f64c6c550750f0aa",
+      "source_sha256": "137ed81b743f83cf51322461bcc3de738429d9dd73de0eb66129dab118485537"
+    },
+    "benchmarks/harness/l2l_mistral_stand.py": {
+      "normalized_text_sha256": "8043520dc5d9dbbf860f1a2c5990496a06fc0c61d1e48e4c519d8cf09c508a6f",
+      "source_sha256": "1d67b09eec080097021804ac37c3b81ed3075e994fae4a3179be7b460b1e9f01"
+    },
+    "benchmarks/harness/l2l_schedule.py": {
+      "normalized_text_sha256": "62b53eeb85bd5037ec0b4ebc2cde628028bc0d231198d674e0a61ba60c32ef34",
+      "source_sha256": "8018c9fe7c049acc3c6c94971b9092c2eb60e3559e8e79287541809ddecad9ca"
+    },
+    "benchmarks/harness/p3_deepseek_fp8_smoke.py": {
+      "normalized_text_sha256": "90eef1d4b18b3aae4f3a2f9278f19c1c6a9b91148580a963ace2dbd64ea74850",
+      "source_sha256": "e7cdb8d770be657e58aa9642291c1f8a9f39efdcd43f4ef7de02ac6e7517ad6e"
+    },
+    "benchmarks/harness/p3_deepseek_oracle.py": {
+      "normalized_text_sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71",
+      "source_sha256": "c47fc3bea0a6034bdbaa39e6ac1da7f1b527451f0f5273ee93d1197481ff831b"
+    },
+    "benchmarks/harness/p3_fp8_memory.py": {
+      "normalized_text_sha256": "bb21311b6483b5567fd71e5677f8e079b41be6aa998a63a49292f7d46f71eceb",
+      "source_sha256": "ac5ab616d47d4757b9bf3f60be01894bdc5ea2bd16508b0eeda9b0430405e119"
+    },
+    "benchmarks/harness/p3_fp8_smoke.py": {
+      "normalized_text_sha256": "35790cf0c69367057d9b5c8477e580e98911a34242d0e489f48f665224b1b96e",
+      "source_sha256": "7edb19a663e9314a2f2977651f7977f7abe3dadc66d72acc0060768ef428be2c"
+    },
+    "benchmarks/harness/p3_realdata_baseline.py": {
+      "normalized_text_sha256": "8fcbb4795390820aca1b0c2f9d349045045c5d2a498c8c03f79ac3edccf9431f",
+      "source_sha256": "8fcbb4795390820aca1b0c2f9d349045045c5d2a498c8c03f79ac3edccf9431f"
+    },
+    "benchmarks/harness/p3_realdata_codec.py": {
+      "normalized_text_sha256": "2e47ee7be982a23df5bd930eb2ae69fc8267d6a85019090b83bb7ba9542582e1",
+      "source_sha256": "2e47ee7be982a23df5bd930eb2ae69fc8267d6a85019090b83bb7ba9542582e1"
+    },
+    "benchmarks/harness/p3_realdata_corpus.py": {
+      "normalized_text_sha256": "b4a376c7030215add51d0b87f50bf9486239db5fc12859ee7012d99add1d08d9",
+      "source_sha256": "b4a376c7030215add51d0b87f50bf9486239db5fc12859ee7012d99add1d08d9"
+    },
+    "benchmarks/harness/p3_realdata_model.py": {
+      "normalized_text_sha256": "1b2f3b3e2507f64c321b70320154c96714e3410035d581774658714c65c70800",
+      "source_sha256": "1b2f3b3e2507f64c321b70320154c96714e3410035d581774658714c65c70800"
+    },
+    "benchmarks/harness/p3_realdata_routing.py": {
+      "normalized_text_sha256": "abff0211b6b26bd0487458ef2f48b5a4468a7b99ac68e972a21a42bec302ee96",
+      "source_sha256": "abff0211b6b26bd0487458ef2f48b5a4468a7b99ac68e972a21a42bec302ee96"
+    },
+    "benchmarks/harness/p3_stage2_apps.py": {
+      "normalized_text_sha256": "07ef224a384ef7a16a0b83f3c2dba8aeedef035f2e2964a829927163ea06605d",
+      "source_sha256": "07ef224a384ef7a16a0b83f3c2dba8aeedef035f2e2964a829927163ea06605d"
+    },
+    "benchmarks/harness/p3_stage2_checkpoint_generation.py": {
+      "normalized_text_sha256": "e1c9b1a8f60ae00ea8fa18211ff86fdccfb2f9060fc5e1d7c12f771ae536fc1f",
+      "source_sha256": "e1c9b1a8f60ae00ea8fa18211ff86fdccfb2f9060fc5e1d7c12f771ae536fc1f"
+    },
+    "benchmarks/harness/p3_stage2_core_data.py": {
+      "normalized_text_sha256": "6f082bf617ddd268d37be2e38ff666cf15bfb1e0dfeda37e17c6342436c57f2a",
+      "source_sha256": "6f082bf617ddd268d37be2e38ff666cf15bfb1e0dfeda37e17c6342436c57f2a"
+    },
+    "benchmarks/harness/p3_stage2_dataset.py": {
+      "normalized_text_sha256": "48c0e5cba7adc6164cadf428c0ba34844ab631817f1b4942829688d824ef4bda",
+      "source_sha256": "48c0e5cba7adc6164cadf428c0ba34844ab631817f1b4942829688d824ef4bda"
+    },
+    "benchmarks/harness/p3_stage2_generation.py": {
+      "normalized_text_sha256": "ed24c24e6ad148e75f80c10fc34322d76e9c3c9bd775f46630a916f2753d56d1",
+      "source_sha256": "ed24c24e6ad148e75f80c10fc34322d76e9c3c9bd775f46630a916f2753d56d1"
+    },
+    "benchmarks/harness/p3_stage2_math.py": {
+      "normalized_text_sha256": "6afe590c5d82c4c7b69c3092ba3019c498e65b3b989105dca531fb18aa6c6983",
+      "source_sha256": "6afe590c5d82c4c7b69c3092ba3019c498e65b3b989105dca531fb18aa6c6983"
+    },
+    "benchmarks/harness/p3_stage2_preflight.py": {
+      "normalized_text_sha256": "32422c6ab02845667dbfb82cebdfb0257ece5168e23f7673212af131f675cc87",
+      "source_sha256": "32422c6ab02845667dbfb82cebdfb0257ece5168e23f7673212af131f675cc87"
+    },
+    "benchmarks/harness/p3_stage2_training.py": {
+      "normalized_text_sha256": "7e8afe6cb777fbdd38975d0bbb8fe4eb62ca69bdce04e70e921c43f79bf0b204",
+      "source_sha256": "7e8afe6cb777fbdd38975d0bbb8fe4eb62ca69bdce04e70e921c43f79bf0b204"
+    },
+    "benchmarks/harness/p3_stage2_training_audit.py": {
+      "normalized_text_sha256": "a94c747e02aa9a3f32a0242dcbc044da306f71bdd1d38398929d3e627eb9e592",
+      "source_sha256": "a94c747e02aa9a3f32a0242dcbc044da306f71bdd1d38398929d3e627eb9e592"
+    },
+    "benchmarks/harness/p3_stage2v2_data.py": {
+      "normalized_text_sha256": "0e0ddb532ef01cab1faee7b12ef5032d19f76cad675ed4fff8e910ce2fd4317f",
+      "source_sha256": "0e0ddb532ef01cab1faee7b12ef5032d19f76cad675ed4fff8e910ce2fd4317f"
+    },
+    "benchmarks/harness/p3_stage2v2_loglik.py": {
+      "normalized_text_sha256": "08c37c95bdf25088454cdbfdbca74dc4283ed279685a4431f782efe47b1b579f",
+      "source_sha256": "08c37c95bdf25088454cdbfdbca74dc4283ed279685a4431f782efe47b1b579f"
+    },
+    "src/soup_cli/__init__.py": {
+      "normalized_text_sha256": "51375e55c08d257284fe4f73479338e81f5d9bc9c014f63cf6445d257cae20fb",
+      "source_sha256": "f2e2c4e701eb2ab55fa10ba8cafe8cd927585c8c8ce7d2079bd39ff096db6e48"
+    },
+    "src/soup_cli/config/deprecation.py": {
+      "normalized_text_sha256": "d997c1a185291112805fb9bdbf0f87f1599d58f71142cc848bca28711696572f",
+      "source_sha256": "9a37e21f42fed81f10b726a4b441480f24b1fb5076416993cf77ef9f3445f254"
+    },
+    "src/soup_cli/config/schema.py": {
+      "normalized_text_sha256": "a36c4247b7e01147bbb24bf42bfc2df90de390c702a713d2446f6536704e0f0f",
+      "source_sha256": "eb687e145cb5d964934bb468d9e6c88a21a35ade14e72a77e0fe04947c02bb23"
+    },
+    "src/soup_cli/data/chat_templates.py": {
+      "normalized_text_sha256": "86f904222986f130a8b9c94675666b8b613424f19fd9536083258f9c13f9c75b",
+      "source_sha256": "c4195ce0ccb3968c12e1463a427740ac5c133521f96b75555a6cc9d38a56eb66"
+    },
+    "src/soup_cli/data/loss_mask.py": {
+      "normalized_text_sha256": "4f10f52a8708d3605deab46bc2b4bc81fb9cf153f9e0a9620a0d68ab62b5742a",
+      "source_sha256": "78bf6cb995a6aa5e0c17bd512b0a92c5d14cb993c2ee0e8aa9e5fee7fd8f2a4d"
+    },
+    "src/soup_cli/data/sft_format.py": {
+      "normalized_text_sha256": "8ab8e59bb187894ecc646ed0fb0fbeecb6efea74132a63a3e6733180db2d1b49",
+      "source_sha256": "db3505ce3951145bd4f6ab8a863142ac9f4cad49fa18ded9cf0fe09be8503b0b"
+    },
+    "src/soup_cli/eval/custom.py": {
+      "normalized_text_sha256": "f1f9401e637c4fc840cf3e84461ab7bda2e88b63b29201099268359f2265137a",
+      "source_sha256": "44141c4fb32845694d24893918fed07f9c36c797f48a6b7124b570b307c6bb9b"
+    },
+    "src/soup_cli/eval/forgetting.py": {
+      "normalized_text_sha256": "9024a11701b674a6975bb0e5930e13d50f250e9ca76c8fdd0b47eb83eb452d7e",
+      "source_sha256": "9fadf30c8f6e23610aa894b3db4b03af6063add42d8fc4e0dd3db21860111e2e"
+    },
+    "src/soup_cli/eval/gate.py": {
+      "normalized_text_sha256": "b6eaccae6ec812cfd9819326ae7c3841de4d69a9602e24fb6cec5c75cfa921cb",
+      "source_sha256": "6c678fd6cbee0d4e604258877a0c966be6ba7e288f41d57005d161bf31677774"
+    },
+    "src/soup_cli/eval/gate_suites.py": {
+      "normalized_text_sha256": "328409ebe18a041dc59517bee43876837b44a561d827015e55dcf19e247de80b",
+      "source_sha256": "3cc3626b926301cdc0bd1602b9fed483fd71fe37fb16153de6b8c649800594bb"
+    },
+    "src/soup_cli/eval/judge.py": {
+      "normalized_text_sha256": "e9cdee160a601e48971adf0da4dff7315cd3109098075753b540182b6a4729b0",
+      "source_sha256": "f3162f694b5101941bce494f6fd3c3ed28c67a1d00422262be4050536bcb37df"
+    },
+    "src/soup_cli/eval/results.py": {
+      "normalized_text_sha256": "fd84d0bd1b8a6a9cc1d90da5f11f3f44dd7f55b42ae22b916aeb9e99794688b1",
+      "source_sha256": "91549aabf13bfec847d75e921a66485d5c6099fa7e714174adec65db69ed9232"
+    },
+    "src/soup_cli/experiment/tracker.py": {
+      "normalized_text_sha256": "eb6e669f2c06d90d98c37ddb70564094d2298b96475ede6a249b8bf1f82f2b3c",
+      "source_sha256": "e7c50efcadf9555681d721589886ea715a2c6a942a2444946a3e558228b330ee"
+    },
+    "src/soup_cli/monitoring/callback.py": {
+      "normalized_text_sha256": "6656b07a4fcae73b43615f9ea568cbaeaa2aed185c14aacf1b41e716a3ee64d5",
+      "source_sha256": "881d71757b20367acbf3f2e7de3d6b084f66902c2ba9faecb0b2b119119afedb"
+    },
+    "src/soup_cli/monitoring/curriculum_callback.py": {
+      "normalized_text_sha256": "aea7828ceb9533db4787d04327c7b4f32681ea2b2d418c3a55e8001c1024f9a1",
+      "source_sha256": "8fd6123fe26e56ab376fc336fd72d458373378ace0780ee8dd22d8575535ec07"
+    },
+    "src/soup_cli/monitoring/display.py": {
+      "normalized_text_sha256": "fb3dbdb51260b0e31f2c99b639589bd9b2b1d8d75e23af2967f0b25b367a534c",
+      "source_sha256": "ef6d222a94d51f55880626af0d9d80c8250d8ab6a7d1512bacbd97ea04a41291"
+    },
+    "src/soup_cli/monitoring/grpo_stability_callback.py": {
+      "normalized_text_sha256": "74c2c1e01885da937832ad5ce97ada120027b01c630939f7ac26e43fa3c6147b",
+      "source_sha256": "acdab6e8056c64332bd6ffa260d3317a2869a5be58e6593aa29a9d33703913f8"
+    },
+    "src/soup_cli/monitoring/plugin_callback.py": {
+      "normalized_text_sha256": "157bb520d7b655c6bad8a238486ea7fec8b7656ffd8aa5e3f896373ec15c2f5a",
+      "source_sha256": "528806c4f38aaeacaba20cc5270dd0d940ebdb49f98c9fd0a676c4de2752469c"
+    },
+    "src/soup_cli/monitoring/rewind_log.py": {
+      "normalized_text_sha256": "d4b645a32064fa607423181f7d09d1183e4811e17809f5e74be47a242414485d",
+      "source_sha256": "0831c86981211b0787c6496bbbb8ab5ece2a175d7bb849e68d5a2f41d39c7f0a"
+    },
+    "src/soup_cli/monitoring/trace_logger.py": {
+      "normalized_text_sha256": "ccd714204bf0bd646696c489fc076be5ff417099996aa825e4669685a09e3ec4",
+      "source_sha256": "5443f9fcd8f9e0a51944991897adc9d61d6728eab7db505b7d3c5f5ca374abe9"
+    },
+    "src/soup_cli/plugins/__init__.py": {
+      "normalized_text_sha256": "151e67e4436c3ecf8f94774213d9e554c962d02e51e5b25fd640b0ec2354aaa8",
+      "source_sha256": "b04dd4476630c3de3b914e17196cbc5f47df6378380de243f9a50f5d04da5193"
+    },
+    "src/soup_cli/registry/hashing.py": {
+      "normalized_text_sha256": "3e79cab390a88eeb230e4fe15e9013371c4ffe813ce99e4cc276c10ef6b31140",
+      "source_sha256": "22b3b6956809416ecabdc5ea5362cd9d17f43df622d08f1cfa296ef5ca1d1677"
+    },
+    "src/soup_cli/registry/store.py": {
+      "normalized_text_sha256": "4337393380bc89af3607e59fa9a950c2cba599a76440f470c8464d578cafa739",
+      "source_sha256": "6948cf5b386c52b5a476fa0cd23a82717ec326756e0b48eeed2d51fd997da20e"
+    },
+    "src/soup_cli/trainer/_trl_compat.py": {
+      "normalized_text_sha256": "b3b1c5ca4ae5641f57763aec06484835db32da85609e31bfbb328a432d3c7f82",
+      "source_sha256": "35798a723479602ddbf18174fd0e7c3e08b3d445354a5d5270cfe5016e266acb"
+    },
+    "src/soup_cli/trainer/classifier.py": {
+      "normalized_text_sha256": "786727c0e67eb4becc7012fc6ec743eaeb088eaa36a3bec922aa7792e2c753e2",
+      "source_sha256": "8e57fa0792b5430409eb7a9587684a0ed18a5072e8b4883244288b17911ee3f1"
+    },
+    "src/soup_cli/trainer/distill.py": {
+      "normalized_text_sha256": "453a1486d8e9159137a061c9021764e95921633a035d113fd38f806bf7f1158a",
+      "source_sha256": "88aed3389eed08153d4fd6bba4bba7d0b5a5c8cd2e7ff6dd4ef479715cd82ef6"
+    },
+    "src/soup_cli/trainer/l2l_trainer.py": {
+      "normalized_text_sha256": "748ea204b506995866d1ff1a74804ea194e259a6c39f3a79bba23b99054a5e38",
+      "source_sha256": "87ecb15b5cb135e624fb80e9240405a64c874e10bd0c77c737a52c64a5e5caef"
+    },
+    "src/soup_cli/trainer/loss_summary.py": {
+      "normalized_text_sha256": "275b4eea1c8e4a5f55226c4e5e4511329c43596e9457dd994f9b97582bb55eae",
+      "source_sha256": "b84111f3a399b9ec3b34c6a6e9fada2e63ef4732126273fbf6e6aed118c69768"
+    },
+    "src/soup_cli/trainer/prm.py": {
+      "normalized_text_sha256": "9eda0ebdac7fc4116f4ca56db7798107b92081ae691ef23cca5437f7faeeb6d4",
+      "source_sha256": "7c9a0040d62dcd232fd877af89d3320c04ca30914fe7b2a39ecd251c12613d3a"
+    },
+    "src/soup_cli/trainer/raft.py": {
+      "normalized_text_sha256": "dee4d6e04ff14625fb720d4ae32ce7b3bb35126b7731fa9054451a7997b7bc2b",
+      "source_sha256": "be290154827a582f930f3b16ed60f65ef4374d70bca2ed877a510d7cf94ddf64"
+    },
+    "src/soup_cli/trainer/rewind_hf.py": {
+      "normalized_text_sha256": "5ef343f5a641e9ee9343c2bb7ef96568bf26b75770f6f4792f0bf878900b2f2f",
+      "source_sha256": "27fff48ea2b40d7996d0bbf5d0a9e7b9a245cdfad66e80c72def2064b33141c7"
+    },
+    "src/soup_cli/trainer/sft.py": {
+      "normalized_text_sha256": "2fbbe6a5e87f7571264ad6ef26667cd723b2bc976d3b33ff359d998254b39d1c",
+      "source_sha256": "ff719080616cf80b6627af007256e56391440802a66dd004f8ead20c3459cce3"
+    },
+    "src/soup_cli/trainer/stream_setup.py": {
+      "normalized_text_sha256": "5f51da48e26100a1cb6185e0f692df4aba721f57585f20a8b814c623d6eca6a4",
+      "source_sha256": "34939860a660ea90817a3a8f1ad52672ddb410bec9664f32f05a4dfcb9b0b558"
+    },
+    "src/soup_cli/trainer/tts.py": {
+      "normalized_text_sha256": "ab390f44d5e0551dea213e185fd8840fea643dbccead76acd012be8ed4570d06",
+      "source_sha256": "8fc289d601d6b7ecf8679a1188ea97a9a9a8553b5efc58cd7716a5f6ff34c144"
+    },
+    "src/soup_cli/trainer/unlearn.py": {
+      "normalized_text_sha256": "715e47c6b3d35db6d384f13d62d7c93f0480df1a1d4138019a94b7884e91a635",
+      "source_sha256": "f7da9d84deb7b10c28c6a2cf0857f37874cac9dff5f435d46bb756fe5d114fa8"
+    },
+    "src/soup_cli/utils/__init__.py": {
+      "normalized_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "src/soup_cli/utils/_eval_text.py": {
+      "normalized_text_sha256": "bcbee2c5995e8cfb582db5d69236ce868e374c9e7ece2d1445e8d768a799a501",
+      "source_sha256": "5a920cf63a6e23a8a71a4175a738902b5762318a3aca8b5a47eab2b0b8356b4a"
+    },
+    "src/soup_cli/utils/activation_codec.py": {
+      "normalized_text_sha256": "194968b54df5de3621e20ab43ee4e5601251ea2bcfdb28ac2f188b2fd1b3fb98",
+      "source_sha256": "f826f377e5b792f575302766e23f2ba564eb07cc881e5fee611deb423de0d0f9"
+    },
+    "src/soup_cli/utils/activation_offload.py": {
+      "normalized_text_sha256": "255bbc8394972a354f76dff7da57793ea22db9a9c29ad2f34dd8d5d9ec4b359a",
+      "source_sha256": "e2cd99122273004f0d44bc9f76a09ee7157940d32ca359fe03095003aee746fa"
+    },
+    "src/soup_cli/utils/adapter_budget.py": {
+      "normalized_text_sha256": "8c124741dbbfea78981c9708c7faece22da41a9258850b8f60f28f4f32221eec",
+      "source_sha256": "7c14ac3cc7f000965c13f9991d4ce83b1d578a09c506efb05a01b934854552fe"
+    },
+    "src/soup_cli/utils/advanced_precision.py": {
+      "normalized_text_sha256": "a1aa5a78a2f58bc119896bac644aebb82113a3c4c4db0b71d6905b4c50de2cb6",
+      "source_sha256": "70d258321c4276bacdd24bff0450e6049f68ba05f76ffd4c049245c31cc4ebb0"
+    },
+    "src/soup_cli/utils/agent_rollout.py": {
+      "normalized_text_sha256": "1f082701fa9b3346ff4fe87ed5ead1d447fd762584cd85c30a80c874f022c497",
+      "source_sha256": "9809ee9b88d159158752d9e73cb3d33c7367abb8f153466845a2c8484b8161f5"
+    },
+    "src/soup_cli/utils/anthropic_messages.py": {
+      "normalized_text_sha256": "fd7940dfffcce3ded6f8669197e55865665e156dac99cf7e2a0360c5884508b8",
+      "source_sha256": "a0b04141076db01d025bc2b0c23832c4a6b509bba4c4897530905ef750310113"
+    },
+    "src/soup_cli/utils/async_disk_source.py": {
+      "normalized_text_sha256": "874bc027e530c813c41b0efcf07d419edf0bdf483afe509ed1968de3a8eed75c",
+      "source_sha256": "20b49f95dc418a0c9b1276de6921efc20fcc4c1bf7ed871eaff338f390eced74"
+    },
+    "src/soup_cli/utils/batch_probe.py": {
+      "normalized_text_sha256": "8cf4d4376edca7f10e6f10a1f765df68c44f59d3d9d919237e8860de3aaa3210",
+      "source_sha256": "4de32ec3a512933519c4a7682e3beed022e82da83fc06f93c97c502e9a87c687"
+    },
+    "src/soup_cli/utils/block_expansion.py": {
+      "normalized_text_sha256": "bb94b9ad9be759fa685e1570e99911a4b70905b61b7e89ce19e9d8bf0c188722",
+      "source_sha256": "a73447d24c82f222d0d9f3410532216415be726a25677b125c67136d79d69886"
+    },
+    "src/soup_cli/utils/budgeted_activations.py": {
+      "normalized_text_sha256": "49216ade68f42c0b2bedf8c77b14a7bc72e9b5a5307724a365f61bd57f8254b1",
+      "source_sha256": "65cd05120c6f28fc1faf0b2c92560c82ad59f8578d25587cecf6514581825900"
+    },
+    "src/soup_cli/utils/c3_l2l_budget.py": {
+      "normalized_text_sha256": "4e2167a0829ddc2b3a1368313a4b554b46a0937d3c33ac347600b96a7cdbe512",
+      "source_sha256": "a1542dd8b14efa05da04b49106060783b3b3a2b83c635384fc2a61ecbd4ab036"
+    },
+    "src/soup_cli/utils/citation_faithful.py": {
+      "normalized_text_sha256": "bf34a6704df30b679df373882c3cb1128925d5fc39b4fb51b284f927a9ca6e03",
+      "source_sha256": "16ce4fd47e4551a1b3682dda40d5e72bb4e6705c05b0082bb6134d2dae1c58f4"
+    },
+    "src/soup_cli/utils/classifier.py": {
+      "normalized_text_sha256": "ff6d9d5af513516a43fc3398c85612bfba62176ddbdd3bebfdfd87a595a60a57",
+      "source_sha256": "4b8dc89dca02eca33195bad00a3f05e44f03d7f4c5387edb4eb4c01ecde7ec33"
+    },
+    "src/soup_cli/utils/config_bounds.py": {
+      "normalized_text_sha256": "7a116fbc9261b990a515641bf21adafed0d18841cd9aaff82df2f887b219c7e5",
+      "source_sha256": "2a4b9d281b0a4bb27784b8b03373022c8d07997dbad134eefedf9d7bd87318b6"
+    },
+    "src/soup_cli/utils/constants.py": {
+      "normalized_text_sha256": "34e474ae267cad0591d2b1fff1409c2616a3df2c50f0519f73cfd47d545d240a",
+      "source_sha256": "dc02f6fd4f618304f282e03cc276f675c67796bcc98781f2d56d217b70b9dc99"
+    },
+    "src/soup_cli/utils/container_memory.py": {
+      "normalized_text_sha256": "4691caf272fba9810d16681fb2c1518a455c8b43555757cc39fd3f362f1e24cd",
+      "source_sha256": "7a99bbc2fb982a900a0735a01685de867333775e2a2a2a8fc953fc0270b05d0d"
+    },
+    "src/soup_cli/utils/crash.py": {
+      "normalized_text_sha256": "81c590047921ac7c958e209b8070cb84e0957dd79b376b8baeac06762769add3",
+      "source_sha256": "68d58af46a969b790ad7aaab39a4af040523b98bc7f89e495ce7c419dbd7e504"
+    },
+    "src/soup_cli/utils/curriculum.py": {
+      "normalized_text_sha256": "935d50ac323dc375a55afd55265771d6e8a75011fd02ab6cce5fa9881f9ccbac",
+      "source_sha256": "4538cdf4886a5a25c8dd0b1d9b9afeb2b6c1aca12f45372b921c1142cfd94495"
+    },
+    "src/soup_cli/utils/curriculum_dynamic.py": {
+      "normalized_text_sha256": "9dac4f255b2ae3471e616e5ece2d92fd28c85fc0a9e1a5633015cd5235413c36",
+      "source_sha256": "86bd4b6f147014c589514d21db275830ca6a9c0c2a91c3c71378a0b09dcb36d7"
+    },
+    "src/soup_cli/utils/cut_ce.py": {
+      "normalized_text_sha256": "efcf571d2b3b9d6bf1175c884f65dc7e12bfcb8a67feab3dd97e50977f12bfb8",
+      "source_sha256": "63352d576c1bb196a297fec04d009dfb11636d332b9b58fd2ef65285df03c24f"
+    },
+    "src/soup_cli/utils/data_pipeline.py": {
+      "normalized_text_sha256": "8fcc6a2990bfb49fac4668c891b9a08deadced28311259e08efb1a161663cd54",
+      "source_sha256": "7cbc922907a1a9758b5f62dcc17ea2eecfe796fb1626e3971ea746bfd43eb5da"
+    },
+    "src/soup_cli/utils/deepspeed.py": {
+      "normalized_text_sha256": "f3c42583267ed3364dfa5e4ccd8ca81efbf732dcc6bc95c1b809f2c920c1bee1",
+      "source_sha256": "62695dba20f933c763f12a1e4d4b33dfc14ce80b1d9e53a57cefa4933e5293fa"
+    },
+    "src/soup_cli/utils/diagnose/_common.py": {
+      "normalized_text_sha256": "025ccc3d1c600691fd9f769e6974aee7e86c79a6c2e0aa733b12fe414fab4d0f",
+      "source_sha256": "e2284bfe499a105b17e1e917a5356cbbd3dfe63164cc7a6525737b1b330e8224"
+    },
+    "src/soup_cli/utils/diagnose/refusal.py": {
+      "normalized_text_sha256": "d8f7eaf13bc64f45afc6cef6add0b24eab34f942f7ff1dab180e71725cda8e68",
+      "source_sha256": "e9258ee3f8f084fc0725135f6dd08aa104967e67af7437ea200a9e057201a9cf"
+    },
+    "src/soup_cli/utils/diagnose/report.py": {
+      "normalized_text_sha256": "93d105516669985c4b9bb114fd19463640b31f7e8e91c354ada75a4a0d016ded",
+      "source_sha256": "53078481f527b15385cd4b2fb1733e072abf415aea0bb249bc2c86fafe9beadd"
+    },
+    "src/soup_cli/utils/distill.py": {
+      "normalized_text_sha256": "b6ebd54c51f193c1c12e4dc5a95afb9f0eee4c58869a33837250d2b438e698bb",
+      "source_sha256": "ec3bca29a7b725789173ed659a1dcc0577a36a274a9242f30ae3f76c65165c44"
+    },
+    "src/soup_cli/utils/draft.py": {
+      "normalized_text_sha256": "60572025834f73617dfee4816ad1f9bbf37bb214fdc62122c952be9f85cf90d2",
+      "source_sha256": "398f9b086093745ebe3632bfd60d5f9c1db270086beb6994fed1d2d9d583cbe5"
+    },
+    "src/soup_cli/utils/ebft_gdpo.py": {
+      "normalized_text_sha256": "52c6290d4888c1a66eaf3b3a62c2662389eef5e09e2a5cfbc1284fccd7016fab",
+      "source_sha256": "70d9b87beeda84a82d3c11808520135fd6d824380fca4a35d9407c8bf4fbc2d9"
+    },
+    "src/soup_cli/utils/echo_trap.py": {
+      "normalized_text_sha256": "09149cf096ea2cc5ad965203ecd410b0285982f7242d976a311d2e1f9c4e178d",
+      "source_sha256": "caceca93307faf7b28703f28c9ac0c2527f4c788d3bf4d9646d47d26e8a57c98"
+    },
+    "src/soup_cli/utils/edit_governor.py": {
+      "normalized_text_sha256": "ca35d16952f534a56969af88f3c4faa2be894675c4cdc3cfd1346a2162d6980e",
+      "source_sha256": "c7ae513d2315daf70025dc3e57c2140b9b498d788c63b39ab7d5f3a97a6aece8"
+    },
+    "src/soup_cli/utils/edit_kernels.py": {
+      "normalized_text_sha256": "06ea53caba70a471385793394bf8bfd107de47c6a3808fbe291e53aa58062723",
+      "source_sha256": "748451205567ffb4ad760e0edfffe0d7a5c9005e80fea60827756f63a7368d60"
+    },
+    "src/soup_cli/utils/eval_schedule.py": {
+      "normalized_text_sha256": "e593fe1ec614554f661edd1c479818bfae6f85a71b9d95e4097852dbe4f3dc31",
+      "source_sha256": "55f2e13dd82ecb829abd260aa8eb0b6a441f9170b2b2706cdfe8c6493e059a7a"
+    },
+    "src/soup_cli/utils/expert_cache_budget.py": {
+      "normalized_text_sha256": "7d65f0662ced3bafa5ef7fa0ed7b9e9d01270d34246db10a58fa1260e3124af8",
+      "source_sha256": "ff20248b629a6b6f0163e7001baf70862465e6e8e402309f1bd28d62408a5405"
+    },
+    "src/soup_cli/utils/expert_shard.py": {
+      "normalized_text_sha256": "bac0a9f36e8ea1596965a3816c46f47d7bd29152ed3c3b13445f88c1a548a334",
+      "source_sha256": "32edf36de6f0df6cf6a96eb81b9ea2c9208c5de33b9a70399fadcf1021860a71"
+    },
+    "src/soup_cli/utils/expert_stream.py": {
+      "normalized_text_sha256": "5d0f9d9fcaa09e081e29a11c6d901361efaecf3e7f00f611263389f2e5ff4811",
+      "source_sha256": "ca6c63f37b6eb8b8f424003c16a0c2a6ce70d26a840a6f75583cb5c1ef274140"
+    },
+    "src/soup_cli/utils/final_answer.py": {
+      "normalized_text_sha256": "60b9ff4dbe1c43325a45c8b157f85ece1cab3b102b53dced374a43202997afc9",
+      "source_sha256": "8462322da962cdb517075095ae7981b7562840ef01c3d6e8c5da3b4d7e911b9b"
+    },
+    "src/soup_cli/utils/flash_attn.py": {
+      "normalized_text_sha256": "194582e0acc318dfe3e9a77029abd11d944ccd2c8e2dcc517b62daf8ead2c8f3",
+      "source_sha256": "1c43df1abfdf26738a473ac503c60c49ee6bf4ab8cbeda5805aa5ca7097a82f1"
+    },
+    "src/soup_cli/utils/fp8.py": {
+      "normalized_text_sha256": "4b05c35f5de805347419dec8ef2d08a37469a3ceef6ba247f604ecda5a5a8c6c",
+      "source_sha256": "0c8b11f5ce4986e61f6eb1adbe5e8b6425d0933362e9cde4b150e36295ec1258"
+    },
+    "src/soup_cli/utils/fp8_activations.py": {
+      "normalized_text_sha256": "2061b183a9a56fafa1964dd7a56fae6e64f53fce337142dba1e964941e2846a0",
+      "source_sha256": "3f5e95e388e976335de9b78e5217e107ec5eb322e4abda8e4dfe2583352066eb"
+    },
+    "src/soup_cli/utils/fp8_source.py": {
+      "normalized_text_sha256": "2048256e991490e58495d991da7cbb83aa06a382e7ae5453b9e2b31482a1b0f9",
+      "source_sha256": "e131e6ff88b0670e6ecdce51863978dc392777fc6859902e3df3ad147ae27b66"
+    },
+    "src/soup_cli/utils/freeze.py": {
+      "normalized_text_sha256": "6fe40c749c37930e7bde6348729ecc04a86da2798d487ef5f83e639429ed81f6",
+      "source_sha256": "39a8c36f353410912d6ae81b3b92227f08964289408b4d9ff0a274e6c2fedf07"
+    },
+    "src/soup_cli/utils/fsdp.py": {
+      "normalized_text_sha256": "f64f8a6454c2cae96425cae32bcd1e7c18cee2cdb6536dce41c045b49a8164aa",
+      "source_sha256": "a1d27e44583a75dc09387c2c4783e5cb31eab6984aebda1896950182b08f0d0e"
+    },
+    "src/soup_cli/utils/galore.py": {
+      "normalized_text_sha256": "a06d6882bf9ff4bb6880e113ef4c19fd841e5b3594ab75d44ac788263f2ac1f0",
+      "source_sha256": "ed87bd8e6af275bf7828ff8b59e1dd6f93b192c1ea3ef5d5d788427825ee01f5"
+    },
+    "src/soup_cli/utils/gpu.py": {
+      "normalized_text_sha256": "17961be7cf3bab950f1332f132a277575dfe87960c1afe2a67819478951a8f34",
+      "source_sha256": "99d9443adcb0ee44147724d72d08582362b5d822502c7f51f6b0a3b7cc857c2b"
+    },
+    "src/soup_cli/utils/grace_codebook.py": {
+      "normalized_text_sha256": "f8339fefd7626d955385feee5d5da6ba8642ca0c86a8591f377ee9064fefd379",
+      "source_sha256": "1a9b0212609dc083764f044e0e871e071c42d3e48d63e0dce7c1f302ad38052c"
+    },
+    "src/soup_cli/utils/grad_accum.py": {
+      "normalized_text_sha256": "0cbdc43d754201d751bd9a7ba5cc5c8c429a294938679953a8e4d7cb2711542b",
+      "source_sha256": "95fc82100c4cb6946c07a110b58685ca3683de73741089fb91c920a71a69a9d4"
+    },
+    "src/soup_cli/utils/gradient_ckpt.py": {
+      "normalized_text_sha256": "6ba81fa7b7246f78ea9b4fe4e9580cf0392cd2bfca28bda1ce227090e739c28e",
+      "source_sha256": "fccdc5d35464f8e4528a801e33427ed1114e9124863a7cbc44a414961bea4bba"
+    },
+    "src/soup_cli/utils/grpo_long_context.py": {
+      "normalized_text_sha256": "5edd07a916435cae0925f5eedafd243b0490de28ad5f14ab5f75006bd732a1db",
+      "source_sha256": "f7880b7dd2d4b104e088da8b6dc48a95c03bac43f818795225b0639db75ac6df"
+    },
+    "src/soup_cli/utils/host_memory_budget.py": {
+      "normalized_text_sha256": "d0b272a384ef75d1481eca7c251a808365a98c4bb3befb68d2c1b0fbc18a19a6",
+      "source_sha256": "2997f5200df82b2a0f28cb88784f7a13744512a1cf96b5dc2eedbe2393eebcac"
+    },
+    "src/soup_cli/utils/hubs.py": {
+      "normalized_text_sha256": "6f666e6f7806849f6f9b1938ca9f936a15de87ab09a417f28d6313101f460784",
+      "source_sha256": "243771627648e5f159e3fb7d143626148afd9195d41e418881dbf31f40c15170"
+    },
+    "src/soup_cli/utils/kimi_k2.py": {
+      "normalized_text_sha256": "553c3cfbcfd6cc87eeca083351eaafe5ff3022c649c5f076c5ee202f014f51f2",
+      "source_sha256": "05723fc80c5a9f8241257561bdd87685d4bc6fbb741c63bce424095a118c364f"
+    },
+    "src/soup_cli/utils/knowledge_edit.py": {
+      "normalized_text_sha256": "ef73ea9e5a29e9fab44d635b7fbc86f4ce7e0662a96d1331a3c09463a0c71c20",
+      "source_sha256": "798bb58ed10548ad9e7b618ec7f944edb69f84fc0d2a5fbd50c5e8a383ceadbe"
+    },
+    "src/soup_cli/utils/kv_cache.py": {
+      "normalized_text_sha256": "770984ad6e19b7467b9bda11e40c84de3e4fa013a9e4fee2dc5844a6a36f9324",
+      "source_sha256": "b324bc38cfc3abd3bfee4397bfba5d46e1566b427a02a315e1cec01a02973c8d"
+    },
+    "src/soup_cli/utils/l2l_activations.py": {
+      "normalized_text_sha256": "2dbd739395d8be2920a5ba7ee1c566895732df2a6bad0d66992d7c14fb6acee1",
+      "source_sha256": "3aac7343e7e097acbdf3a09d428a53facc89b48cab20b15c118dab3708e17f82"
+    },
+    "src/soup_cli/utils/l2l_recipe.py": {
+      "normalized_text_sha256": "1ecf7618154f0bac8cb5f46a5a719a3dc679d5055d3640397037b5e6441ef9de",
+      "source_sha256": "689e1c27f75ec94127ce47539704c58e6459fc6c9f217ce0c5343b8a2e7693d3"
+    },
+    "src/soup_cli/utils/l2l_rng.py": {
+      "normalized_text_sha256": "053a06864728c9ff712e0759d8a405f1708a417bedd4d9adad39ab8919ca0d54",
+      "source_sha256": "4b13c4db5cc9efd355a32365b536be978d0021ef6d4b1401c8d2db7b6c362728"
+    },
+    "src/soup_cli/utils/l2l_spill.py": {
+      "normalized_text_sha256": "6b6317b764f5abdc6dece751de2071d23849492de1eaf97c4c072eb622679635",
+      "source_sha256": "73f7eb0bd2e00c02356a0b6c093d7f31fde2c0ab89eb7789fad0b772bba201d9"
+    },
+    "src/soup_cli/utils/l2l_step.py": {
+      "normalized_text_sha256": "7cdf7fdde2fb2459f00859d4abab0f50a6c8c244686cb9febcb79ae04ed4330e",
+      "source_sha256": "4499724ff25f7efb83d7ea9f5cee15f85f67feb85504e3987f0c5d770b3eef80"
+    },
+    "src/soup_cli/utils/layer_shard.py": {
+      "normalized_text_sha256": "70c9c14a01cb8e78bd46b5c895d1bb1bd26c5310521c6e494ce6b70765825061",
+      "source_sha256": "19bab3bec81bd7fa76f927899b7d46cd2a86dad2274d2f33a4b7239be8ab0a47"
+    },
+    "src/soup_cli/utils/layer_stream.py": {
+      "normalized_text_sha256": "0e6dff5ee0cc84df5adfcc2e22ecd2a19ef894a35dae60aee3936edf32c1c0af",
+      "source_sha256": "06fa2609f8653df931d973b8ca563582a9c842b93cbb93aada3a61d55b99261b"
+    },
+    "src/soup_cli/utils/layer_stream_runtime.py": {
+      "normalized_text_sha256": "1158b8bc3adae77bdd775565578e3b2b1c7107e369485d16d6de35fe2c906461",
+      "source_sha256": "f7cd36c92b6576e1a32fedda1ec5875fb7c4748675eab351e7e81b736e13c7f8"
+    },
+    "src/soup_cli/utils/liger.py": {
+      "normalized_text_sha256": "dea5d7be2e40a38491d3c0fcf7635ba0a6e39175dc1e0777c43a308d01768095",
+      "source_sha256": "cdc63c62980fa5042807d37d4b5ad89b6933edd59d894542258f14f5530f2197"
+    },
+    "src/soup_cli/utils/lisa.py": {
+      "normalized_text_sha256": "493274e821245495cece6bf5acaf9d890119021472fe64524a39bc18def66f30",
+      "source_sha256": "4688446a0b6483595c54c2224897e031128ecc4c66ae39a7c359a276beeb1049"
+    },
+    "src/soup_cli/utils/live_eval.py": {
+      "normalized_text_sha256": "b3c43b798d84d28ed67bdacaa8b521458794af3e313c36b2de6df8569c07897d",
+      "source_sha256": "120368f44dc449c899ac2ce73131181d64152d2abb45000897093261806469d5"
+    },
+    "src/soup_cli/utils/loftq_init.py": {
+      "normalized_text_sha256": "d50ac3a4c33ad6c5304e5cdc9bbb46ddc7f669038aab7abee2f9f18fa9bf2f18",
+      "source_sha256": "de63ed78a3a4bcc53047591f6e4c0b55a1bc959f9d65cd452286ac433affa30f"
+    },
+    "src/soup_cli/utils/long_context.py": {
+      "normalized_text_sha256": "3970e9afba9ef415cacb3785845df439218fec76d5e01f304ac414d6933e80df",
+      "source_sha256": "801071ee9f3501d76ab5afbbaeafe5c92944b79aab02e98e0319f911d55a2dec"
+    },
+    "src/soup_cli/utils/longlora.py": {
+      "normalized_text_sha256": "6ad13f3afa3d11b6905456770fb3017152df92bdcae3f5e7e910588970a9e1c8",
+      "source_sha256": "669a452385d2e3c618a474cc4e6db91d2a71b33fa80044741a8a76867820d872"
+    },
+    "src/soup_cli/utils/lr_groups.py": {
+      "normalized_text_sha256": "33462fd320a6d9d0eb3bfe686790ebdee4a91cc21ca7ebff4ac5e606c8b4877b",
+      "source_sha256": "a98b87400f5376bf1b78291d86dcd8cccd53b8662a1cd0188c64d4961424cfb9"
+    },
+    "src/soup_cli/utils/metrics.py": {
+      "normalized_text_sha256": "a2365a59e2386282a76e1307941bb2086c0e4891f4daabce8f5f5b8d8db8f8e8",
+      "source_sha256": "eb3ec441b82a240d6ee98cd40e2e1211d0495c384c33352beaad92572ac4eeca"
+    },
+    "src/soup_cli/utils/minillm.py": {
+      "normalized_text_sha256": "e0a747aad7b55a10f12a9f9769e1d11f47c28d932fd9db808b3be6deaee28fee",
+      "source_sha256": "97579c9a8406f88e66143eaa5d54a027e4b11a3477a3de4489f2b6f2c8018809"
+    },
+    "src/soup_cli/utils/mixed_precision.py": {
+      "normalized_text_sha256": "1b0b7a2d24cf88a0ab5eb6c2dc4156643be4b7377669c28a3561ca847d924e20",
+      "source_sha256": "0d0c6645f6789c23f1285534378916d5f520e1691d4969e096cf950987bd9a9f"
+    },
+    "src/soup_cli/utils/mlx.py": {
+      "normalized_text_sha256": "bd126a058c3188de9987d328473ec62257ecca08f294531ad4b92381d0056566",
+      "source_sha256": "d705cfd6a6cf8b1587a83bfa21c1e1b8301ffb962c584055f96efa4aeeb859ce"
+    },
+    "src/soup_cli/utils/mod.py": {
+      "normalized_text_sha256": "26d7462bf394b8448d258a6d7a5445c00384fedeb9bb9c4ce1170b777624bb1b",
+      "source_sha256": "2be2df82a9840246a6ae79b2df60727c21df073e7dbe035710d658e1c9297a94"
+    },
+    "src/soup_cli/utils/moe.py": {
+      "normalized_text_sha256": "c0c7c4390be2608d9cd373e1516eebf7f2d454fefa818d8933efd9d216ab1fb0",
+      "source_sha256": "969ee1f6856cf599518d8613e9c0a1ff53d4864f645f9dfe00f574fcf13efa26"
+    },
+    "src/soup_cli/utils/moe_l2l_budget.py": {
+      "normalized_text_sha256": "cebb294111e4785af9e13e51ecaa60e9b611401c4ed8b7944e4e8191070c084e",
+      "source_sha256": "58c01a93ab0610a59c9c7e1e745f837dd93af8349ceaa6e0fd4b3f5a3582fedd"
+    },
+    "src/soup_cli/utils/moe_quant.py": {
+      "normalized_text_sha256": "678d41763caddb361a6fd721ad8b70dfd58ed53dcfdd7c553c7a829a16be3116",
+      "source_sha256": "9361e4985bb6bdf8986a7ced33798d68fcfd6d72384b63bc87e3004c08507474"
+    },
+    "src/soup_cli/utils/mole_routing.py": {
+      "normalized_text_sha256": "6ce53c48a791d41c69d2367ec1e4219a5ad940bbccde33d04894272aa6866894",
+      "source_sha256": "73b2259a51dc8b9b2ce3fd5856c7d711f40f62274215139b9580c386bde49111"
+    },
+    "src/soup_cli/utils/multipack.py": {
+      "normalized_text_sha256": "6389af334667ced383869b294ab9353a788a564090557b65255ce0afda572e76",
+      "source_sha256": "de93dc8d2d9f61c7ed09ddaebfd657b95cc1ab402bc93defd337a1a32a9ff5c7"
+    },
+    "src/soup_cli/utils/multipack_sampler.py": {
+      "normalized_text_sha256": "f571b45025882bd7ccedbb597b78d555cf98bfddef3d87ba7affc1128bd89382",
+      "source_sha256": "b431846f1d90e1d6efdd0f2e04030d0167b6ae146c5f631e8a2326d5ae5bb6e1"
+    },
+    "src/soup_cli/utils/multipack_trainer.py": {
+      "normalized_text_sha256": "2fbde420e40cb3e952c8323e34794ced0eaaa077a238ef98d2a8b266c43a836d",
+      "source_sha256": "2eca637ea567c6a917feb7ef94e485b533358eaeb9795fc3f2ad239897857253"
+    },
+    "src/soup_cli/utils/namespace_pin.py": {
+      "normalized_text_sha256": "5ae5e6a63494c9bfda2ca64eae59371345f1bafd46b8611e500eeead4b19a0ec",
+      "source_sha256": "611965f00b20aa2a758c1c7456be7d0584998de53e1837830b669ef308301bd9"
+    },
+    "src/soup_cli/utils/net_guard.py": {
+      "normalized_text_sha256": "c433cfe8aa1bfb5c324bce6cc95c3ab11ceb8319a7a00efaf0c86439f5216cc6",
+      "source_sha256": "847ce3e2d761063d0d3caea5a0594ab7aa99c3d1066652067dbaedeb2d393b18"
+    },
+    "src/soup_cli/utils/optimizer_zoo.py": {
+      "normalized_text_sha256": "c63c366e86082e07a92ff08bf786bb7b89b3faecfa225a7d0b5bb98dee1f1b9e",
+      "source_sha256": "b63e21bb9f9ec74812ab2a10537db4dc845e9b5f25b7579608cd09c98a4a6b69"
+    },
+    "src/soup_cli/utils/oq_affine.py": {
+      "normalized_text_sha256": "7ecb3dc4d074bf008e0132842af4365a9ae5dae6745fd40aef07fb9cbae59480",
+      "source_sha256": "52b38d71a24eab74c6ef725cf11a260bed67c166607b8ac10cb316a4ba74f02a"
+    },
+    "src/soup_cli/utils/owner_only_dir.py": {
+      "normalized_text_sha256": "aa53262771034c8067e3c1c94068091f6e0e6f3649941e5efa852c40023e51d8",
+      "source_sha256": "de25ae085764502b402590e6c2a6aada4f1b59dbddacb125c9e9592dbfd2951c"
+    },
+    "src/soup_cli/utils/partial_ram_source.py": {
+      "normalized_text_sha256": "e551ba101ddfe990867be9dc7c5ca9d2b871a7d79da1c24832a9addf08666487",
+      "source_sha256": "cb9275e1006c18c3c85e6db3c3688af5251dbe65e9003b6be3025e548d27dd53"
+    },
+    "src/soup_cli/utils/paths.py": {
+      "normalized_text_sha256": "5a05d4c904bff7dbcb5f74aed340d5fe55970f29407febbbb8346afe6b5ea331",
+      "source_sha256": "39b1624e644c2c387587a6517bc90e3d55a5be4b6aa682e498aba8b86adbcb3e"
+    },
+    "src/soup_cli/utils/peft_builder.py": {
+      "normalized_text_sha256": "b2496935294796d11ba5a5f0f1f20cfc5a6100089239df63daa21b460c911094",
+      "source_sha256": "c0d9a5824960b61ee6a8322ad3eae6630b7a777841b203ee8a6fb01c42357196"
+    },
+    "src/soup_cli/utils/peft_patches.py": {
+      "normalized_text_sha256": "d7abd48448a3a8a72f468cb36b39bb49577408742a2433cadd09cc0058e5d0d1",
+      "source_sha256": "4f269b3a13bbdb3525fcb189737cdbdd3cb7a859d0aeebbe229577f23f63507f"
+    },
+    "src/soup_cli/utils/peft_wiring.py": {
+      "normalized_text_sha256": "b88b725ec31dfdd5d8589bc5124c66f3905d2542b01dcdb120188963fc6769b9",
+      "source_sha256": "1b2637acd7924a9efa9d7404927deb7c80a759d916640b18dbd5a445d7153ee4"
+    },
+    "src/soup_cli/utils/prm.py": {
+      "normalized_text_sha256": "6b8b9e0d913d0e76f2573d39e1c1670159a854d4c249731fe9920331765fcc5f",
+      "source_sha256": "b4ff760024e2d7055c90eb37efb0374b5867d1b2e6b1fd38e790e8e0a38b5078"
+    },
+    "src/soup_cli/utils/process_liveness.py": {
+      "normalized_text_sha256": "87de4603844f19f02ac62f7d99878de61e8ec4b5aa101a445cc051dcd46b23e1",
+      "source_sha256": "deaf739964733a4825c4f7f3e66ee872b62d622d88e441922526b4c611bc4344"
+    },
+    "src/soup_cli/utils/qat.py": {
+      "normalized_text_sha256": "ea2672829787f8e193b9af3692a0bcf0b2880df378f1f0da585af7eb1ad4e4df",
+      "source_sha256": "cb77bffda7482bdf8263261fbd76731e5e2a75d0a49616f6403ad301d4e091e8"
+    },
+    "src/soup_cli/utils/quant_menu.py": {
+      "normalized_text_sha256": "acc92e2648eeaac606e42c0b30bf822d24ff04d70f3e014556ec16165bfef748",
+      "source_sha256": "1ad28609285a0f059e72e8a0c7f02957fb58692022c146c88cf5f2079915eaf1"
+    },
+    "src/soup_cli/utils/quest.py": {
+      "normalized_text_sha256": "763564a5f5d74b65ffe66045932097f18df0f5e6735f95d52db46a77e26ec5f1",
+      "source_sha256": "11d8976472979f06b71ef1c0f9c5c1845c54ffa3002019f97dc1414d29b6bf40"
+    },
+    "src/soup_cli/utils/qwen4_compat.py": {
+      "normalized_text_sha256": "60f0ef4c923f40e4fd02fb1bad9cfd2ab5d8392a2db7e114d61bab4a100e8e06",
+      "source_sha256": "11653914be2cdee6ab7876f0b8426e98b1e0832d6c037370664b75a59d588fbf"
+    },
+    "src/soup_cli/utils/qwen4_ple.py": {
+      "normalized_text_sha256": "f44ce3f5c65f22947929763a6114b4122086885d21391fa23ec927e4f013409f",
+      "source_sha256": "fd2dd8d2cf52322028a0e36c7e70a64985b1c73444af974d97aa826238400b85"
+    },
+    "src/soup_cli/utils/ra_dit.py": {
+      "normalized_text_sha256": "76407f02a818c73f7abdcaf61fce0ab6e7120a02e54f065c50d018f7081d4455",
+      "source_sha256": "4594e3d737a35655fa0d9055b63c30713719bcce1c1b8f96d35233492914d472"
+    },
+    "src/soup_cli/utils/raft.py": {
+      "normalized_text_sha256": "dd4b51e490c2888bb3be324db5b0e92fa1018a67243d8a92d44b63590bb14d7e",
+      "source_sha256": "56ade98165a21bf51aabbed9d97a7f81c57e669aa4e4a29cde724215e66bb134"
+    },
+    "src/soup_cli/utils/reasoning_effort.py": {
+      "normalized_text_sha256": "0e12c3275cc82181de294bd41cd508bd800e21e26f5737d1995dafe8c4a7be5d",
+      "source_sha256": "aa30d980340fcc8fc40dfcd58e196dda2fbf0ccd58af60cb3d7b801523b6fa01"
+    },
+    "src/soup_cli/utils/relora.py": {
+      "normalized_text_sha256": "deb4a6d77d3c10504edced1a9501aed2ba821d7831addaeedad3e417a57bb4b5",
+      "source_sha256": "2ba904fe74c3a822938e0d385df0e87f3443eeb029e325891a84ac23ca8fe490"
+    },
+    "src/soup_cli/utils/reward_hack_control.py": {
+      "normalized_text_sha256": "1967c6d17b5be1db72017ff14eba448d09b70e96ff54f0e3bb383ce15cedfb99",
+      "source_sha256": "5474193da48aff881445a831e091874966e14fcf1936869524cc7559e0cac304"
+    },
+    "src/soup_cli/utils/reward_hacking.py": {
+      "normalized_text_sha256": "94454b843da8d9e1261c536ccdb7db4d46acae51aaf21204f8598a4e09f3f12e",
+      "source_sha256": "75747d0c7d5fd87fe314b7736f4ab34077028e4183c9179acb5f337bb9fc6334"
+    },
+    "src/soup_cli/utils/rl_checkpoint.py": {
+      "normalized_text_sha256": "73a755f39bc67557aae769c8724070e6da8e11f781caee8ec9e13d49d72c2c90",
+      "source_sha256": "528e4651d13580c6976418a52b8100b7ff6426e9e1c6534daca6b7fa203efbd0"
+    },
+    "src/soup_cli/utils/rl_signal_buffer.py": {
+      "normalized_text_sha256": "b15deb1572938366fd9d320e74a5b533cf05f2a1cad4309a080dce0ef5fc826f",
+      "source_sha256": "e9df36a9e28329f0eef56ed9fb34a7d0f38b0349b55d2f1724029f91e3829e26"
+    },
+    "src/soup_cli/utils/run_cost.py": {
+      "normalized_text_sha256": "98b48dd2c0ee24bb16cc4ad90647a21a386ddd68bfa2140b90f924c1936cd1f9",
+      "source_sha256": "bbdd50bf5f464a8787d06a5e315bcf50555e1804d8d440c353e1d1b386c71b26"
+    },
+    "src/soup_cli/utils/safe_regex.py": {
+      "normalized_text_sha256": "b930e2ebc996f2dbea8b333783eede99b0ddf306a000b52824f20a60530045c8",
+      "source_sha256": "9ae5898af2ea7cb8bfdb27e9e7f15abe09a369b7862fb703cee23eda2feba8ce"
+    },
+    "src/soup_cli/utils/safetensors_reader.py": {
+      "normalized_text_sha256": "42a56609c459cc3c2cd3a05f4684e53753b303b631bffc0dcb6e6a498c49822b",
+      "source_sha256": "978d0f78a4f765d346a3e59b26b50071a3ca3f75a62e7a895fe4696323f8927f"
+    },
+    "src/soup_cli/utils/seeding.py": {
+      "normalized_text_sha256": "ff1420f3ee242119b4cec04c71adf4315e3852ef6a567dddf73cbc6341703fe7",
+      "source_sha256": "6960ae96e3656fd4b3eff2dd3f66871cad70b131fefdcd1ad848235e0f484eef"
+    },
+    "src/soup_cli/utils/spectrum_scan.py": {
+      "normalized_text_sha256": "da0d3cf8893fa897505632af079ac3c7e4ddb708d3188db87d10fb4c28a4c561",
+      "source_sha256": "f520e073bfd67e9d28c0116e7392edc35016e85c62e12e2198b242cdee6c2d00"
+    },
+    "src/soup_cli/utils/spike_recovery.py": {
+      "normalized_text_sha256": "ca9ff7ad4e0998e43caab3cf4849f5bf5ccb9fd7589347688299a6bd2dd26902",
+      "source_sha256": "d4463b5060783e09c8c7eefe789e867210f6cc8c8412c52b088a23e372b082ad"
+    },
+    "src/soup_cli/utils/sse_train_stream.py": {
+      "normalized_text_sha256": "07a5d9cc11e04d3da7f025d2fddfa18441e9b38c93ebb34a31f4fa93f9faeb58",
+      "source_sha256": "d67866094bef007135f2edb107ae4b4b76edbc589ff74092fadfd340e07a0dd0"
+    },
+    "src/soup_cli/utils/stream_adapter_preflight.py": {
+      "normalized_text_sha256": "fd85f859a65932eb810c976d55e4ed80cb6f8950c1bca9bc104311f6795a9620",
+      "source_sha256": "cebf4924af7db18cc8e646e233302adb9c6ad7559af2e312edc308e69ac61ce9"
+    },
+    "src/soup_cli/utils/stripe_roots.py": {
+      "normalized_text_sha256": "4fee1aeefd35f56ae505527b914ed93730674e62eb55977dabe8b3b04c7b8003",
+      "source_sha256": "c54c7f0ad2473e2180317143ecb919536a0ba9006b3cbb4d513a752ff54f246c"
+    },
+    "src/soup_cli/utils/terminal.py": {
+      "normalized_text_sha256": "19dcd05501d4798458a0d2c118a305d4a931584eec6ce0652564b674e2f0ce58",
+      "source_sha256": "f5ec314dfba73961a341f4365c6d8f7435378a82f1267296032c0ac42f1fd31a"
+    },
+    "src/soup_cli/utils/tool_outputs.py": {
+      "normalized_text_sha256": "e1abdc843b16d77288bb8a56a0b4e2ad66809bd463a16dcfc31c6f2ab75995ac",
+      "source_sha256": "96cf2cb9a0bda511acb06246ac9983d3b4776ee820ff5ff4b6a1a5555fdf70a1"
+    },
+    "src/soup_cli/utils/torchao_compat.py": {
+      "normalized_text_sha256": "a46b2315c338d0d52bef545957cda1e013868a6688322b16fa973f055f015371",
+      "source_sha256": "b44b7ab20d3547b37053855c502bcadb067d9246d9aec43bb428ee05a8f8eb1c"
+    },
+    "src/soup_cli/utils/train_event_buffer.py": {
+      "normalized_text_sha256": "b14d19a242dce454e1d3f9f29e2e84386c05b0920d08597d0ee904727ba86f00",
+      "source_sha256": "e909bc754a8cbaf104c6bbe27827bcb2f8dca7ff3057c21442a1eb4f80240be9"
+    },
+    "src/soup_cli/utils/trust_remote.py": {
+      "normalized_text_sha256": "3a537f7e5f18d6567640b0b416301ab516a66ff55cb15e15ca22c7b1cfbad9a3",
+      "source_sha256": "962829729680727bdee1c39937bdbe7c7f047e83c4b46069778ff7fe73d5c0d8"
+    },
+    "src/soup_cli/utils/tts.py": {
+      "normalized_text_sha256": "9f67a158f1e57d0558531801b2b6b9dfbee5a240321a6c9f7c54c38895fa076b",
+      "source_sha256": "3f092c23cc21b20c8686592ec0346a4748cd7cb72966037c00644f843fbb81a2"
+    },
+    "src/soup_cli/utils/tts_codec.py": {
+      "normalized_text_sha256": "b3f0e87ba8c550a8f12b838abdfb1207fda77523a7ce750e98cf3a17117bed0c",
+      "source_sha256": "6e76b199064069bed0238b5f706580321c7e73a859bdca7cb5fbd6a63e43d30a"
+    },
+    "src/soup_cli/utils/uld.py": {
+      "normalized_text_sha256": "e9ec82bc5a27df3605287d72ceb2a9d4ff0faa146cd823bb34ab2487a9a62dfa",
+      "source_sha256": "b476134cf801b4130ebbb95469b08ce3216c8e3a26ec6bd2f3d7bb72580cf070"
+    },
+    "src/soup_cli/utils/unlearn_kernels.py": {
+      "normalized_text_sha256": "470c75ae58fa903cf4b8e94d4ca7ecb31c62d412a9c4f91737077d18a8a64d81",
+      "source_sha256": "19f4633f7d2171521e9b330cdc28c680cb400daa83d6ca64b77bfe5eeb355e3c"
+    },
+    "src/soup_cli/utils/unlearning.py": {
+      "normalized_text_sha256": "fe3467df70bfabe1c0baf21b71537321192c087b8059f3e744823ed84c8cfa6e",
+      "source_sha256": "e8ccae30f33dcd68754d388871b57f4afa9dd0514520a4372ff2f78271f4972d"
+    },
+    "src/soup_cli/utils/unsloth.py": {
+      "normalized_text_sha256": "ac196ded852d45d6414471e6783ae7bf3ff469f3d2f2a3e6566d9373f8a9bd22",
+      "source_sha256": "a0331ad22e7bb78f585f6bb2bfe97392916f1a81fc0e6cd080770f10286a7d31"
+    },
+    "src/soup_cli/utils/v028_features.py": {
+      "normalized_text_sha256": "e5c7133400c09ac9e70ad88acae8c3e2275483fdacad771ab0fd25aaa6630698",
+      "source_sha256": "f92b1adedef89375d0d4f1966f800ef92736c9b603234cee4a29c86d3bde5c1c"
+    },
+    "src/soup_cli/utils/vllm.py": {
+      "normalized_text_sha256": "0aab0f5c63bba0960360eb15189700f0d9e5d9f1404a9422c1555056ea91bde2",
+      "source_sha256": "a9e5994b88601a87e27b91a7bf0fc34aa1f0a0ee8ab9f7b0db83aff08d936bb6"
+    },
+    "src/soup_cli/utils/warmup.py": {
+      "normalized_text_sha256": "6248fbe1d3106157c6fbd9b91857960d37767ee959d96c53f5b4e872d4a3446b",
+      "source_sha256": "e6dc91090fcec749146656b1dfa874fa0d6ef9bee76e35ea9bc890b738972378"
+    }
+  }
+}

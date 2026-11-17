@@ -206,6 +206,69 @@ def aten_half_matmuls(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
+def moonlight_aux_admission(monkeypatch: pytest.MonkeyPatch):
+    """Bind serialized contract fixtures, without qualifying the installed scientific stack.
+
+    Gate source checks and train/eval protocol checks resolve this same model-module alias.
+    Request this fixture explicitly, never for native normalization or source-continuity proof.
+    """
+    import copy
+
+    from benchmarks.harness import p3_deepseek_quality_model as model_api
+    from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
+
+    root = Path(model_api.__file__).parents[2]
+    binding = {
+        "contract": {"path": model_api._AUX_CONTRACT, "sha256": model_api._AUX_CONTRACT_SHA256},
+        "evidence": {"path": model_api._AUX_REPORT, "sha256": model_api._AUX_REPORT_SHA256},
+    }
+    for descriptor in binding.values():
+        assert model_api.sha256(root / descriptor["path"]) == descriptor["sha256"]
+
+    def serialized_binding(profile_id: str = "deepseek-v3") -> dict | None:
+        get_profile(profile_id)
+        return None if profile_id == "deepseek-v3" else copy.deepcopy(binding)
+
+    monkeypatch.setattr(model_api, "native_aux_admission", serialized_binding)
+    yield copy.deepcopy(binding)
+
+
+@pytest.fixture
+def moonlight_native_cpu_stack():
+    """Qualify the exact scientific stack before running the optional pytest integration.
+
+    Admission errors on the pinned stack fail rather than skip. The standalone remote
+    normalization/source-continuity worker does not use this pytest capability fixture.
+    """
+    from importlib.metadata import PackageNotFoundError, version
+
+    from benchmarks.harness import p3_deepseek_quality_model as model_api
+
+    root = Path(model_api.__file__).parents[2]
+    report_path = root / model_api._AUX_REPORT
+    assert model_api.sha256(report_path) == model_api._AUX_REPORT_SHA256
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    mismatches = []
+    for name, evidence in report["packages"].items():
+        expected = evidence["version"]
+        try:
+            installed = version(name)
+        except PackageNotFoundError:
+            installed = "not installed"
+        if installed != expected:
+            mismatches.append(f"{name}=={expected} required, found {installed}")
+    if mismatches:
+        pytest.skip("Moonlight native integration needs the pinned scientific stack: "
+                    + "; ".join(mismatches))
+
+    # Never catch a pinned-version source/RECORD or repository-continuity refusal.
+    model_api.native_aux_admission("moonlight-16b-a3b")
+    from tests.test_p3_deepseek_quality_model import _training_stack
+
+    return _training_stack("cpu")
+
+
+@pytest.fixture
 def tmp_data_dir(tmp_path: Path) -> Path:
     """Create a temp directory with sample training data."""
     data_dir = tmp_path / "data"
