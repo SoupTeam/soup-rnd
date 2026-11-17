@@ -1,0 +1,91 @@
+{
+  "schema": "g3-ds-analysis-v1",
+  "protocol": "benchmarks/g3/directstorage/PROTOCOL.txt",
+  "capability": {
+    "outcome": "DS_TO_CUDA_VERIFIED",
+    "errors": {},
+    "valid_runs": 20,
+    "scope": "this laptop, driver and DirectStorage 1.3.0; route not attributed"
+  },
+  "descriptive": {
+    "A": {
+      "runs": 10,
+      "median_gb_per_s": 3.5244,
+      "median_cpu_seconds_per_read": 0.0390625,
+      "median_private_bytes_after_reads": 1342683136.0,
+      "median_peak_working_set": 178737152.0,
+      "explicit_pinned_host_bytes": 67108864
+    },
+    "B": {
+      "runs": 10,
+      "median_gb_per_s": 2.88575,
+      "median_cpu_seconds_per_read": 0.015625,
+      "median_private_bytes_after_reads": 530984960.0,
+      "median_peak_working_set": 385171456.0,
+      "explicit_pinned_host_bytes": 0,
+      "median_dtod_copy_seconds": 0.0328775
+    }
+  },
+  "machine": [
+    {
+      "schema": "g3-ds-machine-v1",
+      "os": "\u041c\u0430\u0439\u043a\u0440\u043e\u0441\u043e\u0444\u0442 Windows 11 Pro",
+      "os_build": "26200",
+      "os_version": "10.0.26200",
+      "cpu": "12th Gen Intel(R) Core(TM) i5-12500H",
+      "ram_bytes": 16886784000,
+      "gpus": [
+        {
+          "driver": "32.0.101.7082",
+          "name": "Intel(R) Iris(R) Xe Graphics"
+        },
+        {
+          "driver": "32.0.15.7322",
+          "name": "NVIDIA GeForce RTX 4060 Laptop GPU"
+        }
+      ],
+      "fixture_drive": "C",
+      "disk": {
+        "media": "SSD",
+        "bus": "NVMe",
+        "model": "GIGABYTE AG4512G-SI B10",
+        "size": 512110190592
+      },
+      "file_system": "NTFS",
+      "on_battery_now": false,
+      "probe_sha256": "f1967bd76d1fea833d788ca8d31eea409638166c41feb4a5da69b8685951cc98",
+      "dstorage_sha256": "cae65787f61514bec6f012f44546e68b19e39d8854a9ab52af813370d44b272a",
+      "dstoragecore_sha256": "cf85b19a92a8276f8baca0db9bbcd60735bad50768deb303d310e84d5f4fdd11",
+      "script_sha256": "a334d9c5b8cd70d42762a61d011d23e68eb41e307334ac29413147d020550611",
+      "blocks": 5,
+      "start_block": 0
+    }
+  ],
+  "not_claimed": [
+    "peer-to-peer NVMe-to-GPU route",
+    "training speed-up",
+    "other machines"
+  ],
+  "performance": {
+    "blocks_run": 5,
+    "valid_blocks": 5,
+    "void_blocks": 0,
+    "blocks_needed": 5,
+    "label": "B_SLOWER",
+    "mean_a_gb_per_s": 3.5315231,
+    "mean_b_gb_per_s": 2.8862095,
+    "mean_difference_gb_per_s": -0.6453136000000002,
+    "difference_95": [
+      -0.6745291522775159,
+      -0.6160980477224844
+    ],
+    "block_differences": [
+      -0.6232630000000001,
+      -0.6351550000000001,
+      -0.6397250000000003,
+      -0.6432335,
+      -0.6851915000000002
+    ],
+    "ratio_b_over_a_descriptive": 0.8172704576107687
+  }
+}
