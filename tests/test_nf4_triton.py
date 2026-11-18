@@ -42,6 +42,19 @@ _CHECK = textwrap.dedent(
         finally:
             nt.disable()
         assert got2.data_ptr() == out.data_ptr() and torch.equal(got2, ref), shape
+    # the forward entry point: bitsandbytes' _dequant_linear_fallback signature
+    w = (torch.randn(96, 128) * 0.05).to(torch.bfloat16)
+    packed, st = F.quantize_4bit(w, blocksize=64, compress_statistics=True, quant_type="nf4",
+                                 quant_storage=torch.uint8)
+    x = torch.randn(5, 128).to(torch.bfloat16)
+    ref = torch.nn.functional.linear(x, F.dequantize_4bit(packed, st))
+    got = nt.dequant_linear(x, packed.view(-1, 1), st.shape, st.state2.absmax, st.blocksize, "nf4",
+                            absmax_8bit=st.absmax, absmax_code=st.state2.code,
+                            absmax_offset=st.offset)
+    assert torch.equal(got, ref)
+    packed, st = F.quantize_4bit(w, blocksize=64, compress_statistics=False, quant_type="nf4")
+    ref = torch.nn.functional.linear(x, F.dequantize_4bit(packed, st))
+    assert torch.equal(nt.dequant_linear(x, packed, st.shape, st.absmax, 64, "nf4"), ref)
     print("NF4_OK")
     """
 )

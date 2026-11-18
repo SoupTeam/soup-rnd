@@ -12,7 +12,8 @@ the weight is meant to be bit-identical; ``tests/test_nf4_triton.py`` checks tha
 bitsandbytes, and the ZERO-2 stage-2b runner checks it on the GPU for every weight of a layer.
 
 Opt-in: ``SOUP_NF4_TRITON=1`` (``enable_from_env``) replaces ``dequantize_4bit`` in
-``bitsandbytes.functional`` for the process. Anything the kernel does not cover (fp4, non-CUDA
+``bitsandbytes.functional`` (the backward) and the CUDA backend's ``_dequant_linear_fallback``
+(the forward, whenever bitsandbytes' fused 4-bit GEMM does not take the shape) for the process. Anything the kernel does not cover (fp4, non-CUDA
 tensors, an odd element count, an output dtype other than fp16 / bf16 / fp32) goes to the
 original function unchanged.
 
@@ -32,7 +33,11 @@ ENV = "SOUP_NF4_TRITON"
 BLOCK = 2048  # packed bytes per program: 4096 weights
 
 _original: Any = None
+_original_fallback: Any = None
 _kernel: Any = None
+#: Calls the kernel served, per entry point (printed at exit while enabled).
+CALLS = {"dequantize_4bit": 0, "dequant_linear": 0}
+_atexit_registered = False
 
 
 def _build_kernel() -> Any:
@@ -101,32 +106,80 @@ def covered(A: Any, quant_state: Any, out: Any) -> bool:
     return True
 
 
-def dequantize_nf4(A: Any, quant_state: Any, out: Any = None) -> Any:
-    """The [N, K] weight of a bitsandbytes NF4 tensor in ``quant_state.dtype``, one launch."""
+def _launch(packed: Any, out: Any, code: Any, blocksize: int, absmax: Any, absmax2: Any = None,
+            code2: Any = None, offset: Any = None, blocksize2: int = 256) -> Any:
+    """Fill ``out`` (contiguous, 16/32-bit) from packed NF4 codes. ``absmax`` is the fp32 absmax,
+    or with ``absmax2`` the 8-bit absmax codes of a double-quantized weight."""
     import torch
     import triton
 
     global _kernel
     if _kernel is None:
         _kernel = _build_kernel()
+    n_bytes = out.numel() // 2
+    nested = absmax2 is not None
+    if nested:
+        absmax2 = absmax2.float() if absmax2.dtype != torch.float32 else absmax2
+        offset = torch.as_tensor(offset, dtype=torch.float32, device=packed.device).reshape(1)
+        args = (absmax, absmax2, code2, offset)
+    else:
+        absmax = absmax.float() if absmax.dtype != torch.float32 else absmax
+        args = (absmax, absmax, absmax, absmax)
+        blocksize2 = 1
+    _kernel[(triton.cdiv(n_bytes, BLOCK),)](
+        packed.reshape(-1), *args, code, out, n_bytes,
+        NESTED=nested, BLOCKSIZE=int(blocksize), BLOCKSIZE2=int(blocksize2), BLOCK=BLOCK,
+        EXACT_MUL=not _interpreted(), num_warps=4)
+    return out
+
+
+def dequantize_nf4(A: Any, quant_state: Any, out: Any = None) -> Any:
+    """The [N, K] weight of a bitsandbytes NF4 tensor in ``quant_state.dtype``, one launch."""
+    import torch
+
     if out is None:
         out = torch.empty(tuple(quant_state.shape), dtype=quant_state.dtype, device=A.device)
-    n_bytes = out.numel() // 2
     if quant_state.nested:
         s2 = quant_state.state2
-        absmax2 = s2.absmax.float() if s2.absmax.dtype != torch.float32 else s2.absmax
-        offset = torch.as_tensor(quant_state.offset, dtype=torch.float32, device=A.device).reshape(1)
-        args = (quant_state.absmax, absmax2, s2.code, offset)
-        bs2 = s2.blocksize
+        return _launch(A, out, quant_state.code, quant_state.blocksize, quant_state.absmax,
+                       s2.absmax, s2.code, quant_state.offset, s2.blocksize)
+    return _launch(A, out, quant_state.code, quant_state.blocksize, quant_state.absmax)
+
+
+_nf4_tables: dict = {}
+
+
+def _nf4_table(device: Any) -> Any:
+    key = str(device)
+    if key not in _nf4_tables:
+        import bitsandbytes.functional as bnb_functional
+
+        _nf4_tables[key] = bnb_functional.get_4bit_type("nf4", device=device).float().contiguous()
+    return _nf4_tables[key]
+
+
+def dequant_linear(A, B, shapeB, absmax, blocksize, quant_type, bias=None, absmax_8bit=None,
+                   absmax_code=None, absmax_offset=None):
+    """Drop-in for bitsandbytes' ``_dequant_linear_fallback`` (the forward of a 4-bit linear
+    whenever bitsandbytes' fused kernel does not take the shape): dequantize, then F.linear."""
+    import torch
+    from torch.nn import functional
+
+    n = int(shapeB[0]) * int(shapeB[1])
+    if (quant_type != "nf4" or n % 2 or B.dtype != torch.uint8 or B.numel() != n // 2
+            or A.dtype not in (torch.float16, torch.bfloat16, torch.float32)
+            or not (A.is_cuda or _interpreted())):
+        return _original_fallback(A, B, shapeB, absmax, blocksize, quant_type, bias=bias,
+                                  absmax_8bit=absmax_8bit, absmax_code=absmax_code,
+                                  absmax_offset=absmax_offset)
+    CALLS["dequant_linear"] += 1
+    weight = torch.empty(tuple(shapeB), dtype=A.dtype, device=A.device)
+    if absmax_8bit is not None:
+        _launch(B, weight, _nf4_table(A.device), blocksize, absmax_8bit, absmax, absmax_code,
+                absmax_offset, 256)
     else:
-        absmax = quant_state.absmax.float()
-        args = (absmax, absmax, absmax, absmax)
-        bs2 = 1
-    _kernel[(triton.cdiv(n_bytes, BLOCK),)](
-        A.reshape(-1), *args, quant_state.code, out, n_bytes,
-        NESTED=bool(quant_state.nested), BLOCKSIZE=int(quant_state.blocksize),
-        BLOCKSIZE2=int(bs2), BLOCK=BLOCK, EXACT_MUL=not _interpreted(), num_warps=4)
-    return out
+        _launch(B, weight, _nf4_table(A.device), blocksize, absmax)
+    return functional.linear(A, weight, bias)
 
 
 def dequantize_4bit(A, quant_state=None, absmax=None, out=None, blocksize=None, quant_type="fp4"):
@@ -134,6 +187,7 @@ def dequantize_4bit(A, quant_state=None, absmax=None, out=None, blocksize=None, 
     if not covered(A, quant_state, out):
         return _original(A, quant_state=quant_state, absmax=absmax, out=out,
                          blocksize=blocksize, quant_type=quant_type)
+    CALLS["dequantize_4bit"] += 1
     result = dequantize_nf4(A, quant_state, out)
     if A.shape[0] == 1:  # bitsandbytes' shim for the transposed packed layout
         return result.t()
@@ -141,25 +195,50 @@ def dequantize_4bit(A, quant_state=None, absmax=None, out=None, blocksize=None, 
 
 
 def enable() -> bool:
-    """Route ``bitsandbytes.functional.dequantize_4bit`` through the Triton kernel. Idempotent."""
-    global _original
+    """Route bitsandbytes' NF4 dequantization through the Triton kernel. Idempotent.
+
+    Two entry points: ``bitsandbytes.functional.dequantize_4bit`` (the backward of every 4-bit
+    linear, and Soup's own dequant call sites) and, when present, the CUDA backend's
+    ``_dequant_linear_fallback`` (the forward, for shapes bitsandbytes' fused kernel does not
+    take)."""
+    global _original, _original_fallback
     import bitsandbytes.functional as bnb_functional
 
     if _original is not None:
         return True
     _original = bnb_functional.dequantize_4bit
     bnb_functional.dequantize_4bit = dequantize_4bit
+    try:
+        from bitsandbytes.backends.cuda import ops as bnb_cuda_ops
+    except Exception:  # noqa: BLE001 - no CUDA backend module in this bitsandbytes
+        bnb_cuda_ops = None
+    if bnb_cuda_ops is not None and hasattr(bnb_cuda_ops, "_dequant_linear_fallback"):
+        _original_fallback = bnb_cuda_ops._dequant_linear_fallback
+        bnb_cuda_ops._dequant_linear_fallback = dequant_linear
+    global _atexit_registered
+    if not _atexit_registered:
+        import atexit
+        import sys
+
+        atexit.register(lambda: enabled() and print(f"[soup] NF4 Triton calls: {CALLS}",
+                                                     file=sys.stderr))
+        _atexit_registered = True
     return True
 
 
 def disable() -> None:
-    global _original
+    global _original, _original_fallback
     if _original is None:
         return
     import bitsandbytes.functional as bnb_functional
 
     bnb_functional.dequantize_4bit = _original
     _original = None
+    if _original_fallback is not None:
+        from bitsandbytes.backends.cuda import ops as bnb_cuda_ops
+
+        bnb_cuda_ops._dequant_linear_fallback = _original_fallback
+        _original_fallback = None
 
 
 def enabled() -> bool:
