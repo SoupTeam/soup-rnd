@@ -203,11 +203,13 @@ class Selection:
     layers: List[int]
     scores: Dict[int, float] = field(default_factory=dict)
     history: List[Tuple[int, List[int]]] = field(default_factory=list)
+    backward_cut: str = ""
 
     def to_json(self) -> Dict[str, Any]:
         return {
             "method": self.method,
             "layers": self.layers,
+            "backward_cut": self.backward_cut,
             "scores": {str(k): v for k, v in sorted(self.scores.items())},
             "history": [{"step": s, "layers": ls} for s, ls in self.history],
         }
@@ -237,6 +239,43 @@ def choose(policy: LayerSelectPolicy, model: Any, by_layer: Dict[int, List[Tuple
             scores = {idx: scores[idx] for idx in layers}
     model.train(was_training)
     return Selection(policy.method, top_k(scores, policy.k), scores)
+
+
+_INPUT_GRAD_HOOK_NAMES = ("make_inputs_require_grads", "make_inputs_require_grad")
+
+
+def cut_input_grads(model: Any) -> str:
+    """Let autograd stop at the lowest trainable layer on the resident path.
+
+    transformers (``gradient_checkpointing_enable``), PEFT and TRL all hook the input embedding so
+    its output requires grad: reentrant checkpointing needs a grad-requiring input to rebuild a
+    layer's graph. That hook also makes every backward run down to the embedding, through every
+    frozen layer below the lowest one whose adapters train, and with ``lora_layers`` choosing,
+    say, the top 8 of 32 layers that is most of the backward for a gradient nobody reads. With
+    non-reentrant checkpointing (Soup's and transformers' default) the hook is not needed, so it
+    is removed and the backward ends at the lowest layer with a trainable parameter, the same cut
+    L2L makes by hand. Returns what was done, for the record."""
+    for module in model.modules():
+        func = getattr(module, "_gradient_checkpointing_func", None)
+        if func is None or not getattr(module, "gradient_checkpointing", False):
+            continue
+        if getattr(func, "keywords", {}).get("use_reentrant", True) is not False:
+            return "kept: reentrant gradient checkpointing needs the input grads"
+    getter = getattr(model, "get_input_embeddings", None)
+    embedding = getter() if callable(getter) else None
+    if embedding is None:
+        return "kept: no input embedding"
+    weight = getattr(embedding, "weight", None)
+    if weight is not None and weight.requires_grad:
+        return "kept: the input embedding trains"
+    for module in model.modules():
+        disable = getattr(module, "disable_input_require_grads", None)
+        if callable(disable) and hasattr(module, "_require_grads_hooks"):
+            disable()
+    for key, hook in list(embedding._forward_hooks.items()):  # hooks registered by hand (PEFT)
+        if getattr(hook, "__name__", "") in _INPUT_GRAD_HOOK_NAMES:
+            del embedding._forward_hooks[key]
+    return "cut: the backward stops at the lowest trainable layer"
 
 
 def write_record(selection: Selection, output_dir: Optional[str]) -> Optional[str]:
@@ -295,13 +334,15 @@ class _LayerSelectBody:  # noqa: N801
         device = getattr(args, "device", None) or next(model.parameters()).device
         self.selection = choose(self.policy, model, self.by_layer, batches, device, self.rng)
         trainable = apply_layer_mask(self.by_layer, self.selection.layers)
+        self.selection.backward_cut = cut_input_grads(model)
         self.selection.history.append((0, list(self.selection.layers)))
         write_record(self.selection, self.output_dir)
         if self.console is not None:
             self.console.print(
                 f"[green]LoRA layers ({self.policy.method}):[/] training "
                 f"{len(self.selection.layers)} of {len(self.by_layer)} layers "
-                f"{self.selection.layers} ({trainable:,} adapter parameters)"
+                f"{self.selection.layers} ({trainable:,} adapter parameters); "
+                f"backward {self.selection.backward_cut}"
             )
         return control
 

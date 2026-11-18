@@ -302,3 +302,69 @@ def test_frozen_adapters_still_count_as_the_saved_adapter(tmp_path):
     apply_layer_mask(adapter_params_by_layer(model), [1])
     model.save_pretrained(str(tmp_path))
     assert_streamed_adapter_saved(model, str(tmp_path))
+
+
+def test_cut_input_grads_stops_the_backward_and_keeps_the_gradients():
+    """Resident path: without the input-grad hook the backward never runs the frozen layers below
+    the lowest trainable one, and the trainable adapters get the same gradients."""
+    import torch
+    import transformers
+    from peft import LoraConfig, get_peft_model
+
+    from soup_cli.utils.layer_select import (
+        adapter_params_by_layer,
+        apply_layer_mask,
+        cut_input_grads,
+    )
+
+    def build():
+        cfg = transformers.LlamaConfig(vocab_size=64, hidden_size=32, intermediate_size=64,
+                                       num_hidden_layers=4, num_attention_heads=4,
+                                       num_key_value_heads=2)
+        torch.manual_seed(0)
+        base = transformers.LlamaForCausalLM(cfg)
+        for p in base.parameters():
+            p.requires_grad_(False)
+        base.gradient_checkpointing_enable()  # non-reentrant + the input-grad hook
+        model = get_peft_model(base, LoraConfig(r=4, target_modules=["q_proj", "v_proj"],
+                                                init_lora_weights=False))
+        model.train()
+        by_layer = adapter_params_by_layer(model)
+        apply_layer_mask(by_layer, [3])
+        return model, by_layer
+
+    def run(model):
+        calls = []
+        layer0 = model.base_model.model.model.layers[0]
+        handle = layer0.register_full_backward_hook(lambda *a: calls.append(1))
+        ids = torch.tensor([[1, 5, 9, 2, 7, 3]])
+        model(input_ids=ids, labels=ids).loss.backward()
+        handle.remove()
+        grads = {n: p.grad.clone() for n, p in model.named_parameters() if p.grad is not None}
+        return calls, grads
+
+    hooked, by_layer = build()
+    calls_hooked, grads_hooked = run(hooked)
+    assert calls_hooked  # the hook drags the backward through layer 0
+    cut, _ = build()
+    assert cut_input_grads(cut).startswith("cut")
+    calls_cut, grads_cut = run(cut)
+    assert not calls_cut
+    assert grads_cut.keys() == grads_hooked.keys() and grads_cut
+    for name in grads_cut:
+        assert torch.allclose(grads_cut[name], grads_hooked[name], atol=1e-6), name
+
+
+def test_cut_input_grads_keeps_reentrant_checkpointing():
+    import transformers
+
+    from soup_cli.utils.layer_select import cut_input_grads
+
+    cfg = transformers.LlamaConfig(vocab_size=64, hidden_size=32, intermediate_size=64,
+                                   num_hidden_layers=2, num_attention_heads=4,
+                                   num_key_value_heads=2)
+    model = transformers.LlamaForCausalLM(cfg)
+    for p in model.parameters():
+        p.requires_grad_(False)
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": True})
+    assert cut_input_grads(model).startswith("kept: reentrant")
