@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from b5_real_moe import _meta_construction
-from p3_moonlight_soup_quality_screen import _bootstrap_mean_delta, _make_batch
+from p3_a2_quality_common import _bootstrap_mean_delta, _make_batch
 
 
 def digest(path: Path) -> str:
