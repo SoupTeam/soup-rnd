@@ -293,3 +293,21 @@ def test_rowwise_swap_serves_exactly_the_expert_rows(window: Any) -> None:
     slots = sum(stats["layers"][layer]["route_id_slots"] for layer in rig.moe_layers)
     assert slots == 2 * 13 * rig.config.num_experts_per_tok
     assert rows[0] == slots * 2 * 2
+
+
+def test_split_backward_refuses_deferred_decoder_hooks(window: Any) -> None:
+    """A deferred hook may read LoRA-bearing tensors, which phase one would sum group-wide."""
+    rig, ids, calls = window
+    layer = rig.stepper.layers[next(iter(rig.moe_layers))]
+
+    @l2l_step.mbr_deferred_forward_hook
+    def hook(_module: Any, _args: Any, output: Any) -> Any:
+        return output + 0.01
+
+    handle = layer.register_forward_hook(hook)
+    try:
+        with pytest.raises(RuntimeError, match="mbr_split_backward does not support"):
+            run_window(rig, ids, calls, mbr=True, group_size=3, dtype="fp32",
+                       split_backward=True)
+    finally:
+        handle.remove()

@@ -799,6 +799,9 @@ def _split_group_backward(
                 torch.autograd.backward(
                     [t for t, _ in pairs], grad_tensors=[g for _, g in pairs]
                 )
+    for leaf in (cut["joined_hidden"], cut["joined_weights"], *cut["residuals"], *cut["shared"]):
+        if leaf is not None:
+            leaf.grad = None
 
 
 def _leaf_grad(leaf: Any) -> Any:
@@ -929,6 +932,11 @@ class L2LStep:
                 # Two-read normally replaces recompute output with zeros. A decoder
                 # hook needs the actual value, so re-read experts for this call.
                 if split_records is not None:
+                    if wrapper_hooks or inner_hooks:
+                        raise RuntimeError(
+                            "mbr_split_backward does not support deferred decoder forward hooks: "
+                            "a hook may read tensors that phase one would sum group-wide"
+                        )
                     split_records.append(
                         _cut_group_graph(indices, rows, joined_hidden, joined_weights, sizes)
                     )
