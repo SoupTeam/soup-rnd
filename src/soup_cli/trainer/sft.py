@@ -1758,14 +1758,27 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             )
 
         if tcfg.quantization in ("4bit", "8bit"):
+            from soup_cli.trainer.kbit_lean import embedding_on_host, prepare_kbit
             from soup_cli.utils.layer_stream import should_enable_hf_gradient_checkpointing
 
-            self.model = prepare_model_for_kbit_training(
-                self.model,
-                use_gradient_checkpointing=should_enable_hf_gradient_checkpointing(
-                    tcfg.gradient_checkpointing, stream_layers=tcfg.stream_layers
-                ),
+            use_gc = should_enable_hf_gradient_checkpointing(
+                tcfg.gradient_checkpointing, stream_layers=tcfg.stream_layers
             )
+            if tcfg.kbit_keep_16bit:
+                self.model = prepare_kbit(self.model, use_gc, keep_16bit=True)
+                console.print(
+                    "[green]kbit_keep_16bit:[/] non-quantized weights stay 16-bit (no fp32 upcast)"
+                )
+            else:
+                self.model = prepare_model_for_kbit_training(
+                    self.model, use_gradient_checkpointing=use_gc
+                )
+            if tcfg.embed_on_host:
+                freed = embedding_on_host(self.model)
+                console.print(
+                    f"[green]embed_on_host:[/] input embedding in pinned host memory "
+                    f"({freed / 2**30:.2f} GiB off the GPU)"
+                )
 
         # Freeze training — freeze bottom layers before LoRA
         if tcfg.freeze_layers is not None or tcfg.freeze_ratio is not None:

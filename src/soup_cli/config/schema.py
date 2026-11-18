@@ -3519,6 +3519,30 @@ class TrainingConfig(BaseModel):
             "and the scores are written to <output>/lora_layers.json."
         ),
     )
+    # ZERO-2 — plain (non-streamed) QLoRA in a small VRAM budget (trainer/kbit_lean.py).
+    kbit_keep_16bit: bool = Field(
+        default=False,
+        description=(
+            "Keep every non-quantized weight in its loaded 16-bit dtype when quantization "
+            "prepares the model. PEFT's prepare_model_for_kbit_training upcasts them all to "
+            "fp32 (norms, biases, convolutions, and the input-embedding and lm_head "
+            "matrices); on a 248k-vocabulary model such as Qwen3.5-9B each vocabulary matrix "
+            "is ~4 GB in fp32 and the cast alone breaks an 8 GiB budget. The forward then "
+            "runs in 16 bit end to end, as the streamed path does (which never upcasts); the "
+            "loss still upcasts the logits. Freezing and gradient checkpointing are PEFT's. "
+            "sft + transformers + quantization 4bit/8bit, not with stream_layers."
+        ),
+    )
+    embed_on_host: bool = Field(
+        default=False,
+        description=(
+            "Keep the frozen input-embedding matrix in pinned host memory: each step looks "
+            "up its tokens' rows on the CPU and copies only those to the GPU. Frees the whole "
+            "matrix from VRAM (2 GB in bf16 on a 248k x 4096 vocabulary). Requires an untied "
+            "embedding (lm_head stays on the GPU) and no trainable embedding. sft + "
+            "transformers + quantization, not with stream_layers."
+        ),
+    )
     # v0.71.34 #267 — LISA (Layerwise Importance Sampled AdamW,
     # arXiv:2403.17919). Full-FT quality at LoRA-like memory: randomly
     # re-activate a small set of decoder layers every N steps (embeddings +
@@ -6291,6 +6315,32 @@ class SoupConfig(BaseModel):
                 "training.lora_layers chooses which layers train; it does not combine with "
                 + ", ".join(conflicts)
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_kbit_vocab(self) -> "SoupConfig":
+        """ZERO-2 — ``kbit_keep_16bit`` / ``embed_on_host`` (plain QLoRA in small VRAM)."""
+        tcfg = self.training
+        for name, on in (("kbit_keep_16bit", tcfg.kbit_keep_16bit),
+                         ("embed_on_host", tcfg.embed_on_host)):
+            if not on:
+                continue
+            if self.task != "sft" or self.backend != "transformers":
+                raise ValueError(
+                    f"training.{name} requires task='sft' and backend='transformers'; got "
+                    f"task={self.task!r}, backend={self.backend!r}"
+                )
+            if self.modality != "text":
+                raise ValueError(f"training.{name} requires modality='text'")
+            if tcfg.quantization not in ("4bit", "8bit"):
+                raise ValueError(f"training.{name} requires quantization 4bit or 8bit")
+            if tcfg.stream_layers:
+                raise ValueError(
+                    f"training.{name} is for the resident path; stream_layers already keeps "
+                    "the weights in 16 bit and off the GPU"
+                )
+        if tcfg.embed_on_host and tcfg.unfrozen_parameters:
+            raise ValueError("training.embed_on_host keeps the embedding frozen on the host")
         return self
 
     @model_validator(mode="after")

@@ -2138,3 +2138,21 @@ Direct AWQ and GPTQ exports require `--calibration-data`. Soup refuses a missing
 The advanced GGUF pipeline uses POSIX `O_NOFOLLOW` to defeat the TOCTOU race between the dispatch-time symlink check and the actual open of the calibration data — a crafted environment cannot race-swap the calibration file between validate and read.
 
 `soup deploy autopilot --measure` caches results at `~/.soup/deploy_autopilot_cache.json` keyed on `(base, profile, eval-tasks)`. Repeat invocations short-circuit; pass `SOUP_DEPLOY_AUTOPILOT_CACHE=<path>` to redirect (constrained to home / cwd / tempdir). The recommended candidate uses soft-fallback: first `OK` by insertion order, else the candidate with the smallest delta (least drop relative to its own baseline).
+
+## Plain QLoRA in a small VRAM budget (ZERO-2, experimental)
+
+Three opt-in levers for the resident (non-streamed) QLoRA path, added after Qwen3.5-9B
+(248k vocabulary, untied embeddings) failed an 8 GiB cap before its first step:
+
+- `training.kbit_keep_16bit: true` runs PEFT's `prepare_model_for_kbit_training` without its
+  fp32 cast of every non-quantized weight. The model stays in the 16-bit dtype it was loaded in,
+  as the streamed path runs it; each vocabulary matrix of Qwen3.5-9B would be ~4 GB in fp32.
+- `training.embed_on_host: true` keeps the frozen input embedding in pinned host memory and copies
+  only each step's rows to the GPU (untied embeddings only).
+- `SOUP_NF4_TRITON=1` replaces `bitsandbytes.functional.dequantize_4bit` with a one-launch
+  Triton kernel for NF4 (both quantization levels in one pass, meant to be bit-identical to
+  bitsandbytes; anything else falls back). Adapted from a Soup Kernel Challenge entry
+  (Apache-2.0, credited in `soup_cli/utils/nf4_triton.py`).
+
+All three are sft + transformers + text, quantization 4bit/8bit, and not with `stream_layers`
+(the first two); measurements are in the ZERO-2 stage-2b result.

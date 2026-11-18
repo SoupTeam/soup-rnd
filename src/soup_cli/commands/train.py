@@ -1739,6 +1739,13 @@ def train(
         # to keep separate chains and sweep's copy fell ten tasks and the MLX
         # route behind. See soup_cli/trainer/dispatch.py.
         from soup_cli.trainer.dispatch import build_trainer
+        from soup_cli.utils.nf4_triton import ENV as NF4_TRITON_ENV
+        from soup_cli.utils.nf4_triton import enable_from_env as enable_nf4_triton
+
+        if enable_nf4_triton():
+            console.print(
+                f"[green]NF4 dequantization:[/] Triton kernel ({NF4_TRITON_ENV}=1)"
+            )
 
         trainer_wrapper = build_trainer(cfg, **trainer_kwargs)
         trainer_wrapper.setup(dataset)

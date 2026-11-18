@@ -38,6 +38,7 @@ _KBIT_TRAINER_FILES = [
     "reward_model.py",
     "pretrain.py",
     "embedding.py",
+    "kbit_lean.py",
 ]
 
 
