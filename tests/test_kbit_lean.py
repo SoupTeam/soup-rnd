@@ -53,6 +53,11 @@ def test_embedding_on_host_same_rows_and_hooks_fire():
     assert torch.equal(after.detach(), before)
     assert torch.equal(model(input_ids=ids).logits, logits_before)
     assert embedding_on_host(model) == 0  # idempotent
+    # a later model.to(...) (the Trainer's device placement) must leave the host weight alone
+    weight = emb.weight
+    model.to(torch.float32)
+    assert emb.weight is weight and weight.dtype == torch.bfloat16 and weight.device.type == "cpu"
+    assert model.lm_head.weight.dtype == torch.float32
 
 
 def test_embedding_on_host_refuses_tied_and_trainable():

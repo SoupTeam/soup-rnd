@@ -55,8 +55,9 @@ def embedding_on_host(model: Any) -> int:
     """Move the frozen input embedding to pinned host memory; return the bytes freed on the GPU.
 
     The module keeps its identity (hooks registered on it, such as PEFT's
-    ``enable_input_require_grads``, still fire on its output): only its weight moves and its
-    ``forward`` looks the rows up on the CPU and returns them on the device of ``input_ids``."""
+    ``enable_input_require_grads``, still fire on its output): only its weight moves, its
+    ``forward`` looks the rows up on the CPU and returns them on the device of ``input_ids``,
+    and its ``_apply`` ignores later ``model.to(...)`` calls so the weight stays on the host."""
     import torch
     from torch.nn import functional
 
@@ -83,17 +84,34 @@ def embedding_on_host(model: Any) -> int:
     weight.data = host
 
     def forward(input_ids: Any) -> Any:
+        where = emb.weight.device
+        if where.type != "cpu" and not getattr(emb, "_soup_host_warned", False):
+            # Something still moved the matrix off the host (a direct .data assignment that
+            # bypasses _apply): look up where it is rather than fail, and say so once.
+            import sys
+
+            print(f"[soup] embed_on_host: the embedding weight is on {where}, not the host; "
+                  "no VRAM is saved", file=sys.stderr)
+            emb._soup_host_warned = True
         rows = functional.embedding(
-            input_ids.to("cpu"), emb.weight, emb.padding_idx, emb.max_norm,
+            input_ids.to(where), emb.weight, emb.padding_idx, emb.max_norm,
             emb.norm_type, emb.scale_grad_by_freq, emb.sparse,
         )
-        if input_ids.device.type != "cpu":
+        if rows.device != input_ids.device:
             if torch.cuda.is_available() and input_ids.is_cuda:
                 rows = rows.pin_memory()
             rows = rows.to(input_ids.device, non_blocking=True)
         return rows
 
+    def _apply(fn: Any, recurse: bool = True) -> Any:
+        # model.to(...) / .cuda() reach every parameter through Module._apply; without this the
+        # first such call after setup (ZERO-2 stage 2b: before step 1) put the matrix back on the
+        # GPU while forward() still sent the token ids to the CPU. The weight is frozen, so
+        # neither its device nor its dtype ever has to follow the model.
+        return emb
+
     emb.forward = forward
+    emb._apply = _apply
     setattr(emb, HOST_EMBED_ATTR, True)
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
