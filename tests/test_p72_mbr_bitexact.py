@@ -145,11 +145,14 @@ def run_window(
     mbr: bool,
     group_size: Optional[int],
     dtype: str,
+    split_backward: bool = False,
 ) -> Result:
     _zero_grads(rig.model)
     kwargs: Dict[str, Any] = {"route_preserving_mbr": mbr}
     if mbr:
         kwargs.update(mbr_group_size=group_size, collect_phase_stats=True)
+    if split_backward:
+        kwargs["mbr_split_backward"] = True
     with _autocast(dtype):
         losses = rig.stepper.run(ids, rig.store, calls=calls, **kwargs)
     collected = _collect(rig.model)
@@ -258,3 +261,46 @@ def test_rowwise_experts_group_is_bitwise_equal_when_accumulation_is_order_free(
     assert observe(
         f"MBR g1 vs g{n_micro_batches} row-wise [{dtype}]", group1, grouped
     )
+
+
+# --------------------------------------------------------------------------------------
+# ticket 03: two-phase MBR backward (opt-in) makes the LoRA accumulation order the same
+# --------------------------------------------------------------------------------------
+SPLIT_DTYPES = ("fp32", "bf16_nocache", "bf16_autocast")
+
+
+@pytest.mark.parametrize("dtype", SPLIT_DTYPES)
+def test_split_backward_group_1_equals_group_3_bitwise_with_rowwise_experts(
+    window: Any, dtype: str
+) -> None:
+    rig, ids, calls = window
+    with rowwise_expert_linear() as rows:
+        group1 = run_window(rig, ids, calls, mbr=True, group_size=1, dtype=dtype,
+                            split_backward=True)
+        group3 = run_window(rig, ids, calls, mbr=True, group_size=3, dtype=dtype,
+                            split_backward=True)
+    assert rows[0] > 0
+    assert observe(f"MBR split-backward g1 vs g3 row-wise [{dtype}]", group1, group3)
+
+
+@pytest.mark.parametrize("dtype", SPLIT_DTYPES)
+def test_l2l_equals_split_backward_group_3_bitwise_with_rowwise_experts(
+    window: Any, dtype: str
+) -> None:
+    """The S1 pair on CPU: plain L2L against grouped MBR with the two-phase backward."""
+    rig, ids, calls = window
+    with rowwise_expert_linear() as rows:
+        l2l = run_window(rig, ids, calls, mbr=False, group_size=None, dtype=dtype)
+        group3 = run_window(rig, ids, calls, mbr=True, group_size=3, dtype=dtype,
+                            split_backward=True)
+    assert rows[0] > 0
+    assert observe(f"L2L vs MBR split-backward g3 row-wise [{dtype}]", l2l, group3)
+
+
+def test_split_backward_flag_is_validated(window: Any) -> None:
+    rig, ids, calls = window
+    with pytest.raises(ValueError, match="only valid with route_preserving_mbr"):
+        rig.stepper.run(ids, rig.store, calls=calls, mbr_split_backward=True)
+    with pytest.raises(ValueError, match="must be a bool"):
+        rig.stepper.run(ids, rig.store, calls=calls, route_preserving_mbr=True,
+                        mbr_split_backward=1)

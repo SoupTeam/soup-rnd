@@ -736,6 +736,81 @@ def _pass_calls(spec: ReferencePass, policy_calls: Sequence[LayerCall], k: int) 
     return spec.calls
 
 
+def _cut_group_graph(
+    indices: List[int],
+    rows: List[Dict[str, Any]],
+    joined_hidden: Any,
+    joined_weights: Any,
+    sizes: List[int],
+) -> Dict[str, Any]:
+    """Fresh leaves for everything the grouped expert block and the residual path consume."""
+
+    def leaf(tensor: Any) -> Any:
+        if tensor is None:
+            return None
+        return tensor.detach().requires_grad_(tensor.requires_grad)
+
+    return {
+        "indices": list(indices),
+        "sizes": list(sizes),
+        "joined_hidden": leaf(joined_hidden),
+        "joined_weights": leaf(joined_weights),
+        "residuals": [leaf(row["residual"]) for row in rows],
+        "shared": [leaf(row["shared_output"]) for row in rows],
+        "pre_hidden": [row["expert_input"] for row in rows],
+        "pre_weights": [row["route_weights"] for row in rows],
+        "pre_residuals": [row["residual"] for row in rows],
+        "pre_shared": [row["shared_output"] for row in rows],
+    }
+
+
+def _split_group_backward(
+    cut: Dict[str, Any],
+    outputs: Sequence[Any],
+    grads: Sequence[Any],
+    backward_context: Callable[[int], Any],
+) -> None:
+    """Group backward in two phases, so LoRA gradients add up in the order of group size 1.
+
+    Phase one runs the grouped expert block and the residual path once (one read per expert).
+    Phase two runs what is left of each micro-batch (attention, router, shared experts) by
+    itself, in micro-batch order, exactly like a group of one. One engine call over the whole
+    group would sum the micro-batch gradients of a LoRA weight in an order of its own.
+    """
+    import torch
+
+    group = cut["indices"]
+    with backward_context(group[0]):
+        torch.autograd.backward(
+            [outputs[mb] for mb in group], grad_tensors=[grads[mb] for mb in group]
+        )
+    hidden_grads = _split_grad(cut["joined_hidden"], cut["sizes"])
+    weight_grads = _split_grad(cut["joined_weights"], cut["sizes"])
+    for pos, mb in enumerate(group):
+        pairs = [
+            (cut["pre_hidden"][pos], hidden_grads[pos]),
+            (cut["pre_weights"][pos], weight_grads[pos]),
+            (cut["pre_residuals"][pos], _leaf_grad(cut["residuals"][pos])),
+            (cut["pre_shared"][pos], _leaf_grad(cut["shared"][pos])),
+        ]
+        pairs = [(t, g) for t, g in pairs if t is not None and g is not None and t.requires_grad]
+        if pairs:
+            with backward_context(mb):
+                torch.autograd.backward(
+                    [t for t, _ in pairs], grad_tensors=[g for _, g in pairs]
+                )
+
+
+def _leaf_grad(leaf: Any) -> Any:
+    return None if leaf is None else leaf.grad
+
+
+def _split_grad(leaf: Any, sizes: List[int]) -> List[Any]:
+    if leaf is None or leaf.grad is None:
+        return [None] * len(sizes)
+    return list(leaf.grad.split(sizes, dim=0))
+
+
 class L2LStep:
     """One layer-major step: forward, head, backward. No optimizer step."""
 
@@ -783,8 +858,15 @@ class L2LStep:
         calls: Sequence[LayerCall],
         group_size: int,
         deferred_hooks: Tuple[Any, Any, List[Any]],
+        split_records: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[List[Any], List[Tuple[Any, Any]], List[List[int]], Dict[str, int]]:
-        """Run each layer's attention/router per micro-batch, grouping only routed experts."""
+        """Run each layer's attention/router per micro-batch, grouping only routed experts.
+
+        ``split_records`` (recompute only) cuts the autograd graph at the grouped expert block:
+        its inputs and the residual path become fresh leaves and one record per group lists the
+        per-micro-batch tensors behind them, so the caller can run the block's backward once
+        and the rest of each micro-batch's backward on its own (see ``_split_group_backward``).
+        """
         import torch
 
         experts = _streamed_moe_experts(module)
@@ -846,6 +928,16 @@ class L2LStep:
                     raise RuntimeError("route-preserving MBR joined token counts do not match")
                 # Two-read normally replaces recompute output with zeros. A decoder
                 # hook needs the actual value, so re-read experts for this call.
+                if split_records is not None:
+                    split_records.append(
+                        _cut_group_graph(indices, rows, joined_hidden, joined_weights, sizes)
+                    )
+                    cut = split_records[-1]
+                    joined_hidden, joined_weights = cut["joined_hidden"], cut["joined_weights"]
+                    residuals, shared = cut["residuals"], cut["shared"]
+                else:
+                    residuals = [row["residual"] for row in rows]
+                    shared = [row["shared_output"] for row in rows]
                 previous_materialize = experts._mbr_materialize_recompute
                 experts._mbr_materialize_recompute = bool(wrapper_hooks or inner_hooks)
                 try:
@@ -858,15 +950,13 @@ class L2LStep:
                         "route-preserving MBR expert output shape does not match input"
                     )
                 routed_outputs = joined_output.split(sizes, dim=0)
-                for mb, row, routed in zip(indices, rows, routed_outputs):
+                for mb, row, routed, residual, shared_output in zip(
+                    indices, rows, routed_outputs, residuals, shared
+                ):
                     routes[mb] = (row["route_ids"], row["route_weights"])
-                    routed = routed.view_as(row["residual"])
-                    mlp_output = (
-                        routed + row["shared_output"]
-                        if row["shared_output"] is not None
-                        else routed
-                    )
-                    result = row["residual"] + mlp_output
+                    routed = routed.view_as(residual)
+                    mlp_output = routed + shared_output if shared_output is not None else routed
+                    result = residual + mlp_output
                     if inner_hooks is not None:
                         result = _apply_deferred_forward_hooks(
                             inner, inner_hooks, row["hook_args"], row["hook_kwargs"], result
@@ -998,6 +1088,7 @@ class L2LStep:
         route_preserving_mbr: bool = False,
         mbr_group_size: Optional[int] = None,
         collect_phase_stats: bool = False,
+        mbr_split_backward: bool = False,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
@@ -1015,11 +1106,17 @@ class L2LStep:
         ``route_preserving_mbr`` is an experimental DeepSeek-V3 path that leaves attention and
         routing per micro-batch and groups only streamed routed experts. It requires two-read
         experts and grouped route dispatch. ``mbr_group_size`` defaults to the full window.
+        ``mbr_split_backward`` runs each group's backward in two phases (grouped experts once,
+        then the rest per micro-batch), so LoRA gradients add up in the order of group size 1.
         """
         if type(route_preserving_mbr) is not bool:
             raise ValueError("route_preserving_mbr must be a bool")
         if type(collect_phase_stats) is not bool:
             raise ValueError("collect_phase_stats must be a bool")
+        if type(mbr_split_backward) is not bool:
+            raise ValueError("mbr_split_backward must be a bool")
+        if mbr_split_backward and not route_preserving_mbr:
+            raise ValueError("mbr_split_backward is only valid with route_preserving_mbr=True")
         if routing_budget is not None and (
             len(routing_budget) != 2
             or any(type(value) is not int or value < 0 for value in routing_budget)
@@ -1058,6 +1155,7 @@ class L2LStep:
                         mbr_group_size=mbr_group_size,
                         collect_phase_stats=collect_phase_stats,
                         routing_budget=routing_budget,
+                        mbr_split_backward=mbr_split_backward,
                     )
                 else:
                     guard = (
@@ -1098,6 +1196,7 @@ class L2LStep:
         mbr_group_size: Optional[int] = None,
         collect_phase_stats: bool = False,
         routing_budget: Optional[Tuple[int, int]] = None,
+        mbr_split_backward: bool = False,
     ) -> List[Any]:
         import torch
 
@@ -1298,6 +1397,9 @@ class L2LStep:
                     before_recompute = (
                         self._expert_read_snapshot() if phase_stats is not None else None
                     )
+                    split_records: Optional[List[Dict[str, Any]]] = (
+                        [] if mbr_split_backward else None
+                    )
                     with (
                         torch.enable_grad(),
                         _defer_decoder_forward_hooks(layer) as deferred_hooks,
@@ -1311,6 +1413,7 @@ class L2LStep:
                                 calls,
                                 group_size,
                                 deferred_hooks,
+                                split_records,
                             )
                         )
                     after_recompute = (
@@ -1369,7 +1472,15 @@ class L2LStep:
                         )
                         gate_weight_max_abs = float(weight_delta.abs().max().item())
                         before_backward = self._expert_read_snapshot()
-                    for group in layer_groups:
+                    for position, group in enumerate(layer_groups):
+                        if split_records is not None:
+                            _split_group_backward(
+                                split_records[position],
+                                outputs,
+                                grads,
+                                lambda mb: self._backward_context(micro_batches[mb]),
+                            )
+                            continue
                         with self._backward_context(micro_batches[group[0]]):
                             torch.autograd.backward(
                                 [outputs[mb] for mb in group],
