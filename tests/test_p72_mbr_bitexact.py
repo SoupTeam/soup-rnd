@@ -101,7 +101,9 @@ def _autocast(dtype: str) -> Any:
 
     if dtype == "fp32":
         return nullcontext()
-    return torch.autocast("cpu", dtype=torch.bfloat16)
+    # "bf16_nocache": the autocast weight cache shares one bf16 cast of each LoRA weight across
+    # the micro-batches of a window, so their gradients are summed in bf16 before the fp32 add.
+    return torch.autocast("cpu", dtype=torch.bfloat16, cache_enabled=dtype != "bf16_nocache")
 
 
 @contextmanager
@@ -220,3 +222,39 @@ def test_group_1_vs_3_bitwise_outcome_and_rowwise_fix(window: Any, dtype: str) -
             fixed3 = run_window(rig, ids, calls, mbr=True, group_size=3, dtype=dtype)
         assert rows[0] > 0, "the row-wise swap never ran; the observation would be vacuous"
         observe(f"MBR g1 vs g3 row-wise {scope} [{dtype}]", fixed1, fixed3)
+
+
+@pytest.mark.parametrize(
+    ("dtype", "n_micro_batches"),
+    [("fp32", 2), ("bf16_nocache", 2), ("bf16_nocache", 3)],
+)
+def test_rowwise_experts_group_is_bitwise_equal_when_accumulation_is_order_free(
+    make_rig: Callable[..., Rig], dtype: str, n_micro_batches: int
+) -> None:
+    """Diagnosis (ticket 01): what is left red after the row-wise experts, and why.
+
+    Every expert dX/dW and the expert block dIn/dOut were bit-equal between group 1 and 3 in
+    the red runs, so the difference sits in how per-micro-batch LoRA gradients are summed:
+
+    * fp32: a sum of two gradients is order-free, a sum of three is not (the 3-micro-batch red
+      row of ``test_group_1_vs_3_...``).
+    * bf16 autocast: the weight cache sums the bf16 gradients of the micro-batches before the
+      fp32 add, which differs from group 1 even for two. With the cache off, the per-use
+      gradients are bf16-rounded, so even three of them add exactly in fp32.
+    """
+    rig = make_rig(
+        k=n_micro_batches, rows=1, seq=6,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    ids = [
+        fixture.moe_batch(rig.config, seed=seed, rows=1, seq=seq)["input_ids"]
+        for seed, seq in enumerate(LENGTHS[:n_micro_batches])
+    ]
+    calls = [l2l_step.capture_layer_call(rig.model, item) for item in ids]
+    with rowwise_expert_linear() as rows:
+        group1 = run_window(rig, ids, calls, mbr=True, group_size=1, dtype=dtype)
+        grouped = run_window(rig, ids, calls, mbr=True, group_size=n_micro_batches, dtype=dtype)
+    assert rows[0] > 0
+    assert observe(
+        f"MBR g1 vs g{n_micro_batches} row-wise [{dtype}]", group1, grouped
+    )
