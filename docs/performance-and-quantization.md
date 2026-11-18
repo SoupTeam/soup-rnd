@@ -1489,6 +1489,39 @@ host had an 85.4-GiB cgroup limit and overlay storage, so it does not satisfy th
 physical-storage qualification. See
 [`benchmarks/p3-mbr-group-size-sweep-20261117.md`](../benchmarks/p3-mbr-group-size-sweep-20261117.md).
 
+#### Batch-invariant expert GEMM
+
+The MBR gradient difference above is arithmetic, not a schedule bug. cuBLAS picks its kernel,
+tiling and split-K by the row count M, so an expert row computed in a 2-row call and in a
+128-row call differ in their last bits, and the top-k router grows that into other experts.
+With an expert matmul whose rows do not depend on M, MBR equals per-micro-batch L2L:
+
+```yaml
+training:
+  stream_expert_layout: per_expert
+  stream_expert_gemm: batch_invariant   # default: native (cuBLAS)
+  l2l: true
+  l2l_two_read_experts: true
+  l2l_grouped_expert_routes: true
+  l2l_route_preserving_mbr: true
+```
+
+`batch_invariant` runs the routed experts' matmuls and their input gradients on one
+fixed-config Triton GEMM (no autotune, no split-K, sequential K loop with an fp32 accumulator,
+M not specialized) and the routing-weight gradient on a fixed per-row reduction. Under MBR it
+also runs each group's expert backward once and then each micro-batch's backward in order, so
+LoRA gradients accumulate in the same order as plain L2L. On an RTX 4060 Ti the losses and every
+LoRA gradient of two-read L2L and MBR at group sizes 1/2/3/6 are bit-identical in fp32 and in
+bf16 with autocast and dropout (`tests/test_p3_a2_invariant_expert_gemm.py`). The kernel is
+within 0-10% of cuBLAS time on average at M <= 256 for DeepSeek-V3 expert shapes
+([`benchmarks/p3-a2-batch-invariant-expert-gemm.md`](../benchmarks/p3-a2-batch-invariant-expert-gemm.md)).
+
+Limits: CUDA only, and bf16 needs compute capability 8.0+ (a Tesla T4 runs fp16/fp32 through
+Triton's FMA path, slowly). Bits match on one GPU model and Triton version, not across them.
+End-to-end identity also needs deterministic surrounding kernels
+(`CUBLAS_WORKSPACE_CONFIG=:4096:8`, `torch.use_deterministic_algorithms(True)`), and layers
+with deferred decoder hooks keep the grouped backward. The setting is part of `l2l_recipe.json`.
+
 Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
 when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
 The next run with the same directory removes it at start if the process that created it is

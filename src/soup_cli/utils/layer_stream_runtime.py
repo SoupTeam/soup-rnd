@@ -3821,7 +3821,7 @@ class StreamRuntime:
 def _prepare_expert_streaming(
     layers: Any, shard_dir: str, index: Any, *, device: str, codes: Optional[Mapping[str, Any]],
     two_reads: bool = False, grouped_expert_routes: bool = False,
-    expert_transfer: str = "sync", expert_host_cache_bytes: int = 0,
+    expert_transfer: str = "sync", expert_host_cache_bytes: int = 0, expert_gemm: str = "native",
 ) -> Tuple[Any, Tuple[Any, ...]]:
     """Prepare the bounded expert slot and validate the replacement modules.
 
@@ -3861,7 +3861,8 @@ def _prepare_expert_streaming(
             **({"host_cache_bytes": expert_host_cache_bytes} if expert_host_cache_bytes else {}),
         )
         install_streamed_experts(
-            layers, readers, pool, two_reads=two_reads, grouped_expert_routes=grouped_expert_routes
+            layers, readers, pool, two_reads=two_reads,
+            grouped_expert_routes=grouped_expert_routes, expert_gemm=expert_gemm,
         )
         return pool, tuple(readers.values())
     except BaseException:
@@ -3951,6 +3952,7 @@ def install_streaming(
     grouped_expert_routes: bool = False,
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
+    expert_gemm: str = "native",
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3965,6 +3967,10 @@ def install_streaming(
     stages each expert's stored components in one pinned block and copies it to the arena once.
     ``expert_host_cache_bytes`` (packed only) additionally keeps whole packed blocks in RAM up
     to that many bytes; a hit reads nothing from the experts file. See ``ExpertBufferPool``.
+
+    ``expert_gemm="batch_invariant"`` (same caches, CUDA): the routed experts' matmuls run on
+    the fixed-config Triton GEMM of ``soup_cli.utils.invariant_gemm``, so an expert row has the
+    same bits whether the call holds one micro-batch or a whole MBR window.
 
     ``refill_before_backward`` says the loss runs a second forward before each
     step's backward; an untied output head then hands autograd a private copy
@@ -4058,7 +4064,7 @@ def install_streaming(
                 layers, shard_dir, index, device=device, codes=codes,
                 two_reads=two_read_experts, grouped_expert_routes=grouped_expert_routes,
                 expert_transfer=expert_transfer,
-                expert_host_cache_bytes=expert_host_cache_bytes,
+                expert_host_cache_bytes=expert_host_cache_bytes, expert_gemm=expert_gemm,
             )
         else:
             for lever, enabled in (
@@ -4066,6 +4072,7 @@ def install_streaming(
                 ("grouped_expert_routes", grouped_expert_routes),
                 ("expert_transfer", expert_transfer != "sync"),
                 ("expert_host_cache_bytes", bool(expert_host_cache_bytes)),
+                ("expert_gemm", expert_gemm != "native"),
             ):
                 if enabled:
                     raise ValueError(
@@ -4699,12 +4706,14 @@ def build_streamed_model(
     grouped_expert_routes: bool = False,
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
+    expert_gemm: str = "native",
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice. ``two_read_experts`` is
-    ``install_streaming``'s: an API switch, no config field.
+    ``install_streaming``'s: an API switch, no config field. ``expert_gemm`` is also
+    ``install_streaming``'s (``training.stream_expert_gemm``).
     """
     if shared_host_budget is not None and partial_ram_budget is None:
         raise ValueError("shared_host_budget requires an explicit partial_ram_budget")
@@ -4767,6 +4776,7 @@ def build_streamed_model(
                 {"expert_host_cache_bytes": expert_host_cache_bytes}
                 if expert_host_cache_bytes else {}
             ),
+            **({"expert_gemm": expert_gemm} if expert_gemm != "native" else {}),
         )
     except BaseException:
         for external in external_sources:

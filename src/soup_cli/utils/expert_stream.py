@@ -19,6 +19,7 @@ from types import MethodType
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
 
 from soup_cli.utils.expert_shard import DOWN, EXPERT_PARTS, GATE_UP, ExpertShardReader
+from soup_cli.utils.invariant_gemm import EXPERT_GEMMS
 
 
 @dataclass(frozen=True)
@@ -763,9 +764,9 @@ def _build_streamed_experts_class() -> Any:
     import torch.nn as nn
     import torch.nn.functional as functional
 
-    def expert_mlp(hidden: Any, gate_up: Any, down: Any, act_fn: Any) -> Any:
-        gate, up = functional.linear(hidden, gate_up).chunk(2, dim=-1)
-        return functional.linear(act_fn(gate) * up, down)
+    def expert_mlp(hidden: Any, gate_up: Any, down: Any, act_fn: Any, linear: Any) -> Any:
+        gate, up = linear(hidden, gate_up).chunk(2, dim=-1)
+        return linear(act_fn(gate) * up, down)
 
     class FrozenExpert(torch.autograd.Function):
         """One hit expert as one autograd node that leases its weights again in backward.
@@ -794,7 +795,7 @@ def _build_streamed_experts_class() -> Any:
             }
             ctx.save_for_backward(hidden)
             with owner.pool.lease(owner.reader, expert) as (gate_up, down):
-                return expert_mlp(hidden, gate_up, down, owner.act_fn)
+                return expert_mlp(hidden, gate_up, down, owner.act_fn, owner.linear)
 
         @staticmethod
         def backward(ctx: Any, grad_out: Any) -> Tuple[Any, None, None]:
@@ -810,7 +811,7 @@ def _build_streamed_experts_class() -> Any:
                 # in the caller's backward state, as eager autograd does, so a backward inside
                 # or outside an autocast region matches the resident module either way.
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
-                    result = expert_mlp(local, gate_up, down, ctx.act_fn)
+                    result = expert_mlp(local, gate_up, down, ctx.act_fn, ctx.owner.linear)
                 (grad_hidden,) = torch.autograd.grad(result, local, grad_out)
             return grad_hidden, None, None
 
@@ -852,7 +853,9 @@ def _build_streamed_experts_class() -> Any:
                 phase=phase,
                 layer_idx=owner.layer_idx,
             ) as (gate_up, down):
-                return expert_mlp(hidden, gate_up, down, owner.act_fn) * weights
+                return owner.scale(
+                    expert_mlp(hidden, gate_up, down, owner.act_fn, owner.linear), weights
+                )
 
         @staticmethod
         def backward(ctx: Any, grad_out: Any) -> Tuple[Any, Any, None, None, None]:
@@ -872,7 +875,10 @@ def _build_streamed_experts_class() -> Any:
                 local_hidden = hidden.detach().requires_grad_(need_hidden)
                 local_weights = weights.detach().requires_grad_(need_weights)
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
-                    result = expert_mlp(local_hidden, gate_up, down, ctx.act_fn) * local_weights
+                    result = ctx.owner.scale(
+                        expert_mlp(local_hidden, gate_up, down, ctx.act_fn, ctx.owner.linear),
+                        local_weights,
+                    )
                 wanted = [
                     tensor for tensor in (local_hidden, local_weights) if tensor.requires_grad
                 ]
@@ -902,6 +908,7 @@ def _build_streamed_experts_class() -> Any:
         def __init__(
             self, reader: ExpertShardReader, pool: ExpertBufferPool, act_fn: Any, layer_idx: int,
             grouped_expert_routes: bool = False, two_reads: bool = False,
+            expert_gemm: str = "native",
         ) -> None:
             super().__init__()
             if type(grouped_expert_routes) is not bool:
@@ -909,6 +916,19 @@ def _build_streamed_experts_class() -> Any:
             if type(two_reads) is not bool:
                 raise ValueError("two_reads must be a bool")
             self.two_reads = two_reads
+            if expert_gemm not in EXPERT_GEMMS:
+                raise ValueError(f"expert_gemm must be one of {EXPERT_GEMMS}, got {expert_gemm!r}")
+            if expert_gemm == "batch_invariant":
+                from soup_cli.utils import invariant_gemm
+                from soup_cli.utils.layer_stream_runtime import _torch_dtype
+
+                invariant_gemm.check_supported(pool.device, _torch_dtype(pool.dtype))
+                self.linear = invariant_gemm.linear
+                self.scale = invariant_gemm.scale_rows
+            else:
+                self.linear = functional.linear
+                self.scale = torch.mul
+            self.expert_gemm = expert_gemm
             pool.validate_reader(reader)
             self.grouped_expert_routes = grouped_expert_routes
             if not callable(act_fn) or (
@@ -973,7 +993,7 @@ def _build_streamed_experts_class() -> Any:
                             )
                         else:
                             current = FrozenExpert.apply(current_state, self, expert)
-                            current = current * weights
+                            current = self.scale(current, weights)
                         row["status"] = "replay" if replay else "ok"
                     except BaseException:
                         row["status"] = "error"
@@ -1017,7 +1037,7 @@ def _find_experts(layer: Any) -> Optional[Tuple[Any, str, Any]]:
 
 def install_streamed_experts(
     layers: Sequence[Any], readers: Mapping[int, ExpertShardReader], pool: ExpertBufferPool,
-    *, grouped_expert_routes: bool = False, two_reads: bool = False,
+    *, grouped_expert_routes: bool = False, two_reads: bool = False, expert_gemm: str = "native",
 ) -> int:
     """Replace only routed experts after validating ALL layers.
 
@@ -1036,6 +1056,10 @@ def install_streamed_experts(
     decoder layer, its MoE block or its routed experts, or a global forward hook, is refused
     with a ``RuntimeError`` when the layer's forward or recompute starts. A patched
     ``forward`` is not detected and is unsupported.
+
+    ``expert_gemm`` (``EXPERT_GEMMS``, default ``"native"``) picks the routed experts' matmul:
+    ``"batch_invariant"`` is the Triton GEMM of ``soup_cli.utils.invariant_gemm``, whose rows
+    do not depend on how many rows share a call (CUDA; bf16 needs compute capability 8.0+).
     """
     import torch.nn as nn
 
@@ -1043,6 +1067,8 @@ def install_streamed_experts(
         raise ValueError("grouped_expert_routes must be a bool")
     if type(two_reads) is not bool:
         raise ValueError("two_reads must be a bool")
+    if expert_gemm not in EXPERT_GEMMS:
+        raise ValueError(f"expert_gemm must be one of {EXPERT_GEMMS}, got {expert_gemm!r}")
     if any(
         isinstance(idx, bool) or not isinstance(idx, int) or not 0 <= idx < len(layers)
         for idx in readers
@@ -1107,6 +1133,7 @@ def install_streamed_experts(
             cls(
                 reader, pool, module.act_fn, idx,
                 grouped_expert_routes=grouped_expert_routes, two_reads=two_reads,
+                expert_gemm=expert_gemm,
             ),
             router,
         ))

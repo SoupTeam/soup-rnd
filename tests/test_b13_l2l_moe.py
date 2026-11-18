@@ -135,7 +135,7 @@ def make_rig(tmp_path: Path) -> Iterator[Callable[..., Rig]]:
                 n_layers=config.num_hidden_layers,
                 k=k,
                 chunk_shape=(rows, seq, config.hidden_size),
-                dtype=torch.float32,
+                dtype=getattr(torch, moe.dtype),
                 device=device,
                 pin=False,
             )

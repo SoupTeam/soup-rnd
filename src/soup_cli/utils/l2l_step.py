@@ -426,6 +426,87 @@ def _streamed_moe_experts(layer: Any) -> Any:
     return None
 
 
+@dataclass
+class _SplitExpertGroup:
+    """One MBR group's joined routed-expert call, cut out of the layer graph for backward.
+
+    Only gradient edges are kept, never the joined tensors: ``output`` is the edge of the
+    joined expert output, ``hidden`` and ``weights`` the edges of the detached leaves it was
+    computed from (None when that leaf needs no gradient). ``expert_inputs`` and
+    ``route_weights`` are each micro-batch's tensors those leaves were joined from, still
+    inside its layer graph (the layer keeps them alive anyway).
+    """
+
+    output: Any
+    output_dtype: Any
+    hidden: Any
+    weights: Any
+    sizes: List[int]
+    expert_inputs: List[Any]
+    route_weights: List[Any]
+
+
+def _split_expert_group(
+    output: Any, hidden: Any, weights: Any, sizes: List[int], rows: Sequence[Dict[str, Any]]
+) -> _SplitExpertGroup:
+    from torch.autograd.graph import get_gradient_edge
+
+    def edge(tensor: Any) -> Any:
+        return get_gradient_edge(tensor) if tensor.requires_grad else None
+
+    return _SplitExpertGroup(
+        output=edge(output),
+        output_dtype=output.dtype,
+        hidden=edge(hidden),
+        weights=edge(weights),
+        sizes=sizes,
+        expert_inputs=[row["expert_input"] for row in rows],
+        route_weights=[row["route_weights"] for row in rows],
+    )
+
+
+def _split_group_backward(
+    group: Sequence[int], part: _SplitExpertGroup, outputs: Sequence[Any], grads: Sequence[Any]
+) -> None:
+    """The expert backward once for the group, then each micro-batch's layer, in order.
+
+    The routed output enters each layer output through additions only, so its gradient is
+    the layer's output gradient. The expert backward runs once over the joined rows (one
+    read of each hit expert); its input and routing-weight gradients are then fed to each
+    micro-batch's backward together with the layer output gradient. Every LoRA gradient
+    therefore accumulates one micro-batch at a time in micro-batch order, as plain L2L does:
+    one backward over the whole group sums three or more micro-batches in autograd's order,
+    which rounds differently. Used with the batch-invariant expert GEMM only.
+    """
+    import torch
+
+    targets = [edge for edge in (part.hidden, part.weights) if edge is not None]
+    found: List[Any] = []
+    if targets and part.output is not None:
+        routed_grad = torch.cat(
+            [grads[mb].reshape(-1, grads[mb].shape[-1]) for mb in group], dim=0
+        ).to(part.output_dtype)
+        found = list(torch.autograd.grad([part.output], targets, [routed_grad]))
+    hidden_grad = found.pop(0) if part.hidden is not None and found else None
+    weight_grad = found.pop(0) if part.weights is not None and found else None
+    hidden_parts = (
+        hidden_grad.split(part.sizes, dim=0) if hidden_grad is not None else [None] * len(group)
+    )
+    weight_parts = (
+        weight_grad.split(part.sizes, dim=0) if weight_grad is not None else [None] * len(group)
+    )
+    for index, mb in enumerate(group):
+        roots, seeds = [outputs[mb]], [grads[mb]]
+        for tensor, seed in (
+            (part.expert_inputs[index], hidden_parts[index]),
+            (part.route_weights[index], weight_parts[index]),
+        ):
+            if seed is not None and tensor.requires_grad:
+                roots.append(tensor)
+                seeds.append(seed.to(tensor.dtype))
+        torch.autograd.backward(roots, grad_tensors=seeds)
+
+
 def mbr_deferred_forward_hook(hook: Callable[..., Any]) -> Callable[..., Any]:
     """Opt a pure decoder forward hook into MBR's deferred, grouped execution.
 
@@ -783,8 +864,16 @@ class L2LStep:
         calls: Sequence[LayerCall],
         group_size: int,
         deferred_hooks: Tuple[Any, Any, List[Any]],
+        split: Optional[List[Any]] = None,
     ) -> Tuple[List[Any], List[Tuple[Any, Any]], List[List[int]], Dict[str, int]]:
-        """Run each layer's attention/router per micro-batch, grouping only routed experts."""
+        """Run each layer's attention/router per micro-batch, grouping only routed experts.
+
+        ``split`` (the backward recompute, no deferred hooks) receives one
+        ``_SplitExpertGroup`` per group: the joined expert call then runs on detached leaves
+        and the layer outputs hold its value without its graph, so ``_split_group_backward``
+        can run the expert backward once per group and every other part of the layer once
+        per micro-batch, in micro-batch order, like plain L2L.
+        """
         import torch
 
         experts = _streamed_moe_experts(module)
@@ -848,8 +937,17 @@ class L2LStep:
                 # hook needs the actual value, so re-read experts for this call.
                 previous_materialize = experts._mbr_materialize_recompute
                 experts._mbr_materialize_recompute = bool(wrapper_hooks or inner_hooks)
+                if split is not None:
+                    expert_hidden = joined_hidden.detach().requires_grad_(
+                        joined_hidden.requires_grad
+                    )
+                    expert_weights = joined_weights.detach().requires_grad_(
+                        joined_weights.requires_grad
+                    )
+                else:
+                    expert_hidden, expert_weights = joined_hidden, joined_weights
                 try:
-                    joined_output = experts(joined_hidden, joined_ids, joined_weights)
+                    joined_output = experts(expert_hidden, joined_ids, expert_weights)
                 finally:
                     experts._mbr_materialize_recompute = previous_materialize
                 unique_experts_by_group.append(len(experts.last_trace))
@@ -857,6 +955,13 @@ class L2LStep:
                     raise RuntimeError(
                         "route-preserving MBR expert output shape does not match input"
                     )
+                if split is not None:
+                    split.append(
+                        _split_expert_group(
+                            joined_output, expert_hidden, expert_weights, sizes, rows
+                        )
+                    )
+                    joined_output = joined_output.detach()
                 routed_outputs = joined_output.split(sizes, dim=0)
                 for mb, row, routed in zip(indices, rows, routed_outputs):
                     routes[mb] = (row["route_ids"], row["route_weights"])
@@ -1298,11 +1403,21 @@ class L2LStep:
                     before_recompute = (
                         self._expert_read_snapshot() if phase_stats is not None else None
                     )
+                    split: Optional[List[Any]] = None
                     with (
                         torch.enable_grad(),
                         _defer_decoder_forward_hooks(layer) as deferred_hooks,
                         pair[1] if pair else nullcontext(),
                     ):
+                        # Only the batch-invariant expert GEMM splits the expert backward out,
+                        # so its MBR equals L2L bit for bit; native MBR keeps its rounding. A
+                        # deferred hook sees the routed output, so such layers never split.
+                        if (
+                            getattr(_streamed_moe_experts(layer), "expert_gemm", "native")
+                            == "batch_invariant"
+                            and not (deferred_hooks[0] or deferred_hooks[1])
+                        ):
+                            split = []
                         outputs, layer_routes, layer_groups, dispatch = (
                             self._route_preserving_layer_window(
                                 layer,
@@ -1311,6 +1426,7 @@ class L2LStep:
                                 calls,
                                 group_size,
                                 deferred_hooks,
+                                split=split,
                             )
                         )
                     after_recompute = (
@@ -1369,12 +1485,15 @@ class L2LStep:
                         )
                         gate_weight_max_abs = float(weight_delta.abs().max().item())
                         before_backward = self._expert_read_snapshot()
-                    for group in layer_groups:
+                    for position, group in enumerate(layer_groups):
                         with self._backward_context(micro_batches[group[0]]):
-                            torch.autograd.backward(
-                                [outputs[mb] for mb in group],
-                                grad_tensors=[grads[mb] for mb in group],
-                            )
+                            if split is not None:
+                                _split_group_backward(group, split[position], outputs, grads)
+                            else:
+                                torch.autograd.backward(
+                                    [outputs[mb] for mb in group],
+                                    grad_tensors=[grads[mb] for mb in group],
+                                )
                     after_backward = (
                         self._expert_read_snapshot() if phase_stats is not None else None
                     )
@@ -1409,7 +1528,7 @@ class L2LStep:
                         )
                         layer_stats["gate_weight_rel_l2"] = gate_weight_rel_l2
                         layer_stats["gate_weight_max_abs"] = gate_weight_max_abs
-                    del inputs, outputs, layer_routes, layer_groups, dispatch
+                    del inputs, outputs, layer_routes, layer_groups, dispatch, split
                 else:
                     phase_recompute_before = (
                         self._expert_read_snapshot() if phase_stats is not None else None

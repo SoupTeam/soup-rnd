@@ -742,6 +742,11 @@ class StreamingSetupMixin:
                 "L2L expert replay and grouped routes currently support DeepSeek-V3-family "
                 "streaming only"
             )
+        expert_gemm = str(getattr(tcfg, "stream_expert_gemm", "native"))
+        if expert_gemm != "native" and not expert_layout:
+            raise ValueError(
+                "training.stream_expert_gemm requires training.stream_expert_layout='per_expert'"
+            )
 
         on_cuda = str(self.device).startswith("cuda")
         # #385 — ASK THE CARD. bf16 needs Ampere, and a T4 (Colab free), a P100
@@ -1272,6 +1277,7 @@ class StreamingSetupMixin:
             double_quant=double_quant,
             two_read_experts=two_read_experts,
             grouped_expert_routes=grouped_expert_routes,
+            **({"expert_gemm": expert_gemm} if expert_gemm != "native" else {}),
             tier=tier,
             weights_dir=weights_dir,
             ngram_source=ngram_source,

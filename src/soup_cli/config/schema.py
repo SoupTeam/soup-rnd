@@ -3645,6 +3645,17 @@ class TrainingConfig(BaseModel):
             "double quant. The default retains fused layer storage."
         ),
     )
+    stream_expert_gemm: Literal["native", "batch_invariant"] = Field(
+        default="native",
+        description=(
+            "EXPERIMENTAL — matmul for the streamed routed experts. 'batch_invariant' runs "
+            "them on a fixed-config Triton GEMM whose rows do not depend on how many rows "
+            "share a call, so route-preserving MBR gives the same bits as per-micro-batch L2L "
+            "(per GPU model and Triton version, with deterministic surrounding kernels and no "
+            "deferred decoder hooks). Requires stream_expert_layout='per_expert' and CUDA; "
+            "bf16 needs compute capability 8.0+. 'native' keeps cuBLAS."
+        ),
+    )
     stream_ngram_source: Literal["auto", "ram", "disk"] = Field(
         default="auto",
         description=(
@@ -6734,6 +6745,7 @@ class SoupConfig(BaseModel):
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
                 or tcfg.stream_expert_layout != "fused"
+                or tcfg.stream_expert_gemm != "native"
                 or tcfg.stream_disk_kind is not None
                 or tcfg.stream_pin is not None
             ):
@@ -6741,7 +6753,8 @@ class SoupConfig(BaseModel):
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
-                    "/ training.stream_expert_layout / training.stream_disk_kind "
+                    "/ training.stream_expert_layout / training.stream_expert_gemm "
+                    "/ training.stream_disk_kind "
                     "/ training.stream_pin / training.stream_resident_layers "
                     "/ training.stream_ram_cache_mb / training.stream_cache_profile "
                     "/ training.stream_cache_profile_mode / training.stream_recompute set but "
@@ -6815,6 +6828,11 @@ class SoupConfig(BaseModel):
                     "training.l2l_two_read_experts and l2l_grouped_expert_routes require "
                     "training.stream_expert_layout='per_expert'"
                 )
+        if tcfg.stream_expert_gemm != "native" and tcfg.stream_expert_layout != "per_expert":
+            raise ValueError(
+                "training.stream_expert_gemm='batch_invariant' requires "
+                "training.stream_expert_layout='per_expert'"
+            )
         if tcfg.l2l_route_preserving_mbr:
             if not tcfg.l2l_two_read_experts or not tcfg.l2l_grouped_expert_routes:
                 raise ValueError(
