@@ -19,14 +19,14 @@ from __future__ import annotations
 import json
 import os
 import re
-import sys
-from contextlib import contextmanager, nullcontext
-from typing import Any, Callable, Dict, Iterator, List, Optional
+from contextlib import nullcontext
+from typing import Any, Callable, Dict, List, Optional
 
 import pytest
 from rich.console import Console
 
 from benchmarks.harness import b13_moe_fixture as fixture
+from benchmarks.harness.p72_invariant_expert_gemm import rowwise_expert_linear
 from soup_cli.utils import l2l_step
 from tests.test_b13_l2l_moe import Rig, _collect, _zero_grads
 from tests.test_b13_l2l_moe import make_rig as make_rig  # noqa: F401  (pytest fixture)
@@ -106,37 +106,6 @@ def _autocast(dtype: str) -> Any:
     return torch.autocast("cpu", dtype=torch.bfloat16, cache_enabled=dtype != "bf16_nocache")
 
 
-@contextmanager
-def rowwise_expert_linear(scope: str = "experts") -> Iterator[List[int]]:
-    """Swap the experts' ``F.linear`` for one call per row (M=1), forward and backward.
-
-    With ``scope="experts"`` only calls made from ``expert_mlp`` are touched, so the router,
-    attention and the LoRA layers keep their native GEMMs; ``scope="all"`` is a diagnostic that
-    swaps every ``F.linear`` call. Yields a counter of the rows that went through it, so a
-    test can tell that the swap really happened.
-    """
-    import torch
-    import torch.nn.functional as functional
-
-    assert scope in ("experts", "all"), scope
-    original = functional.linear
-    rows: List[int] = [0]
-
-    def linear(input: Any, weight: Any, bias: Any = None) -> Any:  # noqa: A002
-        if scope == "experts" and sys._getframe(1).f_code.co_name != "expert_mlp":
-            return original(input, weight, bias)
-        flat = input.reshape(-1, input.shape[-1])
-        rows[0] += int(flat.shape[0])
-        out = [original(flat[i : i + 1], weight, bias) for i in range(flat.shape[0])]
-        return torch.cat(out).reshape(*input.shape[:-1], -1)
-
-    functional.linear = linear  # type: ignore[assignment]
-    try:
-        yield rows
-    finally:
-        functional.linear = original  # type: ignore[assignment]
-
-
 def run_window(
     rig: Rig,
     ids: List[Any],
@@ -188,19 +157,24 @@ def test_helper_distinguishes_signed_zero_and_ulp() -> None:
     assert not bits_equal(torch.zeros(1), torch.zeros(1, dtype=torch.bfloat16))
 
 
-def test_rowwise_linear_is_row_by_row_and_scoped() -> None:
+def test_rowwise_linear_is_scoped_to_expert_mlp() -> None:
     import torch
     import torch.nn.functional as functional
 
     x, w = torch.randn(5, 8), torch.randn(4, 8)
     native = functional.linear(x, w)
-    with rowwise_expert_linear("experts") as rows:
+    with rowwise_expert_linear() as rows:
         assert bits_equal(functional.linear(x, w), native) and rows[0] == 0  # not from expert_mlp
-    with rowwise_expert_linear("all") as rows:
-        out = functional.linear(x, w)
+
+        def expert_mlp(hidden: Any) -> Any:  # same function name the swap keys on
+            return functional.linear(hidden, w)
+
+        out = expert_mlp(x)
     assert rows[0] == 5 and out.shape == native.shape
     torch.testing.assert_close(out, native)
-    assert functional.linear is not None and bits_equal(functional.linear(x, w), native)
+    assert functional.linear(x, w).shape == native.shape and bits_equal(
+        functional.linear(x, w), native
+    )
 
 
 @pytest.mark.parametrize("dtype", DTYPES)
@@ -219,12 +193,11 @@ def test_group_1_vs_3_bitwise_outcome_and_rowwise_fix(window: Any, dtype: str) -
     if observe(f"MBR g1 vs g3 native [{dtype}]", group1, group3):
         return  # green: nothing to repair
     # Red: record whether a row-wise expert linear layer repairs it (ticket 01, third box).
-    for scope in ("experts", "all"):
-        with rowwise_expert_linear(scope) as rows:
-            fixed1 = run_window(rig, ids, calls, mbr=True, group_size=1, dtype=dtype)
-            fixed3 = run_window(rig, ids, calls, mbr=True, group_size=3, dtype=dtype)
-        assert rows[0] > 0, "the row-wise swap never ran; the observation would be vacuous"
-        observe(f"MBR g1 vs g3 row-wise {scope} [{dtype}]", fixed1, fixed3)
+    with rowwise_expert_linear() as rows:
+        fixed1 = run_window(rig, ids, calls, mbr=True, group_size=1, dtype=dtype)
+        fixed3 = run_window(rig, ids, calls, mbr=True, group_size=3, dtype=dtype)
+    assert rows[0] > 0, "the row-wise swap never ran; the observation would be vacuous"
+    observe(f"MBR g1 vs g3 row-wise [{dtype}]", fixed1, fixed3)
 
 
 @pytest.mark.parametrize(
@@ -304,3 +277,19 @@ def test_split_backward_flag_is_validated(window: Any) -> None:
     with pytest.raises(ValueError, match="must be a bool"):
         rig.stepper.run(ids, rig.store, calls=calls, route_preserving_mbr=True,
                         mbr_split_backward=1)
+
+
+def test_rowwise_swap_serves_exactly_the_expert_rows(window: Any) -> None:
+    """Ticket 03: the counter equals the expert rows, so no other linear layer was swapped.
+
+    Expected from the route record, not from the swap: each MoE layer sends ``route_id_slots``
+    (tokens x top-k) rows through two expert linears (gate_up, down) once in the forward and
+    once in the backward (two-read replay recomputes nothing).
+    """
+    rig, ids, calls = window
+    with rowwise_expert_linear() as rows:
+        run_window(rig, ids, calls, mbr=True, group_size=3, dtype="fp32")
+    stats = rig.stepper.route_preserving_mbr_stats
+    slots = sum(stats["layers"][layer]["route_id_slots"] for layer in rig.moe_layers)
+    assert slots == 2 * 13 * rig.config.num_experts_per_tok
+    assert rows[0] == slots * 2 * 2
