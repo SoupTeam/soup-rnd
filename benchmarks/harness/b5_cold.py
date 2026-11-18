@@ -57,6 +57,8 @@ def _file_residency(path: Path, libc: Any) -> Tuple[int, int]:
 
 def store_residency(store: Path) -> Tuple[int, int]:
     """(bytes of the store's files in the page cache, total bytes of those files)."""
+    if os.name != "posix":
+        return 0, sum(path.stat().st_size for path in _files(store))
     libc = ctypes.CDLL(None, use_errno=True)
     resident = total = 0
     for path in _files(store):

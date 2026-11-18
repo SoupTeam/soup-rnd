@@ -10,7 +10,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 from benchmarks.harness import b5_cold
+
+pytestmark = pytest.mark.skipif(
+    os.name != "posix", reason="page-cache residency requires POSIX mincore"
+)
 
 MIB = 2**20
 

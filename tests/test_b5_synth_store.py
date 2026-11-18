@@ -7,6 +7,7 @@ quality of a real model, so everything it writes is signed ``synthetic``.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -385,6 +386,8 @@ def test_the_deepseek_v3_dimensions_give_the_tensor_shapes_of_the_real_model(
 
 @pytest.fixture(scope="module")
 def cold_run(small_store: Path, tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    if os.name != "posix":
+        pytest.skip("cold run page-cache drop requires POSIX mincore")
     from benchmarks.harness import b5_judge, b5_real_moe
 
     root = tmp_path_factory.mktemp("b5-synth-cold-run")
