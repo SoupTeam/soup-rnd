@@ -469,6 +469,11 @@ def main() -> None:
         help="static packed-expert host hotset budget in MiB (requires --expert-transfer packed)",
     )
     parser.add_argument(
+        "--expert-prefetch",
+        action="store_true",
+        help="read the next hit expert on a worker thread while the current one computes",
+    )
+    parser.add_argument(
         "--read-ahead",
         type=int,
         choices=tuple(range(1, 9)),
@@ -476,7 +481,32 @@ def main() -> None:
         help="async disk-tier staging depth (1 stages no layer ahead; 2 stages one)",
     )
     parser.add_argument("--require-p3-ram", action="store_true")
+    parser.add_argument(
+        "--phase-profile",
+        action="store_true",
+        help="after the A-B-B-A samples, run CUDA-synchronised phase-profiled steps (P72)",
+    )
+    parser.add_argument("--phase-profile-blocks", type=int, default=3)
+    parser.add_argument(
+        "--profile-kinds",
+        default="l2l,mbr",
+        help="with --phase-profile-only: l2l,mbr (A-B-B-A) or a single kind (A-A)",
+    )
+    parser.add_argument(
+        "--timed-steps",
+        type=int,
+        default=2,
+        help="with --phase-profile-only and one kind: uninstrumented timed steps (default 2)",
+    )
+    parser.add_argument(
+        "--phase-profile-only",
+        action="store_true",
+        help="phase profile without the route audit (PR #72 refuses expert hooks); implies "
+        "--phase-profile and skips the diagnostic gate and the route comparison",
+    )
     args = parser.parse_args()
+    if args.phase_profile_only:
+        args.phase_profile = True
     if K % args.mbr_group_size:
         raise RuntimeError(f"STOP: mbr group size {args.mbr_group_size} must divide window K={K}")
     if args.expert_host_cache_mib < 0:
@@ -570,6 +600,7 @@ def main() -> None:
             grouped_expert_routes=True,
             expert_transfer=args.expert_transfer,
             expert_host_cache_bytes=expert_host_cache_bytes,
+            **({"expert_prefetch": True} if args.expert_prefetch else {}),
         )
     model.train()
     causal, owner = model_parts(model)
@@ -601,9 +632,14 @@ def main() -> None:
     call = capture_layer_call(model, micro_batches[0], draws=False)
     calls = [call] * K
     audit = PhaseAudit()
-    audit.attach(list(owner.layers))
+    if not args.phase_profile_only:
+        audit.attach(list(owner.layers))
     state = L2LState(runtime=runtime, dtype=torch.bfloat16, output_dir=str(OUT))
-    l2l = InstrumentedL2LStep(model, runtime, call, audit)
+    l2l = (
+        L2LStep(model, runtime, call)
+        if args.phase_profile_only
+        else InstrumentedL2LStep(model, runtime, call, audit)
+    )
     state.stepper = l2l
     store = _store_for(state, l2l, micro_batches, torch.device("cuda"))
     params = {name: p for name, p in sorted(model.named_parameters()) if p.requires_grad}
@@ -619,7 +655,9 @@ def main() -> None:
                 param.copy_(initial[name].to(device=param.device, dtype=param.dtype))
         model.zero_grad(set_to_none=True)
 
-    def one_run(kind: str, *, keep_artifacts: bool, collect_diagnostics: bool) -> Dict[str, Any]:
+    def one_run(
+        kind: str, *, keep_artifacts: bool, collect_diagnostics: bool, phase_clock: Any = None
+    ) -> Dict[str, Any]:
         stepper = l2l
         state.stepper = l2l
         audit.clear(capture_enabled=collect_diagnostics)
@@ -633,15 +671,27 @@ def main() -> None:
         base_alloc = torch.cuda.memory_allocated()
         read_before = process_read_bytes()
         started = time.perf_counter()
-        losses = stepper.run(
-            micro_batches,
-            store,
-            calls=calls,
-            head=sft_head(labels, label_tokens(micro_batches)),
-            route_preserving_mbr=(kind == "mbr"),
-            mbr_group_size=(args.mbr_group_size if kind == "mbr" else None),
-            collect_phase_stats=collect_diagnostics,
-        )
+        profiled_wall = None
+        with contextlib.ExitStack() as profiling:
+            if phase_clock is not None:  # P72 diagnostic: timing wrappers only
+                from p72_phase_profiler import install as install_phase_clock
+
+                profiling.enter_context(install_phase_clock(phase_clock))
+                profiling.enter_context(phase_clock.run())
+                torch.cuda.synchronize()
+                profiled_started = time.perf_counter()
+            losses = stepper.run(
+                micro_batches,
+                store,
+                calls=calls,
+                head=sft_head(labels, label_tokens(micro_batches)),
+                route_preserving_mbr=(kind == "mbr"),
+                mbr_group_size=(args.mbr_group_size if kind == "mbr" else None),
+                collect_phase_stats=collect_diagnostics,
+            )
+            if phase_clock is not None:
+                torch.cuda.synchronize()
+                profiled_wall = time.perf_counter() - profiled_started
         torch.cuda.synchronize()
         model_step_seconds = time.perf_counter() - started
         capture_started = time.perf_counter()
@@ -706,6 +756,17 @@ def main() -> None:
                 else None
             ),
             "route_recompute_parity": routes_parity,
+            "phase_profile": (
+                {
+                    "wall": profiled_wall,
+                    "totals": dict(phase_clock.totals),
+                    "counts": dict(phase_clock.counts),
+                    "background": dict(phase_clock.background),
+                    "gemm_rows": list(phase_clock.gemm_rows),
+                }
+                if phase_clock is not None
+                else None
+            ),
             "grad_norm": grads["norm"],
             "grad_zero_fraction": grads["zero_fraction"],
             "missing_gradient_names": grads["missing_gradient_names"],
@@ -731,7 +792,85 @@ def main() -> None:
         model.zero_grad(set_to_none=True)
         return result
 
+    def run_phase_profile(measured: List[Dict[str, Any]]) -> Dict[str, Any]:
+        kinds = list(dict.fromkeys(row["kind"] for row in measured))
+        order = [row["kind"] for row in measured]
+        from p72_mbr_phase_profile import summarize_runs
+        from p72_phase_profiler import PhaseClock
+
+        clock = PhaseClock("cuda")
+        by_kind: Dict[str, List[Dict[str, Any]]] = {kind: [] for kind in kinds}
+        exact: Dict[str, bool] = {kind: True for kind in kinds}
+        reference = {kind: next(r for r in measured if r["kind"] == kind) for kind in kinds}
+        # A-B-B-A blocks outside the reported timing samples; serialised by CUDA syncs.
+        for _ in range(args.phase_profile_blocks):
+            for kind in order:
+                row = one_run(
+                    kind, keep_artifacts=True, collect_diagnostics=False, phase_clock=clock
+                )
+                by_kind[kind].append(row["phase_profile"])
+                ref = reference[kind]
+                exact[kind] &= row["loss"] == ref["loss"] and all(
+                    torch.equal(row["grad_artifacts"][name], ref["grad_artifacts"][name])
+                    for name in ref["grad_artifacts"]
+                )
+        phase_profile = {
+            kind: summarize_runs(
+                kind,
+                by_kind[kind],
+                uninstrumented_seconds=[
+                    r["model_step_seconds"] for r in measured if r["kind"] == kind
+                ],
+                parity_ok=exact[kind],
+            )
+            for kind in kinds
+        }
+        (OUT / "phase_profile.json").write_text(
+            json.dumps(phase_profile, indent=2) + "\n", encoding="utf-8"
+        )
+        print(json.dumps(phase_profile, indent=2), flush=True)
+        return phase_profile
+
     try:
+        if args.phase_profile_only:
+            wanted = args.profile_kinds.split(",")
+            if not set(wanted) <= {"l2l", "mbr"}:
+                raise ValueError("--profile-kinds takes l2l and/or mbr")
+            order_only = (
+                ["l2l", "mbr", "mbr", "l2l"] if len(wanted) == 2 else wanted * args.timed_steps
+            )
+            for kind in dict.fromkeys(wanted):
+                one_run(kind, keep_artifacts=False, collect_diagnostics=False)
+            measured_only = [
+                one_run(kind, keep_artifacts=True, collect_diagnostics=False)
+                for kind in order_only
+            ]
+            # --phase-profile-blocks 0 is a timing-only run (the F1 blocks use it).
+            profile = run_phase_profile(measured_only) if args.phase_profile_blocks else None
+            (OUT / "result_phase_profile_only.json").write_text(
+                json.dumps(
+                    {
+                        "gpu": torch.cuda.get_device_name(0),
+                        "soup_revision": source_revision(),
+                        "measured_uninstrumented": [
+                            strip_artifacts(r) for r in measured_only
+                        ],
+                        "grad_sha256": [
+                            tensor_digest(r["grad_artifacts"]) for r in measured_only
+                        ],
+                        "arm": {
+                            "expert_transfer": args.expert_transfer,
+                            "expert_host_cache_mib": args.expert_host_cache_mib,
+                            "expert_prefetch": bool(args.expert_prefetch),
+                        },
+                        "phase_profile": profile,
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            return
         warm_l2l = one_run("l2l", keep_artifacts=True, collect_diagnostics=True)
         warm_mbr = one_run("mbr", keep_artifacts=True, collect_diagnostics=True)
         route_summary = compare_route_artifacts(
@@ -812,6 +951,7 @@ def main() -> None:
             one_run("mbr", keep_artifacts=True, collect_diagnostics=False),
             one_run("l2l", keep_artifacts=True, collect_diagnostics=False),
         ]
+        phase_profile = run_phase_profile(measured) if args.phase_profile else None
         diag_a, diag_b = warm_l2l, warm_mbr
         first_a, first_b = measured[0], measured[1]
         # Route capture/phase counting are separate; raw gradients are copied after each timer.
@@ -908,6 +1048,7 @@ def main() -> None:
                 "mbr_BB": bb_gradient_repeatability,
             },
             "route_artifact": str(OUT / "routes.pt"),
+            "phase_profile": phase_profile,
             "physical_io_claim": False,
             "notes": [
                 (
