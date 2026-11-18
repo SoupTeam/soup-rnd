@@ -1036,6 +1036,400 @@ def test_guard_preserves_differentiable_router_weights(
     assert_guard_closed(guard)
 
 
+@pytest.mark.parametrize(("group_size", "expected_dispatches"), [(None, 1), (1, 2)])
+def test_route_preserving_mbr_recomputes_exact_routes_with_c3_budget(
+    make_rig: Callable[..., Rig], group_size: Optional[int], expected_dispatches: int,
+) -> None:
+    """The opt-in MBR path keeps router calls per micro-batch and checks checkpoint replay."""
+    import torch
+
+    rig = make_rig(
+        k=2,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    ids = micro_batches(rig, 2)
+    tokens_per_micro_batch = rig.rows * rig.seq
+    comparison_bytes = tokens_per_micro_batch * rig.config.num_experts_per_tok * 8
+    routing_budget = (
+        len(rig.moe_layers) * 2 * comparison_bytes,
+        comparison_bytes,
+    )
+    _zero_grads(rig.model)
+    losses = rig.stepper.run(
+        ids,
+        rig.store,
+        routing_budget=routing_budget,
+        route_preserving_mbr=True,
+        mbr_group_size=group_size,
+        collect_phase_stats=True,
+    )
+
+    assert len(losses) == 2 and all(torch.isfinite(loss) for loss in losses)
+    gradients = _collect(rig.model)
+    assert gradients and any(
+        grad is not None and bool(grad.ne(0).any()) for grad in gradients.values()
+    )
+    stats = rig.stepper.route_preserving_mbr_stats
+    assert stats is not None
+    for layer_idx in rig.moe_layers:
+        row = stats["layers"][layer_idx]
+        assert row["init_forward"]["grouped_expert_dispatch_calls"] == expected_dispatches
+        assert row["recompute_forward"]["grouped_expert_dispatch_calls"] == expected_dispatches
+        assert row["recompute_forward"]["expert_fetches"] == 0
+        assert row["route_id_slots"] == (
+            2 * tokens_per_micro_batch * rig.config.num_experts_per_tok
+        )
+        assert row["route_id_mismatch_slots"] == 0
+
+
+@pytest.mark.parametrize(
+    "hook_location",
+    ["wrapper", "decoder", "decoder_backward", "moe", "moe_pre", "global", "global_pre",
+     "always_call"],
+)
+def test_mbr_rejects_unsupported_module_hooks(
+    make_rig: Callable[..., Rig], hook_location: str,
+) -> None:
+    """Never silently pass a placeholder to hooks that expect a real layer output."""
+    import torch.nn.modules.module as module_hooks
+
+    rig = make_rig(
+        k=2,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    layer = rig.stepper.layers[next(iter(rig.moe_layers))]
+    inner = getattr(layer, "inner", layer)
+    if hook_location == "global":
+        handle = module_hooks.register_module_forward_hook(lambda _m, _a, _out: None)
+    elif hook_location == "global_pre":
+        handle = module_hooks.register_module_forward_pre_hook(lambda _m, _a: None)
+    elif hook_location == "decoder_backward":
+        handle = inner.register_full_backward_hook(lambda _m, _gin, _gout: None)
+    elif hook_location == "always_call":
+        marked = l2l_step.mbr_deferred_forward_hook(lambda _m, _a, _out: None)
+        handle = inner.register_forward_hook(marked, always_call=True)
+    elif hook_location == "moe_pre":
+        handle = inner.mlp.register_forward_pre_hook(lambda _m, _a: None)
+    else:
+        target = {"wrapper": layer, "decoder": inner, "moe": inner.mlp}[hook_location]
+        handle = target.register_forward_hook(lambda _m, _a, _out: None)
+    try:
+        with pytest.raises(ValueError, match="route-preserving MBR.*hooks"):
+            rig.stepper.run(micro_batches(rig, 2), rig.store, route_preserving_mbr=True)
+    finally:
+        handle.remove()
+
+
+def check_mbr_deferred_decoder_hooks(
+    make_rig: Callable[..., Rig], *, device: str = "cpu",
+) -> None:
+    import torch
+
+    rig = make_rig(
+        k=2,
+        device=device,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    layer = rig.stepper.layers[next(iter(rig.moe_layers))]
+    inner = getattr(layer, "inner", layer)
+    observations: List[Any] = []
+
+    @l2l_step.mbr_deferred_forward_hook
+    def inner_hook(_module: Any, args: Any, kwargs: Any, output: Any) -> Any:
+        assert output.shape == args[0].shape and isinstance(kwargs, dict)
+        observations.append((args[0].detach().clone(), output.detach().clone()))
+        return output + 0.05 * torch.tanh(output)
+
+    @l2l_step.mbr_deferred_forward_hook
+    def wrapper_hook(_module: Any, _args: Any, output: Any) -> Any:
+        return output + 0.01
+
+    handles = [
+        inner.register_forward_hook(inner_hook, with_kwargs=True),
+        layer.register_forward_hook(wrapper_hook),
+    ]
+    try:
+        runs = []
+        inputs = micro_batches(rig, 2)
+        expert_modules = streamed_experts_modules(rig.model)
+        for mbr in (False, True):
+            # Standard two-read intentionally rejects output hooks. Use its ordinary
+            # three-read path as an independent oracle for complete hook outputs.
+            for expert in expert_modules.values():
+                expert.two_reads = mbr
+            observations.clear()
+            _zero_grads(rig.model)
+            losses = rig.stepper.run(
+                inputs, rig.store, route_preserving_mbr=mbr, collect_phase_stats=True
+            )
+            if mbr:
+                stats = rig.stepper.route_preserving_mbr_stats
+                assert stats is not None
+                assert stats["layers"][next(iter(rig.moe_layers))]["recompute_forward"][
+                    "expert_fetches"
+                ] > 0
+            grads = {
+                name: grad.clone() for name, grad in _collect(rig.model).items()
+                if grad is not None
+            }
+            runs.append(([loss.detach().clone() for loss in losses], grads, list(observations)))
+        assert len(runs[0][2]) == len(runs[1][2]) == 4
+        for left, right in zip(runs[0][0], runs[1][0]):
+            torch.testing.assert_close(left, right, rtol=1e-5, atol=1e-6)
+        assert runs[0][1] and runs[0][1].keys() == runs[1][1].keys()
+        for name in runs[0][1]:
+            torch.testing.assert_close(runs[0][1][name], runs[1][1][name], rtol=1e-4, atol=1e-6)
+        unmatched = list(runs[1][2])
+        for input_ref, output_ref in runs[0][2]:
+            match = next(
+                (i for i, (item, _) in enumerate(unmatched)
+                 if torch.allclose(input_ref, item, rtol=1e-5, atol=1e-6)),
+                None,
+            )
+            assert match is not None
+            _, output = unmatched.pop(match)
+            torch.testing.assert_close(
+                output_ref, output, rtol=1e-5, atol=1e-6,
+                msg=lambda msg: f"input sum={input_ref.sum().item()}; {msg}",
+            )
+    finally:
+        for handle in handles:
+            handle.remove()
+
+
+def test_mbr_deferred_decoder_hooks_see_real_output_and_preserve_gradients(
+    make_rig: Callable[..., Rig],
+) -> None:
+    check_mbr_deferred_decoder_hooks(make_rig)
+
+
+def test_mbr_deferred_hook_failure_restores_module_hooks(
+    make_rig: Callable[..., Rig],
+) -> None:
+    rig = make_rig(
+        k=2,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    layer = rig.stepper.layers[next(iter(rig.moe_layers))]
+
+    @l2l_step.mbr_deferred_forward_hook
+    def bad_shape(_module: Any, _args: Any, output: Any) -> Any:
+        return output[..., :1]
+
+    handle = layer.register_forward_hook(bad_shape)
+    try:
+        with pytest.raises(RuntimeError, match="must preserve output tensor"):
+            rig.stepper.run(micro_batches(rig, 2), rig.store, route_preserving_mbr=True)
+        assert handle.id in layer._forward_hooks
+    finally:
+        handle.remove()
+
+
+def test_mbr_short_final_window_keeps_configured_group_size(
+    make_rig: Callable[..., Rig],
+) -> None:
+    """A partial final optimizer window still runs with a larger configured group."""
+    import torch
+
+    rig = make_rig(
+        k=2,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    ids = micro_batches(rig, 2)[:1]
+    runs = []
+    for group_size in (1, 2):
+        _zero_grads(rig.model)
+        losses = rig.stepper.run(
+            ids,
+            rig.store,
+            route_preserving_mbr=True,
+            mbr_group_size=group_size,
+            collect_phase_stats=True,
+        )
+        gradients = {
+            name: grad.clone() for name, grad in _collect(rig.model).items() if grad is not None
+        }
+        runs.append(([loss.detach().clone() for loss in losses], gradients))
+        stats = rig.stepper.route_preserving_mbr_stats
+        assert stats is not None
+        for layer_idx in rig.moe_layers:
+            assert stats["layers"][layer_idx]["init_forward"]["grouped_expert_dispatch_calls"] == 1
+            assert stats["layers"][layer_idx]["route_id_mismatch_slots"] == 0
+
+    assert runs[0][1] and runs[0][1].keys() == runs[1][1].keys()
+    torch.testing.assert_close(runs[0][0][0], runs[1][0][0])
+    for name in runs[0][1]:
+        torch.testing.assert_close(runs[0][1][name], runs[1][1][name])
+
+
+def test_mbr_with_fp8_activation_store_component_smoke(
+    make_rig: Callable[..., Rig],
+) -> None:
+    """Exercise the internal FP8 store; the public FP8 launch gate stays closed."""
+    import torch
+
+    from soup_cli.utils.fp8_activations import FP8ActivationStore
+    from soup_cli.utils.host_memory_budget import HostMemoryBudget
+
+    rig = make_rig(
+        k=2,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    store = FP8ActivationStore(
+        host_budget=HostMemoryBudget(64 * 1024 * 1024),
+        n_layers=rig.config.num_hidden_layers,
+        k=2,
+        chunk_shape=(rig.rows, rig.seq, rig.config.hidden_size),
+        dtype=torch.float32,
+        device="cpu",
+        pin=False,
+    )
+    try:
+        _zero_grads(rig.model)
+        losses = rig.stepper.run(
+            micro_batches(rig, 2), store, route_preserving_mbr=True, mbr_group_size=2
+        )
+        assert len(losses) == 2 and all(torch.isfinite(loss) for loss in losses)
+        gradients = _collect(rig.model)
+        assert any(grad is not None and bool(grad.ne(0).any()) for grad in gradients.values())
+        assert all(grad is None or bool(torch.isfinite(grad).all()) for grad in gradients.values())
+    finally:
+        store.close()
+
+
+def test_mbr_ragged_streamed_expert_dx_matches_fixed_routes(
+    make_rig: Callable[..., Rig],
+) -> None:
+    """Compare streamed expert outputs and dX with fixed routes on uneven inputs."""
+    import torch
+
+    rig = make_rig(k=3, rows=1, seq=6, build_options={"grouped_expert_routes": True})
+    module = streamed_experts_modules(rig.model)[next(iter(rig.moe_layers))]
+    generator = torch.Generator().manual_seed(41)
+    sizes = (3, 6, 4)
+    inputs = [torch.randn(n, rig.config.hidden_size, generator=generator) for n in sizes]
+    ids = [
+        torch.randint(0, rig.config.n_routed_experts, (n, 2), generator=generator)
+        for n in sizes
+    ]
+    weights = [torch.softmax(torch.randn(n, 2, generator=generator), -1) for n in sizes]
+    probes = [torch.randn(n, rig.config.hidden_size, generator=generator) for n in sizes]
+
+    def run(grouped: bool) -> tuple[list[Any], list[Any]]:
+        leaves = [x.clone().requires_grad_(True) for x in inputs]
+        if grouped:
+            output = module(torch.cat(leaves), torch.cat(ids), torch.cat(weights))
+            outputs = list(output.split(sizes))
+        else:
+            outputs = [module(x, route, w) for x, route, w in zip(leaves, ids, weights)]
+        sum((out * probe).sum() for out, probe in zip(outputs, probes)).backward()
+        return [out.detach() for out in outputs], [x.grad for x in leaves]
+
+    separate, grouped = run(False), run(True)
+    for lefts, rights in zip(separate, grouped):
+        for left, right in zip(lefts, rights):
+            torch.testing.assert_close(left, right, rtol=1e-4, atol=1e-6)
+
+
+def test_mbr_ragged_streamed_window_matches_microbatch_dispatch(
+    make_rig: Callable[..., Rig],
+) -> None:
+    """Exercise real streamed experts, live routes and recompute with different lengths."""
+    import torch
+
+    rig = make_rig(
+        k=3,
+        rows=1,
+        seq=6,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    ids = [
+        fixture.moe_batch(rig.config, seed=seed, rows=1, seq=seq)["input_ids"]
+        for seed, seq in enumerate((3, 6, 4))
+    ]
+    calls = [l2l_step.capture_layer_call(rig.model, item) for item in ids]
+    results = []
+    for group_size in (1, 3):
+        _zero_grads(rig.model)
+        losses = rig.stepper.run(
+            ids,
+            rig.store,
+            calls=calls,
+            route_preserving_mbr=True,
+            mbr_group_size=group_size,
+            collect_phase_stats=True,
+        )
+        grads = {name: grad.clone() for name, grad in _collect(rig.model).items()
+                 if grad is not None}
+        stats = copy.deepcopy(rig.stepper.route_preserving_mbr_stats)
+        results.append(([loss.detach().clone() for loss in losses], grads, stats))
+
+    losses_a, grads_a, _ = results[0]
+    losses_b, grads_b, stats_b = results[1]
+    for left, right in zip(losses_a, losses_b):
+        torch.testing.assert_close(left, right, rtol=1e-5, atol=1e-6)
+    assert grads_a and grads_a.keys() == grads_b.keys()
+    for name in grads_a:
+        torch.testing.assert_close(grads_a[name], grads_b[name], rtol=1e-4, atol=1e-6)
+    for layer_idx in rig.moe_layers:
+        row = stats_b["layers"][layer_idx]
+        assert row["route_id_mismatch_slots"] == 0
+        assert row["init_forward"]["routed_tokens"] == 13
+        assert row["recompute_forward"]["routed_tokens"] == 13
+
+
+def test_route_preserving_mbr_rejects_routing_records_over_the_resolved_budget(
+    make_rig: Callable[..., Rig],
+) -> None:
+    rig = make_rig(
+        k=2,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    ids = micro_batches(rig, 2)
+    tokens_per_micro_batch = rig.rows * rig.seq
+    comparison_bytes = tokens_per_micro_batch * rig.config.num_experts_per_tok * 8
+    routing_budget = (
+        len(rig.moe_layers) * 2 * comparison_bytes,
+        comparison_bytes - 1,
+    )
+
+    with pytest.raises(ValueError, match="route IDs exceed the resolved routing memory budget"):
+        rig.stepper.run(
+            ids,
+            rig.store,
+            routing_budget=routing_budget,
+            route_preserving_mbr=True,
+        )
+
+
+def test_route_preserving_mbr_rejects_route_drift_without_diagnostics(
+    make_rig: Callable[..., Rig],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rig = make_rig(
+        k=2,
+        build_options={"two_read_experts": True, "grouped_expert_routes": True},
+    )
+    ids = micro_batches(rig, 2)
+    original = rig.stepper._route_preserving_layer_window
+    calls = 0
+
+    def change_first_recompute(*args: Any, **kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        outputs, routes, groups, dispatch = original(*args, **kwargs)
+        if calls == len(rig.moe_layers) + 1:
+            route_ids, route_weights = routes[0]
+            route_ids = route_ids.clone()
+            route_ids[0, 0] = (route_ids[0, 0] + 1) % rig.config.n_routed_experts
+            routes[0] = (route_ids, route_weights)
+        return outputs, routes, groups, dispatch
+
+    monkeypatch.setattr(rig.stepper, "_route_preserving_layer_window", change_first_recompute)
+    with pytest.raises(RuntimeError, match="recompute changed 1 route slots"):
+        rig.stepper.run(ids, rig.store, route_preserving_mbr=True)
+
+
 def test_public_launch_admits_deepseek_only_with_per_expert_layout(
     make_rig: Callable[..., Rig],
 ) -> None:

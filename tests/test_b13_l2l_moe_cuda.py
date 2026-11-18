@@ -21,6 +21,12 @@ make_rig = _moe.make_rig
 pytestmark = [pytest.mark.gpu, _moe.pytestmark]
 
 
+def test_cuda_mbr_deferred_hooks_match_full_expert_recompute(
+    make_rig: Callable[..., _moe.Rig],
+) -> None:
+    _moe.check_mbr_deferred_decoder_hooks(make_rig, device="cuda")
+
+
 @pytest.fixture(autouse=True)
 def deterministic_kernels() -> Iterator[None]:
     import torch

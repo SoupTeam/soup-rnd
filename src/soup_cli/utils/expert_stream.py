@@ -227,9 +227,12 @@ class ExpertBufferPool:
                 raise ValueError(f"missing or invalid NF4 code table: {key}")
             tables[name] = value
         self._lock = threading.Lock()
+        self._phase_lock = threading.Lock()
         self._closed = False
         self.fetches = 0
         self.logical_bytes_read = 0
+        self.phase_read_tracking = False
+        self._phase_read_counters: Dict[int, Dict[str, Dict[str, int]]] = {}
         self.h2d_copies = 0
         self._arena = None
         self._buffers: dict = {}
@@ -292,11 +295,19 @@ class ExpertBufferPool:
 
             torch.cuda.synchronize(self.device)
 
-    def _load(self, reader: ExpertShardReader, expert: int) -> None:
+    def _load(
+        self,
+        reader: ExpertShardReader,
+        expert: int,
+        *,
+        phase: Optional[str] = None,
+        layer_idx: Optional[int] = None,
+    ) -> None:
         from soup_cli.utils.expert_shard import expert_key
         from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
 
         before = reader.bytes_read
+        fetch_succeeded = False
         try:
             if self.transfer == "packed":
                 self._load_packed(reader, expert)
@@ -312,8 +323,18 @@ class ExpertBufferPool:
                         self._buffers[f"{part}:{idx}"].copy_(host[name], non_blocking=False)
                     self._dequantize(part, spec)
             self.fetches += 1
+            fetch_succeeded = True
         finally:
-            self.logical_bytes_read += reader.bytes_read - before
+            bytes_read = reader.bytes_read - before
+            self.logical_bytes_read += bytes_read
+            if self.phase_read_tracking and phase is not None and layer_idx is not None:
+                with self._phase_lock:
+                    row = self._phase_read_counters.setdefault(layer_idx, {}).setdefault(
+                        phase,
+                        {"expert_fetches": 0, "expert_bytes_read": 0},
+                    )
+                    row["expert_fetches"] += int(fetch_succeeded)
+                    row["expert_bytes_read"] += bytes_read
 
     def _load_packed(self, reader: ExpertShardReader, expert: int) -> None:
         """Fill the packed region with one H2D copy (from the host cache on a hit), then decode."""
@@ -382,14 +403,29 @@ class ExpertBufferPool:
             dequantize_4bit(self._buffers[f"{part}:0"], quant_state=state, out=self._buffers[part])
 
     @contextmanager
-    def lease(self, reader: ExpertShardReader, expert: int) -> Iterator[Tuple[Any, Any]]:
+    def lease(
+        self,
+        reader: ExpertShardReader,
+        expert: int,
+        *,
+        phase: Optional[str] = None,
+        layer_idx: Optional[int] = None,
+    ) -> Iterator[Tuple[Any, Any]]:
         """Hold one expert until all its computation has finished."""
+        if phase is not None and phase not in (
+            "init_forward",
+            "recompute_forward",
+            "backward_dX",
+        ):
+            raise ValueError(f"unsupported expert-read phase: {phase!r}")
+        if (phase is None) != (layer_idx is None):
+            raise ValueError("phase and layer_idx must be provided together")
         if not self._lock.acquire(blocking=False):
             raise RuntimeError("expert buffer pool already has an active lease")
         try:
             self.validate_reader(reader)
             try:
-                self._load(reader, expert)
+                self._load(reader, expert, phase=phase, layer_idx=layer_idx)
                 yield self._buffers[GATE_UP], self._buffers[DOWN]
             except BaseException:
                 reader.close()
@@ -398,6 +434,14 @@ class ExpertBufferPool:
                 self._synchronize()
         finally:
             self._lock.release()
+
+    def phase_read_snapshot(self) -> Dict[int, Dict[str, Dict[str, int]]]:
+        """Return actual expert leases tagged by the caller's forward/backward phase."""
+        with self._phase_lock:
+            return {
+                layer: {phase: dict(counts) for phase, counts in phases.items()}
+                for layer, phases in self._phase_read_counters.items()
+            }
 
     def stats(self) -> dict:
         return {
@@ -800,7 +844,14 @@ def _build_streamed_experts_class() -> Any:
                 # The consumers of this product (the cast and index_add_) keep it for its
                 # shape alone, so the backward never reads this zero.
                 return hidden.new_zeros(()).expand_as(hidden)
-            with owner.pool.lease(owner.reader, expert) as (gate_up, down):
+            scope = _active_scope()
+            phase = "recompute_forward" if scope is not None and scope.replay else "init_forward"
+            with owner.pool.lease(
+                owner.reader,
+                expert,
+                phase=phase,
+                layer_idx=owner.layer_idx,
+            ) as (gate_up, down):
                 return expert_mlp(hidden, gate_up, down, owner.act_fn) * weights
 
         @staticmethod
@@ -812,7 +863,12 @@ def _build_streamed_experts_class() -> Any:
                 return None, None, None, None, None
             _validate_training_activation(ctx.act_fn)
             hidden, weights = ctx.saved_tensors
-            with ctx.owner.pool.lease(ctx.owner.reader, ctx.expert) as (gate_up, down):
+            with ctx.owner.pool.lease(
+                ctx.owner.reader,
+                ctx.expert,
+                phase="backward_dX",
+                layer_idx=ctx.owner.layer_idx,
+            ) as (gate_up, down):
                 local_hidden = hidden.detach().requires_grad_(need_hidden)
                 local_weights = weights.detach().requires_grad_(need_weights)
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
@@ -866,6 +922,8 @@ def _build_streamed_experts_class() -> Any:
             self.num_experts = reader.count
             self.last_trace: list = []
             self._forward_lock = threading.Lock()
+            # MBR may need a real recompute output for a deferred decoder hook.
+            self._mbr_materialize_recompute = False
 
         def forward(self, hidden_states: Any, top_k_index: Any, top_k_weights: Any) -> Any:
             if not self._forward_lock.acquire(blocking=False):
@@ -895,7 +953,9 @@ def _build_streamed_experts_class() -> Any:
                     routes = _default_expert_routes(expert_mask, expert_hit)
                 # Inside a two-read checkpoint recompute no expert is read.
                 scope = _active_scope() if self.two_reads else None
-                replay = scope is not None and scope.replay
+                replay = (
+                    scope is not None and scope.replay and not self._mbr_materialize_recompute
+                )
                 for expert, top_k_pos, token_idx in routes:
                     row = {
                         "layer": self.layer_idx, "expert": expert,

@@ -1448,6 +1448,47 @@ rule verdict also replayed byte for byte. Historical records:
 Sessions 1 and 2 keep their historical NO VERDICT results (§9 and §10); the 512 MiB reserve
 remains chosen, not measured.
 
+### Experimental route-preserving MBR for streamed experts
+
+For a DeepSeek-V3-family SFT run using `stream_expert_layout: per_expert`, the experimental
+L2L route-preserving MBR option combines routed-expert FFN work across micro-batches while
+keeping attention and router calls at their original per-micro-batch shapes. Both two-read
+expert replay and grouped route preparation must also be enabled:
+
+```yaml
+training:
+  stream_layers: true
+  stream_source: disk
+  stream_expert_layout: per_expert
+  l2l: true
+  l2l_two_read_experts: true
+  l2l_grouped_expert_routes: true
+  l2l_route_preserving_mbr: true
+  l2l_mbr_group_size: 8  # omit/null to use the full effective L2L window
+```
+
+The feature is off by default and supports SFT only. It requires the streamed routed experts to
+use two-read replay and grouped route dispatch. A configured group size cannot exceed the
+resolved L2L window; a final short group is permitted. The resolved switches are saved in
+`l2l_recipe.json` and a resume with different switches is refused.
+By default MBR refuses decoder forward hooks, decoder backward hooks, MoE module hooks, and global
+module hooks rather than exposing a temporary output. A deterministic, microbatch-independent
+decoder forward hook may opt in with `soup_cli.utils.l2l_step.mbr_deferred_forward_hook`; MBR runs
+it on the reconstructed output after its expert group. It must preserve the output tensor's shape,
+dtype and device and must not change module state, RNG or hooks, or inspect mutable streamed
+weights. This grouped execution changes the relative timing of hooks between microbatches. Hooks
+using `always_call`, general backward hooks and MoE/global module hooks remain unsupported.
+With a deferred hook, recomputation reads experts to provide the real output, so the layer may
+need a third expert read; without hooks, the two-read path is unchanged.
+
+The 2026-11-17 Moonlight-16B-A3B Soup bridge measured group sizes 1/2/4/8 on one fixed
+512-token window. Group 8 reduced logical expert reads by 84.1% and took 18.37 s versus
+98.27 s for the matched two-read L2L control, with 9.95% relative raw-gradient difference and
+2.99% route-slot mismatch. This is a one-step engineering screen, not a quality result. Its
+host had an 85.4-GiB cgroup limit and overlay storage, so it does not satisfy the P3 32-GiB /
+physical-storage qualification. See
+[`benchmarks/p3-mbr-group-size-sweep-20261117.md`](../benchmarks/p3-mbr-group-size-sweep-20261117.md).
+
 Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
 when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
 The next run with the same directory removes it at start if the process that created it is
