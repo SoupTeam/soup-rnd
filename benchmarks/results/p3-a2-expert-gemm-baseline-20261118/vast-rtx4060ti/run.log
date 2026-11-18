@@ -1,0 +1,802 @@
+harness 3e54180778c6267ef0fd562327358d0792ee26ecde43e48f72f57e86a61c1637  p3_expert_gemm_baseline.py
+name, memory.total [MiB], compute_cap, driver_version, clocks.max.sm [MHz], clocks.max.memory [MHz], power.limit [W]
+NVIDIA GeForce RTX 4060 Ti, 16380 MiB, 8.9, 580.126.09, 3105 MHz, 9001 MHz, 120.00 W
+downloading uv 0.9.7 x86_64-unknown-linux-gnu
+no checksums to verify
+installing to /root/.local/bin
+  uv
+  uvx
+everything's installed!
+W: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/InRelease: Key is stored in legacy trusted.gpg keyring (/etc/apt/trusted.gpg), see the DEPRECATION section in apt-key(8) for details.
+debconf: delaying package configuration, since apt-utils is not installed
+Using Python 3.12.3 environment at: /root/py312
+Audited 3 packages in 9ms
+2.11.0+cu130 13.0 3.6.0 True NVIDIA GeForce RTX 4060 Ti
+deepseek-v3 gate_up.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.54e-04
+deepseek-v3 gate_up.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+deepseek-v3 gate_up.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64, 128] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=5.76e-07
+deepseek-v3 gate_up.fwd float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 gate_up.fwd float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 gate_up.fwd float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 gate_up.fwd float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 gate_up.fwd float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 down.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 256] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 256] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=8.10e-07
+deepseek-v3 down.fwd float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+deepseek-v3 down.fwd float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+deepseek-v3 down.fwd float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+deepseek-v3 down.fwd float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+deepseek-v3 down.fwd float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+deepseek-v3 down.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.36e-03
+deepseek-v3 down.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=5.75e-07
+deepseek-v3 down.dx float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 down.dx float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 down.dx float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 down.dx float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 down.dx float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.52e-06
+deepseek-v3 gate_up.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 64, 128, 256, 1024] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 128, 256, 1024] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=1.15e-06
+deepseek-v3 gate_up.dx float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.15e-06
+deepseek-v3 gate_up.dx float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.15e-06
+deepseek-v3 gate_up.dx float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.15e-06
+deepseek-v3 gate_up.dx float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.15e-06
+deepseek-v3 gate_up.dx float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.15e-06
+kanana-30b-a3b gate_up.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 256, 512, 1024] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+kanana-30b-a3b gate_up.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=3.11e-07
+kanana-30b-a3b gate_up.fwd float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+kanana-30b-a3b gate_up.fwd float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+kanana-30b-a3b gate_up.fwd float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+kanana-30b-a3b gate_up.fwd float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+kanana-30b-a3b gate_up.fwd float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.10e-07
+kanana-30b-a3b down.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[512] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[512] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=1.96e-07
+kanana-30b-a3b down.fwd float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=4.96e-07
+kanana-30b-a3b down.fwd float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=4.96e-07
+kanana-30b-a3b down.fwd float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=4.96e-07
+kanana-30b-a3b down.fwd float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=4.96e-07
+kanana-30b-a3b down.fwd float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=4.96e-07
+kanana-30b-a3b down.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.95e-04
+kanana-30b-a3b down.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 32, 64] pattern-broken=['64x2', '64x3', '4x32', 'ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.36e-03
+kanana-30b-a3b down.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 32, 64] pattern-broken=['64x2', '64x3', '4x32', 'ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=4.07e-07
+kanana-30b-a3b down.dx float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.09e-07
+kanana-30b-a3b down.dx float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.09e-07
+kanana-30b-a3b down.dx float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.09e-07
+kanana-30b-a3b down.dx float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.09e-07
+kanana-30b-a3b down.dx float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=8.09e-07
+kanana-30b-a3b gate_up.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+kanana-30b-a3b gate_up.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx float32 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 256] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.71e-07
+kanana-30b-a3b gate_up.dx float32 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=7.01e-07
+kanana-30b-a3b gate_up.dx float32 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=7.01e-07
+kanana-30b-a3b gate_up.dx float32 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=7.01e-07
+kanana-30b-a3b gate_up.dx float32 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=7.01e-07
+kanana-30b-a3b gate_up.dx float32 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=7.01e-07
+                                  expert GEMM baseline (median us, L2 cold; sep/merged eager | graph)                                   
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+┃ model          ┃ op          ┃ dtype    ┃ kernel                ┃ invariant ┃ valid ┃ M=1 ┃ M=2 ┃ M=16 ┃ M=128 ┃ M=1024 ┃ sep/merged ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━╇━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+│ deepseek-v3    │ gate_up.fwd │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float32  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float32  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float32  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float32  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float32  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float32  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+└────────────────┴─────────────┴──────────┴───────────────────────┴───────────┴───────┴─────┴─────┴──────┴───────┴────────┴────────────┘
+deepseek-v3 gate_up.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.54e-04
+deepseek-v3 gate_up.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+deepseek-v3 gate_up.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 256] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 256] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.36e-03
+deepseek-v3 down.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 64, 128, 256, 1024] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 128, 256, 1024] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 256, 512, 1024] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+kanana-30b-a3b gate_up.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[512] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[512] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.95e-04
+kanana-30b-a3b down.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 32, 64] pattern-broken=['64x2', '64x3', '4x32', 'ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.36e-03
+kanana-30b-a3b down.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 32, 64] pattern-broken=['64x2', '64x3', '4x32', 'ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+kanana-30b-a3b gate_up.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+                                                                  expert GEMM baseline (median us, L2 cold; sep/merged eager | graph)                                                                  
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ model          ┃ op          ┃ dtype    ┃ kernel                ┃ invariant ┃ valid ┃ M=1 ┃ M=2 ┃ M=16 ┃ M=128 ┃ M=1024 ┃                                                                sep/merged ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━╇━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ deepseek-v3    │ gate_up.fwd │ float16  │ cublas                │ False     │ True  │ 255 │ 307 │  309 │   315 │   1426 │  64x2:44.6|58.8 64x3:38.9|41.4 16x8:11.5|14.8 4x32:3.2|3.8 ragged:6.9|6.7 │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │ 499 │ 499 │  499 │   625 │   4198 │  64x2:41.6|46.6 64x3:35.3|33.5 16x8:10.5|11.7 4x32:2.8|3.0 ragged:6.7|7.1 │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │ 301 │ 301 │  302 │   380 │   3245 │    64x2:37.1|31.9 64x3:24.9|21.7 16x8:9.5|8.0 4x32:2.6|2.0 ragged:5.2|4.4 │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │ 302 │ 303 │  303 │   370 │   2876 │    64x2:38.4|35.2 64x3:27.0|23.9 16x8:9.8|8.8 4x32:2.7|2.2 ragged:5.4|4.9 │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │ 302 │ 302 │  303 │   324 │   1973 │  64x2:43.8|47.6 64x3:39.4|33.3 16x8:11.2|12.2 4x32:3.1|3.0 ragged:6.2|6.3 │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │ 457 │ 456 │  458 │   486 │   1558 │  64x2:48.7|59.1 64x3:40.6|46.7 16x8:12.4|14.8 4x32:3.2|3.8 ragged:6.3|7.4 │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ cublas                │ False     │ True  │ 255 │ 305 │  307 │   314 │   1389 │  64x2:44.7|58.8 64x3:41.1|44.7 16x8:11.4|14.8 4x32:3.1|3.8 ragged:6.9|6.8 │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │ 499 │ 499 │  501 │   620 │   4141 │  64x2:41.3|46.9 64x3:35.0|34.0 16x8:10.5|11.7 4x32:2.8|3.0 ragged:6.7|7.2 │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │ 299 │ 300 │  300 │   379 │   3154 │    64x2:36.9|32.5 64x3:24.8|21.9 16x8:9.5|8.2 4x32:2.6|2.1 ragged:5.1|4.4 │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │ 300 │ 300 │  301 │   370 │   2780 │    64x2:38.0|35.7 64x3:26.6|24.0 16x8:9.7|9.0 4x32:2.6|2.3 ragged:5.4|5.0 │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │ 299 │ 300 │  300 │   324 │   1955 │  64x2:43.4|50.3 64x3:39.5|34.1 16x8:11.1|12.6 4x32:3.0|3.2 ragged:6.1|6.4 │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │ 455 │ 454 │  456 │   488 │   1521 │  64x2:48.3|58.6 64x3:40.2|47.4 16x8:12.2|14.7 4x32:3.2|3.7 ragged:6.3|7.6 │
+│ deepseek-v3    │ down.fwd    │ float16  │ cublas                │ False     │ True  │ 147 │ 156 │  156 │   168 │    698 │    64x2:23.1|16.2 64x3:19.1|10.3 16x8:4.0|4.6 4x32:2.1|1.7 ragged:3.2|2.4 │
+│ deepseek-v3    │ down.fwd    │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │ 252 │ 247 │  254 │   256 │   1918 │        64x2:7.4|7.4 64x3:5.6|4.8 16x8:2.7|1.9 4x32:1.8|1.0 ragged:2.4|1.5 │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │ 155 │ 155 │  156 │   196 │   1515 │        64x2:8.6|7.0 64x3:6.0|4.7 16x8:3.1|1.9 4x32:2.0|1.1 ragged:2.8|1.5 │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │ 156 │ 156 │  156 │   193 │   1370 │        64x2:8.6|7.5 64x3:6.3|5.1 16x8:3.1|2.0 4x32:2.0|1.1 ragged:2.7|1.6 │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │ 156 │ 156 │  156 │   172 │    924 │     64x2:12.5|14.1 64x3:11.8|9.9 16x8:4.5|3.6 4x32:2.0|1.0 ragged:3.2|2.2 │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │ 229 │ 228 │  228 │   239 │    724 │    64x2:15.2|32.2 64x3:18.8|22.0 16x8:4.4|8.0 4x32:1.7|2.1 ragged:3.9|3.7 │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ cublas                │ False     │ True  │ 148 │ 156 │  157 │   166 │    726 │    64x2:23.5|19.4 64x3:18.5|10.8 16x8:4.4|5.1 4x32:2.3|2.0 ragged:3.8|2.8 │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │ 259 │ 259 │  261 │   257 │   1880 │        64x2:7.3|7.5 64x3:5.6|4.8 16x8:2.7|1.9 4x32:1.8|1.0 ragged:2.4|1.5 │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │ 156 │ 156 │  156 │   197 │   1507 │        64x2:8.6|7.1 64x3:6.0|4.8 16x8:3.1|1.9 4x32:2.0|1.0 ragged:2.7|1.5 │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │ 156 │ 155 │  156 │   191 │   1334 │        64x2:8.6|7.6 64x3:6.4|5.1 16x8:3.1|2.0 4x32:2.0|1.1 ragged:2.8|1.6 │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │ 156 │ 156 │  156 │   174 │    920 │    64x2:12.4|14.2 64x3:11.8|10.0 16x8:4.1|3.6 4x32:2.0|1.0 ragged:3.2|2.2 │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │ 231 │ 231 │  233 │   242 │    713 │    64x2:15.3|33.1 64x3:18.6|22.7 16x8:4.4|8.3 4x32:1.8|2.1 ragged:3.9|3.8 │
+│ deepseek-v3    │ down.dx     │ float16  │ cublas                │ False     │ True  │ 160 │ 157 │  157 │   166 │    694 │    64x2:22.1|30.4 64x3:18.1|15.1 16x8:5.5|7.6 4x32:2.3|2.0 ragged:3.1|2.6 │
+│ deepseek-v3    │ down.dx     │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │ 200 │ 201 │  202 │   284 │   1933 │    64x2:15.2|10.1 64x3:13.8|10.1 16x8:4.3|2.5 4x32:1.5|0.8 ragged:2.6|1.7 │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │ 156 │ 157 │  158 │   191 │   1564 │        64x2:9.2|7.0 64x3:6.3|4.8 16x8:3.3|1.9 4x32:2.0|1.1 ragged:2.4|1.4 │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │ 156 │ 156 │  158 │   186 │   1369 │      64x2:13.4|12.5 64x3:9.6|8.0 16x8:4.2|3.1 4x32:2.0|1.0 ragged:2.6|1.8 │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │ 157 │ 157 │  158 │   168 │    968 │     64x2:14.4|16.7 64x3:12.1|9.8 16x8:4.5|4.2 4x32:2.1|1.1 ragged:2.6|2.1 │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │ 157 │ 158 │  161 │   183 │    764 │    64x2:21.9|33.7 64x3:21.7|22.5 16x8:6.1|8.3 4x32:2.2|2.1 ragged:4.2|3.8 │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ cublas                │ False     │ True  │ 160 │ 157 │  158 │   166 │    705 │    64x2:21.9|31.2 64x3:17.9|15.5 16x8:5.5|7.9 4x32:2.3|2.0 ragged:3.2|2.6 │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │ 199 │ 200 │  202 │   285 │   1916 │    64x2:15.2|10.4 64x3:13.8|10.1 16x8:4.3|2.6 4x32:1.5|0.9 ragged:2.6|1.7 │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │ 155 │ 156 │  156 │   191 │   1498 │        64x2:9.2|7.0 64x3:6.3|4.8 16x8:3.3|1.9 4x32:2.0|1.0 ragged:2.4|1.4 │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │ 156 │ 156 │  156 │   187 │   1334 │      64x2:13.5|12.9 64x3:9.6|8.3 16x8:4.2|3.2 4x32:2.0|1.0 ragged:2.6|1.8 │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │ 156 │ 156 │  156 │   167 │    938 │     64x2:14.4|17.1 64x3:11.5|9.9 16x8:4.5|4.2 4x32:2.1|1.1 ragged:2.6|2.1 │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │ 157 │ 157 │  159 │   183 │    751 │    64x2:21.5|34.3 64x3:21.9|23.2 16x8:6.1|8.5 4x32:2.2|2.2 ragged:4.2|3.9 │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ cublas                │ False     │ True  │ 257 │ 306 │  306 │   334 │   1460 │  64x2:42.1|57.4 64x3:38.8|36.1 16x8:10.8|14.4 4x32:2.9|3.6 ragged:6.2|6.7 │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │ 307 │ 306 │  307 │   484 │   3997 │    64x2:28.7|26.6 64x3:20.8|18.2 16x8:7.4|6.7 4x32:2.3|1.9 ragged:4.7|3.8 │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │ 302 │ 302 │  303 │   380 │   3189 │    64x2:36.8|31.6 64x3:24.6|21.5 16x8:9.5|7.9 4x32:2.6|2.0 ragged:5.3|4.5 │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │ 304 │ 304 │  304 │   359 │   2788 │   64x2:38.9|35.2 64x3:27.0|24.1 16x8:10.0|8.8 4x32:2.8|2.2 ragged:5.7|4.9 │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │ 303 │ 303 │  303 │   332 │   1975 │  64x2:42.3|47.4 64x3:39.7|33.3 16x8:10.8|11.9 4x32:3.0|3.0 ragged:6.7|6.4 │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │ 304 │ 304 │  305 │   343 │   1608 │  64x2:41.3|50.8 64x3:42.7|40.8 16x8:10.5|12.7 4x32:2.9|3.2 ragged:7.1|6.9 │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ cublas                │ False     │ True  │ 257 │ 306 │  306 │   335 │   1430 │  64x2:42.0|57.9 64x3:38.8|36.9 16x8:10.7|14.5 4x32:2.9|3.7 ragged:7.0|7.2 │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │ 306 │ 307 │  307 │   484 │   3932 │    64x2:29.1|27.2 64x3:20.9|18.6 16x8:7.4|6.8 4x32:2.3|2.0 ragged:4.7|4.0 │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │ 302 │ 302 │  303 │   378 │   3056 │    64x2:37.0|32.3 64x3:24.9|21.8 16x8:9.5|8.1 4x32:2.6|2.1 ragged:5.4|4.6 │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │ 304 │ 304 │  304 │   358 │   2744 │   64x2:38.9|36.0 64x3:27.3|24.6 16x8:10.0|9.0 4x32:2.8|2.3 ragged:5.7|5.0 │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │ 302 │ 303 │  302 │   332 │   1944 │  64x2:42.2|48.6 64x3:39.7|34.2 16x8:10.8|12.2 4x32:3.0|3.1 ragged:6.7|6.6 │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │ 304 │ 304 │  304 │   342 │   1471 │  64x2:41.3|50.9 64x3:42.7|42.9 16x8:10.6|12.8 4x32:2.9|3.2 ragged:7.1|7.1 │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ cublas                │ False     │ True  │  40 │  39 │   39 │    43 │    164 │    64x2:92.4|16.7 64x3:65.9|10.7 16x8:6.8|4.3 4x32:1.9|1.5 ragged:2.4|1.5 │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │  65 │  66 │   66 │    73 │    416 │     64x2:17.8|16.8 64x3:12.8|9.7 16x8:5.2|4.2 4x32:1.9|1.2 ragged:2.8|2.2 │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │  38 │  38 │   38 │    57 │    325 │      64x2:17.1|8.8 64x3:13.4|6.6 16x8:3.0|2.2 4x32:1.5|0.9 ragged:2.4|1.7 │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │  39 │  39 │   39 │    60 │    294 │    64x2:15.4|16.9 64x3:12.8|12.2 16x8:4.1|4.2 4x32:1.5|1.1 ragged:2.9|2.8 │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │  38 │  38 │   39 │    41 │    198 │    64x2:22.7|24.0 64x3:16.2|14.7 16x8:5.2|6.0 4x32:2.1|1.5 ragged:3.8|3.3 │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │  48 │  49 │   48 │    52 │    162 │    64x2:22.5|38.0 64x3:22.2|25.7 16x8:6.2|9.6 4x32:2.1|2.4 ragged:4.0|4.2 │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ cublas                │ False     │ True  │  40 │  39 │   39 │    43 │    164 │    64x2:88.2|22.9 64x3:57.3|12.8 16x8:6.8|5.7 4x32:2.1|1.9 ragged:2.6|1.9 │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │  65 │  66 │   66 │    74 │    407 │     64x2:17.6|17.0 64x3:13.3|9.9 16x8:5.1|4.3 4x32:1.9|1.2 ragged:2.8|2.3 │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │  38 │  38 │   39 │    57 │    325 │      64x2:19.0|8.9 64x3:15.2|6.7 16x8:3.0|2.3 4x32:1.5|0.9 ragged:2.4|1.7 │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │  39 │  39 │   39 │    60 │    294 │    64x2:18.9|17.3 64x3:15.6|12.4 16x8:4.2|4.3 4x32:1.5|1.1 ragged:2.9|2.8 │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │  38 │  39 │   39 │    42 │    197 │    64x2:26.4|23.9 64x3:19.0|15.1 16x8:5.2|6.1 4x32:2.0|1.5 ragged:3.8|3.4 │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │  49 │  49 │   49 │    54 │    162 │    64x2:22.1|38.8 64x3:21.9|26.0 16x8:5.9|9.5 4x32:2.0|2.4 ragged:3.8|4.2 │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ cublas                │ False     │ True  │  25 │  23 │   23 │    25 │     91 │ 64x2:155.5|20.6 64x3:138.9|11.7 16x8:11.5|6.0 4x32:2.0|1.7 ragged:3.4|2.4 │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │  35 │  35 │   40 │    62 │    228 │     64x2:15.1|11.1 64x3:15.1|9.4 16x8:2.8|2.8 4x32:1.3|0.9 ragged:2.0|1.8 │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │  23 │  23 │   23 │    28 │    170 │      64x2:33.3|9.5 64x3:23.1|6.4 16x8:3.6|2.4 4x32:1.9|1.1 ragged:2.5|1.7 │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │  22 │  22 │   23 │    29 │    157 │    64x2:32.5|16.4 64x3:22.5|11.2 16x8:4.2|4.2 4x32:1.8|1.1 ragged:2.8|2.2 │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │  23 │  23 │   23 │    24 │    111 │    64x2:43.0|19.8 64x3:32.5|12.4 16x8:4.8|5.0 4x32:2.2|1.3 ragged:2.7|2.5 │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │  24 │  24 │   24 │    26 │     93 │    64x2:41.5|35.4 64x3:37.8|24.8 16x8:6.4|8.9 4x32:2.5|2.3 ragged:3.9|4.1 │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ cublas                │ False     │ True  │  24 │  23 │   23 │    26 │     92 │ 64x2:148.4|26.1 64x3:137.9|14.4 16x8:11.6|6.9 4x32:2.1|2.1 ragged:3.6|2.7 │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │  39 │  39 │   44 │    61 │    227 │     64x2:18.0|11.2 64x3:17.4|9.7 16x8:2.9|2.8 4x32:1.3|0.9 ragged:2.1|1.9 │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │  22 │  22 │   22 │    29 │    167 │      64x2:38.0|9.7 64x3:31.1|6.6 16x8:3.5|2.5 4x32:1.8|1.1 ragged:2.4|1.7 │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │  22 │  22 │   22 │    29 │    155 │    64x2:37.5|16.8 64x3:26.5|11.5 16x8:4.1|4.2 4x32:1.8|1.1 ragged:2.7|2.3 │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │  23 │  23 │   23 │    24 │    103 │    64x2:46.3|20.0 64x3:34.1|12.9 16x8:4.8|5.0 4x32:2.2|1.3 ragged:2.8|2.6 │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │  24 │  24 │   24 │    26 │     86 │    64x2:41.2|36.1 64x3:38.2|25.4 16x8:5.8|9.0 4x32:2.4|2.3 ragged:3.8|4.2 │
+│ kanana-30b-a3b │ down.dx     │ float16  │ cublas                │ False     │ True  │  23 │  29 │   33 │    26 │     87 │ 64x2:151.6|30.3 64x3:100.6|16.6 16x8:11.7|7.9 4x32:2.4|2.5 ragged:3.3|2.9 │
+│ kanana-30b-a3b │ down.dx     │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │  49 │  49 │   50 │    60 │    236 │    64x2:21.3|30.8 64x3:20.5|20.5 16x8:5.9|7.8 4x32:2.0|2.1 ragged:4.0|4.4 │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │  30 │  29 │   30 │    29 │    171 │    64x2:35.4|18.7 64x3:21.8|11.9 16x8:5.7|4.7 4x32:2.4|1.2 ragged:3.9|2.8 │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │  31 │  31 │   32 │    31 │    162 │    64x2:30.3|33.0 64x3:23.4|19.4 16x8:6.9|8.2 4x32:2.5|2.1 ragged:4.6|4.8 │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │  31 │  31 │   32 │    32 │    105 │    64x2:31.9|37.4 64x3:32.6|26.2 16x8:6.4|9.3 4x32:2.3|2.3 ragged:4.4|5.6 │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │  35 │  35 │   35 │    49 │     99 │   64x2:23.6|62.2 64x3:21.5|36.0 16x8:6.1|15.5 4x32:1.9|3.9 ragged:3.8|5.7 │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ cublas                │ False     │ True  │  23 │  30 │   32 │    26 │     86 │ 64x2:153.7|34.0 64x3:100.7|18.5 16x8:12.1|8.8 4x32:2.5|2.5 ragged:3.4|3.0 │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │  49 │  50 │   49 │    61 │    232 │    64x2:20.6|31.3 64x3:20.5|20.8 16x8:5.8|7.8 4x32:2.0|2.1 ragged:3.9|4.5 │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │  29 │  29 │   29 │    29 │    168 │    64x2:39.1|19.2 64x3:26.0|12.0 16x8:5.6|4.9 4x32:2.4|1.2 ragged:3.9|2.9 │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │  31 │  32 │   32 │    31 │    159 │    64x2:36.1|33.2 64x3:25.5|19.7 16x8:6.8|8.4 4x32:2.5|2.1 ragged:4.6|4.8 │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │  31 │  31 │   32 │    32 │    105 │    64x2:35.8|38.1 64x3:36.3|26.9 16x8:6.3|9.6 4x32:2.3|2.4 ragged:4.3|5.8 │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │  35 │  34 │   35 │    47 │    102 │   64x2:24.7|62.1 64x3:22.8|36.3 16x8:6.5|15.6 4x32:2.0|3.9 ragged:3.9|5.7 │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ cublas                │ False     │ True  │  39 │  41 │   39 │    41 │    163 │    64x2:86.7|25.2 64x3:81.0|13.8 16x8:5.9|6.3 4x32:2.0|2.0 ragged:3.0|2.3 │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │  62 │  63 │   63 │    93 │    403 │     64x2:10.8|10.4 64x3:11.4|8.8 16x8:3.2|2.6 4x32:1.3|0.9 ragged:2.3|1.7 │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │  38 │  38 │   38 │    48 │    319 │      64x2:19.2|7.8 64x3:13.7|5.4 16x8:3.2|2.1 4x32:1.7|1.1 ragged:2.3|1.6 │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │  38 │  38 │   38 │    48 │    291 │     64x2:19.4|13.8 64x3:13.3|9.1 16x8:3.9|3.4 4x32:1.7|1.1 ragged:2.5|2.0 │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │  38 │  38 │   38 │    41 │    199 │    64x2:23.0|17.9 64x3:17.3|11.2 16x8:4.5|4.5 4x32:1.9|1.2 ragged:2.5|2.3 │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │  38 │  39 │   39 │    42 │    161 │    64x2:24.1|33.7 64x3:22.2|23.9 16x8:6.1|8.4 4x32:2.3|2.1 ragged:4.0|4.0 │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ cublas                │ False     │ True  │  39 │  41 │   40 │    42 │    164 │    64x2:86.2|31.0 64x3:78.3|16.5 16x8:5.7|9.2 4x32:2.2|2.6 ragged:3.3|2.7 │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │                                                                         - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │  63 │  63 │   63 │    93 │    400 │     64x2:13.0|10.4 64x3:13.1|8.9 16x8:3.2|2.6 4x32:1.3|0.9 ragged:2.3|1.7 │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │  38 │  38 │   38 │    49 │    321 │      64x2:23.0|8.0 64x3:15.8|5.4 16x8:3.1|2.2 4x32:1.7|1.1 ragged:2.2|1.6 │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │  38 │  38 │   38 │    48 │    291 │     64x2:23.0|13.9 64x3:16.8|9.3 16x8:3.8|3.5 4x32:1.7|1.1 ragged:2.5|2.0 │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │  38 │  38 │   38 │    42 │    200 │    64x2:26.8|18.1 64x3:20.5|11.6 16x8:4.4|4.6 4x32:1.9|1.2 ragged:2.4|2.3 │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │  39 │  39 │   40 │    44 │    162 │    64x2:25.6|34.9 64x3:23.1|24.9 16x8:6.0|8.7 4x32:2.1|2.2 ragged:3.8|4.0 │
+└────────────────┴─────────────┴──────────┴───────────────────────┴───────────┴───────┴─────┴─────┴──────┴───────┴────────┴───────────────────────────────────────────────────────────────────────────┘
+deepseek-v3 gate_up.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.54e-04
+deepseek-v3 gate_up.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+deepseek-v3 gate_up.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 256] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 256] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 down.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.36e-03
+deepseek-v3 down.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 64] pattern-broken=['64x2', '64x3', '16x8', 'ragged'] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 down.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 64, 128, 256, 1024] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+deepseek-v3 gate_up.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 128, 256, 1024] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+deepseek-v3 gate_up.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 256, 512, 1024] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+kanana-30b-a3b gate_up.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1] pattern-broken=['ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd float16 cublas: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.07e-04
+kanana-30b-a3b down.fwd bfloat16 cublas: invariant=False valid=True prefix-broken-m=[512] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[512] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.fwd bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.95e-04
+kanana-30b-a3b down.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 32, 64] pattern-broken=['64x2', '64x3', '4x32', 'ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b down.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.36e-03
+kanana-30b-a3b down.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 2, 4, 32, 64] pattern-broken=['64x2', '64x3', '4x32', 'ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b down.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx float16 cublas: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 cublas-norpr: invariant=False valid=True prefix-broken-m=[1, 512] pattern-broken=['ragged'] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx float16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=2.08e-04
+kanana-30b-a3b gate_up.dx bfloat16 cublas: invariant=False valid=True prefix-broken-m=[1, 2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=2.03e-03
+kanana-30b-a3b gate_up.dx bfloat16 cublas-norpr: invariant=False valid=True prefix-broken-m=[2, 4, 8, 16, 32, 64, 128, 256, 1024] pattern-broken=['64x2', '64x3', '16x8', '4x32', 'ragged'] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n32k32w4s2: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m16n128k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m32n64k64w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+kanana-30b-a3b gate_up.dx bfloat16 triton:m64n64k32w4s3: invariant=True valid=True prefix-broken-m=[] pattern-broken=[] fp64-rel=1.66e-03
+                                  expert GEMM baseline (median us, L2 cold; sep/merged eager | graph)                                   
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+┃ model          ┃ op          ┃ dtype    ┃ kernel                ┃ invariant ┃ valid ┃ M=1 ┃ M=2 ┃ M=16 ┃ M=128 ┃ M=1024 ┃ sep/merged ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━╇━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+│ deepseek-v3    │ gate_up.fwd │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.fwd │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.fwd    │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ down.dx     │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ deepseek-v3    │ gate_up.dx  │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.fwd │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.fwd    │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ down.dx     │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ float16  │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ cublas                │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ cublas-norpr          │ False     │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n32k32w4s2  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m16n128k64w4s3 │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m32n64k64w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+│ kanana-30b-a3b │ gate_up.dx  │ bfloat16 │ triton:m64n64k32w4s3  │ True      │ True  │   - │   - │    - │     - │      - │          - │
+└────────────────┴─────────────┴──────────┴───────────────────────┴───────────┴───────┴─────┴─────┴──────┴───────┴────────┴────────────┘
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+2745 MHz, 8751 MHz, 44, 35.12 W
+exit timing=0
+exit bits_repeat=0
+exit bits=0
