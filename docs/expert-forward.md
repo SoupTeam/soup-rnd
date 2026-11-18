@@ -215,8 +215,8 @@ claim.
 
 ## Complete levers (experimental, off by default)
 
-Four switches port the "complete" streaming levers of the koko branches onto this code. All
-are API parameters of `build_streamed_model` and `install_streaming`, with no config field and
+Four switches port the "complete" streaming levers of the koko branches onto this code, and a
+fifth, `expert_prefetch`, is new here. All are API parameters of `build_streamed_model` and `install_streaming`, with no config field and
 no CLI flag. All apply only to a `per_expert` cache of a DeepSeek-V3-family base, and any of
 them on another cache raises a `ValueError` instead of being ignored. With none set, the
 default path is unchanged: three reads of each hit expert per step (forward, checkpoint
@@ -228,6 +228,16 @@ recompute, backward), one copy per stored component.
 | `two_read_experts=True` | The layer checkpoint gets a context in which the router keeps its top-k decisions in the forward and replays them in the recompute, and the recompute reads no expert. A step reads each hit expert twice. | CPU. Loss and every LoRA gradient are bit-equal to the resident model and the default path, in fp32 and under bf16 autocast. Reads are 2 per hit expert instead of 3. |
 | `expert_transfer="packed"` | The pool stages each expert's stored NF4 components (packed weights and statistics) in one pinned block and copies it to the arena once, instead of once per component. Needs CUDA and NF4 in both matrices. The dequantised weights are the same bytes. | CPU: the byte layout, the plan and the refusals. The copy itself and bit-equality on a card are in `tests/test_complete_packed_transfer_cuda.py`, which has not been run. |
 | `expert_host_cache_bytes=N` | With `packed`, keeps whole packed blocks in pageable RAM up to `N` bytes, first come first kept, no eviction. A hit reads nothing from the experts file and copies one block. | CPU: the byte budget and first-fit behaviour. The hit path on a card is in the CUDA test file, not run. |
+| `expert_prefetch=True` | One worker thread reads the next hit expert of a layer into a second host staging buffer while the current expert computes. The forward hints the next expert of its visit order, the backward the previous one, and no hint crosses a layer. A lease for the hinted expert uses the background read; any other lease discards it and reads directly. One read is in flight in the whole pool. | CPU (`tests/test_p72_expert_prefetch.py`): loss, logits and every gradient bit-equal, same experts, order and counters, hints land on the worker, a failed background read raises in the lease that asked for it, no thread outlives the runtime. On a card: [PR #72 diagnostics](../benchmarks/p72-mbr-phase-profile-20261119.md). |
+
+Prefetch changes when a read starts, never which bytes are read. `reader.fetches` and
+`reader.bytes_read` also count a read-ahead that was discarded, while the pool's `fetches` and
+`logical_bytes_read` count only the loads a lease used. With hints on, a `last_trace` row's
+`logical_bytes_read` is the bytes of its own lease for the same reason. A hint is not issued for
+an expert already in the host cache. Measured on Moonlight (RTX 3060, MBR group 8) with
+`packed`, it takes the step from 18.8 s to 16.6 s, about -11% over three A-B-B-A blocks; the
+read of one expert (about 3 ms) is longer than the compute it hides behind, so the disk still
+limits the step.
 
 The packed layout puts every stored component in one aligned region at the front of the
 arena, so one copy fills it. The pinned block (`plan.host_pinned_bytes`) is host memory outside
