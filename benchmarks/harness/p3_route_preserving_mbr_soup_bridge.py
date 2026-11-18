@@ -430,19 +430,8 @@ def compare_tensors(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, fl
     }
 
 
-def main() -> None:
-    import torch
-    from b5_cold import process_read_bytes
-    from b5_real_moe import _meta_construction
-    from peft import LoraConfig, TaskType
-    from transformers import AutoConfig
-
-    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
-    from soup_cli.utils.kimi_k2 import load_stream_tokenizer
-    from soup_cli.utils.l2l_step import capture_layer_call, label_tokens, model_parts, sft_head
-    from soup_cli.utils.layer_shard import read_shard_index
-    from soup_cli.utils.layer_stream_runtime import build_streamed_model
-
+def build_parser() -> argparse.ArgumentParser:
+    """The bridge command line, split out of ``main`` so it can be checked without a GPU."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default="/workspace/p3-baseline")
     parser.add_argument("--source", default=None)
@@ -480,6 +469,13 @@ def main() -> None:
         default=1,
         help="async disk-tier staging depth (1 stages no layer ahead; 2 stages one)",
     )
+    parser.add_argument(
+        "--expert-gemm",
+        choices=("native", "invariant"),
+        default="native",
+        help="routed-expert GEMM: native cuBLAS, or invariant (one row per call, plus the "
+        "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2)",
+    )
     parser.add_argument("--require-p3-ram", action="store_true")
     parser.add_argument(
         "--phase-profile",
@@ -504,7 +500,40 @@ def main() -> None:
         help="phase profile without the route audit (PR #72 refuses expert hooks); implies "
         "--phase-profile and skips the diagnostic gate and the route comparison",
     )
-    args = parser.parse_args()
+    return parser
+
+
+def step_run_options(
+    kind: str, *, group_size: int, expert_gemm: str, diagnostics: bool
+) -> Dict[str, Any]:
+    """Keyword arguments of ``L2LStep.run`` for one bridge run of ``kind`` (``l2l`` or ``mbr``)."""
+    if expert_gemm not in ("native", "invariant"):
+        raise ValueError(f"expert gemm must be native or invariant, got {expert_gemm!r}")
+    mbr = kind == "mbr"
+    options: Dict[str, Any] = {
+        "route_preserving_mbr": mbr,
+        "mbr_group_size": group_size if mbr else None,
+        "collect_phase_stats": diagnostics,
+    }
+    if mbr and expert_gemm == "invariant":
+        options["mbr_split_backward"] = True
+    return options
+
+
+def main() -> None:
+    import torch
+    from b5_cold import process_read_bytes
+    from b5_real_moe import _meta_construction
+    from peft import LoraConfig, TaskType
+    from transformers import AutoConfig
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils.kimi_k2 import load_stream_tokenizer
+    from soup_cli.utils.l2l_step import capture_layer_call, label_tokens, model_parts, sft_head
+    from soup_cli.utils.layer_shard import read_shard_index
+    from soup_cli.utils.layer_stream_runtime import build_streamed_model
+
+    args = build_parser().parse_args()
     if args.phase_profile_only:
         args.phase_profile = True
     if K % args.mbr_group_size:
@@ -680,14 +709,21 @@ def main() -> None:
                 profiling.enter_context(phase_clock.run())
                 torch.cuda.synchronize()
                 profiled_started = time.perf_counter()
+            # Entered after the phase clock: it wraps F.linear too, and the swap must be outermost.
+            from p72_invariant_expert_gemm import expert_gemm_context
+
+            profiling.enter_context(expert_gemm_context(args.expert_gemm))
             losses = stepper.run(
                 micro_batches,
                 store,
                 calls=calls,
                 head=sft_head(labels, label_tokens(micro_batches)),
-                route_preserving_mbr=(kind == "mbr"),
-                mbr_group_size=(args.mbr_group_size if kind == "mbr" else None),
-                collect_phase_stats=collect_diagnostics,
+                **step_run_options(
+                    kind,
+                    group_size=args.mbr_group_size,
+                    expert_gemm=args.expert_gemm,
+                    diagnostics=collect_diagnostics,
+                ),
             )
             if phase_clock is not None:
                 torch.cuda.synchronize()
