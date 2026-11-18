@@ -430,11 +430,12 @@ def _streamed_moe_experts(layer: Any) -> Any:
 class _SplitExpertGroup:
     """One MBR group's joined routed-expert call, cut out of the layer graph for backward.
 
-    Only gradient edges are kept, never the joined tensors: ``output`` is the edge of the
-    joined expert output, ``hidden`` and ``weights`` the edges of the detached leaves it was
-    computed from (None when that leaf needs no gradient). ``expert_inputs`` and
-    ``route_weights`` are each micro-batch's tensors those leaves were joined from, still
-    inside its layer graph (the layer keeps them alive anyway).
+    ``output`` is the gradient edge of the joined expert output, ``hidden`` and ``weights``
+    the edges of the detached leaves it was computed from (None when that leaf needs no
+    gradient). A leaf's edge keeps that leaf (one window of expert rows) alive until
+    ``_split_group_backward`` releases it; the joined output itself is not kept.
+    ``expert_inputs`` and ``route_weights`` are each micro-batch's tensors those leaves were
+    joined from, still inside its layer graph (the layer keeps them alive anyway).
     """
 
     output: Any
@@ -487,8 +488,10 @@ def _split_group_backward(
             [grads[mb].reshape(-1, grads[mb].shape[-1]) for mb in group], dim=0
         ).to(part.output_dtype)
         found = list(torch.autograd.grad([part.output], targets, [routed_grad]))
+        del routed_grad
     hidden_grad = found.pop(0) if part.hidden is not None and found else None
     weight_grad = found.pop(0) if part.weights is not None and found else None
+    part.output = part.hidden = part.weights = None  # release the joined leaves
     hidden_parts = (
         hidden_grad.split(part.sizes, dim=0) if hidden_grad is not None else [None] * len(group)
     )

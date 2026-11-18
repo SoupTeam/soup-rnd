@@ -1042,7 +1042,7 @@ prints this advice when it sees you accumulating.
 - `lora.use_dora` / `lora.use_vera` / `lora.init_strategy` other than `random` → these initialise from the real base weight, which is on the meta device under streaming
 - `moe_expert_quant` → expert quantization runs only in the resident model-construction path and would otherwise be silently ignored
 - `unfrozen_parameters`, `lisa_enabled`, `packing`, `multipack`, `use_fsdp2_compile`, `train_router_only`, `expand_layers` → each independently rewrites or re-freezes the same layers
-- `stream_source` / `stream_ngram_source` / `stream_buffers` / `stream_read_ahead` / `stream_vram_override` / `stream_vram_probe` / `stream_expert_layout` / `stream_disk_kind` / `stream_pin` set to a non-default value while `stream_layers: false` → a footgun, refused
+- `stream_source` / `stream_ngram_source` / `stream_buffers` / `stream_read_ahead` / `stream_vram_override` / `stream_vram_probe` / `stream_expert_layout` / `stream_expert_gemm` / `stream_disk_kind` / `stream_pin` set to a non-default value while `stream_layers: false` → a footgun, refused
 - a non-default `stream_read_ahead` beside `stream_source: ram` → refused. The read-ahead reader belongs to the NVMe disk tier and `ram` never falls back to it, so the setting would validate, be documented, and reach nothing. The default is accepted, because a default is not a decision
 - a disk-tier run whose host staging (`stream_read_ahead` layers, plus one slot each for the embedding and an untied `lm_head`) plus the resident extras will not fit the free-RAM headroom → refused by name, naming the depth to lower. Refused rather than clamped: a depth you set is a decision, and silently lowering it would hand back a slower run than the one you configured
 - more than 8 distinct layer shapes in one shard index → refused. Staging is allocated per shape and a shape with one member takes a full slot at any depth, so an index whose every layer differed would hold most of the model in staging at once — page-locked when the box allows it and `stream_pin` is not false, a loud pageable fallback otherwise, and a refusal only under `stream_pin: true` on a CUDA target — which is what the disk tier exists to avoid. A real model has one to three
@@ -1512,8 +1512,12 @@ M not specialized) and the routing-weight gradient on a fixed per-row reduction.
 also runs each group's expert backward once and then each micro-batch's backward in order, so
 LoRA gradients accumulate in the same order as plain L2L. On an RTX 4060 Ti the losses and every
 LoRA gradient of two-read L2L and MBR at group sizes 1/2/3/6 are bit-identical in fp32 and in
-bf16 with autocast and dropout (`tests/test_p3_a2_invariant_expert_gemm.py`). The kernel is
-within 0-10% of cuBLAS time on average at M <= 256 for DeepSeek-V3 expert shapes
+bf16 with autocast and dropout (`tests/test_p3_a2_invariant_expert_gemm.py`, run on the card).
+On Moonlight-16B-A3B, one 8x64-token window, MBR group 8 against two-read L2L gave bit-equal
+losses, LoRA gradients, route IDs and post-AdamW adapters (native: 6.5% gradient difference,
+3.0% route slots changed), at a 4.89x MBR speed-up instead of 5.16x
+([`benchmarks/results/p3-a2-stage2-20261118/`](../benchmarks/results/p3-a2-stage2-20261118/)).
+The kernel is within 0-10% of cuBLAS time on average at M <= 256 for DeepSeek-V3 expert shapes
 ([`benchmarks/p3-a2-batch-invariant-expert-gemm.md`](../benchmarks/p3-a2-batch-invariant-expert-gemm.md)).
 
 Limits: CUDA only, and bf16 needs compute capability 8.0+ (a Tesla T4 runs fp16/fp32 through

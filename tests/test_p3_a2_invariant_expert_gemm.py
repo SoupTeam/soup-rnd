@@ -149,6 +149,98 @@ def test_cpu_native_mbr_differs_from_l2l_so_the_check_has_teeth(
         _assert_equal(arms[None], arms[K], "native MBR vs L2L")
 
 
+def test_cpu_invariant_gemm_without_the_split_backward_still_differs(
+    make_rig: Callable[..., Any],
+) -> None:
+    """A row-wise GEMM alone is not enough: the split backward is what restores L2L order."""
+    rig = make_rig(k=5, rows=1, seq=6, build_options=LEVERS)  # native: no split backward
+    for module in _moe.streamed_experts_modules(rig.model).values():
+        module.linear = _rowwise_linear
+    arms = _arms(rig, _window(rig, 5), [None, 5])
+    with pytest.raises(AssertionError, match="LoRA gradients differ"):
+        _assert_equal(arms[None], arms[5], "row-wise GEMM, grouped backward")
+
+
+@pytest.mark.parametrize(("expert_gemm", "splits"), [("native", False), ("batch_invariant", True)])
+def test_split_backward_runs_only_with_the_batch_invariant_gemm(
+    make_rig: Callable[..., Any], monkeypatch: pytest.MonkeyPatch,
+    expert_gemm: str, splits: bool,
+) -> None:
+    from soup_cli.utils import invariant_gemm, l2l_step
+
+    monkeypatch.setattr(invariant_gemm, "check_supported", lambda device, dtype: None)
+    monkeypatch.setattr(invariant_gemm, "linear", _rowwise_linear)
+    calls = []
+    original = l2l_step._split_group_backward
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(l2l_step, "_split_group_backward", spy)
+    rig = make_rig(k=K, rows=1, seq=6, build_options={**LEVERS, "expert_gemm": expert_gemm})
+    _arms(rig, _window(rig, K), [K])
+    assert bool(calls) is splits
+
+
+def test_expert_gemm_names_match_the_schema() -> None:
+    from typing import get_args
+
+    from soup_cli.config.schema import TrainingConfig
+    from soup_cli.utils.invariant_gemm import EXPERT_GEMMS
+
+    annotation = TrainingConfig.model_fields["stream_expert_gemm"].annotation
+    assert get_args(annotation) == EXPERT_GEMMS
+
+
+def test_real_triton_kernel_under_interpreter_makes_mbr_equal_l2l(tmp_path: Any) -> None:
+    """The real Triton GEMM, row dot and autograd wrappers (CPU interpreter, fp32), end to end.
+
+    ``TRITON_INTERPRET`` only takes effect before Triton is first imported, so this runs the
+    rig's own bitwise test in a fresh pytest process with the kernels not stubbed: only the
+    CUDA device check is lifted, and ``scale_rows`` takes its Triton path on CPU too.
+    """
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    pytest.importorskip("triton")
+    root = Path(__file__).resolve().parents[1]
+    body = (
+        "from tests import test_b13_l2l_moe as _moe\n"
+        "from tests import test_p3_a2_invariant_expert_gemm as a2\n"
+        "make_rig = _moe.make_rig\n\n"
+        "def test_interpreted(make_rig, monkeypatch):\n"
+        "    import torch\n"
+        "    from soup_cli.utils import invariant_gemm\n"
+        "    monkeypatch.setattr(invariant_gemm, 'check_supported', lambda d, t: None)\n"
+        "    real = invariant_gemm._scale_function()\n"
+        "    monkeypatch.setattr(invariant_gemm, 'scale_rows', lambda v, w: real.apply(v, w))\n"
+        "    x, w = torch.randn(9, 40), torch.randn(24, 40)\n"
+        "    full = invariant_gemm.linear(x, w)\n"
+        "    assert torch.equal(invariant_gemm.linear(x[3:4], w), full[3:4])\n"
+        "    rig = make_rig(k=4, rows=1, seq=6,\n"
+        "                   build_options={**a2.LEVERS, 'expert_gemm': 'batch_invariant'})\n"
+        "    arms = a2._arms(rig, a2._window(rig, 4), [None, 2, 4])\n"
+        "    for group in (2, 4):\n"
+        "        a2._assert_equal(arms[None], arms[group], f'interpreted group {group}')\n"
+    )
+    test_file = root / "tests" / f"test_zz_interpreted_{os.getpid()}.py"
+    test_file.write_text(body, encoding="utf-8")
+    try:
+        env = {**os.environ, "TRITON_INTERPRET": "1",
+               "PYTHONPATH": os.pathsep.join([str(root), str(root / "src")])}
+        completed = subprocess.run(
+            [sys.executable, "-m", "pytest", str(test_file), "-q", "--no-cov",
+             "-p", "no:cacheprovider", f"--basetemp={tmp_path / 'inner'}"],
+            cwd=root, capture_output=True, text=True, timeout=900, env=env,
+        )
+    finally:
+        test_file.unlink(missing_ok=True)
+    assert completed.returncode == 0, completed.stdout[-4000:] + completed.stderr[-2000:]
+
+
 def test_native_expert_gemm_stays_functional_linear(make_rig: Callable[..., Any]) -> None:
     import torch.nn.functional as functional
 

@@ -194,6 +194,7 @@ class L2LState:
     grouped_expert_routes: bool = False
     route_preserving_mbr: bool = False
     mbr_group_size: Optional[int] = None
+    expert_gemm: str = "native"
 
     def __post_init__(self) -> None:
         if self.loss is None:
@@ -254,6 +255,7 @@ class L2LState:
             fields["l2l_expert_bytes_read"] = self.totals.expert_bytes_read
             fields["l2l_two_read_experts"] = self.two_read_experts
             fields["l2l_grouped_expert_routes"] = self.grouped_expert_routes
+            fields["l2l_expert_gemm"] = self.expert_gemm
         if self.route_preserving_mbr:
             fields["l2l_route_preserving_mbr"] = True
             fields["l2l_mbr_group_size"] = self.mbr_group_size or self.effective_k
@@ -852,6 +854,7 @@ def attach_l2l_state(
     grouped_expert_routes: bool = False,
     route_preserving_mbr: bool = False,
     mbr_group_size: Optional[int] = None,
+    expert_gemm: str = "native",
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
@@ -887,6 +890,7 @@ def attach_l2l_state(
         grouped_expert_routes=grouped_expert_routes,
         route_preserving_mbr=route_preserving_mbr,
         mbr_group_size=mbr_group_size,
+        expert_gemm=expert_gemm,
     )
     trainer._soup_l2l = state
     return state

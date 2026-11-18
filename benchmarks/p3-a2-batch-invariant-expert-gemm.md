@@ -64,13 +64,55 @@ Kanana, cuBLAS против эталонного Triton GEMM, бит-в-бит �
 на cuBLAS. На T4 Triton ниже sm_80 не использует тензорные ядра (FMA), поэтому T4 годится
 только для проверки битов.
 
+## Этап 1: флаг в Soup (готово)
+
+`training.stream_expert_gemm: batch_invariant` (по умолчанию `native`) переключает три вещи:
+матмулы routed-экспертов, их градиенты по входу и градиент по routing-весам. Все они
+считаются ядрами с фиксированным порядком суммирования (`src/soup_cli/utils/invariant_gemm.py`).
+Градиент routing-весов тоже пришлось переписать: ATen суммирует `[M, H]` по H деревом,
+которое зависит от M, и на 4060 Ti это меняло биты при каждой проверенной ширине.
+
+Вторая причина расхождения нашлась пробой на CPU. Даже с идеально построчным GEMM MBR с
+группой ≥ 3 отличался от L2L на ~6e-8 в LoRA-градиентах attention: один `backward` по
+всей группе складывает вклады micro-batch в другом порядке. Теперь MBR с флагом сначала
+один раз считает backward экспертов по всей группе, а потом backward каждого micro-batch
+по порядку, как L2L. Native MBR не изменился.
+
+Проверено на RTX 4060 Ti (`tests/test_p3_a2_invariant_expert_gemm.py`,
+`tests/test_invariant_gemm.py`):
+
+- строки ядра бит в бит при M = 1…128 со сдвигом, ширины DeepSeek-V3, fp32/bf16;
+- two-read L2L ≡ MBR при группах 1/2/3/6 бит в бит: fp32, fp32 + dropout, bf16 + autocast +
+  dropout, LoRA на attention и shared-экспертах;
+- контроль: native MBR на том же тесте расходится с L2L.
+
+## Этап 2: Moonlight-16B-A3B на RTX 4060 Ti
+
+Мост `p3_route_preserving_mbr_soup_bridge.py`, одно окно 8×64 токенов, MBR группа 8, NF4,
+A-B-B-A. Данные: `benchmarks/results/p3-a2-stage2-20261118/vast-rtx4060ti-speed/`.
+
+| | native (cuBLAS) | batch_invariant |
+| --- | --- | --- |
+| L2L, медиана | 76,5 с | 81,0 с |
+| MBR, медиана | 14,8 с (34,6 ток/с) | 16,5 с (30,9 ток/с) |
+| Ускорение MBR над L2L | ×5,16 | ×4,89 |
+| Градиент MBR против L2L, rel L2 | 6,5% | **0 (бит в бит)** |
+| Обновление адаптеров после AdamW, rel L2 | 29% | **0 (бит в бит)** |
+| Слоты маршрутов, сменившиеся | 3,0% (5,0% токенов с другим набором экспертов) | **0** |
+| Повтор A/A и B/B | бит в бит | бит в бит |
+
+Инвариантность стоит +12% времени MBR-шага (и +6% L2L), а MBR становится тем же
+вычислением, что L2L. Число чтений экспертов одинаковое.
+
+Качество на 3 seed (L2L native, MBR native, MBR invariant, 40 шагов CLI) считается.
+
 ## План
 
 | Этап | Что | Статус |
 | --- | --- | --- |
 | 0 | База: cuBLAS против эталонного Triton, инвариантность и скорость | готово |
-| 1 | `training.stream_expert_gemm: batch_invariant` (по умолчанию `native`): `autograd`-путь экспертов на Triton GEMM; тест на CUDA: two-read L2L ≡ MBR при любой группе, бит в бит | в работе |
-| 2 | Moonlight-16B на RTX 4060 Ti: скорость MBR merged native/invariant против L2L; качество 3 seed (MBR invariant, MBR native, L2L) | в работе |
+| 1 | `training.stream_expert_gemm: batch_invariant` (по умолчанию `native`): `autograd`-путь экспертов на Triton GEMM; тест на CUDA: two-read L2L ≡ MBR при любой группе, бит в бит | готово |
+| 2 | Moonlight-16B на RTX 4060 Ti: скорость MBR merged native/invariant против L2L; качество 3 seed (MBR invariant, MBR native, L2L) | скорость готова, качество идёт |
 | 3 | Влить в PR #72: доки, рецепт резюма, тесты | после 1–2 |
 | 4 | NF4-деквантизация в регистрах ядра + один grouped-запуск на слой | опционально |
 
