@@ -126,3 +126,26 @@ def test_the_pr72_mode_keeps_sync_against_packed_prefetch():
 def test_an_unknown_arm_mode_is_refused():
     with pytest.raises(ValueError, match="unknown arm mode"):
         f1.arm_flags("b1-b2", host_cache_mib=1)
+
+
+def test_a0_against_b0s_overrides_the_kind_and_adds_the_segmented_gemm():
+    flags = f1.arm_flags("a0-b0s", host_cache_mib=12288)
+    # A0 is the L2L step: complete (packed + host cache), no prefetch, native GEMM
+    assert flags["A"] == ["--profile-kinds", "l2l", "--expert-transfer", "packed",
+                          "--expert-host-cache-mib", "12288"]
+    # B0s is the MBR step (the driver's default kind): complete + prefetch + segmented GEMM
+    assert flags["B"] == ["--expert-transfer", "packed", "--expert-prefetch",
+                          "--expert-host-cache-mib", "12288", "--expert-gemm", "segmented"]
+
+
+def test_b0_against_b0s_differ_only_in_the_expert_gemm_flag():
+    flags = f1.arm_flags("b0-b0s", host_cache_mib=12288)
+    assert flags["B"] == flags["A"] + ["--expert-gemm", "segmented"]
+    assert "--profile-kinds" not in flags["A"]
+
+
+def test_every_run_record_is_handed_out_as_soon_as_the_run_ends():
+    seen = []
+    drive(on_record=lambda record: seen.append((record["run"], record["arm_record"]["outcome"])))
+    assert [run for run, _ in seen] == list(range(1, 4 * PILOT_BLOCKS + 1))
+    assert {outcome for _, outcome in seen} == {"ok"}
