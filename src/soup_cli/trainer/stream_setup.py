@@ -1235,7 +1235,7 @@ class StreamingSetupMixin:
                     microbatches=self._effective_k(tcfg), dtype=dtype,
                     pin=on_cuda, shape_round=RESERVATION_ROUND,
                     codec=tcfg.l2l_activation_codec,
-                    device_type="cuda" if on_cuda else "cpu",
+                    device_type=str(getattr(self.device, "type", self.device)).split(":", 1)[0],
                 )
                 partial_budget = self._c3_l2l_plan.weights
             console.print(
@@ -1428,7 +1428,7 @@ class StreamingSetupMixin:
             pin=pin,
             host_workspace_bytes_per_batch=window_bytes,
             codec=tcfg.l2l_activation_codec,
-            device_type="cuda" if pin else "cpu",
+            device_type=str(getattr(self.device, "type", self.device)).split(":", 1)[0],
         )
         # Reuse C3's activation lease and shape guard without enabling its optional
         # dense weight cache. Routing records join the activation partition, so the
@@ -1439,7 +1439,8 @@ class StreamingSetupMixin:
             PartialRamBudget(ram.budget_bytes, non_activation_bytes, 0),
             n_layers=index.n_layers, batch_size=batch, max_length=length, hidden_size=hidden,
             microbatches=memory.effective_k, dtype=dtype, pin=pin, shape_round=1,
-            codec=tcfg.l2l_activation_codec, device_type="cuda" if pin else "cpu",
+            codec=tcfg.l2l_activation_codec,
+            device_type=str(getattr(self.device, "type", self.device)).split(":", 1)[0],
             routing_bytes=routing_bytes,
         )
         self._moe_l2l_memory_plan = memory

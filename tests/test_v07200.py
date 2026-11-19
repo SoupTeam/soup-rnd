@@ -2434,7 +2434,7 @@ class TestStreamingEndToEndSetup:
     path is `wrapper.setup(dataset)` -> tokenize -> TRL SFTTrainer -> train().
     A crash-on-every-run bug already hid in exactly this gap once."""
 
-    def _wrapper(self, tmp_path, monkeypatch):
+    def _wrapper(self, tmp_path, monkeypatch, device=None):
         import yaml
 
         from soup_cli.config.loader import load_config_from_string
@@ -2485,7 +2485,7 @@ class TestStreamingEndToEndSetup:
         # Use the REAL device: TrainingArguments picks cuda or mps when one is
         # available, so forcing the model to cpu here would only produce a
         # device mismatch that no user would ever hit.
-        device = accelerator_device()
+        device = accelerator_device() if device is None else device
         return SFTTrainerWrapper(cfg, device=device), dataset
 
     def test_setup_builds_a_real_trl_trainer(self, tmp_path, monkeypatch):

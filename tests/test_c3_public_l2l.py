@@ -269,7 +269,11 @@ def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monk
     from soup_cli.config.schema import SoupConfig
     from tests.test_v07200 import TestStreamingEndToEndSetup
 
-    wrapper, dataset = TestStreamingEndToEndSetup()._wrapper(tmp_path, monkeypatch)
+    # FP8 activation storage supports CPU/CUDA. On Apple Silicon the shared
+    # setup helper selects MPS, so keep this codec plumbing check on CPU there.
+    wrapper, dataset = TestStreamingEndToEndSetup()._wrapper(
+        tmp_path, monkeypatch, device="cpu" if codec == "fp8_e4m3" else None
+    )
     if codec == "fp8_e4m3":
         # The launch keeps FP8 closed; this research path opens it to check the plumbing.
         monkeypatch.setattr("soup_cli.utils.l2l_recipe.AVAILABLE_CODECS", ("none", "fp8_e4m3"))
