@@ -187,6 +187,9 @@ try:
             raise ValueError(f"{arm}: runtime recipe does not match requested experiment cell")
         recipes[arm] = recipe
     report["resolved_recipes"] = recipes
+    # The pair is only meaningful if exactly the control is L2L and the other arm really is MBR.
+    if [r.get("route_preserving_mbr") for r in recipes.values()] != [False, True]:
+        raise ValueError("expected control_invariant without MBR and mbr_invariant with MBR")
     same_fields = [{k: v for k, v in r.items() if k not in ("route_preserving_mbr", "mbr_group_size")}
                    for r in recipes.values()]
     if same_fields[0] != same_fields[1]:
@@ -204,11 +207,9 @@ try:
         row = {"adapter_tensor_equal": adapters, "logged_losses_checked": step,
                "logged_loss_mismatch_steps": diff}
         a, b = (optimizer(d) for d in dirs)
-        if a is None and b is None:
-            row["optimizer"] = {"status": "not_saved_in_either_checkpoint"}
-            optimizer_ok = True  # No claim about optimizer equality without state.
-        elif a is None or b is None:
-            row["optimizer"] = {"status": "missing_from_one_checkpoint"}
+        if a is None or b is None:
+            # This experiment claims AdamW equality, so both checkpoints must carry the state.
+            row["optimizer"] = {"status": "missing_from_a_checkpoint"}
             optimizer_ok = False
         else:
             equal = tensor_bits(a[0], b[0])
