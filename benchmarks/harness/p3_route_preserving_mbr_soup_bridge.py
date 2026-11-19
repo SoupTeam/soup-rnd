@@ -70,6 +70,13 @@ def tensor_digest(tensors: Dict[str, Any]) -> str:
     return h.hexdigest()
 
 
+def save_gradients(path: Any, tensors: Dict[str, Any]) -> None:
+    """Write the LoRA gradients (name -> CPU tensor, dtype kept) for a per-parameter comparison."""
+    import torch
+
+    torch.save({n: t.detach().cpu().contiguous() for n, t in tensors.items()}, path)
+
+
 def _read_int(path: Path) -> Optional[int]:
     try:
         value = path.read_text(encoding="utf-8").strip()
@@ -476,6 +483,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="routed-expert GEMM: native cuBLAS, or invariant (one row per call, plus the "
         "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2)",
     )
+    parser.add_argument(
+        "--dump-grads",
+        default=None,
+        help="with --phase-profile-only: save the first measured step's LoRA gradients to this "
+        "file (torch.save), for a per-parameter comparison between runs",
+    )
     parser.add_argument("--require-p3-ram", action="store_true")
     parser.add_argument(
         "--phase-profile",
@@ -881,6 +894,8 @@ def main() -> None:
                 one_run(kind, keep_artifacts=True, collect_diagnostics=False)
                 for kind in order_only
             ]
+            if args.dump_grads:
+                save_gradients(args.dump_grads, measured_only[0]["grad_artifacts"])
             # --phase-profile-blocks 0 is a timing-only run (the F1 blocks use it).
             profile = run_phase_profile(measured_only) if args.phase_profile_blocks else None
             (OUT / "result_phase_profile_only.json").write_text(

@@ -311,3 +311,43 @@ def test_split_backward_refuses_deferred_decoder_hooks(window: Any) -> None:
                        split_backward=True)
     finally:
         handle.remove()
+
+
+# --------------------------------------------------------------------------------------
+# ticket 06 diagnosis: the routing-weight multiply of the expert node is a batch-dependent
+# reduction on CUDA (its gradient sums over the hidden axis in fp32 per row group)
+# --------------------------------------------------------------------------------------
+def _expert_node_function(name: str) -> Any:
+    """A function named ``name`` that lives in ``soup_cli.utils.expert_stream``'s namespace."""
+    scope: Dict[str, Any] = {"__name__": "soup_cli.utils.expert_stream"}
+    exec(f"def {name}(a, b):\n    return a * b\n", scope)  # noqa: S102
+    return scope[name]
+
+
+@pytest.mark.parametrize("name", ("forward", "backward"))
+def test_rowwise_route_weight_multiply_is_scoped_to_the_expert_node(name: str) -> None:
+    import torch
+
+    x, weight = torch.randn(5, 8), torch.rand(5, 1)
+    native = x * weight
+    with rowwise_expert_linear() as rows:
+        assert bits_equal(x * weight, native) and rows[1] == 0  # not from the expert node
+        out = _expert_node_function(name)(x, weight)
+        assert rows[1] == 5 and bits_equal(out, native)
+        other = _expert_node_function("helper")(x, weight)  # same module, other function
+        assert rows[1] == 5 and bits_equal(other, native)
+    assert bits_equal(x * weight, native)
+
+
+def test_rowwise_route_weight_multiply_leaves_other_shapes_alone() -> None:
+    import torch
+
+    scalar_like = torch.randn(5, 8)
+    with rowwise_expert_linear() as rows:
+        out = _expert_node_function("backward")(scalar_like, torch.randn(8))
+        assert rows[1] == 0 and out.shape == scalar_like.shape
+    # forward of a tracked weight: the gradient reaches the weight through the per-row multiply
+    x, weight = torch.randn(5, 8), torch.rand(5, 1, requires_grad=True)
+    with rowwise_expert_linear():
+        (grad,) = torch.autograd.grad(_expert_node_function("backward")(x, weight).sum(), weight)
+    assert bits_equal(grad, x.sum(-1, keepdim=True))

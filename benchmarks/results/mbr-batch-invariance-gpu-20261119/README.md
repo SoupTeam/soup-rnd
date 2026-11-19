@@ -37,3 +37,30 @@ Both timed steps of every run have the same digest. Step times mix disk state an
 - Not collected: rel-L2, cosine and route-change counts for the reference pairs. The bridge stores digests, not gradient tensors. Available reference: losses and grad_norm above.
 
 Limits: one model, one card, one host, one torch version.
+
+## Diagnosis and fix (2026-11-19, after the S1 red)
+
+Method: `--dump-grads` (new bridge flag) on A1, B1 group 2 and B1 group 8; per-parameter comparison
+(`compare_grad_dumps.py`). Only `self_attn.*.lora_B` gradients differ, in every layer, with a relative
+difference growing from 7e-6 (layer 24) to 1e-2 (layer 0); layers 25 and 26 are equal. So the loss path is
+exact and the backward pass through the grouped expert block drifts. A temporary probe in the two-phase
+backward (removed) showed that the gradient of the routing weights (`joined_weights`) differs between
+group 1 and group 2 from the very first layer visited, while the incoming gradient and the gradient of the
+expert input are still equal there.
+
+Cause: `WeightedFrozenExpert` computes `expert_mlp(h) * weights` with fp32 weights of shape `[M, 1]`. The
+gradient of the weights is a fp32 sum over the hidden axis, and CUDA picks its summation order from M
+(`probe_reduction_m_dependence.py`: rows differ between M=1 and M=2, 42 of 64 rows at M=64). The row-wise
+`F.linear` swap did not cover this multiply. Not a cause: the offload levers (B1s = B1), the routed GEMM
+(B1 group 1 = A1), bf16 reductions (equal across M).
+
+Fix (harness only, `p72_invariant_expert_gemm.rowwise_expert_linear`): inside `forward`/`backward` of
+`soup_cli.utils.expert_stream` the `[M, 1]` multiply is also done one row per call. Tests:
+`tests/test_p72_mbr_bitexact.py` (scoping, CPU) and `tests/test_p72_mbr_bitexact_cuda.py` (red without the
+swap, equal with it, RTX 3060).
+
+Rerun on the same host (`fix/`, torch 2.14.1+cu130): A1, B1 (group 8), B1 groups 1, 2, 4 all give
+grad_sha256 `44a71981c54b...` and loss 5.671227931976318, both timed steps each.
+**S1 is green; S2 is green.** S3 (repeats) was green before the fix and is not repeated for the new digest
+beyond the two timed steps of each run. Next: F1 (cost of the row-wise path, ticket 07). The rule file
+(`benchmarks/mbr-invariance-f1-rule-20261119.md`) is unchanged: it was written before the first run.

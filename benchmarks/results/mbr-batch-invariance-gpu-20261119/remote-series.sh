@@ -27,7 +27,7 @@ for run in "$@"; do
   A=$(args_for "$run") || { echo "unknown run $run" >> $R/series.log; echo SERIES_FAILED > $R/phase.txt; exit 1; }
   echo "$(date +%s) start $run: $A" >> $R/series.log
   $R/venv/bin/python repo/benchmarks/harness/p3_route_preserving_mbr_soup_bridge.py --root $R \
-    --output $R/results/series/$run $COMMON $A > $R/results/series-$run.log 2>&1 \
+    --output $R/results/series/$run --dump-grads $R/results/series/$run.grads.pt $COMMON $A > $R/results/series-$run.log 2>&1 \
     || { echo "$(date +%s) FAILED $run" >> $R/series.log; echo SERIES_FAILED > $R/phase.txt; exit 1; }
   echo "$(date +%s) done $run" >> $R/series.log
 done

@@ -60,3 +60,21 @@ def test_unknown_expert_gemm_is_rejected() -> None:
         expert_gemm_context("triton")
     with pytest.raises(ValueError, match="expert gemm"):
         bridge.step_run_options("mbr", group_size=8, expert_gemm="triton", diagnostics=False)
+
+
+def test_dump_grads_defaults_to_off_and_takes_a_path() -> None:
+    parser = bridge.build_parser()
+    assert parser.parse_args([]).dump_grads is None
+    assert parser.parse_args(["--dump-grads", "g.pt"]).dump_grads == "g.pt"
+
+
+def test_save_gradients_round_trips_bit_for_bit(tmp_path) -> None:
+    import torch
+
+    grads = {"b": torch.tensor([0.0, -0.0], dtype=torch.bfloat16), "a": torch.randn(3, 2)}
+    path = tmp_path / "g.pt"
+    bridge.save_gradients(path, grads)
+    loaded = torch.load(path)
+    assert sorted(loaded) == ["a", "b"]
+    assert torch.equal(loaded["a"], grads["a"])
+    assert loaded["b"].view(torch.int16).tolist() == grads["b"].view(torch.int16).tolist()
