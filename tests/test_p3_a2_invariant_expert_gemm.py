@@ -241,13 +241,21 @@ def test_real_triton_kernel_under_interpreter_makes_mbr_equal_l2l(tmp_path: Any)
     assert completed.returncode == 0, completed.stdout[-4000:] + completed.stderr[-2000:]
 
 
-def test_native_expert_gemm_stays_functional_linear(make_rig: Callable[..., Any]) -> None:
+def test_native_expert_gemm_stays_functional_linear(
+    make_rig: Callable[..., Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import torch
     import torch.nn.functional as functional
 
     rig = make_rig(k=2, rows=1, seq=6, build_options=LEVERS)
     experts = list(_moe.streamed_experts_modules(rig.model).values())
-    assert experts and all(module.linear is functional.linear for module in experts)
-    assert all(module.expert_gemm == "native" for module in experts)
+    assert experts and all(module.expert_gemm == "native" for module in experts)
+    # Bench branch: native resolves F.linear at call time, so PR #75's harness swaps reach it.
+    calls: List[int] = []
+    monkeypatch.setattr(functional, "linear", lambda x, w: calls.append(1) or x @ w.T)
+    x, w = torch.ones(2, 3), torch.ones(4, 3)
+    assert all(torch.equal(module.linear(x, w), x @ w.T) for module in experts)
+    assert len(calls) == len(experts)
 
 
 @pytest.mark.parametrize(

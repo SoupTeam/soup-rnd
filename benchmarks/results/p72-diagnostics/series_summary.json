@@ -1,0 +1,432 @@
+{
+ "host": "vast.ai RTX 3060 12 GB, AMD EPYC 7402, Texas; Moonlight-16B-A3B, window 8 x 64 tokens, MBR group 8, bf16, NF4 per-expert cache",
+ "note": "series ran uninstrumented timed steps; grad_sha256 is null for series run before the digest was added",
+ "sync_vs_packed_ABBA": [
+  {
+   "run": 1,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    17.919,
+    19.267
+   ]
+  },
+  {
+   "run": 2,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    17.334,
+    17.836
+   ]
+  },
+  {
+   "run": 3,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    16.491,
+    17.431
+   ]
+  },
+  {
+   "run": 4,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    17.986,
+    18.616
+   ]
+  },
+  {
+   "run": 5,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    18.517,
+    18.418
+   ]
+  },
+  {
+   "run": 6,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    17.308,
+    17.663
+   ]
+  },
+  {
+   "run": 7,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    17.268,
+    17.277
+   ]
+  },
+  {
+   "run": 8,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    18.312,
+    18.648
+   ]
+  },
+  {
+   "run": 9,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    18.676,
+    18.836
+   ]
+  },
+  {
+   "run": 10,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    17.534,
+    17.286
+   ]
+  },
+  {
+   "run": 11,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.152,
+    18.022
+   ]
+  },
+  {
+   "run": 12,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    19.122,
+    19.001
+   ]
+  }
+ ],
+ "packed_vs_hostcache_ABBA": [
+  {
+   "run": 1,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    17.857,
+    17.665
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 2,
+   "arm": "hotset",
+   "timed_steps_seconds": [
+    7.406,
+    7.102
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 3,
+   "arm": "hotset",
+   "timed_steps_seconds": [
+    7.397,
+    7.446
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 4,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.207,
+    18.317
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 5,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.394,
+    18.411
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 6,
+   "arm": "hotset",
+   "timed_steps_seconds": [
+    7.346,
+    7.24
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 7,
+   "arm": "hotset",
+   "timed_steps_seconds": [
+    7.368,
+    7.435
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 8,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.711,
+    18.438
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 9,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.259,
+    18.014
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 10,
+   "arm": "hotset",
+   "timed_steps_seconds": [
+    7.345,
+    7.194
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 11,
+   "arm": "hotset",
+   "timed_steps_seconds": [
+    7.403,
+    7.36
+   ],
+   "grad_sha256": null
+  },
+  {
+   "run": 12,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.174,
+    18.757
+   ],
+   "grad_sha256": null
+  }
+ ],
+ "packed_vs_prefetch_ABBA": [
+  {
+   "run": 1,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.365,
+    18.163
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 2,
+   "arm": "prefetch",
+   "timed_steps_seconds": [
+    16.324,
+    16.717
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 3,
+   "arm": "prefetch",
+   "timed_steps_seconds": [
+    16.444,
+    16.506
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 4,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.695,
+    18.877
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 5,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.112,
+    18.917
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 6,
+   "arm": "prefetch",
+   "timed_steps_seconds": [
+    16.48,
+    16.612
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 7,
+   "arm": "prefetch",
+   "timed_steps_seconds": [
+    16.852,
+    16.914
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 8,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.875,
+    19.18
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 9,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    18.852,
+    18.8
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 10,
+   "arm": "prefetch",
+   "timed_steps_seconds": [
+    16.532,
+    17.152
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 11,
+   "arm": "prefetch",
+   "timed_steps_seconds": [
+    17.009,
+    16.65
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 12,
+   "arm": "packed",
+   "timed_steps_seconds": [
+    19.041,
+    18.925
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  }
+ ],
+ "sync_vs_all_ABBA": [
+  {
+   "run": 1,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    19.564,
+    19.621
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 2,
+   "arm": "full",
+   "timed_steps_seconds": [
+    7.495,
+    7.369
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 3,
+   "arm": "full",
+   "timed_steps_seconds": [
+    7.283,
+    7.086
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 4,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    19.465,
+    19.666
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 5,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    19.764,
+    20.216
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 6,
+   "arm": "full",
+   "timed_steps_seconds": [
+    7.468,
+    7.282
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 7,
+   "arm": "full",
+   "timed_steps_seconds": [
+    7.443,
+    7.571
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 8,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    19.564,
+    19.363
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 9,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    19.6,
+    19.729
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 10,
+   "arm": "full",
+   "timed_steps_seconds": [
+    7.226,
+    7.193
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 11,
+   "arm": "full",
+   "timed_steps_seconds": [
+    7.238,
+    7.323
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  },
+  {
+   "run": 12,
+   "arm": "sync",
+   "timed_steps_seconds": [
+    20.096,
+    20.042
+   ],
+   "grad_sha256": "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  }
+ ]
+}

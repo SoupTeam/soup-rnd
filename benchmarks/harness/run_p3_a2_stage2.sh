@@ -139,6 +139,8 @@ step b5-build env HF_HUB_OFFLINE=1 python "$H/b5_real_moe.py" --kind real \
     --config "$B5/soup.yaml" --source "$SOURCE" --cache "$CACHE" --output results/b5 \
     --data "$B5/data.json" --model "$MODEL" --revision "$REVISION" --steps 4 --shard-threads 6 || finish
 step cache-gate python "$PROTO" cache-gate "$CACHE" || finish
+# SETUP_ONLY=1: environment, model and qualified cache only (for p3_a2_vs_segmented.sh).
+[[ ${SETUP_ONLY:-0} == 1 ]] && finish
 for gemm in "${gemms[@]}"; do
     step "speed-$gemm" env HF_HUB_OFFLINE=1 python "$H/p3_route_preserving_mbr_soup_bridge.py" \
         --root "$OUT" --source "$SOURCE" --cache "$CACHE" --data "$B5/data.json" \
