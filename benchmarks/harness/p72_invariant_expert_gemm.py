@@ -38,6 +38,19 @@ def _called_from_expert_mlp() -> bool:
     return False
 
 
+def _is_route_weight_mul(values: Any, weights: Any) -> bool:
+    """True for ``values [M, N] * weights [M, 1]``, the shape of the routing-weight multiply."""
+    import torch
+
+    return (
+        isinstance(weights, torch.Tensor)
+        and values.dim() == 2
+        and weights.dim() == 2
+        and weights.shape[1] == 1
+        and values.shape[0] == weights.shape[0]
+    )
+
+
 _EXPERT_NODE_MODULE = "soup_cli.utils.expert_stream"
 _EXPERT_NODE_FUNCTIONS = ("forward", "backward")
 
@@ -72,14 +85,7 @@ def rowwise_expert_linear() -> Iterator[List[int]]:
         return torch.cat(out).reshape(*input.shape[:-1], -1)
 
     def mul(self: Any, other: Any) -> Any:
-        if (
-            isinstance(other, torch.Tensor)
-            and self.dim() == 2
-            and other.dim() == 2
-            and other.shape[1] == 1
-            and self.shape[0] == other.shape[0]
-            and _called_from_expert_node()
-        ):
+        if _is_route_weight_mul(self, other) and _called_from_expert_node():
             rows[1] += int(self.shape[0])
             return torch.cat([original_mul(self[i : i + 1], other[i : i + 1])
                               for i in range(self.shape[0])])
@@ -255,13 +261,7 @@ def segmented_expert_gemm() -> Iterator[SegmentState]:
         return out.reshape(*input.shape[:-1], -1)
 
     def mul(self: Any, other: Any) -> Any:
-        if (
-            isinstance(other, torch.Tensor)
-            and self.dim() == 2
-            and other.dim() == 2
-            and other.shape[1] == 1
-            and self.shape[0] == other.shape[0]
-        ):
+        if _is_route_weight_mul(self, other):
             node = sys._getframe(1)  # the caller of the patched __mul__
             if (
                 node.f_globals.get("__name__") == _EXPERT_NODE_MODULE
@@ -338,14 +338,7 @@ def padded_expert_gemm(pad_rows: int = 512) -> Iterator[PadState]:
         return out.reshape(*input.shape[:-1], -1)
 
     def mul(self: Any, other: Any) -> Any:
-        if (
-            isinstance(other, torch.Tensor)
-            and self.dim() == 2
-            and other.dim() == 2
-            and other.shape[1] == 1
-            and self.shape[0] == other.shape[0]
-            and _called_from_expert_node()
-        ):
+        if _is_route_weight_mul(self, other) and _called_from_expert_node():
             rows = int(self.shape[0])
             state.mul_rows += rows
             return original_mul(padded(self, 0.0), padded(other, 1.0))[:rows]
