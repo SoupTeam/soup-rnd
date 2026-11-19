@@ -478,10 +478,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--expert-gemm",
-        choices=("native", "invariant"),
+        choices=("native", "invariant", "segmented"),
         default="native",
-        help="routed-expert GEMM: native cuBLAS, or invariant (one row per call, plus the "
-        "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2)",
+        help="routed-expert GEMM: native cuBLAS; invariant (one row per call, plus the "
+        "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2); or "
+        "segmented (native cuBLAS per micro-batch segment, so every call has the L2L shape, "
+        "plus the two-phase MBR backward)",
     )
     parser.add_argument(
         "--dump-grads",
@@ -520,15 +522,17 @@ def step_run_options(
     kind: str, *, group_size: int, expert_gemm: str, diagnostics: bool
 ) -> Dict[str, Any]:
     """Keyword arguments of ``L2LStep.run`` for one bridge run of ``kind`` (``l2l`` or ``mbr``)."""
-    if expert_gemm not in ("native", "invariant"):
-        raise ValueError(f"expert gemm must be native or invariant, got {expert_gemm!r}")
+    if expert_gemm not in ("native", "invariant", "segmented"):
+        raise ValueError(
+            f"expert gemm must be native, invariant or segmented, got {expert_gemm!r}"
+        )
     mbr = kind == "mbr"
     options: Dict[str, Any] = {
         "route_preserving_mbr": mbr,
         "mbr_group_size": group_size if mbr else None,
         "collect_phase_stats": diagnostics,
     }
-    if mbr and expert_gemm == "invariant":
+    if mbr and expert_gemm in ("invariant", "segmented"):
         options["mbr_split_backward"] = True
     return options
 
