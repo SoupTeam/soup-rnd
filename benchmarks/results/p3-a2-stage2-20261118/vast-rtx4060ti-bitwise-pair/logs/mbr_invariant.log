@@ -1,0 +1,293 @@
+Deterministic algorithms: True; cuBLAS workspace: :4096:8; GPU: NVIDIA GeForce 
+RTX 4060 Ti
+Loading config from /workspace/a2-pair/config/mbr_invariant.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 4060 Ti                                          │
+│ Memory:  15.6 GB                                                             │
+│ Model:   /workspace/a2-stage2/out/source                                     │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 160 train samples
+Run ID: run_20261119_055239_161ffd2c
+Setting up model + trainer...
+Loading tokenizer: /workspace/a2-stage2/out/source
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 3,552,768 parameters; weights=14211072, 
+gradients=14211072, optimizer=28422144 CUDA bytes; CPU tensors=864 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 31.92 GB                                                    │
+│ Soup materialized copy: 0.00 GB (no write required)                          │
+│ Layer-shard cache: 18.49 GB (reusable)                                       │
+│ Projected total on disk: 50.42 GB                                            │
+│ Additional writes before training: 0.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> 
+/workspace/a2-stage2/out/layer-cache/workspace__a2-stage2__out__source
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch deepseek_v3, tier disk                           │
+│   base         streamed from disk across 27 layers, staged by an async       │
+│ reader (no resident copy)                                                    │
+│   host staging read_ahead 1 -> 1399 MB (page-locked when the box allows)     │
+│   VRAM buffers 2 x 57 MB + 1 x 671 MB large-layer slot = 784 MB              │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~1.54 GB at batch 1 x seq 256 (logits 0.59 GB)                │
+│   expert arena 0.056 GB included above                                       │
+│   free VRAM    16.60 GB                                                      │
+│   forecast     308-454 tok/s — a compute-bound bound, not a promise          │
+│                (from 43.44 TFLOPS measured on this card now using bfloat16 @ │
+│ 2745 MHz)                                                                    │
+│   ! accumulating 8x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 8 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+│   ! streaming from disk because stream_source='disk' was set, not because    │
+│ RAM was short. An async reader stages training.stream_read_ahead layers in   │
+│ host RAM (page-locked where the box allows) rather than holding the base     │
+│ resident, and is slower than the RAM tier it is being used instead of —      │
+│ measured 1.9-2.3x its step time with the store fully cached, on one box      │
+│ (benchmarks/gate-971-async-nvme-source.md).                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 27 layers, streamed from DISK (1.85 GB on an NVMe volume)
+by an async reader, read_ahead=1, 1407 MB pinned host staging (2.15 GB 
+page-locked), 2 x 68 MB decoder buffers + 1 x 671 MB large-layer slot
+LoRA applied: 3,552,768 trainable / 15,960,110,208 total (0.02%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+/workspace/a2-stage2/out/data/arrow
+L2L: each streamed layer loads once per optimizer step and runs 8 
+micro-batch(es)
+Experimental route-preserving MBR: grouped routed-expert FFN size 8; 
+attention/router stay micro-batch-local
+Rewind log off: the dataset is pre-tokenised, so row ids are not the config's 
+rows
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 163838}.
+  0%|          | 0/40 [00:00<?, ?it/s]  2%|▎         | 1/40 [00:16<10:41, 16.46s/it]                                              {'loss': '0.6307', 'grad_norm': '0.875', 'learning_rate': '0', 'l2l_steps': 1, 'l2l_captures': 8, 'l2l_capture_layer_loads': 8, 'l2l_capture_seconds': '0.1354', 'l2l_layer_loads': 52, 'l2l_large_loads': 2, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 3240, 'l2l_expert_bytes_read': 15765995520, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.05'}
+  2%|▎         | 1/40 [00:16<10:41, 16.46s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+  5%|▌         | 2/40 [00:31<09:57, 15.72s/it]                                              {'loss': '0.6169', 'grad_norm': '0.957', 'learning_rate': '5e-05', 'l2l_steps': 2, 'l2l_captures': 16, 'l2l_capture_layer_loads': 16, 'l2l_capture_seconds': '0.1655', 'l2l_layer_loads': 103, 'l2l_large_loads': 4, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 6478, 'l2l_expert_bytes_read': 31522258944, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.1'}
+  5%|▌         | 2/40 [00:31<09:57, 15.72s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+  8%|▊         | 3/40 [00:46<09:24, 15.27s/it]                                              {'loss': '0.5573', 'grad_norm': '0.7617', 'learning_rate': '0.0001', 'l2l_steps': 3, 'l2l_captures': 23, 'l2l_capture_layer_loads': 23, 'l2l_capture_seconds': '0.1919', 'l2l_layer_loads': 154, 'l2l_large_loads': 6, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 9686, 'l2l_expert_bytes_read': 47132540928, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.15'}
+  8%|▊         | 3/40 [00:46<09:24, 15.27s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 10%|█         | 4/40 [01:01<09:03, 15.09s/it]                                              {'loss': '0.5069', 'grad_norm': '0.8984', 'learning_rate': '9.983e-05', 'l2l_steps': 4, 'l2l_captures': 30, 'l2l_capture_layer_loads': 30, 'l2l_capture_seconds': '0.2185', 'l2l_layer_loads': 205, 'l2l_large_loads': 8, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 12938, 'l2l_expert_bytes_read': 62956929024, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.2'}
+ 10%|█         | 4/40 [01:01<09:03, 15.09s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 12%|█▎        | 5/40 [01:16<08:45, 15.01s/it]                                              {'loss': '0.5528', 'grad_norm': '1.016', 'learning_rate': '9.932e-05', 'l2l_steps': 5, 'l2l_captures': 37, 'l2l_capture_layer_loads': 37, 'l2l_capture_seconds': '0.2448', 'l2l_layer_loads': 256, 'l2l_large_loads': 10, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 16162, 'l2l_expert_bytes_read': 78645067776, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.25'}
+ 12%|█▎        | 5/40 [01:16<08:45, 15.01s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 15%|█▌        | 6/40 [01:31<08:38, 15.25s/it]                                              {'loss': '0.561', 'grad_norm': '0.9062', 'learning_rate': '9.847e-05', 'l2l_steps': 6, 'l2l_captures': 43, 'l2l_capture_layer_loads': 43, 'l2l_capture_seconds': '0.2675', 'l2l_layer_loads': 307, 'l2l_large_loads': 12, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 19422, 'l2l_expert_bytes_read': 94508384256, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.3'}
+ 15%|█▌        | 6/40 [01:31<08:38, 15.25s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 18%|█▊        | 7/40 [01:47<08:31, 15.50s/it]                                              {'loss': '0.3849', 'grad_norm': '0.7578', 'learning_rate': '9.729e-05', 'l2l_steps': 7, 'l2l_captures': 48, 'l2l_capture_layer_loads': 48, 'l2l_capture_seconds': '0.2864', 'l2l_layer_loads': 358, 'l2l_large_loads': 14, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 22680, 'l2l_expert_bytes_read': 110361968640, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.35'}
+ 18%|█▊        | 7/40 [01:47<08:31, 15.50s/it] 20%|██        | 8/40 [02:02<08:12, 15.40s/it]                                              {'loss': '0.3355', 'grad_norm': '0.8477', 'learning_rate': '9.579e-05', 'l2l_steps': 8, 'l2l_captures': 52, 'l2l_capture_layer_loads': 52, 'l2l_capture_seconds': '0.3014', 'l2l_layer_loads': 409, 'l2l_large_loads': 16, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 25902, 'l2l_expert_bytes_read': 126040375296, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.4'}
+ 20%|██        | 8/40 [02:03<08:12, 15.40s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 22%|██▎       | 9/40 [02:20<08:17, 16.06s/it]                                              {'loss': '0.5003', 'grad_norm': '1.078', 'learning_rate': '9.397e-05', 'l2l_steps': 9, 'l2l_captures': 58, 'l2l_capture_layer_loads': 58, 'l2l_capture_seconds': '0.324', 'l2l_layer_loads': 460, 'l2l_large_loads': 18, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 29088, 'l2l_expert_bytes_read': 141543604224, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.45'}
+ 22%|██▎       | 9/40 [02:20<08:17, 16.06s/it] 25%|██▌       | 10/40 [02:38<08:18, 16.62s/it]                                               {'loss': '0.3534', 'grad_norm': '0.6133', 'learning_rate': '9.186e-05', 'l2l_steps': 10, 'l2l_captures': 62, 'l2l_capture_layer_loads': 62, 'l2l_capture_seconds': '0.3392', 'l2l_layer_loads': 511, 'l2l_large_loads': 20, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 32336, 'l2l_expert_bytes_read': 157348528128, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.5'}
+ 25%|██▌       | 10/40 [02:38<08:18, 16.62s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 28%|██▊       | 11/40 [02:53<07:49, 16.21s/it]                                               {'loss': '0.3456', 'grad_norm': '0.5078', 'learning_rate': '8.946e-05', 'l2l_steps': 11, 'l2l_captures': 69, 'l2l_capture_layer_loads': 69, 'l2l_capture_seconds': '0.3657', 'l2l_layer_loads': 562, 'l2l_large_loads': 22, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 35568, 'l2l_expert_bytes_read': 173075595264, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.55'}
+ 28%|██▊       | 11/40 [02:53<07:49, 16.21s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 30%|███       | 12/40 [03:08<07:22, 15.80s/it]                                               {'loss': '0.3093', 'grad_norm': '0.5039', 'learning_rate': '8.679e-05', 'l2l_steps': 12, 'l2l_captures': 77, 'l2l_capture_layer_loads': 77, 'l2l_capture_seconds': '0.3959', 'l2l_layer_loads': 613, 'l2l_large_loads': 24, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 38818, 'l2l_expert_bytes_read': 188890251264, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.6'}
+ 30%|███       | 12/40 [03:08<07:22, 15.80s/it] 32%|███▎      | 13/40 [03:23<06:58, 15.49s/it]                                               {'loss': '0.2665', 'grad_norm': '0.6367', 'learning_rate': '8.386e-05', 'l2l_steps': 13, 'l2l_captures': 84, 'l2l_capture_layer_loads': 84, 'l2l_capture_seconds': '0.4222', 'l2l_layer_loads': 664, 'l2l_large_loads': 26, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 42050, 'l2l_expert_bytes_read': 204617318400, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.65'}
+ 32%|███▎      | 13/40 [03:23<06:58, 15.49s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 35%|███▌      | 14/40 [03:38<06:37, 15.28s/it]                                               {'loss': '0.3299', 'grad_norm': '0.6602', 'learning_rate': '8.071e-05', 'l2l_steps': 14, 'l2l_captures': 89, 'l2l_capture_layer_loads': 89, 'l2l_capture_seconds': '0.441', 'l2l_layer_loads': 715, 'l2l_large_loads': 28, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 45280, 'l2l_expert_bytes_read': 220334653440, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.7'}
+ 35%|███▌      | 14/40 [03:38<06:37, 15.28s/it] 38%|███▊      | 15/40 [03:52<06:17, 15.10s/it]                                               {'loss': '0.2271', 'grad_norm': '0.625', 'learning_rate': '7.735e-05', 'l2l_steps': 15, 'l2l_captures': 95, 'l2l_capture_layer_loads': 95, 'l2l_capture_seconds': '0.4636', 'l2l_layer_loads': 766, 'l2l_large_loads': 30, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 48500, 'l2l_expert_bytes_read': 236003328000, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.75'}
+ 38%|███▊      | 15/40 [03:52<06:17, 15.10s/it] 40%|████      | 16/40 [04:07<05:59, 14.99s/it]                                               {'loss': '0.2539', 'grad_norm': '0.5078', 'learning_rate': '7.38e-05', 'l2l_steps': 16, 'l2l_captures': 101, 'l2l_capture_layer_loads': 101, 'l2l_capture_seconds': '0.4862', 'l2l_layer_loads': 817, 'l2l_large_loads': 32, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 51722, 'l2l_expert_bytes_read': 251681734656, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.8'}
+ 40%|████      | 16/40 [04:07<05:59, 14.99s/it] 42%|████▎     | 17/40 [04:22<05:48, 15.14s/it]                                               {'loss': '0.1826', 'grad_norm': '0.4785', 'learning_rate': '7.008e-05', 'l2l_steps': 17, 'l2l_captures': 107, 'l2l_capture_layer_loads': 107, 'l2l_capture_seconds': '0.5089', 'l2l_layer_loads': 868, 'l2l_large_loads': 34, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 54952, 'l2l_expert_bytes_read': 267399069696, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.85'}
+ 42%|████▎     | 17/40 [04:23<05:48, 15.14s/it] 45%|████▌     | 18/40 [04:40<05:49, 15.90s/it]                                               {'loss': '0.2602', 'grad_norm': '0.5195', 'learning_rate': '6.623e-05', 'l2l_steps': 18, 'l2l_captures': 114, 'l2l_capture_layer_loads': 114, 'l2l_capture_seconds': '0.5352', 'l2l_layer_loads': 919, 'l2l_large_loads': 36, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 58164, 'l2l_expert_bytes_read': 283028815872, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.9'}
+ 45%|████▌     | 18/40 [04:40<05:49, 15.90s/it] 48%|████▊     | 19/40 [04:58<05:44, 16.42s/it]                                               {'loss': '0.2546', 'grad_norm': '0.543', 'learning_rate': '6.227e-05', 'l2l_steps': 19, 'l2l_captures': 119, 'l2l_capture_layer_loads': 119, 'l2l_capture_seconds': '0.554', 'l2l_layer_loads': 970, 'l2l_large_loads': 38, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 61398, 'l2l_expert_bytes_read': 298765615104, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '0.95'}
+ 48%|████▊     | 19/40 [04:58<05:44, 16.42s/it] 50%|█████     | 20/40 [05:13<05:18, 15.93s/it]                                               {'loss': '0.2508', 'grad_norm': '0.4746', 'learning_rate': '5.823e-05', 'l2l_steps': 20, 'l2l_captures': 123, 'l2l_capture_layer_loads': 123, 'l2l_capture_seconds': '0.5691', 'l2l_layer_loads': 1021, 'l2l_large_loads': 40, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 64628, 'l2l_expert_bytes_read': 314482950144, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1'}
+ 50%|█████     | 20/40 [05:13<05:18, 15.93s/it]
+  0%|          | 0/64 [00:00<?, ?it/s][A
+  3%|▎         | 2/64 [00:04<02:19,  2.24s/it][A
+  5%|▍         | 3/64 [00:09<03:17,  3.23s/it][A
+  6%|▋         | 4/64 [00:13<03:48,  3.81s/it][A
+  8%|▊         | 5/64 [00:18<04:05,  4.16s/it][A
+  9%|▉         | 6/64 [00:23<04:05,  4.23s/it][A
+ 11%|█         | 7/64 [00:27<04:10,  4.40s/it][A
+ 12%|█▎        | 8/64 [00:32<04:16,  4.58s/it][A
+ 14%|█▍        | 9/64 [00:37<04:19,  4.71s/it][A
+ 16%|█▌        | 10/64 [00:42<04:10,  4.65s/it][A
+ 17%|█▋        | 11/64 [00:47<04:10,  4.73s/it][A
+ 19%|█▉        | 12/64 [00:53<04:23,  5.06s/it][A
+ 20%|██        | 13/64 [00:58<04:25,  5.20s/it][A
+ 22%|██▏       | 14/64 [01:04<04:31,  5.43s/it][A
+ 23%|██▎       | 15/64 [01:10<04:29,  5.49s/it][A
+ 25%|██▌       | 16/64 [01:16<04:37,  5.77s/it][A
+ 27%|██▋       | 17/64 [01:22<04:31,  5.77s/it][A
+ 28%|██▊       | 18/64 [01:27<04:22,  5.70s/it][A
+ 30%|██▉       | 19/64 [01:32<04:02,  5.40s/it][A
+ 31%|███▏      | 20/64 [01:37<03:51,  5.27s/it][A
+ 33%|███▎      | 21/64 [01:42<03:40,  5.13s/it][A
+ 34%|███▍      | 22/64 [01:47<03:32,  5.05s/it][A
+ 36%|███▌      | 23/64 [01:51<03:21,  4.92s/it][A
+ 38%|███▊      | 24/64 [01:56<03:15,  4.90s/it][A
+ 39%|███▉      | 25/64 [02:01<03:10,  4.88s/it][A
+ 41%|████      | 26/64 [02:06<03:06,  4.91s/it][A
+ 42%|████▏     | 27/64 [02:11<03:01,  4.91s/it][A
+ 44%|████▍     | 28/64 [02:16<02:55,  4.86s/it][A
+ 45%|████▌     | 29/64 [02:20<02:47,  4.80s/it][A
+ 47%|████▋     | 30/64 [02:25<02:43,  4.81s/it][A
+ 48%|████▊     | 31/64 [02:30<02:36,  4.74s/it][A
+ 50%|█████     | 32/64 [02:34<02:26,  4.57s/it][A
+ 52%|█████▏    | 33/64 [02:39<02:22,  4.61s/it][A
+ 53%|█████▎    | 34/64 [02:44<02:28,  4.93s/it][A
+ 55%|█████▍    | 35/64 [02:50<02:32,  5.26s/it][A
+ 56%|█████▋    | 36/64 [02:57<02:35,  5.55s/it][A
+ 58%|█████▊    | 37/64 [03:02<02:30,  5.57s/it][A
+ 59%|█████▉    | 38/64 [03:08<02:23,  5.52s/it][A
+ 61%|██████    | 39/64 [03:13<02:18,  5.55s/it][A
+ 62%|██████▎   | 40/64 [03:19<02:15,  5.63s/it][A
+ 64%|██████▍   | 41/64 [03:24<02:04,  5.42s/it][A
+ 66%|██████▌   | 42/64 [03:29<01:56,  5.31s/it][A
+ 67%|██████▋   | 43/64 [03:33<01:46,  5.05s/it][A
+ 69%|██████▉   | 44/64 [03:38<01:38,  4.94s/it][A
+ 70%|███████   | 45/64 [03:43<01:32,  4.85s/it][A
+ 72%|███████▏  | 46/64 [03:47<01:25,  4.73s/it][A
+ 73%|███████▎  | 47/64 [03:52<01:18,  4.62s/it][A
+ 75%|███████▌  | 48/64 [03:56<01:15,  4.69s/it][A
+ 77%|███████▋  | 49/64 [04:01<01:11,  4.77s/it][A
+ 78%|███████▊  | 50/64 [04:06<01:07,  4.83s/it][A
+ 80%|███████▉  | 51/64 [04:11<01:01,  4.71s/it][A
+ 81%|████████▏ | 52/64 [04:15<00:56,  4.71s/it][A
+ 83%|████████▎ | 53/64 [04:20<00:51,  4.70s/it][A
+ 84%|████████▍ | 54/64 [04:25<00:46,  4.69s/it][A
+ 86%|████████▌ | 55/64 [04:30<00:43,  4.79s/it][A
+ 88%|████████▊ | 56/64 [04:35<00:38,  4.76s/it][A
+ 89%|████████▉ | 57/64 [04:39<00:33,  4.77s/it][A
+ 91%|█████████ | 58/64 [04:44<00:28,  4.79s/it][A
+ 92%|█████████▏| 59/64 [04:49<00:24,  4.82s/it][A
+ 94%|█████████▍| 60/64 [04:54<00:19,  4.80s/it][A
+ 95%|█████████▌| 61/64 [04:58<00:14,  4.70s/it][A
+ 97%|█████████▋| 62/64 [05:03<00:09,  4.72s/it][A
+ 98%|█████████▊| 63/64 [05:08<00:04,  4.74s/it][A
+100%|██████████| 64/64 [05:13<00:00,  4.75s/it][A                                               
+                                               [A{'eval_loss': '0.2519', 'eval_runtime': '318.1', 'eval_samples_per_second': '0.201', 'eval_steps_per_second': '0.201', 'eval_entropy': '0.7656', 'eval_num_tokens': '0', 'eval_mean_token_accuracy': '0.914', 'epoch': '1'}
+ 50%|█████     | 20/40 [10:31<05:18, 15.93s/it]
+100%|██████████| 64/64 [05:13<00:00,  4.75s/it][A
+                                               [Atraining.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 52%|█████▎    | 21/40 [10:46<35:13, 111.22s/it]                                                {'loss': '0.2874', 'grad_norm': '0.6367', 'learning_rate': '5.413e-05', 'l2l_steps': 21, 'l2l_captures': 125, 'l2l_capture_layer_loads': 125, 'l2l_capture_seconds': '0.627', 'l2l_layer_loads': 1073, 'l2l_large_loads': 42, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 67852, 'l2l_expert_bytes_read': 330171088896, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.05'}
+ 52%|█████▎    | 21/40 [10:46<35:13, 111.22s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 55%|█████▌    | 22/40 [11:02<24:45, 82.51s/it]                                                {'loss': '0.2239', 'grad_norm': '0.4043', 'learning_rate': '5e-05', 'l2l_steps': 22, 'l2l_captures': 126, 'l2l_capture_layer_loads': 126, 'l2l_capture_seconds': '0.6309', 'l2l_layer_loads': 1124, 'l2l_large_loads': 44, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 71096, 'l2l_expert_bytes_read': 345956548608, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.1'}
+ 55%|█████▌    | 22/40 [11:02<24:45, 82.51s/it] 57%|█████▊    | 23/40 [11:17<17:39, 62.34s/it]                                               {'loss': '0.2048', 'grad_norm': '0.4316', 'learning_rate': '4.587e-05', 'l2l_steps': 23, 'l2l_captures': 128, 'l2l_capture_layer_loads': 128, 'l2l_capture_seconds': '0.6385', 'l2l_layer_loads': 1175, 'l2l_large_loads': 46, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 74324, 'l2l_expert_bytes_read': 361664151552, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.15'}
+ 57%|█████▊    | 23/40 [11:17<17:39, 62.34s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 60%|██████    | 24/40 [11:32<12:50, 48.17s/it]                                               {'loss': '0.1743', 'grad_norm': '0.4004', 'learning_rate': '4.177e-05', 'l2l_steps': 24, 'l2l_captures': 134, 'l2l_capture_layer_loads': 134, 'l2l_capture_seconds': '0.6612', 'l2l_layer_loads': 1226, 'l2l_large_loads': 48, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 77576, 'l2l_expert_bytes_read': 377488539648, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.2'}
+ 60%|██████    | 24/40 [11:32<12:50, 48.17s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 62%|██████▎   | 25/40 [11:47<09:32, 38.14s/it]                                               {'loss': '0.2434', 'grad_norm': '0.4727', 'learning_rate': '3.773e-05', 'l2l_steps': 25, 'l2l_captures': 142, 'l2l_capture_layer_loads': 142, 'l2l_capture_seconds': '0.6912', 'l2l_layer_loads': 1277, 'l2l_large_loads': 50, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 80838, 'l2l_expert_bytes_read': 393361588224, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.25'}
+ 62%|██████▎   | 25/40 [11:47<09:32, 38.14s/it] 65%|██████▌   | 26/40 [12:01<07:14, 31.06s/it]                                               {'loss': '0.2483', 'grad_norm': '0.5039', 'learning_rate': '3.377e-05', 'l2l_steps': 26, 'l2l_captures': 149, 'l2l_capture_layer_loads': 149, 'l2l_capture_seconds': '0.7176', 'l2l_layer_loads': 1328, 'l2l_large_loads': 52, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 84076, 'l2l_expert_bytes_read': 409117851648, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.3'}
+ 65%|██████▌   | 26/40 [12:01<07:14, 31.06s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 68%|██████▊   | 27/40 [12:16<05:39, 26.10s/it]                                               {'loss': '0.2686', 'grad_norm': '0.4512', 'learning_rate': '2.992e-05', 'l2l_steps': 27, 'l2l_captures': 156, 'l2l_capture_layer_loads': 156, 'l2l_capture_seconds': '0.7439', 'l2l_layer_loads': 1379, 'l2l_large_loads': 54, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 87302, 'l2l_expert_bytes_read': 424815722496, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.35'}
+ 68%|██████▊   | 27/40 [12:16<05:39, 26.10s/it] 70%|███████   | 28/40 [12:31<04:33, 22.81s/it]                                               {'loss': '0.2037', 'grad_norm': '0.4551', 'learning_rate': '2.62e-05', 'l2l_steps': 28, 'l2l_captures': 163, 'l2l_capture_layer_loads': 163, 'l2l_capture_seconds': '0.7703', 'l2l_layer_loads': 1430, 'l2l_large_loads': 56, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 90516, 'l2l_expert_bytes_read': 440455200768, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.4'}
+ 70%|███████   | 28/40 [12:31<04:33, 22.81s/it] 72%|███████▎  | 29/40 [12:46<03:44, 20.44s/it]                                               {'loss': '0.1734', 'grad_norm': '0.4082', 'learning_rate': '2.265e-05', 'l2l_steps': 29, 'l2l_captures': 169, 'l2l_capture_layer_loads': 169, 'l2l_capture_seconds': '0.793', 'l2l_layer_loads': 1481, 'l2l_large_loads': 58, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 93726, 'l2l_expert_bytes_read': 456075214848, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.45'}
+ 72%|███████▎  | 29/40 [12:46<03:44, 20.44s/it] 75%|███████▌  | 30/40 [13:01<03:07, 18.77s/it]                                               {'loss': '0.2863', 'grad_norm': '0.6641', 'learning_rate': '1.929e-05', 'l2l_steps': 30, 'l2l_captures': 175, 'l2l_capture_layer_loads': 175, 'l2l_capture_seconds': '0.8156', 'l2l_layer_loads': 1532, 'l2l_large_loads': 60, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 96982, 'l2l_expert_bytes_read': 471919067136, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.5'}
+ 75%|███████▌  | 30/40 [13:01<03:07, 18.77s/it] 78%|███████▊  | 31/40 [13:15<02:38, 17.56s/it]                                               {'loss': '0.2116', 'grad_norm': '0.457', 'learning_rate': '1.614e-05', 'l2l_steps': 31, 'l2l_captures': 183, 'l2l_capture_layer_loads': 183, 'l2l_capture_seconds': '0.8457', 'l2l_layer_loads': 1583, 'l2l_large_loads': 62, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 100192, 'l2l_expert_bytes_read': 487539081216, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.55'}
+ 78%|███████▊  | 31/40 [13:16<02:38, 17.56s/it] 80%|████████  | 32/40 [13:30<02:13, 16.75s/it]                                               {'loss': '0.1944', 'grad_norm': '0.5312', 'learning_rate': '1.321e-05', 'l2l_steps': 32, 'l2l_captures': 189, 'l2l_capture_layer_loads': 189, 'l2l_capture_seconds': '0.8685', 'l2l_layer_loads': 1634, 'l2l_large_loads': 64, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 103418, 'l2l_expert_bytes_read': 503236952064, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.6'}
+ 80%|████████  | 32/40 [13:30<02:13, 16.75s/it] 82%|████████▎ | 33/40 [13:45<01:53, 16.19s/it]                                               {'loss': '0.2063', 'grad_norm': '0.4199', 'learning_rate': '1.054e-05', 'l2l_steps': 33, 'l2l_captures': 195, 'l2l_capture_layer_loads': 195, 'l2l_capture_seconds': '0.8912', 'l2l_layer_loads': 1685, 'l2l_large_loads': 66, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 106632, 'l2l_expert_bytes_read': 518876430336, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.65'}
+ 82%|████████▎ | 33/40 [13:45<01:53, 16.19s/it] 85%|████████▌ | 34/40 [14:00<01:34, 15.78s/it]                                               {'loss': '0.1556', 'grad_norm': '0.4043', 'learning_rate': '8.142e-06', 'l2l_steps': 34, 'l2l_captures': 202, 'l2l_capture_layer_loads': 202, 'l2l_capture_seconds': '0.9177', 'l2l_layer_loads': 1736, 'l2l_large_loads': 68, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 109852, 'l2l_expert_bytes_read': 534545104896, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.7'}
+ 85%|████████▌ | 34/40 [14:00<01:34, 15.78s/it] 88%|████████▊ | 35/40 [14:15<01:17, 15.46s/it]                                               {'loss': '0.2365', 'grad_norm': '0.5117', 'learning_rate': '6.026e-06', 'l2l_steps': 35, 'l2l_captures': 210, 'l2l_capture_layer_loads': 210, 'l2l_capture_seconds': '0.9477', 'l2l_layer_loads': 1787, 'l2l_large_loads': 70, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 113080, 'l2l_expert_bytes_read': 550252707840, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.75'}
+ 88%|████████▊ | 35/40 [14:15<01:17, 15.46s/it] 90%|█████████ | 36/40 [14:29<01:00, 15.25s/it]                                               {'loss': '0.2209', 'grad_norm': '0.4961', 'learning_rate': '4.211e-06', 'l2l_steps': 36, 'l2l_captures': 217, 'l2l_capture_layer_loads': 217, 'l2l_capture_seconds': '0.974', 'l2l_layer_loads': 1838, 'l2l_large_loads': 72, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 116278, 'l2l_expert_bytes_read': 565814329344, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.8'}
+ 90%|█████████ | 36/40 [14:30<01:00, 15.25s/it] 92%|█████████▎| 37/40 [14:44<00:45, 15.10s/it]                                               {'loss': '0.2697', 'grad_norm': '0.5781', 'learning_rate': '2.709e-06', 'l2l_steps': 37, 'l2l_captures': 222, 'l2l_capture_layer_loads': 222, 'l2l_capture_seconds': '0.9929', 'l2l_layer_loads': 1889, 'l2l_large_loads': 74, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 119482, 'l2l_expert_bytes_read': 581405147136, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.85'}
+ 92%|█████████▎| 37/40 [14:44<00:45, 15.10s/it]training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+ 95%|█████████▌| 38/40 [14:59<00:30, 15.04s/it]                                               {'loss': '0.2627', 'grad_norm': '0.4902', 'learning_rate': '1.53e-06', 'l2l_steps': 38, 'l2l_captures': 227, 'l2l_capture_layer_loads': 227, 'l2l_capture_seconds': '1.012', 'l2l_layer_loads': 1940, 'l2l_large_loads': 76, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 122726, 'l2l_expert_bytes_read': 597190606848, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.9'}
+ 95%|█████████▌| 38/40 [14:59<00:30, 15.04s/it] 98%|█████████▊| 39/40 [15:14<00:15, 15.01s/it]                                               {'loss': '0.2201', 'grad_norm': '0.4238', 'learning_rate': '6.819e-07', 'l2l_steps': 39, 'l2l_captures': 234, 'l2l_capture_layer_loads': 234, 'l2l_capture_seconds': '1.038', 'l2l_layer_loads': 1991, 'l2l_large_loads': 78, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 126000, 'l2l_expert_bytes_read': 613122048000, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '1.95'}
+ 98%|█████████▊| 39/40 [15:14<00:15, 15.01s/it]100%|██████████| 40/40 [15:29<00:00, 15.06s/it]                                               {'loss': '0.2103', 'grad_norm': '0.4434', 'learning_rate': '1.708e-07', 'l2l_steps': 40, 'l2l_captures': 241, 'l2l_capture_layer_loads': 241, 'l2l_capture_seconds': '1.064', 'l2l_layer_loads': 2042, 'l2l_large_loads': 80, 'l2l_weight_restores': 189, 'l2l_spill_layers': 0, 'l2l_effective_k': 8, 'l2l_expert_fetches': 129208, 'l2l_expert_bytes_read': 628732329984, 'l2l_two_read_experts': True, 'l2l_grouped_expert_routes': True, 'l2l_expert_gemm': 'batch_invariant', 'l2l_route_preserving_mbr': True, 'l2l_mbr_group_size': 8, 'epoch': '2'}
+100%|██████████| 40/40 [15:29<00:00, 15.06s/it]
+  0%|          | 0/64 [00:00<?, ?it/s][A
+  3%|▎         | 2/64 [00:04<02:19,  2.25s/it][A
+  5%|▍         | 3/64 [00:09<03:19,  3.26s/it][A
+  6%|▋         | 4/64 [00:14<03:50,  3.85s/it][A
+  8%|▊         | 5/64 [00:18<04:08,  4.21s/it][A
+  9%|▉         | 6/64 [00:23<04:08,  4.28s/it][A
+ 11%|█         | 7/64 [00:28<04:13,  4.44s/it][A
+ 12%|█▎        | 8/64 [00:33<04:19,  4.63s/it][A
+ 14%|█▍        | 9/64 [00:38<04:22,  4.77s/it][A
+ 16%|█▌        | 10/64 [00:42<04:15,  4.73s/it][A
+ 17%|█▋        | 11/64 [00:47<04:14,  4.80s/it][A
+ 19%|█▉        | 12/64 [00:52<04:08,  4.78s/it][A
+ 20%|██        | 13/64 [00:57<04:01,  4.73s/it][A
+ 22%|██▏       | 14/64 [01:02<03:58,  4.78s/it][A
+ 23%|██▎       | 15/64 [01:06<03:50,  4.71s/it][A
+ 25%|██▌       | 16/64 [01:11<03:50,  4.80s/it][A
+ 27%|██▋       | 17/64 [01:16<03:40,  4.68s/it][A
+ 28%|██▊       | 18/64 [01:20<03:36,  4.70s/it][A
+ 30%|██▉       | 19/64 [01:25<03:31,  4.70s/it][A
+ 31%|███▏      | 20/64 [01:30<03:30,  4.79s/it][A
+ 33%|███▎      | 21/64 [01:35<03:26,  4.79s/it][A
+ 34%|███▍      | 22/64 [01:40<03:21,  4.81s/it][A
+ 36%|███▌      | 23/64 [01:44<03:14,  4.75s/it][A
+ 38%|███▊      | 24/64 [01:49<03:11,  4.78s/it][A
+ 39%|███▉      | 25/64 [01:54<03:07,  4.80s/it][A
+ 41%|████      | 26/64 [01:59<03:04,  4.85s/it][A
+ 42%|████▏     | 27/64 [02:04<03:00,  4.87s/it][A
+ 44%|████▍     | 28/64 [02:09<02:54,  4.83s/it][A
+ 45%|████▌     | 29/64 [02:13<02:47,  4.77s/it][A
+ 47%|████▋     | 30/64 [02:18<02:43,  4.80s/it][A
+ 48%|████▊     | 31/64 [02:23<02:36,  4.74s/it][A
+ 50%|█████     | 32/64 [02:27<02:26,  4.58s/it][A
+ 52%|█████▏    | 33/64 [02:32<02:23,  4.63s/it][A
+ 53%|█████▎    | 34/64 [02:36<02:18,  4.63s/it][A
+ 55%|█████▍    | 35/64 [02:41<02:16,  4.69s/it][A
+ 56%|█████▋    | 36/64 [02:46<02:13,  4.77s/it][A
+ 58%|█████▊    | 37/64 [02:51<02:07,  4.71s/it][A
+ 59%|█████▉    | 38/64 [02:55<01:59,  4.61s/it][A
+ 61%|██████    | 39/64 [02:59<01:54,  4.59s/it][A
+ 62%|██████▎   | 40/64 [03:04<01:52,  4.68s/it][A
+ 64%|██████▍   | 41/64 [03:09<01:49,  4.78s/it][A
+ 66%|██████▌   | 42/64 [03:16<01:54,  5.19s/it][A
+ 67%|██████▋   | 43/64 [03:20<01:45,  5.00s/it][A
+ 69%|██████▉   | 44/64 [03:25<01:38,  4.92s/it][A
+ 70%|███████   | 45/64 [03:30<01:32,  4.87s/it][A
+ 72%|███████▏  | 46/64 [03:34<01:25,  4.77s/it][A
+ 73%|███████▎  | 47/64 [03:38<01:18,  4.64s/it][A
+ 75%|███████▌  | 48/64 [03:43<01:15,  4.71s/it][A
+ 77%|███████▋  | 49/64 [03:48<01:11,  4.79s/it][A
+ 78%|███████▊  | 50/64 [03:53<01:08,  4.86s/it][A
+ 80%|███████▉  | 51/64 [03:58<01:01,  4.74s/it][A
+ 81%|████████▏ | 52/64 [04:03<00:58,  4.86s/it][A
+ 83%|████████▎ | 53/64 [04:08<00:53,  4.90s/it][A
+ 84%|████████▍ | 54/64 [04:14<00:51,  5.12s/it][A
+ 86%|████████▌ | 55/64 [04:20<00:49,  5.50s/it][A
+ 88%|████████▊ | 56/64 [04:26<00:45,  5.72s/it][A
+ 89%|████████▉ | 57/64 [04:32<00:40,  5.79s/it][A
+ 91%|█████████ | 58/64 [04:38<00:35,  5.89s/it][A
+ 92%|█████████▏| 59/64 [04:45<00:30,  6.04s/it][A
+ 94%|█████████▍| 60/64 [04:50<00:23,  5.97s/it][A
+ 95%|█████████▌| 61/64 [04:55<00:16,  5.62s/it][A
+ 97%|█████████▋| 62/64 [05:00<00:10,  5.46s/it][A
+ 98%|█████████▊| 63/64 [05:06<00:05,  5.43s/it][A
+100%|██████████| 64/64 [05:11<00:00,  5.32s/it][A                                               
+                                               [A{'eval_loss': '0.2395', 'eval_runtime': '316.2', 'eval_samples_per_second': '0.202', 'eval_steps_per_second': '0.202', 'eval_entropy': '0.7399', 'eval_num_tokens': '0', 'eval_mean_token_accuracy': '0.9205', 'epoch': '2'}
+100%|██████████| 40/40 [20:46<00:00, 15.06s/it]
+100%|██████████| 64/64 [05:11<00:00,  5.32s/it][A
+                                               [A                                               {'train_runtime': '1246', 'train_samples_per_second': '0.257', 'train_steps_per_second': '0.032', 'train_loss': '0.3046', 'epoch': '2'}
+100%|██████████| 40/40 [20:46<00:00, 15.06s/it]100%|██████████| 40/40 [20:46<00:00, 31.16s/it]
+╭─────────────── Soup Training: /workspace/a2-stage2/out/source ───────────────╮
+│ Epoch 2.0/2   100%                                                           │
+│ Step:  40/40                                                                 │
+│ Loss:  0.2103    LR: 1.71e-07                                                │
+│ Val loss: 0.2395                                                             │
+│ Speed: 0.03 it/s                                                             │
+│ GPU peak: 1.5/15.6 GB                                                        │
+│ Grad:  0.4434                                                                │
+╰───────────────────────── NVIDIA GeForce RTX 4060 Ti ─────────────────────────╯╭───────────────────────────── Training Complete! ─────────────────────────────╮
+│ Loss: 0.6307 -> 0.2103                                                       │
+│ Duration: 20m                                                                │
+│ Output: /workspace/a2-pair/quality/mbr_invariant/42                          │
+│ Run ID: run_20261119_055239_161ffd2c                                         │
+│                                                                              │
+│ Quick test:  soup chat --model /workspace/a2-pair/quality/mbr_invariant/42   │
+│ Push to HF:  soup push --model /workspace/a2-pair/quality/mbr_invariant/42   │
+│ Merge LoRA:  soup merge --adapter                                            │
+│ /workspace/a2-pair/quality/mbr_invariant/42                                  │
+│ Export GGUF: soup export --model /workspace/a2-pair/quality/mbr_invariant/42 │
+│ Run details: soup runs show run_20261119_055239_161ffd2c                     │
+╰──────────────────────────────────────────────────────────────────────────────╯

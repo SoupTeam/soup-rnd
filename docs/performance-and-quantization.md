@@ -1517,6 +1517,10 @@ On Moonlight-16B-A3B, one 8x64-token window, MBR group 8 against two-read L2L ga
 losses, LoRA gradients, route IDs and post-AdamW adapters (native: 6.5% gradient difference,
 3.0% route slots changed), at a 4.89x MBR speed-up instead of 5.16x
 ([`benchmarks/results/p3-a2-stage2-20261118/`](../benchmarks/results/p3-a2-stage2-20261118/)).
+Over 40 `soup train` steps (seed 42, deterministic algorithms on), L2L and MBR with
+`batch_invariant` matched at every step: losses, pre-clip LoRA gradients, adapters and AdamW
+state. In an exploratory 3-seed held-out NLL screen, MBR native, MBR invariant and native L2L
+differed by less than 0.001 nats per token, and every paired interval contained zero.
 The kernel is within 0-10% of cuBLAS time on average at M <= 256 for DeepSeek-V3 expert shapes
 ([`benchmarks/p3-a2-batch-invariant-expert-gemm.md`](../benchmarks/p3-a2-batch-invariant-expert-gemm.md)).
 

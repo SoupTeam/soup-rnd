@@ -1,0 +1,43 @@
+base: /workspace/a2-stage2/out/source
+task: sft
+backend: transformers
+output: /workspace/a2-pair/quality/mbr_invariant/42
+data:
+  train: /workspace/a2-stage2/out/data/train.jsonl
+  format: pre_tokenized
+  tokenized_path: /workspace/a2-stage2/out/data/arrow
+  max_length: 256
+  val_split: 0.0
+training:
+  seed: 42
+  data_seed: 42
+  epochs: 2
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  lr: 0.0001
+  optimizer: adamw_torch
+  logging_steps: 1
+  eval_steps: 20
+  save_steps: 20
+  quantization: 4bit
+  bnb_4bit_use_double_quant: false
+  stream_layers: true
+  stream_source: disk
+  stream_read_ahead: 1
+  stream_expert_layout: per_expert
+  stream_expert_gemm: batch_invariant
+  l2l: true
+  l2l_auto_k: false
+  l2l_two_read_experts: true
+  l2l_grouped_expert_routes: true
+  l2l_route_preserving_mbr: true
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0.0
+    target_modules:
+    - q_proj
+    - kv_a_proj_with_mqa
+    - kv_b_proj
+    - o_proj
+  l2l_mbr_group_size: 8
