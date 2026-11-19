@@ -18,7 +18,7 @@ from benchmarks.harness import p3_route_preserving_mbr_soup_bridge as bridge
 from benchmarks.harness.p72_invariant_expert_gemm import (
     EXPERT_GEMM_CHOICES,
     expert_gemm_context,
-    segment_plan,
+    segment_rows,
     segmented_expert_gemm,
 )
 from soup_cli.utils import l2l_step
@@ -28,25 +28,39 @@ from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 from tests.test_p72_mbr_bitexact import LENGTHS, differing, run_window
 
 
-def test_segment_plan_gathers_rows_by_micro_batch_in_their_original_order() -> None:
+def test_segment_rows_gathers_rows_by_micro_batch_in_their_original_order() -> None:
     import torch
 
     # Joined group of 3 micro-batches with 4, 3 and 2 tokens. Rows come in (top-k slot, token)
-    # order, so one micro-batch's rows are not adjacent.
+    # order, so one micro-batch's rows are not adjacent until they are gathered.
     token_idx = torch.tensor([0, 5, 1, 8, 4, 2, 6, 3, 7])
-    perm, inv, counts = segment_plan(token_idx, torch.tensor([4, 7]))
+    ((perm, counts),) = segment_rows([token_idx], torch.tensor([4, 7]))
     assert counts == [4, 3, 2]
-    # micro-batch 0 = tokens 0..3, 1 = tokens 4..6, 2 = tokens 7..8, each in original row order
     assert token_idx[perm].tolist() == [0, 1, 2, 3, 5, 4, 6, 8, 7]
-    assert torch.equal(token_idx[perm][inv], token_idx)
 
 
-def test_segment_plan_skips_micro_batches_without_rows() -> None:
+def test_segment_rows_skips_empty_micro_batches_and_keeps_single_segments_as_they_are() -> None:
     import torch
 
-    perm, inv, counts = segment_plan(torch.tensor([6, 7, 0]), torch.tensor([3, 6]))
-    assert counts == [1, 2]
-    assert perm.tolist() == [2, 0, 1] and inv.tolist() == [1, 2, 0]
+    layout = segment_rows([torch.tensor([6, 7, 0]), torch.tensor([1, 2])], torch.tensor([3, 6]))
+    (perm, counts), (single_perm, single_counts) = layout
+    assert counts == [1, 2] and perm.tolist() == [2, 0, 1]
+    assert single_perm is None and single_counts == [2]
+
+
+def test_segment_rows_of_several_experts_match_one_expert_at_a_time() -> None:
+    import torch
+
+    experts = [torch.tensor([0, 5, 1, 8, 4]), torch.tensor([7, 2, 6]), torch.tensor([3, 3 + 6])]
+    boundaries = torch.tensor([4, 7])
+    together = segment_rows(experts, boundaries)
+    for tokens, (perm, counts) in zip(experts, together):
+        ((alone_perm, alone_counts),) = segment_rows([tokens], boundaries)
+        assert counts == alone_counts
+        if alone_perm is None:
+            assert perm is None
+        else:
+            assert torch.equal(perm, alone_perm)
 
 
 def _expert_node_module() -> types.ModuleType:
@@ -81,7 +95,7 @@ def test_segmented_linear_runs_one_call_per_segment_and_only_inside_expert_mlp()
     functional.linear = recorder  # type: ignore[assignment]
     try:
         with segmented_expert_gemm() as state:
-            state.plans[(2, 5)] = segment_plan(torch.tensor([0, 1, 4, 2, 5, 3]), torch.tensor([3]))
+            state.plans[(2, 5)] = [3, 3]
             outside = functional.linear(x, w)  # not from expert_mlp: untouched
             assert seen == [6]
             seen.clear()
@@ -110,7 +124,7 @@ def test_a_plan_that_does_not_match_the_rows_fails_loudly() -> None:
 
     x, w = torch.randn(4, 8), torch.randn(3, 8)
     with segmented_expert_gemm() as state:
-        state.plans[(0, 1)] = segment_plan(torch.tensor([0, 1, 2]), torch.tensor([2]))
+        state.plans[(0, 1)] = [2, 1]
         node = _expert_node_module()
         with pytest.raises(RuntimeError, match="segment plan"):
             node.forward(types.SimpleNamespace(layer_idx=0), 1, x, w)

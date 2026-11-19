@@ -94,29 +94,48 @@ def rowwise_expert_linear() -> Iterator[List[int]]:
         torch.Tensor.__mul__ = original_mul  # type: ignore[method-assign]
 
 
-def segment_plan(token_idx: Any, boundaries: Any) -> Tuple[Any, Any, List[int]]:
-    """How to cut one expert's gathered rows into the calls an L2L step would make.
+def segment_rows(
+    token_idx: List[Any], boundaries: Any
+) -> List[Tuple[Optional[Any], List[int]]]:
+    """For each expert, how to order its rows so every micro-batch's rows are adjacent.
 
-    ``token_idx`` is the joined-group token of each row (the expert module orders rows by top-k
-    slot, then token, so one micro-batch's rows are not adjacent). ``boundaries`` holds the first
-    token index of every micro-batch but the first. Returns ``(perm, inv, counts)``: ``perm``
-    gathers the rows micro-batch by micro-batch with their original relative order, ``inv`` puts
-    results back, ``counts`` is the row count of each non-empty micro-batch, which is the M the
-    L2L call of that micro-batch has."""
+    ``token_idx`` lists, per expert, the joined-group token of each row (the expert module orders
+    rows by top-k slot, then token, so one micro-batch's rows are not adjacent). ``boundaries``
+    holds the first token index of every micro-batch but the first. Returns one
+    ``(perm, counts)`` per expert: ``perm`` gathers the rows micro-batch by micro-batch with their
+    original relative order (None when they already sit in one micro-batch), ``counts`` is the
+    row count of each non-empty micro-batch, which is the M of that micro-batch's L2L call.
+    One stable sort and one device-to-host read serve all experts."""
     import torch
 
-    segment = torch.bucketize(token_idx, boundaries, right=True)
-    perm = torch.argsort(segment, stable=True)
-    inv = torch.argsort(perm)
-    counts = torch.bincount(segment, minlength=int(boundaries.numel()) + 1).tolist()
-    return perm, inv, [count for count in counts if count]
+    if not token_idx:
+        return []
+    segments = int(boundaries.numel()) + 1
+    lengths = [int(tokens.numel()) for tokens in token_idx]
+    tokens = torch.cat(token_idx)
+    expert_of = torch.repeat_interleave(
+        torch.arange(len(lengths), device=tokens.device),
+        torch.tensor(lengths, device=tokens.device),
+        output_size=sum(lengths),
+    )
+    key = expert_of * segments + torch.bucketize(tokens, boundaries, right=True)
+    order = torch.argsort(key, stable=True)
+    counts = torch.bincount(key, minlength=len(lengths) * segments).tolist()
+    layout: List[Tuple[Optional[Any], List[int]]] = []
+    offset = 0
+    for index, length in enumerate(lengths):
+        per_segment = [c for c in counts[index * segments : (index + 1) * segments] if c]
+        perm = None if len(per_segment) <= 1 else order[offset : offset + length] - offset
+        layout.append((perm, per_segment))
+        offset += length
+    return layout
 
 
 @dataclass
 class SegmentState:
-    """Segment plans by ``(layer, expert)`` and what the swaps served."""
+    """Segment row counts by ``(layer, expert)`` and what the swaps served."""
 
-    plans: Dict[Tuple[int, int], Tuple[Any, Any, List[int]]] = field(default_factory=dict)
+    plans: Dict[Tuple[int, int], List[int]] = field(default_factory=dict)
     linear_rows: int = 0
     mul_rows: int = 0
     passthrough_calls: int = 0  # expert linear calls that found no plan
@@ -157,9 +176,11 @@ def segmented_expert_gemm() -> Iterator[SegmentState]:
 
     The joined MBR group makes one expert call of M = all rows of the group; an L2L step makes one
     per micro-batch. Native GEMM bits depend on M, so the joined call differs from A0. Here the
-    rows of each expert call are cut back into the micro-batch segments (plan from the group's
-    token counts) and each segment goes through the original ``F.linear`` and route-weight
-    multiply, so every call has the L2L shape. Works with the two-read expert node
+    route walker orders each expert's rows micro-batch by micro-batch (stable, so each segment keeps
+    its L2L row order), the rows of each expert call are cut into those segments (``split``) and
+    each segment goes through the original ``F.linear`` and route-weight multiply, so every call
+    has the L2L shape. No row is gathered per call: the order is set once, in the routes.
+    Works with the two-read expert node
     (``WeightedFrozenExpert``): its forward and backward are keyed by ``(layer, expert)``.
 
     Hooks: the MBR capture (micro-batch sizes), ``StreamedExperts.forward`` (layer, boundaries)
@@ -199,43 +220,38 @@ def segmented_expert_gemm() -> Iterator[SegmentState]:
 
     def walker(original: Any) -> Any:
         def routes(*args: Any, **kwargs: Any) -> Any:
-            for expert, top_k_pos, token_idx in original(*args, **kwargs):
-                if active["boundaries"] is not None:
-                    state.plans[(active["layer"], expert)] = segment_plan(
-                        token_idx, active["boundaries"]
-                    )
+            items = list(original(*args, **kwargs))
+            if active["boundaries"] is None or not items:
+                yield from items
+                return
+            layout = segment_rows([token_idx for _, _, token_idx in items], active["boundaries"])
+            for (expert, top_k_pos, token_idx), (perm, counts) in zip(items, layout):
+                state.plans[(active["layer"], expert)] = counts
+                if perm is not None:
+                    top_k_pos, token_idx = top_k_pos[perm], token_idx[perm]
                 yield expert, top_k_pos, token_idx
 
         return routes
 
-    def plan_for(key: Optional[Tuple[int, int]], rows: int) -> Optional[Tuple[Any, Any, List[int]]]:
-        plan = state.plans.get(key) if key is not None else None
-        if plan is not None and plan[0].numel() != rows:
+    def plan_for(key: Optional[Tuple[int, int]], rows: int) -> Optional[List[int]]:
+        counts = state.plans.get(key) if key is not None else None
+        if counts is not None and sum(counts) != rows:
             raise RuntimeError(
-                f"segment plan covers {plan[0].numel()} rows, the expert call of {key} has {rows}"
+                f"segment plan covers {sum(counts)} rows, the expert call of {key} has {rows}"
             )
-        return plan
-
-    def split_apply(plan: Tuple[Any, Any, List[int]], function: Any, *tensors: Any) -> Any:
-        perm, inv, counts = plan
-        gathered = [tensor.index_select(0, perm) for tensor in tensors]
-        parts, start = [], 0
-        for count in counts:
-            parts.append(function(*[g[start : start + count] for g in gathered]))
-            start += count
-        return torch.cat(parts).index_select(0, inv)
+        return counts
 
     def linear(input: Any, weight: Any, bias: Any = None) -> Any:  # noqa: A002
         frame = _expert_mlp_frame()
         if frame is None:
             return original_linear(input, weight, bias)
         flat = input.reshape(-1, input.shape[-1])
-        plan = plan_for(_node_key(frame.f_back), flat.shape[0])
-        if plan is None:
+        counts = plan_for(_node_key(frame.f_back), flat.shape[0])
+        if counts is None:
             state.passthrough_calls += 1
             return original_linear(input, weight, bias)
         state.linear_rows += int(flat.shape[0])
-        out = split_apply(plan, lambda part: original_linear(part, weight, bias), flat)
+        out = torch.cat([original_linear(part, weight, bias) for part in flat.split(counts)])
         return out.reshape(*input.shape[:-1], -1)
 
     def mul(self: Any, other: Any) -> Any:
@@ -251,10 +267,11 @@ def segmented_expert_gemm() -> Iterator[SegmentState]:
                 node.f_globals.get("__name__") == _EXPERT_NODE_MODULE
                 and node.f_code.co_name in _EXPERT_NODE_FUNCTIONS
             ):
-                plan = plan_for(_node_key(node), int(self.shape[0]))
-                if plan is not None:
+                counts = plan_for(_node_key(node), int(self.shape[0]))
+                if counts is not None:
                     state.mul_rows += int(self.shape[0])
-                    return split_apply(plan, original_mul, self, other)
+                    pairs = zip(self.split(counts), other.split(counts))
+                    return torch.cat([original_mul(a, b) for a, b in pairs])
         return original_mul(self, other)
 
     functional.linear = linear  # type: ignore[assignment]
