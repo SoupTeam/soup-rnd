@@ -5,14 +5,14 @@
     {
       "kind": "mbr",
       "loss": 5.668856143951416,
-      "seconds": 10.471058259019628,
-      "wall_seconds_including_artifact_capture": 10.491562469978817,
-      "model_step_seconds": 10.462044012965634,
-      "optimizer_seconds": 0.009014246053993702,
-      "artifact_capture_seconds_excluded": 0.02050232607871294,
-      "tokens_per_second": 48.89668143704292,
-      "peak_allocated_GiB": 0.919743537902832,
-      "peak_allocated_delta_GiB": 0.13367271423339844,
+      "seconds": 8.282126702019013,
+      "wall_seconds_including_artifact_capture": 8.296939198975451,
+      "model_step_seconds": 8.273288154043257,
+      "optimizer_seconds": 0.008838547975756228,
+      "artifact_capture_seconds_excluded": 0.01481042301747948,
+      "tokens_per_second": 61.81987047785503,
+      "peak_allocated_GiB": 0.9123172760009766,
+      "peak_allocated_delta_GiB": 0.12624645233154297,
       "process_read_bytes_delta": 869650432,
       "runtime_total": {
         "expert_fetches": 3144,
@@ -81,157 +81,157 @@
     "mbr": {
       "kind": "mbr",
       "baseline_seconds": [
-        10.462044012965634
+        8.273288154043257
       ],
-      "baseline_median": 10.462044012965634,
+      "baseline_median": 8.273288154043257,
       "background_seconds": {},
-      "instrumented_wall_median": 11.810192863107659,
-      "instrumentation_ratio": 1.1288609423236282,
+      "instrumented_wall_median": 9.607340977992862,
+      "instrumentation_ratio": 1.161248200124353,
       "phases": {
         "bwd/activation_store": {
-          "seconds": 0.01368185377214104,
+          "seconds": 0.012384203728288412,
           "calls": 216,
-          "share": 0.00115847843728954
+          "share": 0.001289035515306097
         },
         "bwd/attn_router_shared_other": {
-          "seconds": 0.9753165760776028,
+          "seconds": 1.0058979104505852,
           "calls": 216,
-          "share": 0.0825826121031663
+          "share": 0.10470096905634492
         },
         "bwd/autograd_backward": {
-          "seconds": 1.2700438444735482,
+          "seconds": 1.2112374214921147,
           "calls": 242,
-          "share": 0.10753794279184675
+          "share": 0.126074157695313
         },
         "bwd/expert_dispatch_overhead": {
-          "seconds": 0.4358302422333509,
+          "seconds": 0.22462552355136722,
           "calls": 26,
-          "share": 0.03690288950274342
+          "share": 0.023380613227521288
         },
         "bwd/mbr_join_split_glue": {
-          "seconds": 0.01864869997370988,
+          "seconds": 0.01872713176999241,
           "calls": 26,
-          "share": 0.0015790343299104076
+          "share": 0.0019492523282862422
         },
         "expert_dequant_nf4": {
-          "seconds": 0.46179091092199087,
+          "seconds": 0.4573456473881379,
           "calls": 6288,
-          "share": 0.03910104739817755
+          "share": 0.04760376970441255
         },
         "expert_gemm_bwd_vjp": {
-          "seconds": 3.8682349922601134,
+          "seconds": 2.3871910111047328,
           "calls": 1572,
-          "share": 0.32753360060220477
+          "share": 0.24847572461235343
         },
         "expert_gemm_fwd": {
-          "seconds": 1.0190871402155608,
+          "seconds": 0.922291305847466,
           "calls": 1572,
-          "share": 0.08628878054980423
+          "share": 0.0959986023146384
         },
         "expert_lease_sync": {
-          "seconds": 0.05036412365734577,
+          "seconds": 0.050099039217457175,
           "calls": 3144,
-          "share": 0.0042644624216655914
+          "share": 0.0052146623433286035
         },
         "expert_load_h2d_and_misc": {
-          "seconds": 1.5773300104774535,
+          "seconds": 1.4884759009582922,
           "calls": 3144,
-          "share": 0.1335566682746284
+          "share": 0.15493109949650816
         },
         "fwd/activation_store": {
-          "seconds": 0.008120883954688907,
+          "seconds": 0.008284296956844628,
           "calls": 216,
-          "share": 0.0006876165401207537
+          "share": 0.000862288220624325
         },
         "fwd/attn_router_shared_other": {
-          "seconds": 0.6736752520082518,
+          "seconds": 0.6598214696859941,
           "calls": 216,
-          "share": 0.05704185018964925
+          "share": 0.068678885364579
         },
         "fwd/autograd_backward": {
-          "seconds": 0.02474712999537587,
+          "seconds": 0.024633917841129005,
           "calls": 8,
-          "share": 0.002095404391970621
+          "share": 0.002564072400215304
         },
         "fwd/expert_dispatch_overhead": {
-          "seconds": 0.5299805023241788,
+          "seconds": 0.3154416598845273,
           "calls": 26,
-          "share": 0.04487483891814474
+          "share": 0.03283339902342349
         },
         "fwd/mbr_join_split_glue": {
-          "seconds": 0.016878418973647058,
+          "seconds": 0.016066827694885433,
           "calls": 26,
-          "share": 0.001429139995365476
+          "share": 0.001672349064292508
         },
         "layer_weight_load": {
-          "seconds": 0.7672221089014784,
+          "seconds": 0.7209387486800551,
           "calls": 54,
-          "share": 0.06496270787398441
+          "share": 0.07504040403390279
         },
         "unattributed_run_glue": {
-          "seconds": 0.1053890457842499,
+          "seconds": 0.0843497987370938,
           "calls": 1,
-          "share": 0.00892356687192308
+          "share": 0.008779723643650246
         }
       },
-      "gap": 0.0005206411925953043,
-      "unattributed": 0.00892356687192308,
+      "gap": 4.900804470033589e-05,
+      "unattributed": 0.008779723643650246,
       "parity": {
         "instrumented_equals_baseline": true
       },
       "gemm_by_bucket": {
         "expert_gemm_fwd|M<=8": {
           "leases": 1197,
-          "seconds": 0.7475929140346125,
+          "seconds": 0.6736757095204666,
           "rows": 3443,
           "leases_per_step": 1197.0,
-          "seconds_per_step": 0.7475929140346125,
-          "share_of_step": 0.06330065247028452,
+          "seconds_per_step": 0.6736757095204666,
+          "share_of_step": 0.07012093263512012,
           "mean_rows": 2.8763575605680867
         },
         "expert_gemm_fwd|M<=32": {
           "leases": 317,
-          "seconds": 0.22825936693698168,
+          "seconds": 0.2087220704415813,
           "rows": 5631,
           "leases_per_step": 317.0,
-          "seconds_per_step": 0.22825936693698168,
-          "share_of_step": 0.019327319171053653,
+          "seconds_per_step": 0.2087220704415813,
+          "share_of_step": 0.021725269345565262,
           "mean_rows": 17.763406940063092
         },
         "expert_gemm_fwd|M<=128": {
           "leases": 58,
-          "seconds": 0.04323485924396664,
+          "seconds": 0.03989352588541806,
           "rows": 2348,
           "leases_per_step": 58.0,
-          "seconds_per_step": 0.04323485924396664,
-          "share_of_step": 0.003660808908466046,
+          "seconds_per_step": 0.03989352588541806,
+          "share_of_step": 0.004152400333953016,
           "mean_rows": 40.48275862068966
         },
         "expert_gemm_bwd_vjp|M<=32": {
           "leases": 317,
-          "seconds": 0.8627145384671167,
+          "seconds": 0.5257862586295232,
           "rows": 5631,
           "leases_per_step": 317.0,
-          "seconds_per_step": 0.8627145384671167,
-          "share_of_step": 0.07304830229843574,
+          "seconds_per_step": 0.5257862586295232,
+          "share_of_step": 0.054727552590661664,
           "mean_rows": 17.763406940063092
         },
         "expert_gemm_bwd_vjp|M<=8": {
           "leases": 1197,
-          "seconds": 2.841923291911371,
+          "seconds": 1.7626958499895409,
           "rows": 3443,
           "leases_per_step": 1197.0,
-          "seconds_per_step": 2.841923291911371,
-          "share_of_step": 0.24063309760070806,
+          "seconds_per_step": 1.7626958499895409,
+          "share_of_step": 0.18347385130050814,
           "mean_rows": 2.8763575605680867
         },
         "expert_gemm_bwd_vjp|M<=128": {
           "leases": 58,
-          "seconds": 0.16359716188162565,
+          "seconds": 0.09870890248566866,
           "rows": 2348,
           "leases_per_step": 58.0,
-          "seconds_per_step": 0.16359716188162565,
-          "share_of_step": 0.013852200703060978,
+          "seconds_per_step": 0.09870890248566866,
+          "share_of_step": 0.010274320721183628,
           "mean_rows": 40.48275862068966
         }
       },
