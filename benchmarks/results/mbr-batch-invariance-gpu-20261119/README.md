@@ -61,6 +61,8 @@ swap, equal with it, RTX 3060).
 
 Rerun on the same host (`fix/`, torch 2.14.1+cu130): A1, B1 (group 8), B1 groups 1, 2, 4 all give
 grad_sha256 `44a71981c54b...` and loss 5.671227931976318, both timed steps each.
-**S1 is green; S2 is green.** S3 (repeats) was green before the fix and is not repeated for the new digest
-beyond the two timed steps of each run. Next: F1 (cost of the row-wise path, ticket 07). The rule file
+**S1 is green; S2 is green.** S3 after the fix (`fix/A1t3`, `fix/B1t3`, fresh bridge processes, A1 and B1
+repeated): both give `44a71981c54b...` again, loss 5.671227931976318, so the equal digest is reproducible
+(one card, one host, one torch version). A stray bridge process from a mistyped launch overlapped with the
+first seconds of A1t3; it only affects timing, the digest is unchanged. Next: F1 (cost of the row-wise path, ticket 07). The rule file
 (`benchmarks/mbr-invariance-f1-rule-20261119.md`) is unchanged: it was written before the first run.
