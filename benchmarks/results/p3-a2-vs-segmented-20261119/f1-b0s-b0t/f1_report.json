@@ -1,0 +1,2550 @@
+{
+  "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+  "settings": {
+    "root": "/root/cmp/stage2",
+    "output": "f1-b0s-b0t",
+    "source": "/root/cmp/stage2/source",
+    "cache": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+    "data": "/root/soup-cmp/benchmarks/protocols/b5-moonlight-20261109/data.json",
+    "timed_steps": 3,
+    "host_cache_mib": 12288,
+    "max_blocks": 10,
+    "arms": "b0s-b0t",
+    "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+    "required": "suspend,power"
+  },
+  "required": [
+    "suspend",
+    "power"
+  ],
+  "summary": {
+    "valid_blocks": 5,
+    "void_blocks": 0,
+    "block_diff_seconds_B_minus_A": [
+      -6.139138124883175,
+      -6.191437507979572,
+      -5.395078119356185,
+      -5.300103382207453,
+      -5.738497287966311
+    ],
+    "block_diff_percent": [
+      -42.59940742961963,
+      -42.900988299458575,
+      -36.4918040955992,
+      -38.1291834459527,
+      -41.28287625681747
+    ],
+    "t": -31.320035652727764,
+    "df": 4,
+    "t_critical_5pct": 2.776,
+    "significant_5pct": true,
+    "mean_diff_percent": -40.28085190548951,
+    "repeats": {
+      "sigma": 0.5603745325737128,
+      "mean_a": 14.28568329429254,
+      "blocks_needed": 2
+    }
+  },
+  "runs": [
+    {
+      "block": 1,
+      "arm": "A",
+      "run": 1,
+      "value": 14.46037823241204,
+      "extra": {
+        "timed_steps": [
+          14.046969218179584,
+          14.46037823241204,
+          14.655489649623632
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 18.234696545638144,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 1,
+        "run": 1,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070462.879256,
+          "ram_available_bytes": 469012590592,
+          "commit_charge": {
+            "used_bytes": 639061684224,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070535.9168012,
+          "ram_available_bytes": 468980609024,
+          "commit_charge": {
+            "used_bytes": 639637790720,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 37 samples; clock event reasons seen: gpu_idle",
+          "samples": 37,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -8.102506399154663e-07,
+              "sleep_offset_end_s": -8.605420589447021e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 38 power samples, so on mains",
+            "evidence": {
+              "samples": 38,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 1,
+      "arm": "B",
+      "run": 2,
+      "value": 8.255110519938171,
+      "extra": {
+        "timed_steps": [
+          8.255110519938171,
+          8.373703197576106,
+          8.105579495429993
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.625117633491755,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 1,
+        "run": 2,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070535.9918952,
+          "ram_available_bytes": 468944265216,
+          "commit_charge": {
+            "used_bytes": 639637807104,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070586.9045238,
+          "ram_available_bytes": 469048721408,
+          "commit_charge": {
+            "used_bytes": 639143686144,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 255 to 2790 MHz over 26 samples; clock event reasons seen: gpu_idle",
+          "samples": 26,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 255,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.398186087608337e-07,
+              "sleep_offset_end_s": -5.19677996635437e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 27 power samples, so on mains",
+            "evidence": {
+              "samples": 27,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 1,
+      "arm": "B",
+      "run": 3,
+      "value": 8.28925887402147,
+      "extra": {
+        "timed_steps": [
+          8.011117223650217,
+          8.28925887402147,
+          8.548220315948129
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.50725160818547,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 2,
+        "run": 3,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070586.975947,
+          "ram_available_bytes": 469018927104,
+          "commit_charge": {
+            "used_bytes": 639143702528,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070637.5768175,
+          "ram_available_bytes": 469122281472,
+          "commit_charge": {
+            "used_bytes": 638877446144,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 255 to 2790 MHz over 26 samples; clock event reasons seen: gpu_idle",
+          "samples": 26,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 255,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -7.003545761108398e-07,
+              "sleep_offset_end_s": -5.606561899185181e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 27 power samples, so on mains",
+            "evidence": {
+              "samples": 27,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 1,
+      "arm": "A",
+      "run": 4,
+      "value": 14.362267411313951,
+      "extra": {
+        "timed_steps": [
+          14.327847049571574,
+          14.362267411313951,
+          14.701768136583269
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 18.77007056865841,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 2,
+        "run": 4,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070637.649945,
+          "ram_available_bytes": 469079216128,
+          "commit_charge": {
+            "used_bytes": 638877462528,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070711.307765,
+          "ram_available_bytes": 468794724352,
+          "commit_charge": {
+            "used_bytes": 640805928960,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 38 samples; clock event reasons seen: gpu_idle",
+          "samples": 38,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.603077054023743e-07,
+              "sleep_offset_end_s": -5.597248673439026e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 38 power samples, so on mains",
+            "evidence": {
+              "samples": 38,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "A",
+      "run": 5,
+      "value": 14.076655163429677,
+      "extra": {
+        "timed_steps": [
+          14.379430728033185,
+          14.076655163429677,
+          14.013359362259507
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 19.00271490123123,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 3,
+        "run": 5,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070711.3757598,
+          "ram_available_bytes": 468734119936,
+          "commit_charge": {
+            "used_bytes": 641297891328,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070784.7771842,
+          "ram_available_bytes": 469026697216,
+          "commit_charge": {
+            "used_bytes": 639379759104,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 285 to 2790 MHz over 37 samples; clock event reasons seen: gpu_idle",
+          "samples": 37,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 285,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.100162863731384e-07,
+              "sleep_offset_end_s": -4.805624485015869e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 38 power samples, so on mains",
+            "evidence": {
+              "samples": 38,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "B",
+      "run": 6,
+      "value": 8.162415613420308,
+      "extra": {
+        "timed_steps": [
+          8.162415613420308,
+          8.115343803539872,
+          8.253027871251106
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 13.670603604987264,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 3,
+        "run": 6,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070784.8538592,
+          "ram_available_bytes": 469002469376,
+          "commit_charge": {
+            "used_bytes": 639379775488,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070834.5101783,
+          "ram_available_bytes": 468981878784,
+          "commit_charge": {
+            "used_bytes": 639364476928,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 26 samples; clock event reasons seen: gpu_idle",
+          "samples": 26,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.295740604400635e-07,
+              "sleep_offset_end_s": -4.796311259269714e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 26 power samples, so on mains",
+            "evidence": {
+              "samples": 26,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "B",
+      "run": 7,
+      "value": 8.31855495274067,
+      "extra": {
+        "timed_steps": [
+          8.129256261512637,
+          8.31855495274067,
+          8.576931017450988
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 13.593916777521372,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 4,
+        "run": 7,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070834.5871475,
+          "ram_available_bytes": 468940668928,
+          "commit_charge": {
+            "used_bytes": 639364493312,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070884.769631,
+          "ram_available_bytes": 468993064960,
+          "commit_charge": {
+            "used_bytes": 638850736128,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 26 samples; clock event reasons seen: gpu_idle",
+          "samples": 26,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -7.105991244316101e-07,
+              "sleep_offset_end_s": -6.593763828277588e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 27 power samples, so on mains",
+            "evidence": {
+              "samples": 27,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "A",
+      "run": 8,
+      "value": 14.787190418690443,
+      "extra": {
+        "timed_steps": [
+          14.590206424705684,
+          14.787190418690443,
+          16.303000832907856
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 18.818973103538156,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 4,
+        "run": 8,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070884.8401773,
+          "ram_available_bytes": 468936810496,
+          "commit_charge": {
+            "used_bytes": 638869454848,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795070961.7563004,
+          "ram_available_bytes": 468853534720,
+          "commit_charge": {
+            "used_bytes": 638825177088,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 39 samples; clock event reasons seen: gpu_idle",
+          "samples": 39,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -5.19677996635437e-07,
+              "sleep_offset_end_s": -4.6938657760620117e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 40 power samples, so on mains",
+            "evidence": {
+              "samples": 40,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "A",
+      "run": 9,
+      "value": 15.59948452282697,
+      "extra": {
+        "timed_steps": [
+          15.830902162007987,
+          15.59948452282697,
+          15.008625022135675
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 18.590618489310145,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 5,
+        "run": 9,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795070961.8232684,
+          "ram_available_bytes": 468837076992,
+          "commit_charge": {
+            "used_bytes": 638825193472,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071038.574968,
+          "ram_available_bytes": 469048135680,
+          "commit_charge": {
+            "used_bytes": 639416102912,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 39 samples; clock event reasons seen: gpu_idle",
+          "samples": 39,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -5.494803190231323e-07,
+              "sleep_offset_end_s": -5.00120222568512e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 40 power samples, so on mains",
+            "evidence": {
+              "samples": 40,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "B",
+      "run": 10,
+      "value": 9.588520103134215,
+      "extra": {
+        "timed_steps": [
+          9.089111327193677,
+          9.588520103134215,
+          10.237865229137242
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.785901034250855,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 5,
+        "run": 10,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071038.6503298,
+          "ram_available_bytes": 468999929856,
+          "commit_charge": {
+            "used_bytes": 639416221696,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071094.9432294,
+          "ram_available_bytes": 468832980992,
+          "commit_charge": {
+            "used_bytes": 638825177088,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 225 to 2790 MHz over 29 samples; clock event reasons seen: gpu_idle",
+          "samples": 29,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 225,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -7.096678018569946e-07,
+              "sleep_offset_end_s": -6.202608346939087e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 30 power samples, so on mains",
+            "evidence": {
+              "samples": 30,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "B",
+      "run": 11,
+      "value": 9.190035060979426,
+      "extra": {
+        "timed_steps": [
+          9.190035060979426,
+          9.424596229568124,
+          8.629848293960094
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.989310794509947,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 6,
+        "run": 11,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071095.0182393,
+          "ram_available_bytes": 468813049856,
+          "commit_charge": {
+            "used_bytes": 638909616128,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071148.8123384,
+          "ram_available_bytes": 468825399296,
+          "commit_charge": {
+            "used_bytes": 639960428544,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 255 to 2790 MHz over 28 samples; clock event reasons seen: gpu_idle",
+          "samples": 28,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 255,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.901100277900696e-07,
+              "sleep_offset_end_s": -6.50063157081604e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 28 power samples, so on mains",
+            "evidence": {
+              "samples": 28,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "A",
+      "run": 12,
+      "value": 13.969226879999042,
+      "extra": {
+        "timed_steps": [
+          13.860618683509529,
+          13.969226879999042,
+          14.705233750864863
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 18.204547185450792,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 6,
+        "run": 12,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071148.8680706,
+          "ram_available_bytes": 468815593472,
+          "commit_charge": {
+            "used_bytes": 639957946368,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071221.9130263,
+          "ram_available_bytes": 468933869568,
+          "commit_charge": {
+            "used_bytes": 639389233152,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 255 to 2790 MHz over 37 samples; clock event reasons seen: gpu_idle",
+          "samples": 37,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 255,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -7.795169949531555e-07,
+              "sleep_offset_end_s": -6.007030606269836e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 38 power samples, so on mains",
+            "evidence": {
+              "samples": 38,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "A",
+      "run": 13,
+      "value": 13.90006157476455,
+      "extra": {
+        "timed_steps": [
+          13.96422618161887,
+          13.90006157476455,
+          13.892065501771867
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 18.23661320656538,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 7,
+        "run": 13,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071221.9883726,
+          "ram_available_bytes": 468893704192,
+          "commit_charge": {
+            "used_bytes": 639389249536,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071293.6457589,
+          "ram_available_bytes": 468954890240,
+          "commit_charge": {
+            "used_bytes": 638823337984,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 210 to 2790 MHz over 37 samples; clock event reasons seen: gpu_idle",
+          "samples": 37,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 210,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -8.00006091594696e-07,
+              "sleep_offset_end_s": -6.398186087608337e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 37 power samples, so on mains",
+            "evidence": {
+              "samples": 37,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "B",
+      "run": 14,
+      "value": 9.052966107614338,
+      "extra": {
+        "timed_steps": [
+          9.052966107614338,
+          9.1335184648633,
+          8.873860474675894
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.080705782398582,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 7,
+        "run": 14,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071293.7206845,
+          "ram_available_bytes": 468913651712,
+          "commit_charge": {
+            "used_bytes": 638823354368,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071346.7020328,
+          "ram_available_bytes": 468939661312,
+          "commit_charge": {
+            "used_bytes": 639398486016,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 27 samples; clock event reasons seen: gpu_idle",
+          "samples": 27,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -8.00006091594696e-07,
+              "sleep_offset_end_s": -4.898756742477417e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 28 power samples, so on mains",
+            "evidence": {
+              "samples": 28,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "B",
+      "run": 15,
+      "value": 8.14759757835418,
+      "extra": {
+        "timed_steps": [
+          8.247392044402659,
+          8.099581989459693,
+          8.14759757835418
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.09435008186847,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 8,
+        "run": 15,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071346.7680624,
+          "ram_available_bytes": 468921114624,
+          "commit_charge": {
+            "used_bytes": 639399686144,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071396.6717863,
+          "ram_available_bytes": 468877160448,
+          "commit_charge": {
+            "used_bytes": 639391719424,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 26 samples; clock event reasons seen: gpu_idle",
+          "samples": 26,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -5.597248673439026e-07,
+              "sleep_offset_end_s": -6.193295121192932e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 26 power samples, so on mains",
+            "evidence": {
+              "samples": 26,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "A",
+      "run": 16,
+      "value": 13.900708875618875,
+      "extra": {
+        "timed_steps": [
+          13.900708875618875,
+          13.947453912347555,
+          13.783224001526833
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 17.698016251437366,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 8,
+        "run": 16,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071396.7479672,
+          "ram_available_bytes": 468846145536,
+          "commit_charge": {
+            "used_bytes": 639391735808,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071467.3536284,
+          "ram_available_bytes": 468890607616,
+          "commit_charge": {
+            "used_bytes": 639415242752,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 270 to 2790 MHz over 36 samples; clock event reasons seen: gpu_idle",
+          "samples": 36,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 270,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -6.994232535362244e-07,
+              "sleep_offset_end_s": -4.7031790018081665e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 37 power samples, so on mains",
+            "evidence": {
+              "samples": 37,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 5,
+      "arm": "A",
+      "run": 17,
+      "value": 13.507282904349267,
+      "extra": {
+        "timed_steps": [
+          13.386368784122169,
+          13.507282904349267,
+          13.838114079087973
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 17.86599958036095,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 9,
+        "run": 17,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071467.4286602,
+          "ram_available_bytes": 468861456384,
+          "commit_charge": {
+            "used_bytes": 639415259136,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071537.064873,
+          "ram_available_bytes": 469015564288,
+          "commit_charge": {
+            "used_bytes": 638836846592,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 300 to 2790 MHz over 36 samples; clock event reasons seen: gpu_idle",
+          "samples": 36,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 300,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -8.00006091594696e-07,
+              "sleep_offset_end_s": -4.898756742477417e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 36 power samples, so on mains",
+            "evidence": {
+              "samples": 36,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 5,
+      "arm": "B",
+      "run": 18,
+      "value": 8.287669050507247,
+      "extra": {
+        "timed_steps": [
+          8.287669050507247,
+          8.19419549871236,
+          8.402390850707889
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.274794877506793,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 9,
+        "run": 18,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071537.1306367,
+          "ram_available_bytes": 468998078464,
+          "commit_charge": {
+            "used_bytes": 638836228096,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071587.9952652,
+          "ram_available_bytes": 468837294080,
+          "commit_charge": {
+            "used_bytes": 639432552448,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 315 to 2790 MHz over 26 samples; clock event reasons seen: gpu_idle",
+          "samples": 26,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 315,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -5.299225449562073e-07,
+              "sleep_offset_end_s": -8.800998330116272e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 27 power samples, so on mains",
+            "evidence": {
+              "samples": 27,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 5,
+      "arm": "B",
+      "run": 19,
+      "value": 8.036196237429976,
+      "extra": {
+        "timed_steps": [
+          8.036196237429976,
+          7.680489250458777,
+          8.097258022986352
+        ],
+        "grad_sha256": [
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+          "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+        ],
+        "cold_first_step": 14.001606686040759,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "batch_invariant",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "B",
+        "round": 10,
+        "run": 19,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071588.066185,
+          "ram_available_bytes": 468815847424,
+          "commit_charge": {
+            "used_bytes": 639971606528,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071637.9260952,
+          "ram_available_bytes": 468978741248,
+          "commit_charge": {
+            "used_bytes": 639470411776,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 225 to 2790 MHz over 26 samples; clock event reasons seen: gpu_idle",
+          "samples": 26,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 225,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -5.597248673439026e-07,
+              "sleep_offset_end_s": -5.299225449562073e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 26 power samples, so on mains",
+            "evidence": {
+              "samples": 26,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    },
+    {
+      "block": 5,
+      "arm": "A",
+      "run": 20,
+      "value": 14.293576959520578,
+      "extra": {
+        "timed_steps": [
+          14.38672969583422,
+          14.130542091093957,
+          14.293576959520578
+        ],
+        "grad_sha256": [
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10",
+          "82f2dac0fd4270c4034f151626220d7f383c83beae824922b80245d7f4c51c10"
+        ],
+        "cold_first_step": 19.05948981642723,
+        "arm": {
+          "expert_transfer": "packed",
+          "expert_host_cache_mib": 12288,
+          "expert_prefetch": true,
+          "expert_gemm": "segmented",
+          "mbr_group_size": 8,
+          "deterministic": false
+        }
+      },
+      "arm_record": {
+        "arm": "A",
+        "round": 10,
+        "run": 20,
+        "label": "RTX 4060 Ti (vast.ai), Moonlight MBR g8, b0s-b0t",
+        "gpu": {
+          "id": "0",
+          "source": "CUDA_VISIBLE_DEVICES"
+        },
+        "required": [
+          "suspend",
+          "power"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1795071637.9982753,
+          "ram_available_bytes": 468943134720,
+          "commit_charge": {
+            "used_bytes": 639470874624,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1795071711.7959177,
+          "ram_available_bytes": 468928081920,
+          "commit_charge": {
+            "used_bytes": 638832664576,
+            "limit_bytes": 549585121280
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 255 to 2790 MHz over 38 samples; clock event reasons seen: gpu_idle",
+          "samples": 38,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 255,
+            "median": 2610.0,
+            "max": 2790
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -2.207234501838684e-07,
+              "sleep_offset_end_s": -6.69620931148529e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 38 power samples, so on mains",
+            "evidence": {
+              "samples": 38,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "unknown",
+            "reason": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source maps to no block device",
+            "evidence": {
+              "model_path": "/root/cmp/stage2/layer-cache/root__cmp__stage2__source",
+              "device": null,
+              "disk_read_bytes_start": null,
+              "disk_read_bytes_end": null,
+              "other_disk_read_bytes_start": null,
+              "other_disk_read_bytes_end": null,
+              "own_read_bytes": null,
+              "foreign_read_bytes": null,
+              "foreign_read_bytes_min": null,
+              "foreign_read_bytes_max": null,
+              "uninspectable_processes": null
+            },
+            "readers": [],
+            "unattributed_bytes": null
+          }
+        }
+      }
+    }
+  ]
+}
