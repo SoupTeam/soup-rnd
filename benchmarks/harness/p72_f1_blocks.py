@@ -114,13 +114,21 @@ def summarize(blocks: Sequence[Sequence[Run]]) -> Dict[str, Any]:
     return summary
 
 
+def arm_flags(mode: str, *, host_cache_mib: int) -> Dict[str, List[str]]:
+    """Bridge flags of arms A and B. ``pr72``: sync against packed plus prefetch (PR #72).
+    ``b0-b1``: ticket 07, both complete with prefetch; B adds the invariant expert GEMM."""
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", str(host_cache_mib)]
+    if mode == "pr72":
+        return {"A": ["--expert-transfer", "sync"], "B": complete}
+    if mode == "b0-b1":
+        return {"A": list(complete), "B": complete + ["--expert-gemm", "invariant"]}
+    raise ValueError(f"unknown arm mode {mode!r}")
+
+
 def make_runner(args: argparse.Namespace, out_dir: Path) -> Callable[[str, int], Dict[str, Any]]:
     bridge = HARNESS / "p3_route_preserving_mbr_soup_bridge.py"
-    arms = {
-        "A": ["--expert-transfer", "sync"],
-        "B": ["--expert-transfer", "packed", "--expert-prefetch",
-              "--expert-host-cache-mib", str(args.host_cache_mib)],
-    }
+    arms = arm_flags(args.arms, host_cache_mib=args.host_cache_mib)
 
     def run_arm(arm: str, run: int) -> Dict[str, Any]:
         out = out_dir / f"run{run:02d}_{arm}"
@@ -152,6 +160,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--timed-steps", type=int, default=3)
     parser.add_argument("--host-cache-mib", type=int, default=12288)
     parser.add_argument("--max-blocks", type=int, default=10)
+    parser.add_argument("--arms", default="pr72", choices=["pr72", "b0-b1"],
+                        help="pr72: sync vs packed+prefetch; b0-b1: native vs invariant GEMM")
     parser.add_argument("--label", default="RTX 3060 (vast.ai), Moonlight MBR")
     parser.add_argument("--required", default="suspend,power",
                         help="checks whose unknown voids the verdict (the rule says why)")

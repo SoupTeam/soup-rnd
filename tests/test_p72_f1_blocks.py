@@ -107,3 +107,22 @@ def test_identical_differences_of_zero_are_not_an_effect():
 
 def test_t_critical_uses_the_next_lower_tabulated_df():
     assert f1.t_critical(4) == 2.776 and f1.t_critical(11) == 2.228 and f1.t_critical(99) == 2.042
+
+
+def test_b0_against_b1_differ_only_in_the_expert_gemm_flag():
+    # Ticket 07: complete + MBR group 8 + prefetch on both arms; A is native GEMM, B invariant.
+    flags = f1.arm_flags("b0-b1", host_cache_mib=12288)
+    assert flags["A"] == ["--expert-transfer", "packed", "--expert-prefetch",
+                          "--expert-host-cache-mib", "12288"]
+    assert flags["B"] == flags["A"] + ["--expert-gemm", "invariant"]
+
+
+def test_the_pr72_mode_keeps_sync_against_packed_prefetch():
+    flags = f1.arm_flags("pr72", host_cache_mib=12288)
+    assert flags["A"] == ["--expert-transfer", "sync"]
+    assert "--expert-gemm" not in flags["B"]
+
+
+def test_an_unknown_arm_mode_is_refused():
+    with pytest.raises(ValueError, match="unknown arm mode"):
+        f1.arm_flags("b1-b2", host_cache_mib=1)
