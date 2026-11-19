@@ -9,9 +9,10 @@ not a quality evaluation or a physical-SSD benchmark.
 from __future__ import annotations
 
 import argparse
-import contextlib
 import hashlib
+import importlib.metadata
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -19,7 +20,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Dict, List, Optional
 
-from soup_cli.utils.l2l_step import L2LStep
+from rich.console import Console
 
 MODEL = "moonshotai/Moonlight-16B-A3B"
 REVISION = "2a9a177f4841649f849ba941e41d2ee73c042314"
@@ -267,51 +268,34 @@ def validate_l2l_two_read_counts(result: Dict[str, Any]) -> Dict[str, Any]:
 
 class PhaseAudit:
     def __init__(self) -> None:
-        self.current: Optional[tuple[int, str]] = None
         self.routes: Dict[str, Dict[int, List[Dict[str, Any]]]] = {}
         self.handles: List[Any] = []
-        self.capture_enabled = True
-
-    def clear(self, *, capture_enabled: bool = True) -> None:
-        self.current = None
-        self.routes = {}
-        self.capture_enabled = capture_enabled
-
-    @contextlib.contextmanager
-    def layer_call(self, layer: int, phase: str, token_count: int):
-        previous = self.current
-        self.current = (layer, phase)
-        try:
-            yield
-        finally:
-            self.current = previous
 
     def attach(self, layers: List[Any]) -> None:
         for layer_idx, layer in enumerate(layers):
-            experts = getattr(getattr(layer, "mlp", None), "experts", None)
-            if experts is None or not hasattr(experts, "reader"):
+            mlp = getattr(getattr(layer, "inner", layer), "mlp", None)
+            gate = getattr(mlp, "gate", None)
+            if gate is None:
                 continue
 
-            def hook(module: Any, args: tuple[Any, ...], kwargs: dict[str, Any], *, li=layer_idx):
-                if not self.capture_enabled or self.current is None:
-                    return
-                active_layer, phase = self.current
-                if active_layer != li or phase not in ("init_forward", "recompute_forward"):
-                    return
-                ids = kwargs.get("top_k_index", args[1] if len(args) > 1 else None)
-                weights = kwargs.get("top_k_weights", args[2] if len(args) > 2 else None)
-                if ids is None or weights is None:
-                    raise RuntimeError(
-                        f"route audit could not read expert IDs/weights at layer {li}"
-                    )
+            # MBR calls the router once per micro-batch. The production validator
+            # prohibits hooks on experts; observe the unchanged router output instead.
+            def hook(_module: Any, _args: Any, output: Any, *, li=layer_idx):
+                import torch
+
+                phase = "recompute_forward" if torch.is_grad_enabled() else "init_forward"
+                if len(output) == 3:
+                    _, weights, ids = output
+                else:
+                    ids, weights = output
                 self.routes.setdefault(phase, {}).setdefault(li, []).append(
                     {
-                        "ids": ids.detach().long().cpu().clone(),
+                        "ids": ids.detach().cpu().clone(),
                         "weights": weights.detach().float().cpu().clone(),
                     }
                 )
 
-            self.handles.append(experts.register_forward_pre_hook(hook, with_kwargs=True))
+            self.handles.append(gate.register_forward_hook(hook))
 
     def close(self) -> None:
         for handle in self.handles:
@@ -354,43 +338,6 @@ def within_branch_route_parity(audit: PhaseAudit) -> Dict[str, Any]:
     return {"layers": rows, "failures": failures}
 
 
-class InstrumentedL2LStep(L2LStep):
-    """Capture actual route calls for either the shipped step or route-preserving MBR."""
-
-    def __init__(self, model: Any, runtime: Any, call: Any, audit: PhaseAudit) -> None:
-        super().__init__(model, runtime, call)
-        self.audit = audit
-
-    def _layer(self, module: Any, hidden: Any, state: Any, layer_call: Any) -> Any:
-        import torch
-
-        if not self.audit.capture_enabled:
-            return super()._layer(module, hidden, state, layer_call)
-        li = self.layers.index(module)
-        phase = "init_forward" if not torch.is_grad_enabled() else "recompute_forward"
-        count = int(hidden.shape[0] * hidden.shape[1])
-        with self.audit.layer_call(li, phase, count):
-            return super()._layer(module, hidden, state, layer_call)
-
-    def _route_preserving_layer_window(
-        self,
-        module: Any,
-        hidden: Any,
-        states: Any,
-        calls: Any,
-        group_size: int,
-    ) -> Any:
-        import torch
-
-        if not self.audit.capture_enabled:
-            return super()._route_preserving_layer_window(module, hidden, states, calls, group_size)
-        li = self.layers.index(module)
-        phase = "init_forward" if not torch.is_grad_enabled() else "recompute_forward"
-        tokens = sum(int(value.shape[0] * value.shape[1]) for value in hidden)
-        with self.audit.layer_call(li, phase, tokens):
-            return super()._route_preserving_layer_window(module, hidden, states, calls, group_size)
-
-
 def adapter_metrics(params: Dict[str, Any]) -> Dict[str, Any]:
     import torch
 
@@ -400,9 +347,9 @@ def adapter_metrics(params: Dict[str, Any]) -> Dict[str, Any]:
     for name, param in params.items():
         if param.grad is None:
             continue
-        grad = param.grad.detach().float().cpu().contiguous()
+        grad = param.grad.detach().cpu().contiguous()
         grad_cpu[name] = grad
-        sq += float((grad * grad).sum())
+        sq += float(grad.float().square().sum())
         elems += grad.numel()
         nonzero += int(torch.count_nonzero(grad))
     return {
@@ -410,6 +357,53 @@ def adapter_metrics(params: Dict[str, Any]) -> Dict[str, Any]:
         "zero_fraction": 1 - nonzero / max(elems, 1),
         "gradients": grad_cpu,
         "missing_gradient_names": [name for name, param in params.items() if param.grad is None],
+    }
+
+
+def bitwise_tensors(
+    left: Dict[str, Any], right: Dict[str, Any], expected: set[str]
+) -> Dict[str, Any]:
+    """Compare representations, not floating-point values or rounded summaries."""
+    import torch
+
+    mismatches = []
+    for name in sorted(expected | left.keys() | right.keys()):
+        if name not in expected or name not in left or name not in right:
+            mismatches.append(name)
+            continue
+        a, b = left[name], right[name]
+        if a.dtype != b.dtype or a.shape != b.shape or not torch.equal(
+            a.contiguous().reshape(-1).view(torch.uint8),
+            b.contiguous().reshape(-1).view(torch.uint8),
+        ):
+            mismatches.append(name)
+    return {
+        "all_equal": bool(expected) and not mismatches,
+        "expected_count": len(expected),
+        "mismatches": mismatches,
+    }
+
+
+def _route_ids(result: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        f"{phase}/{layer}/{mb}": record["ids"]
+        for phase, layers in result["route_artifacts"].items()
+        for layer, records in layers.items()
+        for mb, record in enumerate(records)
+    }
+
+
+def _step_bits(left: Dict[str, Any], right: Dict[str, Any], params: set[str]) -> Dict[str, Any]:
+    return {
+        "losses": bitwise_tensors(
+            left["loss_artifacts"], right["loss_artifacts"], {str(mb) for mb in range(K)}
+        ),
+        "raw_lora_gradients": bitwise_tensors(
+            left["grad_artifacts"], right["grad_artifacts"], params
+        ),
+        "post_adamw_adapters": bitwise_tensors(
+            left["adapter_artifacts"], right["adapter_artifacts"], params
+        ),
     }
 
 
@@ -439,7 +433,13 @@ def main() -> None:
 
     from soup_cli.trainer.l2l_trainer import L2LState, _store_for
     from soup_cli.utils.kimi_k2 import load_stream_tokenizer
-    from soup_cli.utils.l2l_step import capture_layer_call, label_tokens, model_parts, sft_head
+    from soup_cli.utils.l2l_step import (
+        L2LStep,
+        capture_layer_call,
+        label_tokens,
+        model_parts,
+        sft_head,
+    )
     from soup_cli.utils.layer_shard import read_shard_index
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
 
@@ -449,6 +449,8 @@ def main() -> None:
     parser.add_argument("--cache", default=None)
     parser.add_argument("--data", default=None)
     parser.add_argument("--output", default=None)
+    parser.add_argument("--expert-gemm", choices=("native", "batch_invariant"), default="native")
+    parser.add_argument("--deterministic", action="store_true", help="require deterministic CUDA")
     parser.add_argument(
         "--mbr-group-size",
         type=int,
@@ -477,6 +479,9 @@ def main() -> None:
     )
     parser.add_argument("--require-p3-ram", action="store_true")
     args = parser.parse_args()
+    if args.deterministic:
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        torch.use_deterministic_algorithms(True)
     if K % args.mbr_group_size:
         raise RuntimeError(f"STOP: mbr group size {args.mbr_group_size} must divide window K={K}")
     if args.expert_host_cache_mib < 0:
@@ -526,7 +531,7 @@ def main() -> None:
     (OUT / "host_preflight.json").write_text(
         json.dumps(preflight, indent=2) + "\n", encoding="utf-8"
     )
-    print("HOST PREFLIGHT", json.dumps(preflight, indent=2), flush=True)
+    Console().print("HOST PREFLIGHT", preflight)
     save_progress("host_preflight_complete", extra={"host_preflight": preflight})
     if args.require_p3_ram and not (
         preflight["p3_ram_limit_pass"] and preflight["p3_swap_limit_pass"]
@@ -568,6 +573,7 @@ def main() -> None:
             read_ahead=args.read_ahead,
             two_read_experts=True,
             grouped_expert_routes=True,
+            expert_gemm=args.expert_gemm,
             expert_transfer=args.expert_transfer,
             expert_host_cache_bytes=expert_host_cache_bytes,
         )
@@ -603,7 +609,7 @@ def main() -> None:
     audit = PhaseAudit()
     audit.attach(list(owner.layers))
     state = L2LState(runtime=runtime, dtype=torch.bfloat16, output_dir=str(OUT))
-    l2l = InstrumentedL2LStep(model, runtime, call, audit)
+    l2l = L2LStep(model, runtime, call)
     state.stepper = l2l
     store = _store_for(state, l2l, micro_batches, torch.device("cuda"))
     params = {name: p for name, p in sorted(model.named_parameters()) if p.requires_grad}
@@ -622,7 +628,6 @@ def main() -> None:
     def one_run(kind: str, *, keep_artifacts: bool, collect_diagnostics: bool) -> Dict[str, Any]:
         stepper = l2l
         state.stepper = l2l
-        audit.clear(capture_enabled=collect_diagnostics)
         reset_parameters()
         optimizer = torch.optim.AdamW(list(params.values()), lr=1e-4, weight_decay=0.01)
         optimizer.zero_grad(set_to_none=True)
@@ -666,8 +671,8 @@ def main() -> None:
             }
         loss = float(torch.stack([x.float() for x in losses]).sum().detach().cpu())
         if keep_artifacts:
-            updated = {name: p.detach().float().cpu().clone() for name, p in params.items()}
-            delta = {name: updated[name] - initial[name].float() for name in params}
+            updated = {name: p.detach().cpu().clone() for name, p in params.items()}
+            delta = {name: updated[name].float() - initial[name].float() for name in params}
         else:
             updated = None
             delta = None
@@ -723,6 +728,8 @@ def main() -> None:
                 else None
             ),
             "grad_artifacts": grads["gradients"] if keep_artifacts else None,
+            "adapter_artifacts": updated,
+            "loss_artifacts": {str(i): x.detach().cpu() for i, x in enumerate(losses)},
             "delta_artifacts": delta if keep_artifacts else None,
         }
         completed_runs.append(strip_artifacts(result))
@@ -733,7 +740,10 @@ def main() -> None:
 
     try:
         warm_l2l = one_run("l2l", keep_artifacts=True, collect_diagnostics=True)
+        audit.routes = {}
         warm_mbr = one_run("mbr", keep_artifacts=True, collect_diagnostics=True)
+        audit.close()  # Timed runs have no route observation hooks.
+        audit.routes = {}
         route_summary = compare_route_artifacts(
             warm_l2l["route_artifacts"]["init_forward"],
             warm_mbr["route_artifacts"]["init_forward"],
@@ -825,6 +835,27 @@ def main() -> None:
         bb_gradient_repeatability = compare_tensors(
             measured[1]["grad_artifacts"], measured[2]["grad_artifacts"]
         )
+        route_keys = {
+            f"{phase}/{layer}/{mb}"
+            for phase in ("init_forward", "recompute_forward")
+            for layer in range(1, 27)  # pinned Moonlight: layer 0 dense
+            for mb in range(K)
+        }
+        names = set(params)
+        comparisons = {
+            "route_ids_diagnostic": bitwise_tensors(
+                _route_ids(diag_a), _route_ids(diag_b), route_keys
+            ),
+            "diagnostic_ab": _step_bits(diag_a, diag_b, names),
+            "timed_ab": _step_bits(first_a, first_b, names),
+            "timed_aa": _step_bits(first_a, measured[3], names),
+            "timed_bb": _step_bits(first_b, measured[2], names),
+        }
+        bitwise_equal = comparisons["route_ids_diagnostic"]["all_equal"] and all(
+            field["all_equal"]
+            for name in ("diagnostic_ab", "timed_ab", "timed_aa", "timed_bb")
+            for field in comparisons[name].values()
+        )
         route_payload = {
             "model": MODEL,
             "revision": REVISION,
@@ -853,16 +884,8 @@ def main() -> None:
             "mbr_tokens_per_second_median": K * SEQ / median(mbr_seconds),
         }
         report = {
-            "status": "PASS"
-            if all(
-                not r["route_recompute_parity"]["failures"]
-                and (
-                    r["mbr_window_counter_audit"] is None
-                    or not r["mbr_window_counter_audit"]["failures"]
-                )
-                for r in (warm_l2l, warm_mbr)
-            )
-            else "FAIL",
+            "status": "PASS" if args.expert_gemm == "native" or bitwise_equal else "FAIL",
+            "bitwise_comparison": {"all_equal": bitwise_equal, **comparisons},
             "scope": (
                 "one fixed 8x64-token Soup training window, current two-read L2L vs opt-in "
                 "route-preserving MBR; one update per measured arm; not quality or "
@@ -871,6 +894,11 @@ def main() -> None:
             "model": MODEL,
             "revision": REVISION,
             "gpu": torch.cuda.get_device_name(0),
+            "compute_capability": torch.cuda.get_device_capability(0),
+            "torch_version": torch.__version__,
+            "triton_version": importlib.metadata.version("triton"),
+            "expert_gemm": args.expert_gemm,
+            "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
             "soup_revision": source_revision(),
             "source_file_sha256": {
                 "l2l_step.py": sha256_file(
@@ -946,9 +974,12 @@ def main() -> None:
         }
         (OUT / "result.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         save_progress(
-            "complete", status="complete", extra={"result_path": str(OUT / "result.json")}
+            "complete", status="complete" if report["status"] == "PASS" else "failed_bitwise",
+            extra={"result_path": str(OUT / "result.json")},
         )
-        print(json.dumps(report, indent=2), flush=True)
+        Console().print(report)
+        if report["status"] == "FAIL":
+            raise RuntimeError("batch-invariant bitwise comparison failed; see result.json")
     finally:
         audit.close()
         state.close()
@@ -959,7 +990,7 @@ def strip_artifacts(result: Dict[str, Any]) -> Dict[str, Any]:
     return {
         k: v
         for k, v in result.items()
-        if k not in {"route_artifacts", "grad_artifacts", "delta_artifacts"}
+        if not k.endswith("_artifacts")
     }
 
 

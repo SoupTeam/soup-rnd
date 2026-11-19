@@ -148,6 +148,7 @@ def test_resume_refuses_a_changed_mbr_recipe(tmp_path, monkeypatch):
         ("grouped_expert_routes", False),
         ("route_preserving_mbr", False),
         ("mbr_group_size", 2),
+        ("expert_gemm", "batch_invariant"),
     ],
 )
 def test_resume_rejects_each_mbr_switch_change(tmp_path, monkeypatch, field, value):
@@ -206,11 +207,34 @@ def test_old_recipe_defaults_new_experimental_fields_to_off(tmp_path):
             },
             "cannot exceed",
         ),
+        (
+            {"stream_expert_layout": "fused", "stream_expert_gemm": "batch_invariant"},
+            "stream_expert_gemm='batch_invariant' requires",
+        ),
     ],
 )
 def test_mbr_config_rejects_inconsistent_options(settings, message):
     with pytest.raises(ValueError, match=message):
         _tcfg(**settings)
+
+
+def test_recipe_records_the_expert_gemm():
+    from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
+
+    assert resolve_l2l_recipe(_tcfg()).expert_gemm == "native"
+    recipe = resolve_l2l_recipe(_tcfg(stream_expert_gemm="batch_invariant"))
+    assert recipe.expert_gemm == "batch_invariant"
+
+
+def test_expert_gemm_without_streaming_is_refused():
+    from soup_cli.config.schema import SoupConfig
+
+    with pytest.raises(ValueError, match="stream_expert_gemm.*stream_layers is false"):
+        SoupConfig.model_validate({
+            "base": "example/model", "task": "sft",
+            "data": {"train": "train.jsonl", "chat_template": "chatml"},
+            "training": {"stream_expert_gemm": "batch_invariant"},
+        })
 
 
 # --------------------------------------------------------------------------

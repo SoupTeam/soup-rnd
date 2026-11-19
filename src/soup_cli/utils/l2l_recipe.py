@@ -30,6 +30,7 @@ class L2LRecipe:
     grouped_expert_routes: bool = False
     route_preserving_mbr: bool = False
     mbr_group_size: Optional[int] = None
+    expert_gemm: str = "native"
 
 
 def validate_l2l_options(tcfg: Any) -> None:
@@ -74,6 +75,7 @@ def resolve_l2l_recipe(tcfg: Any, *, effective_k: int | None = None) -> L2LRecip
         grouped_expert_routes=bool(getattr(tcfg, "l2l_grouped_expert_routes", False)),
         route_preserving_mbr=bool(getattr(tcfg, "l2l_route_preserving_mbr", False)),
         mbr_group_size=mbr_group_size,
+        expert_gemm=str(getattr(tcfg, "stream_expert_gemm", "native")),
     )
 
 
@@ -123,6 +125,7 @@ def validate_resume(output_dir: "str | os.PathLike[str]", recipe: L2LRecipe) -> 
         "grouped_expert_routes",
         "route_preserving_mbr",
         "mbr_group_size",
+        "expert_gemm",
     ):
         before, now = getattr(saved, name), getattr(recipe, name)
         if before != now:

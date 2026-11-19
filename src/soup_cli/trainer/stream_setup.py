@@ -742,6 +742,11 @@ class StreamingSetupMixin:
                 "L2L expert replay and grouped routes currently support DeepSeek-V3-family "
                 "streaming only"
             )
+        expert_gemm = str(getattr(tcfg, "stream_expert_gemm", "native"))
+        if expert_gemm != "native" and not expert_layout:
+            raise ValueError(
+                "training.stream_expert_gemm requires training.stream_expert_layout='per_expert'"
+            )
 
         on_cuda = str(self.device).startswith("cuda")
         # #385 — ASK THE CARD. bf16 needs Ampere, and a T4 (Colab free), a P100
@@ -755,6 +760,20 @@ class StreamingSetupMixin:
             or (str(self.device) == "cpu" and dtype == "float32")
         ):
             raise ValueError("training.l2l_auto_k requires CPU FP32 or CUDA BF16 streaming")
+        if expert_gemm != "native":
+            # Refuse before resharding or loading: the kernel needs CUDA (and sm_80+ for bf16).
+            import torch
+
+            from soup_cli.utils.invariant_gemm import check_supported
+
+            check_supported(self.device, getattr(torch, dtype))
+            if not torch.are_deterministic_algorithms_enabled():
+                console.print(
+                    "[yellow]stream_expert_gemm='batch_invariant':[/] routed-expert rows no "
+                    "longer depend on the MBR window; bit-identical runs also need "
+                    "deterministic kernels elsewhere (CUBLAS_WORKSPACE_CONFIG=:4096:8 and "
+                    "torch.use_deterministic_algorithms(True))."
+                )
 
         # v0.72.2 — NF4. The decoder linears ship as packed nibbles + per-block
         # absmax, so the RAM store is ~0.26x its bf16 size; embeddings, norms and
@@ -1272,6 +1291,7 @@ class StreamingSetupMixin:
             double_quant=double_quant,
             two_read_experts=two_read_experts,
             grouped_expert_routes=grouped_expert_routes,
+            **({"expert_gemm": expert_gemm} if expert_gemm != "native" else {}),
             tier=tier,
             weights_dir=weights_dir,
             ngram_source=ngram_source,
@@ -1578,6 +1598,7 @@ class StreamingSetupMixin:
             grouped_expert_routes=bool(getattr(tcfg, "l2l_grouped_expert_routes", False)),
             route_preserving_mbr=bool(getattr(tcfg, "l2l_route_preserving_mbr", False)),
             mbr_group_size=getattr(tcfg, "l2l_mbr_group_size", None),
+            expert_gemm=str(getattr(tcfg, "stream_expert_gemm", "native")),
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "

@@ -1,0 +1,151 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4060 Ti",
+  "soup_revision": "c9d4e05746b227221ce1555a03ccdaf72657cfb7",
+  "measured_uninstrumented": [
+    {
+      "kind": "mbr",
+      "loss": 5.668651103973389,
+      "seconds": 7.971151573583484,
+      "wall_seconds_including_artifact_capture": 7.990979005582631,
+      "model_step_seconds": 7.96109380479902,
+      "optimizer_seconds": 0.010057768784463406,
+      "artifact_capture_seconds_excluded": 0.01982575375586748,
+      "tokens_per_second": 64.23162265497193,
+      "peak_allocated_GiB": 1.1067419052124023,
+      "peak_allocated_delta_GiB": 0.27404022216796875,
+      "process_read_bytes_delta": 869650432,
+      "runtime_total": {
+        "expert_fetches": 3136,
+        "expert_bytes_read": 0
+      },
+      "expert_pool_stats_after_run": {
+        "slot_count": 1,
+        "weight_budget_bytes": 55722496,
+        "plan": {
+          "dense_bytes": 17301504,
+          "packed_and_stats_bytes": 4866048,
+          "code_bytes": 64,
+          "scratch_bytes": 0,
+          "padding_bytes": 448,
+          "weight_bytes": 22168064,
+          "host_staging_bytes": 4886528,
+          "packed_region_bytes": 4866048,
+          "host_pinned_bytes": 4866048
+        },
+        "cuda_allocation_delta": 23068672,
+        "fetches": 6272,
+        "logical_bytes_read": 7629963264,
+        "transfer": "packed",
+        "h2d_copies": 6272,
+        "prefetch": {
+          "enabled": true,
+          "hits": 1542,
+          "discards": 0
+        },
+        "host_cache": {
+          "budget_bytes": 12884901888,
+          "payload_bytes": 7629963264,
+          "entries": 1568,
+          "hits": 4704,
+          "misses": 1568,
+          "rejected": 0
+        },
+        "closed": false,
+        "cpu_nf4_temporaries": false
+      },
+      "expert_host_cache_counter_delta": {
+        "hits": 3136,
+        "misses": 0,
+        "rejected": 0
+      },
+      "phase_counters": null,
+      "mbr_window_counter_audit": null,
+      "route_recompute_parity": null,
+      "phase_profile": null,
+      "grad_norm": 0.776006806028633,
+      "grad_zero_fraction": 0.4046692607003891,
+      "missing_gradient_names": [],
+      "initial_adapter_sha256": "bb83391693bf534d4c9b085960b13070484b03809a0f8fd4d4d38516e896597e",
+      "updated_adapter_sha256": "eaf2bd98fe44401ada51dec751fba008bf594bbfe85d3ea238c624650fe9a838"
+    },
+    {
+      "kind": "mbr",
+      "loss": 5.668651103973389,
+      "seconds": 8.004207944497466,
+      "wall_seconds_including_artifact_capture": 8.026768129318953,
+      "model_step_seconds": 7.993797728791833,
+      "optimizer_seconds": 0.010410215705633163,
+      "artifact_capture_seconds_excluded": 0.022558536380529404,
+      "tokens_per_second": 63.96635414150841,
+      "peak_allocated_GiB": 1.1067419052124023,
+      "peak_allocated_delta_GiB": 0.27404022216796875,
+      "process_read_bytes_delta": 869650432,
+      "runtime_total": {
+        "expert_fetches": 3136,
+        "expert_bytes_read": 0
+      },
+      "expert_pool_stats_after_run": {
+        "slot_count": 1,
+        "weight_budget_bytes": 55722496,
+        "plan": {
+          "dense_bytes": 17301504,
+          "packed_and_stats_bytes": 4866048,
+          "code_bytes": 64,
+          "scratch_bytes": 0,
+          "padding_bytes": 448,
+          "weight_bytes": 22168064,
+          "host_staging_bytes": 4886528,
+          "packed_region_bytes": 4866048,
+          "host_pinned_bytes": 4866048
+        },
+        "cuda_allocation_delta": 23068672,
+        "fetches": 9408,
+        "logical_bytes_read": 7629963264,
+        "transfer": "packed",
+        "h2d_copies": 9408,
+        "prefetch": {
+          "enabled": true,
+          "hits": 1542,
+          "discards": 0
+        },
+        "host_cache": {
+          "budget_bytes": 12884901888,
+          "payload_bytes": 7629963264,
+          "entries": 1568,
+          "hits": 7840,
+          "misses": 1568,
+          "rejected": 0
+        },
+        "closed": false,
+        "cpu_nf4_temporaries": false
+      },
+      "expert_host_cache_counter_delta": {
+        "hits": 3136,
+        "misses": 0,
+        "rejected": 0
+      },
+      "phase_counters": null,
+      "mbr_window_counter_audit": null,
+      "route_recompute_parity": null,
+      "phase_profile": null,
+      "grad_norm": 0.776006806028633,
+      "grad_zero_fraction": 0.4046692607003891,
+      "missing_gradient_names": [],
+      "initial_adapter_sha256": "bb83391693bf534d4c9b085960b13070484b03809a0f8fd4d4d38516e896597e",
+      "updated_adapter_sha256": "eaf2bd98fe44401ada51dec751fba008bf594bbfe85d3ea238c624650fe9a838"
+    }
+  ],
+  "grad_sha256": [
+    "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc",
+    "25b23f812013f3c2b7c26444522e397724e0eb4d6f8bcd98a9bcd6d7e2a493cc"
+  ],
+  "arm": {
+    "expert_transfer": "packed",
+    "expert_host_cache_mib": 12288,
+    "expert_prefetch": true,
+    "expert_gemm": "batch_invariant",
+    "mbr_group_size": 8,
+    "deterministic": false
+  },
+  "phase_profile": null
+}
