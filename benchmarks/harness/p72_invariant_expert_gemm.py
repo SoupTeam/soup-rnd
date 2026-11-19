@@ -23,7 +23,7 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import Any, ContextManager, Dict, Iterator, List, Optional, Tuple
 
-EXPERT_GEMM_CHOICES = ("native", "invariant", "segmented")
+EXPERT_GEMM_CHOICES = ("native", "invariant", "segmented", "padded")
 _FRAME_DEPTH = 4  # other patches of F.linear (the phase clock) may sit between us and the caller
 
 
@@ -291,13 +291,85 @@ def segmented_expert_gemm() -> Iterator[SegmentState]:
         experts_class.forward = original_forward
 
 
-def expert_gemm_context(mode: str) -> ContextManager[Any]:
+@dataclass
+class PadState:
+    """What the padded swaps served."""
+
+    pad_rows: int
+    linear_rows: int = 0
+    mul_rows: int = 0
+
+
+@contextmanager
+def padded_expert_gemm(pad_rows: int = 512) -> Iterator[PadState]:
+    """Pad every expert GEMM call and route-weight multiply to ``pad_rows`` rows with zeros.
+
+    Plan D1. Every call then has one shape whatever the micro-batch or the group, so the kernel
+    cuBLAS picks, and the order of the reductions, do not depend on how many rows share a call
+    (checked in the micro tests: one row gives the same bits at real M = 1 .. 512 with 512 pad).
+    Different pad sizes give different bits, so one size serves both L2L and MBR arms. A call with
+    more rows than ``pad_rows`` is refused. Padded rows are zeros; their outputs are cut off.
+    Same two-read expert node as ``rowwise_expert_linear``."""
+    import torch
+    import torch.nn.functional as functional
+
+    if pad_rows < 1:
+        raise ValueError(f"pad rows must be positive, got {pad_rows}")
+    state = PadState(pad_rows=pad_rows)
+    original = functional.linear
+    original_mul = torch.Tensor.__mul__
+
+    def padded(tensor: Any, fill: float) -> Any:
+        rows = int(tensor.shape[0])
+        if rows > pad_rows:
+            raise RuntimeError(f"expert call has {rows} rows, more than the pad of {pad_rows}")
+        if rows == pad_rows:
+            return tensor
+        extra = tensor.new_full((pad_rows - rows, *tensor.shape[1:]), fill)
+        return torch.cat([tensor, extra])
+
+    def linear(input: Any, weight: Any, bias: Any = None) -> Any:  # noqa: A002
+        if not _called_from_expert_mlp():
+            return original(input, weight, bias)
+        flat = input.reshape(-1, input.shape[-1])
+        rows = int(flat.shape[0])
+        state.linear_rows += rows
+        out = original(padded(flat, 0.0), weight, bias)[:rows]
+        return out.reshape(*input.shape[:-1], -1)
+
+    def mul(self: Any, other: Any) -> Any:
+        if (
+            isinstance(other, torch.Tensor)
+            and self.dim() == 2
+            and other.dim() == 2
+            and other.shape[1] == 1
+            and self.shape[0] == other.shape[0]
+            and _called_from_expert_node()
+        ):
+            rows = int(self.shape[0])
+            state.mul_rows += rows
+            return original_mul(padded(self, 0.0), padded(other, 1.0))[:rows]
+        return original_mul(self, other)
+
+    functional.linear = linear  # type: ignore[assignment]
+    torch.Tensor.__mul__ = mul  # type: ignore[method-assign]
+    try:
+        yield state
+    finally:
+        functional.linear = original  # type: ignore[assignment]
+        torch.Tensor.__mul__ = original_mul  # type: ignore[method-assign]
+
+
+def expert_gemm_context(mode: str, pad_rows: int = 512) -> ContextManager[Any]:
     """``native``: no change. ``invariant``: the row-wise expert linear layer. ``segmented``:
-    native GEMM called per micro-batch segment (the L2L shapes)."""
+    native GEMM called per micro-batch segment (the L2L shapes). ``padded``: every call padded
+    to ``pad_rows`` rows (plan D1)."""
     if mode == "native":
         return nullcontext([0, 0])
     if mode == "invariant":
         return rowwise_expert_linear()
     if mode == "segmented":
         return segmented_expert_gemm()
+    if mode == "padded":
+        return padded_expert_gemm(pad_rows)
     raise ValueError(f"expert gemm must be one of {EXPERT_GEMM_CHOICES}, got {mode!r}")

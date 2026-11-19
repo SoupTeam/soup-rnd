@@ -12,6 +12,8 @@ COMMON="--phase-profile-only --phase-profile-blocks 0 --timed-steps 2"
 args_for() {
   case "$1" in
     O0*)  echo "--profile-kinds l2l --expert-transfer sync" ;;
+    Ap*)  echo "--profile-kinds l2l $COMPLETE --expert-gemm padded" ;;
+    Bp*)  echo "--profile-kinds mbr --mbr-group-size 8 $COMPLETE --expert-prefetch --expert-gemm padded" ;;
     A0*)  echo "--profile-kinds l2l $COMPLETE" ;;
     A1*)  echo "--profile-kinds l2l $COMPLETE --expert-gemm invariant" ;;
     B0s*) echo "--profile-kinds mbr --mbr-group-size 8 $COMPLETE --expert-prefetch --expert-gemm segmented" ;;

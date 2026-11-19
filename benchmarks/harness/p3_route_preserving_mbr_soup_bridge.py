@@ -478,12 +478,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--expert-gemm",
-        choices=("native", "invariant", "segmented"),
+        choices=("native", "invariant", "segmented", "padded"),
         default="native",
         help="routed-expert GEMM: native cuBLAS; invariant (one row per call, plus the "
         "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2); or "
         "segmented (native cuBLAS per micro-batch segment, so every call has the L2L shape, "
-        "plus the two-phase MBR backward)",
+        "plus the two-phase MBR backward); or padded (native cuBLAS, every call padded to "
+        "--expert-pad-rows rows, plus the two-phase MBR backward; plan D1)",
+    )
+    parser.add_argument(
+        "--expert-pad-rows",
+        type=int,
+        default=512,
+        help="with --expert-gemm padded: rows every expert call is padded to (at least the "
+        "largest expert call of the window)",
     )
     parser.add_argument(
         "--dump-grads",
@@ -522,9 +530,9 @@ def step_run_options(
     kind: str, *, group_size: int, expert_gemm: str, diagnostics: bool
 ) -> Dict[str, Any]:
     """Keyword arguments of ``L2LStep.run`` for one bridge run of ``kind`` (``l2l`` or ``mbr``)."""
-    if expert_gemm not in ("native", "invariant", "segmented"):
+    if expert_gemm not in ("native", "invariant", "segmented", "padded"):
         raise ValueError(
-            f"expert gemm must be native, invariant or segmented, got {expert_gemm!r}"
+            f"expert gemm must be native, invariant, segmented or padded, got {expert_gemm!r}"
         )
     mbr = kind == "mbr"
     options: Dict[str, Any] = {
@@ -532,7 +540,7 @@ def step_run_options(
         "mbr_group_size": group_size if mbr else None,
         "collect_phase_stats": diagnostics,
     }
-    if mbr and expert_gemm in ("invariant", "segmented"):
+    if mbr and expert_gemm in ("invariant", "segmented", "padded"):
         options["mbr_split_backward"] = True
     return options
 
@@ -729,7 +737,7 @@ def main() -> None:
             # Entered after the phase clock: it wraps F.linear too, and the swap must be outermost.
             from p72_invariant_expert_gemm import expert_gemm_context
 
-            profiling.enter_context(expert_gemm_context(args.expert_gemm))
+            profiling.enter_context(expert_gemm_context(args.expert_gemm, args.expert_pad_rows))
             losses = stepper.run(
                 micro_batches,
                 store,
