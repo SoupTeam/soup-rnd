@@ -1169,6 +1169,16 @@ class LoraLayersConfig(BaseModel):
         ),
     )
     min_freeze_below: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
+    feature_step: Optional[int] = Field(
+        default=None, ge=1, strict=True,
+        description=(
+            "Record per-layer features at this optimizer step into lora_layers.json "
+            "(adapter update size and rank, gradient-norm statistics, change of each layer's "
+            "output on feature_rows training rows, the turn of the residual stream): the input "
+            "of an adaptive choice of the cut. Training is unchanged."
+        ),
+    )
+    feature_rows: int = Field(default=16, ge=1, le=1024, strict=True)
     freeze_smoothing: float = Field(
         default=0.0, ge=0.0, lt=1.0,
         description=(

@@ -83,6 +83,8 @@ class LayerSelectPolicy:
     freeze_deadline: Optional[int] = None
     min_freeze_below: Optional[int] = None
     freeze_smoothing: float = 0.0
+    feature_step: Optional[int] = None
+    feature_rows: int = 16
     prefix_cache: bool = False
     prefix_cache_bytes: int = 8 << 30
 
@@ -109,6 +111,8 @@ class LayerSelectPolicy:
                 raise ValueError("freeze_smoothing must be in [0, 1)")
         elif self.k is None or self.k < 1:
             raise ValueError(f"method {self.method!r} needs k >= 1")
+        if self.feature_step is not None and (self.feature_step < 1 or self.feature_rows < 1):
+            raise ValueError("feature_step and feature_rows must be >= 1")
         if self.prefix_cache and self.method == "lisa":
             raise ValueError("prefix_cache needs a fixed bottom; lisa re-draws the layers")
         if self.probe_rows < 1 or self.interval_steps < 1 or self.seed < 0:
@@ -250,6 +254,10 @@ class Selection:
     cache: List[Dict[str, Any]] = field(default_factory=list)
     #: progressive: per window, the step and each trainable layer's summed adapter gradient norm
     norms: List[Tuple[int, Dict[int, float]]] = field(default_factory=list)
+    #: training loss of every logged step (for the features' loss summary)
+    losses: List[float] = field(default_factory=list)
+    #: ``feature_step``: per-layer features for an adaptive choice of the cut (layer_features)
+    features: Dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> Dict[str, Any]:
         return {
@@ -261,6 +269,7 @@ class Selection:
             "prefix_cache": self.cache,
             "norms": [{"step": st, "layers": {str(k): v for k, v in sorted(n.items())}}
                       for st, n in self.norms],
+            "features": self.features,
         }
 
 
@@ -390,6 +399,8 @@ class _LayerSelectBody:  # noqa: N801
         self.selection.backward_cut = cut_input_grads(model)
         self.selection.history.append((0, list(self.selection.layers)))
         self.model = model
+        if self.policy.feature_step is not None:
+            self._probe_before(model, device)
         self._install_cache(0)
         write_record(self.selection, self.output_dir)
         if self.console is not None:
@@ -401,10 +412,64 @@ class _LayerSelectBody:  # noqa: N801
             )
         return control
 
+    # ------------------------------------------------------------------ features
+
+    def _probe_before(self, model: Any, device: Any) -> None:
+        from soup_cli.utils.layer_features import LayerProbe
+
+        self._probe = None
+        self._before = None
+        if self.dataset is None or self.collator is None:
+            return
+        try:
+            batches = probe_batches(self.dataset, self.collator, self.policy.feature_rows, 1)
+            self._probe = LayerProbe(batches)
+            self._before = self._probe.capture(model, device)
+        except Exception as exc:  # noqa: BLE001 — features are a record, never a reason to fail
+            logger.warning("training.lora_layers: the feature probe failed: %s", exc)
+            self._probe = None
+
+    def _record_features(self, step: int, device: Any) -> None:
+        from soup_cli.utils import layer_features as lf
+
+        n_layers = max(self.by_layer) + 1
+
+        def layer_of(name: str) -> Optional[int]:
+            match = _LAYER_RE.search(name + ".")
+            return int(match.group(1)) if match else None
+
+        parts = [lf.adapter_update_features(self.model, n_layers, layer_of),
+                 lf.grad_features(self.selection.norms, n_layers)]
+        probe = self.__dict__.get("_probe")
+        if probe is not None and self.__dict__.get("_before") is not None:
+            try:
+                parts.append(lf.representation_features(
+                    self._before, probe.capture(self.model, device)))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("training.lora_layers: the feature probe failed: %s", exc)
+        self.selection.features = {
+            "step": step, "n_layers": n_layers, "layers": lf.merge(*parts),
+            "loss": lf.loss_summary(self.selection.losses),
+        }
+        self._before = None
+        write_record(self.selection, self.output_dir)
+
+    def on_log(self, args: Any, state: Any, control: Any = None, logs: Any = None,
+               **kwargs: Any) -> Any:
+        if self.selection is not None and isinstance(logs, dict) and "loss" in logs:
+            try:
+                self.selection.losses.append(float(logs["loss"]))
+            except (TypeError, ValueError):
+                pass
+        return control
+
     def on_step_end(self, args: Any, state: Any, control: Any = None, **kwargs: Any) -> Any:
         if self.selection is None or self.by_layer is None:
             return control
         step = int(getattr(state, "global_step", 0) or 0)
+        if self.policy.feature_step is not None and step == self.policy.feature_step:
+            device = getattr(args, "device", None) or next(self.model.parameters()).device
+            self._record_features(step, device)
         if self.policy.method == "progressive":
             self._progressive_step(step, kwargs.get("optimizer"))
             return control
@@ -593,6 +658,8 @@ def attach_layer_select_callback(trainer: Any, tcfg: Any, output_dir: Optional[s
         freeze_deadline=getattr(cfg, "freeze_deadline", None),
         min_freeze_below=getattr(cfg, "min_freeze_below", None),
         freeze_smoothing=float(getattr(cfg, "freeze_smoothing", 0.0) or 0.0),
+        feature_step=getattr(cfg, "feature_step", None),
+        feature_rows=int(getattr(cfg, "feature_rows", 16) or 16),
         prefix_cache=bool(getattr(cfg, "prefix_cache", False)),
         prefix_cache_bytes=int(float(getattr(cfg, "prefix_cache_gb", 8.0)) * (1 << 30)),
     )
