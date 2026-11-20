@@ -1,0 +1,926 @@
+{
+  "accuracy": {
+    "comparisons": {
+      "legacy_vs_grouped": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      },
+      "ordinary_legacy_vs_grouped": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      },
+      "ordinary_legacy_vs_legacy": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      }
+    },
+    "scope": "Three independent 2-AdamW-update/4-microbatch full captures; 288 trainable LoRA tensors (A/B for 144 adapted attention projections) receive gradients and update in each arm.",
+    "status": "passed_independent_final_numerical_timing_audit"
+  },
+  "budget": {
+    "all_new_attempts_conservative_usd": 3.017172192403034,
+    "f15_conservative_usd": 0.6010583969610324,
+    "failed_f10_conservative_usd": 0.32485022243101314,
+    "failed_f11_conservative_usd": 0.375203967960521,
+    "failed_f12_conservative_usd": 0.46872694519811453,
+    "failed_f13_conservative_usd": 0.5978399936107378,
+    "failed_f14_conservative_usd": 0.649492666241615,
+    "failed_f9_raw_prospective_ledger_usd": 1.2690072383850324,
+    "failed_f9_reconciled_expected_run_cost_usd": 0.0,
+    "failed_paid_stages_conservative_usd": 2.4161137954420013,
+    "leases": [
+      {
+        "actual_network_telemetry_retained": true,
+        "conservative_usd": 0.6010583969610324,
+        "elapsed_seconds": 3137.250715494156,
+        "instance_id": 57839215,
+        "label": "soup-kanana-30b-final-20261026-f15",
+        "verified_absent": true,
+        "volume_id": 57839213,
+        "volume_verified_absent": true
+      }
+    ],
+    "new_authorized_usd": 5.0,
+    "prior_remaining_usd": 1.202879736617223,
+    "remaining_before_f10_usd": 6.2028797366172235,
+    "remaining_before_f15_usd": 3.786765941175222,
+    "remaining_usd": 3.18570754421419,
+    "semantics": "Conservative task estimates, not provider invoices. Failed F10/F11/F12/F13/F14 each charged once and deducted before F15; F12 actual lease keeps its full fallback estimate. F9 prospective allowance retained and released only after definitive no-allocation evidence; no refund or invoice verification claimed. Shared peers excluded."
+  },
+  "checkpoint_integrity": {
+    "expected_total_bytes": 61343935088,
+    "forced_redownloads_used": 0,
+    "helper_sha256": "ba16dc71dd8fddcb2622fe7720dd8cee24ed6a4da14eb4308d36826d90ec14e1",
+    "initial_failed_files": [],
+    "scope": "Captured official SHA/size checks and native prepare fingerprints agree. Checkpoint payloads are not retained/rehashed by this local audit; bad full payloads are not retained.",
+    "verified_files": 13
+  },
+  "failed_stages": {
+    "f10": {
+      "bundle_sha256": "d7a5236b4d26477b31cb483d755b69c8ecfb60dddee55e695554735a6d320662",
+      "conservative_usd": 0.32485022243101314,
+      "cuda_cases": 5,
+      "exact_cleanup": {
+        "instance_id": 57813461,
+        "instance_verified_absent": true,
+        "label": "soup-kanana-30b-final-20261026-f10",
+        "label_verified_absent": true,
+        "method": "fresh read-only full account listings after exact-owned cleanup",
+        "unix": 1793019154.5361142,
+        "verified_absent": true,
+        "volume_id": 57813460,
+        "volume_verified_absent": true
+      },
+      "failed_cases": [
+        "test_real_cuda_profiler_collects_kernel_and_h2d_events"
+      ],
+      "full_30b_accuracy_and_timing": "NOT RUN: stopped before checkpoint download",
+      "full_30b_verdict": "NO VERDICT",
+      "lease": {
+        "actual_network_telemetry_retained": true,
+        "conservative_usd": 0.32485022243101314,
+        "elapsed_seconds": 1197.9962992668152,
+        "instance_id": 57813461,
+        "label": "soup-kanana-30b-final-20261026-f10",
+        "verified_absent": true,
+        "volume_id": 57813460,
+        "volume_verified_absent": true
+      },
+      "numerical_cuda_cases_passed": 4,
+      "status": "FAILED_GPU_PROFILER_PREREQUISITE"
+    },
+    "f11": {
+      "bundle_sha256": "79343a25e2c34fac5b69656cdea859c2565cd25bd3c640813931291a5aad9d8d",
+      "conservative_usd": 0.375203967960521,
+      "exact_cleanup": {
+        "instance_id": 57816217,
+        "instance_verified_absent": true,
+        "label": "soup-kanana-30b-final-20261026-f11",
+        "label_verified_absent": true,
+        "method": "fresh read-only full account listings after exact-owned cleanup",
+        "unix": 1793021157.0365055,
+        "verified_absent": true,
+        "volume_id": 57816216,
+        "volume_verified_absent": true
+      },
+      "full_30b_verdict": "NO VERDICT",
+      "lease": {
+        "actual_network_telemetry_retained": true,
+        "conservative_usd": 0.375203967960521,
+        "elapsed_seconds": 1751.9140532016754,
+        "instance_id": 57816217,
+        "label": "soup-kanana-30b-final-20261026-f11",
+        "verified_absent": true,
+        "volume_id": 57816216,
+        "volume_verified_absent": true
+      },
+      "numerical_cuda_cases_passed": 4,
+      "operator_stop": {
+        "download_seconds": 838.9443020820618,
+        "downloaded_apparent_bytes": 9416212480,
+        "estimated_remaining_download_seconds": 4626.538228041288,
+        "instance_id": 57816217,
+        "lease_seconds_remaining": 5583.82626581192,
+        "minimum_post_download_allowance_seconds": 1800,
+        "numerical_or_timing_gates_changed": false,
+        "observed_average_bytes_per_second": 11223882.749583235,
+        "phase_before": {
+          "phase": "download",
+          "status": "running",
+          "unix": 1793020179.3654974
+        },
+        "real_model_accuracy_verdict": "NO VERDICT",
+        "real_model_speed_verdict": "NO VERDICT",
+        "reason": "Slow/interrupted checkpoint transfer cannot fit qualification and retention in remaining lease.",
+        "signal": "SIGTERM",
+        "status": "ABORTED_BEFORE_MODEL_ACCURACY_AND_TIMING",
+        "target_pids": [
+          2522
+        ],
+        "unix": 1793021018.3097994,
+        "volume_id": 57816216
+      },
+      "status": "FAILED_OPERATOR_DOWNLOAD_ABORT"
+    },
+    "f12": {
+      "conservative_usd": 0.46872694519811453,
+      "exact_cleanup": {
+        "instance_id": 57818600,
+        "instance_verified_absent": true,
+        "label": "soup-kanana-30b-final-20261026-f12",
+        "label_verified_absent": true,
+        "method": "fresh read-only full account listings after exact-owned cleanup",
+        "unix": 1793020827.5601268,
+        "verified_absent": true,
+        "volume_id": 57818598,
+        "volume_verified_absent": true
+      },
+      "full_30b_verdict": "NO VERDICT",
+      "index_sha256": "7759e8008001487eb379c6dfc270186922843cb2e637d3762bfea9b9445faeaa",
+      "lease": {
+        "actual_network_telemetry_retained": false,
+        "conservative_usd": 0.46872694519811453,
+        "elapsed_seconds": 99.85035490989685,
+        "instance_id": 57818600,
+        "label": "soup-kanana-30b-final-20261026-f12",
+        "verified_absent": true,
+        "volume_id": 57818598,
+        "volume_verified_absent": true
+      },
+      "status": "FAILED_PROVIDER_API_THROTTLE_DURING_BOOT"
+    },
+    "f13": {
+      "actual_bad_shard_sha256": "NOT RECORDED by original F13 code",
+      "all_13_official_pins_equal_f8": true,
+      "bundle_sha256": "9c5ddf57709b8a38914fd45e1d7c875584f8e771a7e6fc4c9849a4822350939e",
+      "conservative_usd": 0.5978399936107378,
+      "exact_cleanup": {
+        "instance_id": 57821738,
+        "instance_verified_absent": true,
+        "label": "soup-kanana-30b-final-20261026-f13",
+        "label_verified_absent": true,
+        "method": "fresh read-only full account listings after exact-owned cleanup",
+        "unix": 1793023816.6937997,
+        "verified_absent": true,
+        "volume_id": 57821736,
+        "volume_verified_absent": true
+      },
+      "failure_cause": "UNKNOWN; no corruption-source attribution",
+      "full_30b_accuracy_and_timing": "NOT RUN: checkpoint verification failed before NF4 prepare",
+      "full_30b_verdict": "NO VERDICT",
+      "lease": {
+        "actual_network_telemetry_retained": true,
+        "conservative_usd": 0.5978399936107378,
+        "elapsed_seconds": 1618.9572687149048,
+        "instance_id": 57821738,
+        "label": "soup-kanana-30b-final-20261026-f13",
+        "verified_absent": true,
+        "volume_id": 57821736,
+        "volume_verified_absent": true
+      },
+      "numerical_cuda_cases_passed": 4,
+      "official_pins_sha256": "50b17a76fecc0dfa8c3b161e30c02e5712fbf29fd454afee21e96afa6b38ff53",
+      "reference_pin_original": {
+        "bytes": 3296,
+        "name": "results/model-pinned.json",
+        "sha256": "50b17a76fecc0dfa8c3b161e30c02e5712fbf29fd454afee21e96afa6b38ff53"
+      },
+      "status": "FAILED_CHECKPOINT_INTEGRITY"
+    },
+    "f14": {
+      "bundle_sha256": "5d0bb1b8c2942f23aed6cb360cf5b563013a09c01d67694039537ad38e1ab188",
+      "conservative_usd": 0.649492666241615,
+      "exact_cleanup": {
+        "instance_id": 57829751,
+        "instance_verified_absent": true,
+        "label": "soup-kanana-30b-final-20261026-f14",
+        "label_verified_absent": true,
+        "method": "fresh read-only full account listings after exact-owned cleanup",
+        "unix": 1793029770.7216632,
+        "verified_absent": true,
+        "volume_id": 57829750,
+        "volume_verified_absent": true
+      },
+      "failure_cause": "UNKNOWN: no policy/remapping attribution; no host mutation",
+      "full_30b_verdict": "NO VERDICT",
+      "lease": {
+        "actual_network_telemetry_retained": true,
+        "conservative_usd": 0.649492666241615,
+        "elapsed_seconds": 3769.7668199539185,
+        "instance_id": 57829751,
+        "label": "soup-kanana-30b-final-20261026-f14",
+        "verified_absent": true,
+        "volume_id": 57829750,
+        "volume_verified_absent": true
+      },
+      "observed_cgroup_swap_after_bytes": 51142656,
+      "ordinary_capture": "Retained invalid-condition 2-update/4-microbatch baseline only; no optimized capture, full comparative accuracy or timing verdict",
+      "resource_scope_diagnosis_sha256": "efaf5c32cea59b24c23afaad931d0e0aa6b1f84f81780b9633ac79a88545c2b3",
+      "sampled_peak_cgroup_swap_bytes": 51175424,
+      "sampled_peak_process_swap_bytes": 0,
+      "sampled_peak_rss_bytes": 5577826304,
+      "status": "FAILED_CGROUP_NO_SWAP_BOUNDARY"
+    }
+  },
+  "hardware": {
+    "checkpoint_network_probe": {
+      "config_json_accessible": true,
+      "model_weights_downloaded": false,
+      "seconds": 0.7657089150743559,
+      "shard_head_accessible": true
+    },
+    "container_id": "57839215",
+    "data_free_bytes": 120259084288,
+    "gpu_initial_used_mib": 2,
+    "gpu_memory_mib": 8188,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+    "gpu_utilization_percent": 0,
+    "gpu_uuid": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099",
+    "host_meminfo": {
+      "Active": 2515468288,
+      "Active(anon)": 362450944,
+      "Active(file)": 2153017344,
+      "AnonHugePages": 0,
+      "AnonPages": 424349696,
+      "Bounce": 0,
+      "Buffers": 75993088,
+      "Cached": 18937835520,
+      "CommitLimit": 25231310848,
+      "Committed_AS": 3330400256,
+      "DirectMap1G": 0,
+      "DirectMap2M": 4898947072,
+      "DirectMap4k": 29088129024,
+      "Dirty": 60891136,
+      "FileHugePages": 197132288,
+      "FilePmdMapped": 0,
+      "HardwareCorrupted": 0,
+      "HugePages_Free": 0,
+      "HugePages_Rsvd": 0,
+      "HugePages_Surp": 0,
+      "HugePages_Total": 0,
+      "Hugepagesize": 2097152,
+      "Hugetlb": 0,
+      "Inactive": 16899182592,
+      "Inactive(anon)": 47226880,
+      "Inactive(file)": 16851955712,
+      "KReclaimable": 410546176,
+      "KernelStack": 11862016,
+      "Mapped": 183218176,
+      "MemAvailable": 31606566912,
+      "MemFree": 12670517248,
+      "MemTotal": 33282760704,
+      "Mlocked": 27103232,
+      "NFS_Unstable": 0,
+      "PageTables": 11644928,
+      "Percpu": 15335424,
+      "SReclaimable": 410546176,
+      "SUnreclaim": 221208576,
+      "SecPageTables": 0,
+      "Shmem": 491520,
+      "ShmemHugePages": 0,
+      "ShmemPmdMapped": 0,
+      "Slab": 631754752,
+      "SwapCached": 164745216,
+      "SwapFree": 8299737088,
+      "SwapTotal": 8589930496,
+      "Unaccepted": 0,
+      "Unevictable": 27103232,
+      "VmallocChunk": 0,
+      "VmallocTotal": 35184372087808,
+      "VmallocUsed": 186957824,
+      "Writeback": 0,
+      "WritebackTmp": 0,
+      "Zswap": 0,
+      "Zswapped": 0
+    },
+    "memory_constraints": [
+      {
+        "memory.max": 31950110720,
+        "memory.swap.current": 0,
+        "memory.swap.max": 0,
+        "path": "/sys/fs/cgroup"
+      }
+    ],
+    "mount": "TARGET SOURCE                                FSTYPE OPTIONS\n/data  /dev/loop5[/volumes/V.57839213/_data] xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,prjquota,grpquota",
+    "native_ram_limit_bytes": 31950110720,
+    "passed": true,
+    "physical_nvme_verified": false,
+    "process_cgroup": "0::/\n",
+    "root_free_bytes": 33933176832,
+    "storage_scope": "Container mount retained; physical NVMe backing is unverified",
+    "unix": 1793031170.77769
+  },
+  "infrastructure_audit_status": "passed_final_infrastructure_retention_cleanup_audit",
+  "model": {
+    "base_dtype": "BF16",
+    "gated": false,
+    "index_total_tensor_bytes": 61341630208,
+    "parameter_count": 30670809088,
+    "repo_id": "kakaocorp/kanana-2-30b-a3b-base-2601",
+    "revision": "0d31365acf656e5f9a593cacc4913e9c0d36cb1c",
+    "router_bias_buffer_elements": 6016,
+    "stored_tensor_elements": 30670815104,
+    "weight_shards": 13,
+    "weights_bytes": 61343935088
+  },
+  "recipe": {
+    "accumulation": 2,
+    "adapters": "FP32 attention LoRA",
+    "alpha": 8,
+    "batch": 1,
+    "compute": "BF16",
+    "device_cache_bytes": 2147483648,
+    "execution_scope": {
+      "allocation_fill_cause": "NO VERDICT: no causal profile separates allocation-fill overhead from other cache or scheduling effects.",
+      "fill_uninitialized_memory": {
+        "recorded_values": null,
+        "source_scope": "Frozen worker enables torch.use_deterministic_algorithms(True); it does not explicitly set or record fill_uninitialized_memory.",
+        "status": "NO VERDICT: runtime flag not persisted"
+      },
+      "generalization": "Controlled deterministic/eval/dropout-disabled recipe only; no universal/default nondeterministic CLI or full-training speedup claim.",
+      "recorded_in_all_11_workers": {
+        "allow_tf32": false,
+        "deterministic_algorithms": true,
+        "training_mode": "eval with differentiable LoRA updates; dropout disabled"
+      },
+      "source_derived_settings": {
+        "lora_dropout": 0.0,
+        "model_mode": "eval",
+        "source_commit": "43cf0b34afe0d8850d76bf86d60663ab5c85cdb2",
+        "source_file": "benchmarks/harness/two_read_cache_worker.py"
+      }
+    },
+    "frozen_base": "NF4",
+    "host_cache_bytes": 8589934592,
+    "host_cache_policy": "static",
+    "inputs": "frozen random token IDs",
+    "rank": 4,
+    "tokens": 512
+  },
+  "recording_limits": {
+    "first_timed_microbatch_scalar": "NO VERDICT: not persisted",
+    "physical_NVMe": false,
+    "quality_convergence_full_finetuning": "NOT EVALUATED",
+    "storage_scope": "Container mount retained; physical NVMe backing is unverified",
+    "timed_final_adapter_and_AdamW_tensor_parity": "NO VERDICT: final timing tensors not persisted; full numerical tensors cover the separate accuracy phase"
+  },
+  "schema_version": 1,
+  "source_commit": "43cf0b34afe0d8850d76bf86d60663ab5c85cdb2",
+  "stage_id": "soup-kanana-30b-final-20261026-f15",
+  "storage_capacity_audit": {
+    "advertised_pool_required": 144,
+    "data_floor_bytes": 107374182400,
+    "data_worst_case_bytes": 90731222941,
+    "minimum_remaining_before_nf4_bytes": 29387287853,
+    "plan_sha256": "f5ade50cd2af0ae8c3a6210534d199b7bd35501b53358e62b7637944282e17d2",
+    "provider_gb_to_gib_conversion_assumed": false,
+    "root_floor_bytes": 17179869184,
+    "root_provider_gb": 32,
+    "root_worst_case_bytes": 16632385536,
+    "scope": "Operational disk capacities only; RAM/VRAM/no-swap/precision gates unchanged",
+    "volume_provider_gb": 112
+  },
+  "storage_capacity_plan": {
+    "evidence": {
+      "f14/capacity-preflight.json": {
+        "bytes": 2622,
+        "observed": {
+          "checkpoint_network_probe": {
+            "config_json_accessible": true,
+            "model_weights_downloaded": false,
+            "seconds": 0.8757430469995597,
+            "shard_head_accessible": true
+          },
+          "container_id": "57829751",
+          "data_free_bytes": 161061273600,
+          "gpu_initial_used_mib": 15,
+          "gpu_memory_mib": 8151,
+          "gpu_name": "NVIDIA GeForce RTX 5060",
+          "gpu_utilization_percent": 0,
+          "gpu_uuid": "GPU-493315b3-53c8-427b-f611-edcbde8c7188",
+          "host_meminfo": {
+            "Active": 2006646784,
+            "Active(anon)": 717103104,
+            "Active(file)": 1289543680,
+            "AnonHugePages": 0,
+            "AnonPages": 821678080,
+            "Balloon": 0,
+            "Bounce": 0,
+            "Buffers": 253743104,
+            "Cached": 23258525696,
+            "CmaFree": 0,
+            "CmaTotal": 0,
+            "CommitLimit": 18822340608,
+            "Committed_AS": 4797480960,
+            "DirectMap1G": 0,
+            "DirectMap2M": 31444697088,
+            "DirectMap4k": 2618454016,
+            "Dirty": 267493376,
+            "FileHugePages": 278921216,
+            "FilePmdMapped": 0,
+            "HardwareCorrupted": 0,
+            "HugePages_Free": 0,
+            "HugePages_Rsvd": 0,
+            "HugePages_Surp": 0,
+            "HugePages_Total": 0,
+            "Hugepagesize": 2097152,
+            "Hugetlb": 0,
+            "Inactive": 22235516928,
+            "Inactive(anon)": 111026176,
+            "Inactive(file)": 22124490752,
+            "KReclaimable": 1557864448,
+            "KernelStack": 16580608,
+            "Mapped": 567238656,
+            "MemAvailable": 28313939968,
+            "MemFree": 3821486080,
+            "MemTotal": 33349722112,
+            "Mlocked": 65536,
+            "NFS_Unstable": 0,
+            "PageTables": 21229568,
+            "Percpu": 31326208,
+            "SReclaimable": 1557864448,
+            "SUnreclaim": 843124736,
+            "SecPageTables": 6107136,
+            "Shmem": 98217984,
+            "ShmemHugePages": 83886080,
+            "ShmemPmdMapped": 0,
+            "Slab": 2400989184,
+            "SwapCached": 0,
+            "SwapFree": 2147479552,
+            "SwapTotal": 2147479552,
+            "Unaccepted": 0,
+            "Unevictable": 91574272,
+            "VmallocChunk": 0,
+            "VmallocTotal": 35184372087808,
+            "VmallocUsed": 110682112,
+            "Writeback": 0,
+            "WritebackTmp": 0,
+            "Zswap": 0,
+            "Zswapped": 0
+          },
+          "memory_constraints": [
+            {
+              "memory.max": 32014073856,
+              "memory.swap.current": 0,
+              "memory.swap.max": 0,
+              "path": "/sys/fs/cgroup"
+            }
+          ],
+          "mount": "TARGET SOURCE                                    FSTYPE OPTIONS\n/data  /dev/nvme0n1p3[/volumes/V.57829750/_data] xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,prjquota",
+          "native_ram_limit_bytes": 32014073856,
+          "passed": true,
+          "physical_nvme_verified": false,
+          "process_cgroup": "0::/\n",
+          "root_free_bytes": 68302802944,
+          "storage_scope": "Container mount retained; physical NVMe backing is unverified",
+          "unix": 1793026093.7958865
+        },
+        "sha256": "9cfae4c4712bbe9dbd24463dff6be94efbcdd3dbdf1bac8c4a86e1d243508176"
+      },
+      "f14/pre-download-disk.json": {
+        "bytes": 195,
+        "observed": {
+          "data_free_bytes": 161061273600,
+          "minimum_data_bytes": 139586437120,
+          "minimum_root_bytes": 51539607552,
+          "passed": true,
+          "root_free_bytes": 60842713088,
+          "unix": 1793026203.9410079
+        },
+        "sha256": "4a62a752bb3ddef7911dae9189b66058c0cb85223c8805fa9174dd3d0cdb60be"
+      },
+      "f8/capacity-preflight.json": {
+        "bytes": 2379,
+        "observed": {
+          "container_id": "57800861",
+          "data_free_bytes": 161061273600,
+          "gpu_initial_used_mib": 2,
+          "gpu_memory_mib": 8188,
+          "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+          "gpu_utilization_percent": 0,
+          "gpu_uuid": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099",
+          "host_meminfo": {
+            "Active": 1288830976,
+            "Active(anon)": 323465216,
+            "Active(file)": 965365760,
+            "AnonHugePages": 0,
+            "AnonPages": 395325440,
+            "Bounce": 0,
+            "Buffers": 20914176,
+            "Cached": 18237353984,
+            "CommitLimit": 25231310848,
+            "Committed_AS": 3326009344,
+            "DirectMap1G": 0,
+            "DirectMap2M": 5049942016,
+            "DirectMap4k": 28937134080,
+            "Dirty": 61046784,
+            "FileHugePages": 197132288,
+            "FilePmdMapped": 0,
+            "HardwareCorrupted": 0,
+            "HugePages_Free": 0,
+            "HugePages_Rsvd": 0,
+            "HugePages_Surp": 0,
+            "HugePages_Total": 0,
+            "Hugepagesize": 2097152,
+            "Hugetlb": 0,
+            "Inactive": 17342836736,
+            "Inactive(anon)": 58499072,
+            "Inactive(file)": 17284337664,
+            "KReclaimable": 456650752,
+            "KernelStack": 12533760,
+            "Mapped": 175050752,
+            "MemAvailable": 31582097408,
+            "MemFree": 13355212800,
+            "MemTotal": 33282760704,
+            "Mlocked": 27099136,
+            "NFS_Unstable": 0,
+            "PageTables": 11575296,
+            "Percpu": 15335424,
+            "SReclaimable": 456650752,
+            "SUnreclaim": 220807168,
+            "SecPageTables": 0,
+            "Shmem": 253952,
+            "ShmemHugePages": 0,
+            "ShmemPmdMapped": 0,
+            "Slab": 677457920,
+            "SwapCached": 160960512,
+            "SwapFree": 8293183488,
+            "SwapTotal": 8589930496,
+            "Unaccepted": 0,
+            "Unevictable": 27099136,
+            "VmallocChunk": 0,
+            "VmallocTotal": 35184372087808,
+            "VmallocUsed": 187596800,
+            "Writeback": 0,
+            "WritebackTmp": 0,
+            "Zswap": 0,
+            "Zswapped": 0
+          },
+          "memory_constraints": [
+            {
+              "memory.max": 31950110720,
+              "memory.swap.current": 0,
+              "memory.swap.max": 0,
+              "path": "/sys/fs/cgroup"
+            }
+          ],
+          "mount": "TARGET SOURCE                                FSTYPE OPTIONS\n/data  /dev/loop5[/volumes/V.57800860/_data] xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,prjquota,grpquota",
+          "native_ram_limit_bytes": 31950110720,
+          "passed": true,
+          "physical_nvme_verified": false,
+          "process_cgroup": "0::/\n",
+          "root_free_bytes": 68292968448,
+          "storage_scope": "Container mount retained; physical NVMe backing is unverified",
+          "unix": 1793011804.9780934
+        },
+        "sha256": "5b03bb271bfeb76bb7f63ee557aa6e9bd393f08c924d19b05fb6a4cb1e55ba73"
+      },
+      "f8/pre-download-disk.json": {
+        "bytes": 195,
+        "observed": {
+          "data_free_bytes": 161061273600,
+          "minimum_data_bytes": 139586437120,
+          "minimum_root_bytes": 51539607552,
+          "passed": true,
+          "root_free_bytes": 60833419264,
+          "unix": 1793011854.3464444
+        },
+        "sha256": "ef7270e8fe4c4f10e5d79607a08a52457c2e80236befa25dda9e5b77fd13bf9d"
+      }
+    },
+    "plan": {
+      "actual_root_setup_max_observed_bytes": 7460089856,
+      "actual_statvfs_is_authoritative": true,
+      "advertised_combined_pool_required": 144,
+      "conservative_root_setup_allowance_bytes": 7763013632,
+      "data_components_bytes": {
+        "conservative_uv_cache": 7763013632,
+        "observed_nf4_store": 16624721373,
+        "official_bf16_weights": 61343935088,
+        "one_fresh_bad_shard_temporary": 4999552848
+      },
+      "data_worst_case_bytes": 90731222941,
+      "full_bad_bf16_input_payload_retained": false,
+      "minimum_pre_download_data_free_bytes": 107374182400,
+      "minimum_pre_download_root_free_bytes": 17179869184,
+      "minimum_pre_prepare_data_free_bytes": 29387287853,
+      "minimum_pre_prepare_root_free_bytes": 17179869184,
+      "model_and_uv_cache_filesystem": "data",
+      "output_filesystem": "root",
+      "provider_gb_to_gib_conversion_assumed": false,
+      "raw_outputs_reserve_is_unchanged": true,
+      "root_components_bytes": {
+        "encoded_archive_reserve": 1500000000,
+        "raw_outputs_reserve": 12884901888,
+        "scratch": 2147483648,
+        "transfer_probe": 100000000
+      },
+      "root_provider_gb": 32,
+      "root_setup_evidence": {
+        "f14/capacity-preflight.json": {
+          "bytes": 2622,
+          "sha256": "9cfae4c4712bbe9dbd24463dff6be94efbcdd3dbdf1bac8c4a86e1d243508176"
+        },
+        "f14/pre-download-disk.json": {
+          "bytes": 195,
+          "sha256": "4a62a752bb3ddef7911dae9189b66058c0cb85223c8805fa9174dd3d0cdb60be"
+        },
+        "f8/capacity-preflight.json": {
+          "bytes": 2379,
+          "sha256": "5b03bb271bfeb76bb7f63ee557aa6e9bd393f08c924d19b05fb6a4cb1e55ba73"
+        },
+        "f8/pre-download-disk.json": {
+          "bytes": 195,
+          "sha256": "ef7270e8fe4c4f10e5d79607a08a52457c2e80236befa25dda9e5b77fd13bf9d"
+        }
+      },
+      "root_worst_case_output_bytes": 16632385536,
+      "schema_version": 1,
+      "volume_provider_gb": 112
+    }
+  },
+  "timing": {
+    "absolute": {
+      "grouped": {
+        "max_sampled_timing_rss_bytes": 12935991296,
+        "max_step_allocated_bytes": 3912000512,
+        "max_step_reserved_bytes": 4120903680,
+        "median_setup_seconds": 38.94761086802464,
+        "median_step_seconds": 15.987270247016568,
+        "median_whole_entry_seconds": 180.60537985299015
+      },
+      "ordinary_legacy": {
+        "max_sampled_timing_rss_bytes": 4144271360,
+        "max_step_allocated_bytes": 1780268032,
+        "max_step_reserved_bytes": 2116026368,
+        "median_setup_seconds": 11.802071004523896,
+        "median_step_seconds": 27.804686159535777,
+        "median_whole_entry_seconds": 250.96588908153353
+      }
+    },
+    "all_timing_blocks": [
+      {
+        "pid": 3589,
+        "position": 0,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 0,
+        "setup_seconds": 11.491272791055962,
+        "timed_update_seconds": [
+          30.590806621010415,
+          28.386247228016146,
+          27.79177160107065,
+          27.30206538597122,
+          26.757590553956106,
+          26.222927542054094
+        ],
+        "variant": "ordinary_legacy",
+        "warmup_update_seconds": [
+          40.11157047608867,
+          31.521319404011592
+        ],
+        "whole_entry_seconds": 252.27442296699155
+      },
+      {
+        "pid": 4202,
+        "position": 1,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 0,
+        "setup_seconds": 38.61191099300049,
+        "timed_update_seconds": [
+          17.714820986031555,
+          16.275567066972144,
+          16.121150546940044,
+          15.98103646200616,
+          15.613578077987768,
+          15.100711473962292
+        ],
+        "variant": "grouped",
+        "warmup_update_seconds": [
+          25.508854543906637,
+          18.722652449039742
+        ],
+        "whole_entry_seconds": 182.07922170800157
+      },
+      {
+        "pid": 4646,
+        "position": 0,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 1,
+        "setup_seconds": 41.035432325908914,
+        "timed_update_seconds": [
+          17.415958742960356,
+          16.41899298003409,
+          15.993504032026976,
+          15.860588898998685,
+          15.560253398958594,
+          15.074341177940369
+        ],
+        "variant": "grouped",
+        "warmup_update_seconds": [
+          22.81973523297347,
+          18.457287901081145
+        ],
+        "whole_entry_seconds": 181.0330534799723
+      },
+      {
+        "pid": 5123,
+        "position": 1,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 1,
+        "setup_seconds": 12.270866908947937,
+        "timed_update_seconds": [
+          30.622679344029166,
+          28.624456881079823,
+          27.98779349506367,
+          27.44452254101634,
+          26.98990344197955,
+          26.449015581980348
+        ],
+        "variant": "ordinary_legacy",
+        "warmup_update_seconds": [
+          35.47417494293768,
+          31.644989190041088
+        ],
+        "whole_entry_seconds": 249.6573551960755
+      },
+      {
+        "pid": 5714,
+        "position": 0,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 2,
+        "setup_seconds": 12.029314220999368,
+        "timed_update_seconds": [
+          30.6282758039888,
+          28.529320863075554,
+          27.994926810031757,
+          27.530828717979603,
+          26.953825017903,
+          26.413461058982648
+        ],
+        "variant": "ordinary_legacy",
+        "warmup_update_seconds": [
+          34.9340286210645,
+          31.33924640598707
+        ],
+        "whole_entry_seconds": 248.51583787903655
+      },
+      {
+        "pid": 6318,
+        "position": 1,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 2,
+        "setup_seconds": 38.03497396502644,
+        "timed_update_seconds": [
+          17.75978662504349,
+          16.248379949014634,
+          15.994105619029142,
+          15.92002781899646,
+          15.360361719038337,
+          15.232941292924806
+        ],
+        "variant": "grouped",
+        "warmup_update_seconds": [
+          23.5639828259591,
+          18.390109553933144
+        ],
+        "whole_entry_seconds": 178.81977384001948
+      },
+      {
+        "pid": 6771,
+        "position": 0,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 3,
+        "setup_seconds": 39.28331074304879,
+        "timed_update_seconds": [
+          17.443088622996584,
+          17.3445305719506,
+          16.000219358946197,
+          15.880155848921277,
+          15.616178653901443,
+          15.052335959044285
+        ],
+        "variant": "grouped",
+        "warmup_update_seconds": [
+          22.631791537976824,
+          18.544872288010083
+        ],
+        "whole_entry_seconds": 180.177706226008
+      },
+      {
+        "pid": 7239,
+        "position": 1,
+        "recorded_timed_last_microbatch_losses": [
+          12.585071563720703,
+          12.114541053771973,
+          11.94455623626709,
+          11.848012924194336,
+          11.740375518798828,
+          11.712325096130371
+        ],
+        "round": 3,
+        "setup_seconds": 11.574827788048424,
+        "timed_update_seconds": [
+          30.85951733100228,
+          28.82518009992782,
+          28.178239032975398,
+          27.817600718000904,
+          27.26116475497838,
+          26.80036504997406
+        ],
+        "variant": "ordinary_legacy",
+        "warmup_update_seconds": [
+          37.51815130596515,
+          31.921971919946373
+        ],
+        "whole_entry_seconds": 252.92133565910626
+      }
+    ],
+    "candidate": "grouped",
+    "paired_bootstrap_95_percent": [
+      41.933686422825986,
+      42.9313115748746
+    ],
+    "paired_rounds": 4,
+    "passes_practical_2_percent_gate": true,
+    "reference": "ordinary_legacy",
+    "step_time_reduction_percent": 42.466272073450654,
+    "throughput_increase_percent": 73.81109064871545,
+    "timed_updates_per_worker": 6,
+    "warmup_updates_per_worker": 2
+  }
+}

@@ -1,0 +1,26 @@
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 219.88it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1456.22it/s]
+Internal BF16 caller contract k=4
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+{'loss': '4.1', 'grad_norm': '2.147', 'learning_rate': '0.01', 'epoch': '0.4444'}
+{'loss': '4.152', 'grad_norm': '1.063', 'learning_rate': '0.01', 'epoch': '0.8889'}
+{'loss': '4.188', 'grad_norm': '0.9321', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '0.4451', 'train_samples_per_second': '20.22', 'train_steps_per_second': '6.74', 'train_loss': '4.147', 'epoch': '1'}
+{'loss': '4.1', 'grad_norm': '2.147', 'learning_rate': '0.01', 'epoch': '0.4444'}
+{'loss': '4.152', 'grad_norm': '1.063', 'learning_rate': '0.01', 'epoch': '0.8889'}
+{'loss': '4.188', 'grad_norm': '0.9321', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '0.2329', 'train_samples_per_second': '38.63', 'train_steps_per_second': '12.88', 'train_loss': '4.147', 'epoch': '1'}
+{'loss': '4.1', 'grad_norm': '2.147', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 3, 'l2l_capture_layer_loads': 3, 'l2l_capture_seconds': '0.008045', 'l2l_layer_loads': 4, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 108, 'l2l_expert_bytes_read': 331776, 'epoch': '0.4444'}
+{'loss': '4.152', 'grad_norm': '1.063', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.01093', 'l2l_layer_loads': 7, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 231, 'l2l_expert_bytes_read': 709632, 'epoch': '0.8889'}
+{'loss': '4.188', 'grad_norm': '0.9321', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.01093', 'l2l_layer_loads': 10, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 255, 'l2l_expert_bytes_read': 783360, 'epoch': '1'}
+{'train_runtime': '0.692', 'train_samples_per_second': '13.01', 'train_steps_per_second': '4.335', 'train_loss': '4.147', 'epoch': '1'}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 658.55it/s]
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+L2L: each streamed layer loads once per optimizer step and runs 2 
+micro-batch(es)
+Caller contract: BLOCKED /kaggle/working/evidence/trainer-contract-cpu.json
+{'loss': '4.087', 'grad_norm': '0.4801', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 2, 'l2l_capture_layer_loads': 2, 'l2l_capture_seconds': '0.003705', 'l2l_layer_loads': 4, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.4'}
+{'loss': '4.205', 'grad_norm': '0.3491', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.005655', 'l2l_layer_loads': 7, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.8'}
+{'loss': '4.061', 'grad_norm': '1.032', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.005655', 'l2l_layer_loads': 10, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1'}
+{'train_runtime': '0.13', 'train_samples_per_second': '38.45', 'train_steps_per_second': '23.07', 'train_loss': '4.118', 'epoch': '1'}

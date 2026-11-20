@@ -1,0 +1,189 @@
+{
+  "argv": [
+    "--profile",
+    "moonlight-16b-a3b",
+    "--source",
+    "/data/p3-moonlight-quality/sources/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--cache",
+    "/data/p3-moonlight-quality/cache/476b36a473d4467f94469414bef6cee75c9c8172",
+    "--pack",
+    "/data/p3-moonlight-quality/pack",
+    "--pack-sha256",
+    "2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4",
+    "--initial-adapter",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/b-convert/initial-adapter.safetensors",
+    "--arm",
+    "bf16_l2l",
+    "--length",
+    "4096",
+    "--steps",
+    "64",
+    "--device",
+    "cuda",
+    "--protocol",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/frozen-study-protocol.json",
+    "--protocol-sha256",
+    "d22871c398d29e25c614129a1a084903fbc0dce09a5bb5d2659c08d9102b2f82",
+    "--gate",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/d-gate/manifest.json",
+    "--gate-sha256",
+    "8003c2fefda6abdc5a086997953c0d5ab7f2dd65cb52d01e48584ba1db503176",
+    "--output",
+    "/data/p3-moonlight-quality/evidence/moonlight-resident-20261111t201548z-whole3/train-bf16_l2l-L4096"
+  ],
+  "cgroup_after": {
+    "observed_hierarchy_peaks": [
+      {
+        "bytes": 49171877888,
+        "path": "/sys/fs/cgroup/memory.peak"
+      }
+    ],
+    "peak_scope": "visible cgroup lifetime, not reset or added to RSS/CUDA",
+    "status": "MEASURED",
+    "unavailable": [],
+    "unavailable_policy": "absent kernel counters are explicit; read/parse errors refuse"
+  },
+  "cgroup_before": {
+    "observed_hierarchy_peaks": [
+      {
+        "bytes": 49031290880,
+        "path": "/sys/fs/cgroup/memory.peak"
+      }
+    ],
+    "peak_scope": "visible cgroup lifetime, not reset or added to RSS/CUDA",
+    "status": "MEASURED",
+    "unavailable": [],
+    "unavailable_policy": "absent kernel counters are explicit; read/parse errors refuse"
+  },
+  "f1": {
+    "arm": "train-bf16_l2l-L4096-observation",
+    "box_stamp_after": {
+      "commit_charge": {
+        "limit_bytes": 42259476480,
+        "used_bytes": 5826932736
+      },
+      "gpu_memory_used_mib": 11032,
+      "gpu_processes": [
+        {
+          "name": "python",
+          "pid": 14035,
+          "type": "C",
+          "used_mib": 11022
+        }
+      ],
+      "power_source": "mains",
+      "ram_available_bytes": 61569896448,
+      "unix_s": 1794447112.5883803,
+      "unknown": {}
+    },
+    "box_stamp_before": {
+      "commit_charge": {
+        "limit_bytes": 42259476480,
+        "used_bytes": 2200952832
+      },
+      "gpu_memory_used_mib": 1,
+      "gpu_processes": [],
+      "power_source": "mains",
+      "ram_available_bytes": 63839821824,
+      "unix_s": 1794446216.9540217,
+      "unknown": {}
+    },
+    "checks": {
+      "foreign_reads": {
+        "evidence": {
+          "device": "nvme0n1",
+          "disk_read_bytes_end": 16993653640704,
+          "disk_read_bytes_start": 15420210421248,
+          "foreign_read_bytes": 1896448,
+          "foreign_read_bytes_max": 1896448,
+          "foreign_read_bytes_min": 1896448,
+          "model_path": "/data/p3-moonlight-quality",
+          "other_disk_read_bytes_end": 0,
+          "other_disk_read_bytes_start": 0,
+          "own_read_bytes": 1573441323008,
+          "uninspectable_processes": 0
+        },
+        "outcome": "ok",
+        "readers": [],
+        "reason": "at most 1896448 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+        "unattributed_bytes": 1896448
+      },
+      "power": {
+        "evidence": {
+          "battery_present": false,
+          "last_reading": {
+            "battery": false,
+            "online": {}
+          },
+          "off_mains_samples": [],
+          "samples": 449,
+          "unknown_samples": 0
+        },
+        "outcome": "ok",
+        "reason": "no battery in any of 449 power samples, so on mains"
+      },
+      "suspend": {
+        "evidence": {
+          "sleep_offset_end_s": -3.699969965964556e-07,
+          "sleep_offset_start_s": -3.1999661587178707e-07,
+          "suspend_count_end": 0,
+          "suspend_count_start": 0
+        },
+        "outcome": "ok",
+        "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0"
+      }
+    },
+    "gpu": {
+      "id": "0",
+      "source": "CUDA_VISIBLE_DEVICES"
+    },
+    "gpu_clock": {
+      "outcome": "ok",
+      "reason": "SM clock 210 to 2790 MHz over 444 samples; clock event reasons seen: gpu_idle",
+      "reasons_seen": {
+        "gpu_idle": 2
+      },
+      "samples": 444,
+      "sm_clock_mhz": {
+        "max": 2790,
+        "median": 2535.0,
+        "min": 210
+      },
+      "unknown_samples": 0
+    },
+    "label": null,
+    "outcome": "ok",
+    "required": [
+      "suspend",
+      "power",
+      "foreign_reads"
+    ],
+    "round": 1,
+    "run": 1
+  },
+  "memory": {
+    "cuda_allocated_after_bytes": 67108864,
+    "cuda_allocated_before_bytes": 0,
+    "cuda_allocated_peak_bytes": 8995092480,
+    "cuda_reserved_after_bytes": 10976493568,
+    "cuda_reserved_before_bytes": 0,
+    "cuda_reserved_peak_bytes": 10976493568,
+    "kind": "observed process/allocator bytes; not activation-only memory",
+    "process_lifetime_rss_high_water_bytes": 4034281472,
+    "process_rss_after_bytes": 2626002944,
+    "process_rss_before_bytes": 707166208,
+    "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+    "process_rss_sampled_peak_bytes": 4037296128,
+    "process_rss_samples": 86896,
+    "process_rss_sampling_interval_seconds": 0.01,
+    "sampling_errors": [],
+    "scope": "Whole command, covering all nested pass/step/batch timing intervals",
+    "wall_seconds": 893.5399518540071
+  },
+  "module": "benchmarks.harness.p3_deepseek_quality_train",
+  "returncode": 0,
+  "scope": "Whole command, covering all nested pass/step/batch timing intervals",
+  "status": "COMPLETE",
+  "timing_valid": true,
+  "wall_seconds": 895.6750971289875
+}

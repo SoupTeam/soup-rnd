@@ -1,0 +1,99 @@
+"""Synthetic attention qualification only; no model, optimizer, codec or quality claim."""
+import hashlib
+import json
+import os
+from pathlib import Path
+
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+
+def main():
+    import torch
+    import torch.nn.functional as functional
+    from rich.console import Console
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    output = Path("/root/p3-efficient-smoke/sdpa-probe-v1")
+    output.mkdir(exist_ok=False)
+    result = {
+        "scope": "Synthetic MLA attention only; no model, codec, Oracle or quality outcome",
+        "torch": torch.__version__, "cuda": torch.version.cuda,
+        "gpu": torch.cuda.get_device_name(),
+        "capability": list(torch.cuda.get_device_capability()),
+        "native_bf16": torch.cuda.is_bf16_supported(including_emulation=False),
+        "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "status": "FAILED", "cases": [],
+    }
+    try:
+        assert result["capability"][0] >= 8 and result["native_bf16"]
+        torch.use_deterministic_algorithms(True, warn_only=False)
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+        for backend_name, length in [("EFFICIENT_ATTENTION", 1024),
+                                     ("EFFICIENT_ATTENTION", 4096), ("MATH", 64)]:
+            case = {"backend": backend_name, "length": length, "batch": 1,
+                    "heads": 128, "qk_dim": 192, "v_dim": 128,
+                    "dtype": "bfloat16", "status": "FAILED", "repeats": []}
+            result["cases"].append(case)
+            for repeat in range(2):
+                torch.manual_seed(23)
+                tensors = [torch.randn(1, 128, length, width, device="cuda",
+                                       dtype=torch.bfloat16, requires_grad=True)
+                           for width in (192, 192, 128)]
+                torch.cuda.synchronize()
+                torch.cuda.reset_peak_memory_stats()
+                with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU,
+                                                       torch.profiler.ProfilerActivity.CUDA]) as prof:
+                    with sdpa_kernel([getattr(SDPBackend, backend_name)]):
+                        value = functional.scaled_dot_product_attention(
+                            *tensors, is_causal=True, dropout_p=0.0)
+                        value.sum().backward()
+                    torch.cuda.synchronize()
+                events = prof.events()
+                operators = sorted({event.name for event in events
+                                    if "attention" in event.name.lower()
+                                    or "softmax" in event.name.lower()})
+                kernels = sorted({event.name for event in events
+                                  if str(event.device_type).endswith("CUDA")})
+                assert kernels, "No executed CUDA kernel evidence"
+                if backend_name == "EFFICIENT_ATTENTION":
+                    assert any("efficient_attention" in name for name in operators)
+                    assert any("efficient_attention_backward" in name for name in operators)
+                    assert not any("attention_math" in name for name in operators)
+                measured = {"repeat": repeat, "operators": operators, "cuda_kernels": kernels,
+                            "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
+                            "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
+                            "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+                            "warn_only": torch.is_deterministic_algorithms_warn_only_enabled()}
+                values = [value] + [tensor.grad for tensor in tensors]
+                assert all(tensor is not None and bool(torch.isfinite(tensor).all())
+                           for tensor in values)
+                measured["output_qkv_gradient_sha256"] = [
+                    hashlib.sha256(tensor.detach().cpu().contiguous().view(torch.uint8)
+                                   .numpy().tobytes()).hexdigest() for tensor in values]
+                case["repeats"].append(measured)
+                del values, value, tensors, prof, events
+                torch.cuda.empty_cache()
+            assert (case["repeats"][0]["output_qkv_gradient_sha256"]
+                    == case["repeats"][1]["output_qkv_gradient_sha256"])
+            case["bitwise_repeat_equal"] = True
+            case["status"] = "COMPLETE"
+        result["status"] = "COMPLETE"
+    except Exception as error:
+        result["error"] = {"type": type(error).__name__, "message": str(error)}
+        if torch.cuda.is_initialized():
+            result["failure_peak_allocated_bytes"] = torch.cuda.max_memory_allocated()
+    with (output / "result.json").open("x") as stream:
+        json.dump(result, stream, indent=2, allow_nan=False)
+        stream.write("\n")
+    manifest = {"result_sha256": hashlib.sha256((output / "result.json").read_bytes()).hexdigest(),
+                "source_sha256": result["source_sha256"], "status": result["status"]}
+    with (output / "manifest.json").open("x") as stream:
+        json.dump(manifest, stream, indent=2)
+        stream.write("\n")
+    Console().print_json(json.dumps(result))
+    raise SystemExit(0 if result["status"] == "COMPLETE" else 1)
+
+
+if __name__ == "__main__":
+    main()

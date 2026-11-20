@@ -1,0 +1,98 @@
+"""Download one pinned BF16 snapshot, hash it, prepare identical finite inputs."""
+
+import hashlib
+import json
+import shutil
+import sys
+from pathlib import Path
+
+from huggingface_hub import snapshot_download
+from rich.console import Console
+import yaml
+
+ROOT = Path("/root/stream8-cache-resume")
+
+# Pre-staging checks are stricter than the initial transport-only preflight.
+import subprocess
+import torch
+hardware = subprocess.check_output([
+    "nvidia-smi", "--query-gpu=name,uuid,memory.total,display_active,utilization.gpu,memory.used",
+    "--format=csv,noheader,nounits"], text=True).strip()
+apps = subprocess.check_output(["nvidia-smi", "--query-compute-apps=pid",
+                                "--format=csv,noheader,nounits"], text=True).strip()
+fields = [value.strip() for value in hardware.split(",")]
+assert len(fields) == 6 and 7900 <= int(fields[2]) <= 8300
+assert fields[3].lower() in {"disabled", "off", "0"}, "display load is not qualified"
+assert not apps and int(fields[4]) <= 10 and int(fields[5]) <= 256
+assert torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+lease = json.loads((ROOT / "policy.json").read_text())
+headroom = [next(int(line.split()[1])*1024 for line in
+                 Path('/proc/meminfo').read_text().splitlines()
+                 if line.startswith('MemAvailable:'))]
+if lease.get("offered_cpu_ram_bytes"):
+    headroom.append(lease["offered_cpu_ram_bytes"])
+controllers = []
+for start in [Path('/sys/fs/cgroup'), Path('/sys/fs/cgroup/memory')]:
+    if not start.exists():
+        continue
+    # Current namespace and every visible ancestor, without changing limits.
+    for folder in [start, *start.parents]:
+        if not str(folder).startswith('/sys/fs/cgroup'):
+            continue
+        for maximum, usage in [('memory.max', 'memory.current'),
+                               ('memory.limit_in_bytes', 'memory.usage_in_bytes')]:
+            limit, used = folder / maximum, folder / usage
+            if limit.exists() and used.exists() and limit.read_text().strip() != 'max':
+                available = int(limit.read_text()) - int(used.read_text())
+                headroom.append(available)
+                controllers.append({'path': str(folder), 'available_bytes': available})
+assert min(headroom) >= 42*2**30, "insufficient actual/allocated host or container RAM"
+(ROOT / 'results' / 'pre-staging-hardware.json').write_text(json.dumps({
+    'gpu': hardware, 'native_bf16': True, 'no_compute_peers': True,
+    'headroom_lower_bound_bytes': min(headroom), 'controllers': controllers,
+    'offered_cpu_ram_bytes': lease.get('offered_cpu_ram_bytes'), 'passed': True}, indent=2))
+
+size = int(sys.argv[1])
+protocol = json.loads((ROOT / "protocol.json").read_text())
+model = next(row for row in protocol["models"] if row["size_b"] == size)
+base = ROOT / f"model-{size}"
+required = model["weight_bytes"] * 2 + 8 * 2**30
+assert shutil.disk_usage(ROOT).free >= required, "insufficient disk for snapshot plus layer shards"
+snapshot_download(model["model_id"], revision=model["revision"], local_dir=str(base),
+                  allow_patterns=["*.json", "*.model", "*.txt", "*.jinja"] + model.get("weight_files", ["model-*.safetensors"]))
+manifest = {"model_id": model["model_id"], "revision": model["revision"], "files": {}}
+for path in sorted(base.iterdir()):
+    if not path.is_file():
+        continue
+    hashed = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(8 * 1024 * 1024), b""):
+            hashed.update(chunk)
+    manifest["files"][path.name] = {"bytes": path.stat().st_size, "sha256": hashed.hexdigest()}
+(ROOT / "results" / f"model-{size}-manifest.json").write_text(json.dumps(manifest, indent=2))
+data = ROOT / "train.jsonl"
+with data.open("w") as handle:
+    for number in range(32):
+        handle.write(json.dumps({"messages": [
+            {"role": "user", "content": f"Calculate {number} + 1 and explain briefly."},
+            {"role": "assistant", "content": (
+                f"{number} + 1 = {number + 1}. Add one to the number. " * 160)},
+        ]}) + "\n")
+config = {
+    "base": str(base), "task": "sft", "backend": "transformers",
+    "data": {"train": str(data), "format": "chatml", "chat_template": "chatml",
+             "val_split": 0, "max_length": 1024},
+    "training": {"seed": 792, "batch_size": 1, "gradient_accumulation_steps": 2,
+                 "epochs": 1, "lr": .00002, "warmup_ratio": 0,
+                 "quantization": "none", "stream_layers": True, "stream_source": "ram",
+                 "stream_buffers": 2, "stream_read_ahead": 2, "stream_pin": True,
+                 "stream_vram_probe": False, "gradient_checkpointing": True,
+                 "fast_lora": False,
+                 "lora": {"r": 4, "alpha": 4, "dropout": 0,
+                          "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj",
+                                             "gate_proj", "up_proj", "down_proj"]}},
+}
+(ROOT / f"model-{size}.yaml").write_text(yaml.safe_dump(config))
+(ROOT / "results" / f"model-{size}.yaml").write_text(yaml.safe_dump(config))
+(ROOT / "results" / "train.jsonl").write_bytes(data.read_bytes())
+Console().print({"prepared_model": size, "data_sha256": hashlib.sha256(data.read_bytes()).hexdigest()})

@@ -1,0 +1,22 @@
+{
+  "local_tests": {
+    "passed": 46,
+    "cuda_skipped": 10,
+    "torch": "2.13.0+cpu",
+    "frozen_src_imported": true
+  },
+  "target_cuda_tests": {
+    "passed": 18,
+    "skipped": 0,
+    "scope": "tiny actual Qwen3 + PEFT FP32/BF16, four arms"
+  },
+  "full_ruff": true,
+  "diff_check": true,
+  "hosted_ci_waited": false,
+  "mutation_controls": [
+    "mutable saved-weight alias",
+    "missing backward prefetch",
+    "nonfinite comparator input"
+  ],
+  "transport_fault_injection_tests_passed": 7
+}

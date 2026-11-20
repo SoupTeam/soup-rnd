@@ -1,0 +1,295 @@
+{
+  "schema": "p3-full-diagnostic-cost-proposal-v1",
+  "status": "ESTIMATE_ONLY_AWAITING_PRICE_APPROVAL",
+  "all_stage_durations_and_future_charges": "INFERENCE; sensitivity scenarios, not measured or guaranteed completion",
+  "source_bytes": 688586727753,
+  "source_files": 163,
+  "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+  "root_gib": 64,
+  "data_volume_gib": 1400,
+  "additional_ingress_gb": 20,
+  "outbound_gb_ad": 6,
+  "outbound_gb_af": 10,
+  "gate_passes": [
+    "ga",
+    "ga_repeat",
+    "bf16_l2l",
+    "ga_floor",
+    "fp8_oracle",
+    "int4_oracle"
+  ],
+  "stage_hour_ranges": {
+    "b_conversion": [
+      1.0,
+      2.5
+    ],
+    "c_tiny_smoke": [
+      0.25,
+      0.5
+    ],
+    "d_full_gate": [
+      8.0,
+      30.0
+    ],
+    "e_four_steps": [
+      4.0,
+      48.0
+    ],
+    "f_dev_timing": [
+      0.16666666666666666,
+      1.5
+    ],
+    "aux_setup_admission_collection": [
+      0.5,
+      1.5
+    ]
+  },
+  "offers": [
+    {
+      "gpu_offer_id": 58275924,
+      "volume_offer_id": 58685188,
+      "machine_id": 139376,
+      "all_in_hourly_usd": 0.7690370370370371,
+      "stage_hours": {
+        "a_download": [
+          1.5,
+          3.5
+        ],
+        "b_conversion": [
+          1.0,
+          2.5
+        ],
+        "c_tiny_smoke": [
+          0.25,
+          0.5
+        ],
+        "d_full_gate": [
+          8.0,
+          30.0
+        ],
+        "e_four_steps": [
+          4.0,
+          48.0
+        ],
+        "f_dev_timing": [
+          0.16666666666666666,
+          1.5
+        ],
+        "aux_setup_admission_collection": [
+          0.5,
+          1.5
+        ]
+      },
+      "stage_costs_usd": {
+        "a_download": [
+          2.9467501590789933,
+          4.484824233153067
+        ],
+        "b_conversion": [
+          0.7690370370370371,
+          1.9225925925925926
+        ],
+        "c_tiny_smoke": [
+          0.19225925925925927,
+          0.38451851851851854
+        ],
+        "d_full_gate": [
+          6.152296296296297,
+          23.07111111111111
+        ],
+        "e_four_steps": [
+          3.0761481481481483,
+          36.91377777777778
+        ],
+        "f_dev_timing": [
+          0.12817283950617284,
+          1.1535555555555557
+        ],
+        "aux_setup_admission_collection": [
+          0.47566435185185185,
+          1.244701388888889
+        ]
+      },
+      "a_d_hours": [
+        11.25,
+        38.0
+      ],
+      "a_d_usd": [
+        10.520382103523438,
+        31.09212284426418
+      ],
+      "a_f_hours": [
+        15.416666666666666,
+        87.5
+      ],
+      "a_f_usd": [
+        13.740328091177759,
+        69.1750811775975
+      ],
+      "source_ingress_usd": 1.7931946035234374,
+      "repeat_a_b_hours": [
+        2.5,
+        6.0
+      ],
+      "repeat_a_b_usd": [
+        3.71578719611603,
+        6.40741682574566
+      ],
+      "hold_running_usd": {
+        "6": 4.614222222222223,
+        "24": 18.45688888888889,
+        "48": 36.91377777777778
+      },
+      "hold_volume_only_usd": {
+        "6": 2.3333333333333335,
+        "24": 9.333333333333334,
+        "48": 18.666666666666668
+      },
+      "hold_running_break_even_hours_vs_a_b": [
+        4.831740237677365,
+        8.331740237677366
+      ],
+      "hold_volume_break_even_hours_vs_a_b": [
+        9.55488136144122,
+        16.476214694774555
+      ]
+    },
+    {
+      "gpu_offer_id": 58067853,
+      "volume_offer_id": 58067860,
+      "machine_id": 155483,
+      "all_in_hourly_usd": 0.865925925925926,
+      "stage_hours": {
+        "a_download": [
+          2.25,
+          5.25
+        ],
+        "b_conversion": [
+          1.0,
+          2.5
+        ],
+        "c_tiny_smoke": [
+          0.25,
+          0.5
+        ],
+        "d_full_gate": [
+          8.0,
+          30.0
+        ],
+        "e_four_steps": [
+          4.0,
+          48.0
+        ],
+        "f_dev_timing": [
+          0.16666666666666666,
+          1.5
+        ],
+        "aux_setup_admission_collection": [
+          0.5,
+          1.5
+        ]
+      },
+      "stage_costs_usd": {
+        "a_download": [
+          4.63812523861849,
+          7.235903016396268
+        ],
+        "b_conversion": [
+          0.865925925925926,
+          2.164814814814815
+        ],
+        "c_tiny_smoke": [
+          0.2164814814814815,
+          0.432962962962963
+        ],
+        "d_full_gate": [
+          6.927407407407408,
+          25.97777777777778
+        ],
+        "e_four_steps": [
+          3.463703703703704,
+          41.56444444444445
+        ],
+        "f_dev_timing": [
+          0.144320987654321,
+          1.298888888888889
+        ],
+        "aux_setup_admission_collection": [
+          0.550150462962963,
+          1.416076388888889
+        ]
+      },
+      "a_d_hours": [
+        12.0,
+        39.75
+      ],
+      "a_d_usd": [
+        13.182465516396269,
+        37.211909960840714
+      ],
+      "a_f_hours": [
+        16.166666666666668,
+        89.25
+      ],
+      "a_f_usd": [
+        16.806115207754292,
+        80.09086829417406
+      ],
+      "source_ingress_usd": 2.689791905285156,
+      "repeat_a_b_hours": [
+        3.25,
+        7.75
+      ],
+      "repeat_a_b_usd": [
+        5.504051164544416,
+        9.400717831211082
+      ],
+      "hold_running_usd": {
+        "6": 5.195555555555556,
+        "24": 20.782222222222224,
+        "48": 41.56444444444445
+      },
+      "hold_volume_only_usd": {
+        "6": 2.3333333333333335,
+        "24": 9.333333333333334,
+        "48": 18.666666666666668
+      },
+      "hold_running_break_even_hours_vs_a_b": [
+        6.356260968464466,
+        10.856260968464465
+      ],
+      "hold_volume_break_even_hours_vs_a_b": [
+        14.153274423114212,
+        24.17327442311421
+      ]
+    }
+  ],
+  "proposal": {
+    "recommended_gpu_offer_id": 58275924,
+    "fallback_gpu_offer_id": 58067853,
+    "all_in_hourly_price_ceiling_usd": 0.87,
+    "pilot_cap_usd": 90,
+    "elapsed_deadline_hours": 96,
+    "stop_work_by_hour": 95,
+    "cleanup_reserve_hours": 1,
+    "financial_stop_work_usd": 87,
+    "financial_cleanup_reserve_usd": 3,
+    "cache_retention_authorized": false,
+    "rental_authorized": false,
+    "phase3_authorized": false
+  },
+  "required_before_execution": [
+    "Price approval for instance plus local volume and their deletion",
+    "Fail-fast A3 before candidate; E1-E3 before int4, without threshold change",
+    "Explicit dev timing deadline increase from30to90minutes under approved pilot envelope; qualify changes without rerunning/replacing historic tiny E3",
+    "Pre-download native BF16/kernel, real non-overlay NVMe mount and effective host RAM admission"
+  ],
+  "limitations": [
+    "No target machine measured yet",
+    "Full successful gate needs6passes; refusal can stop sooner",
+    "Four e paths are first LR0 warmup optimizer calls, not quality training",
+    "f uses first development task of HellaSwag ARC BoolQ,10requests; no accuracy/NLL",
+    "Full a-f scenario may exceed the proposed bounded pilot cap and deadline",
+    "Restarting phase3 on changed hardware/software needs a qualifying bound gate, beyond download/conversion costs"
+  ]
+}

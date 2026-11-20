@@ -1,0 +1,511 @@
+{
+  "accuracy": {
+    "all": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    },
+    "baseline": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    },
+    "hostpacked": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    },
+    "larger": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    },
+    "prefetch_after": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    },
+    "usage2": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    }
+  },
+  "archive_manifest_sha256": "e37b04afe403136c334bd02b527b0a7c63e5c05b12a9b58fef15655c64f93f51",
+  "audit_script_sha256": "4a8a6aee7ab66eaa2287868330e507881a2804da225c561321087f4159766c42",
+  "budget": {
+    "invoice_verified": false,
+    "remaining_usd": 3.7839869776925745,
+    "stage_cap_usd": 4.39463027092143,
+    "stage_cost_usd": 0.6106432932288557
+  },
+  "bundle_verified_sha256": "91a568b94bb167922404c6788a63d4d8e39f932610b23c016e1384beccac675c",
+  "checkpoint_integrity": {
+    "expected_total_bytes": 61343935088,
+    "forced_redownloads_used": 0,
+    "helper_sha256": "ba16dc71dd8fddcb2622fe7720dd8cee24ed6a4da14eb4308d36826d90ec14e1",
+    "initial_failed_files": [],
+    "scope": "Captured official SHA/size checks and native prepare fingerprints agree. Checkpoint payloads are not retained/rehashed by this local audit; bad full payloads are not retained.",
+    "verified_files": 13
+  },
+  "cleanup": {
+    "instance_id": 58147079,
+    "instance_verified_absent": true,
+    "label": "soup-expert-followup-20261029-a",
+    "label_verified_absent": true,
+    "method": "fresh read-only full account listings after exact-owned cleanup",
+    "unix": 1793223694.164338,
+    "verified_absent": true,
+    "volume_id": 58147078,
+    "volume_verified_absent": true
+  },
+  "confirmation": {
+    "candidate": "hostpacked",
+    "paired_bootstrap_95_percent": [
+      3.0337364141222456,
+      3.820379961694953
+    ],
+    "paired_rounds": 4,
+    "passes_practical_2_percent_gate": true,
+    "selection_samples_excluded": true,
+    "step_time_reduction_percent": 3.4278591506646916,
+    "throughput_increase_percent": 3.5495321119706658
+  },
+  "diagnostic": {
+    "actual_observed_requests": 40786,
+    "cpu_spans": {
+      "actual_forward_and_backward": true,
+      "profiler_cuda_scope": {
+        "fetches": 16,
+        "microbatch": 0,
+        "phase": "forward",
+        "skip_fetches": 1024
+      },
+      "scope": "CPU wall spans, including enqueue/waits; nested and overlapping durations are not additive; not GPU service times or speed verdicts",
+      "spans": {
+        "context/fetch": {
+          "calls": 18704,
+          "seconds": 7.887298574554734
+        },
+        "context/nf4_dequant": {
+          "calls": 36968,
+          "seconds": 1.988478725310415
+        },
+        "context/packing_layout": {
+          "calls": 17812,
+          "seconds": 0.5502902317093685
+        },
+        "context/storage_read": {
+          "calls": 5048,
+          "seconds": 1.6673178985947743
+        },
+        "context/transfer_stage": {
+          "calls": 17812,
+          "seconds": 3.1898672573734075
+        },
+        "profile_update/fetch": {
+          "calls": 17624,
+          "seconds": 8.305270292563364
+        },
+        "profile_update/nf4_dequant": {
+          "calls": 34812,
+          "seconds": 2.437762308982201
+        },
+        "profile_update/packing_layout": {
+          "calls": 16734,
+          "seconds": 0.2789484793320298
+        },
+        "profile_update/storage_read": {
+          "calls": 4406,
+          "seconds": 1.4693080245051533
+        },
+        "profile_update/transfer_stage": {
+          "calls": 16734,
+          "seconds": 2.909809577045962
+        },
+        "setup/fetch": {
+          "calls": 21236,
+          "seconds": 33.204004638362676
+        },
+        "setup/nf4_dequant": {
+          "calls": 43362,
+          "seconds": 2.8278740780660883
+        },
+        "setup/storage_read": {
+          "calls": 17481,
+          "seconds": 20.70679270941764
+        },
+        "warmup/fetch": {
+          "calls": 40786,
+          "seconds": 25.812263353378512
+        },
+        "warmup/nf4_dequant": {
+          "calls": 81154,
+          "seconds": 4.653083340730518
+        },
+        "warmup/packing_layout": {
+          "calls": 39233,
+          "seconds": 0.7225506925024092
+        },
+        "warmup/storage_read": {
+          "calls": 16169,
+          "seconds": 11.166066901641898
+        },
+        "warmup/transfer_stage": {
+          "calls": 39233,
+          "seconds": 6.942964650806971
+        }
+      }
+    },
+    "environment": {
+      "adapter_b_initialization": "cpu-fp32-normal(seed+1000)*0.02 cast to adapter dtype",
+      "allow_tf32": false,
+      "compute_capability": [
+        8,
+        9
+      ],
+      "deterministic_algorithms": true,
+      "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+      "gpu_total_bytes": 8186822656,
+      "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3",
+      "torch_cuda": "13.0",
+      "training_mode": "eval with differentiable LoRA updates; dropout disabled",
+      "versions": {
+        "bitsandbytes": "0.50.2",
+        "peft": "0.20.0",
+        "torch": "2.10.0+cu130",
+        "transformers": "5.16.1",
+        "trl": "0.29.1"
+      }
+    },
+    "scope": "Full CPU update spans and bounded CUDA forward window; not additive or speed",
+    "timeline": {
+      "cpu_phase_envelope_us_excluding_final_sync": null,
+      "cpu_scalar_counts": {
+        "aten::_local_scalar_dense": 0,
+        "aten::is_nonzero": 0,
+        "aten::item": 0,
+        "aten::nonzero": 0,
+        "aten::where": 0
+      },
+      "decoded_json_metadata": {
+        "baseTimeNanoseconds": 1790857026000000000,
+        "cuda_driver_version": 13020,
+        "cuda_runtime_version": 13000,
+        "cupti_version": 130001,
+        "deviceProperties": [
+          {
+            "computeMajor": 8,
+            "computeMinor": 9,
+            "id": 0,
+            "maxThreadsPerBlock": 1024,
+            "maxThreadsPerMultiprocessor": 1536,
+            "name": "NVIDIA GeForce RTX 4060 Ti",
+            "numSms": 34,
+            "regsPerBlock": 65536,
+            "regsPerMultiprocessor": 65536,
+            "sharedMemPerBlock": 49152,
+            "sharedMemPerBlockOptin": 101376,
+            "sharedMemPerMultiprocessor": 102400,
+            "totalGlobalMem": 8186822656,
+            "warpSize": 32
+          }
+        ],
+        "displayTimeUnit": "ms",
+        "parsed_events": 6207,
+        "schemaVersion": 1,
+        "traceName": "/root/liger/results/followup-probe/diagnostic/trace.json",
+        "trace_id": "5873CF2A628F4A0A9279D3D3F4B9F75A"
+      },
+      "devices": {
+        "0": {
+          "busy_union_us": 4287.8828125,
+          "event_span_us": 15520.11474609375,
+          "events": 566,
+          "first_event_us": 2363583621140.473,
+          "gaps_inside_observed_device_span_us": 11232.23193359375,
+          "last_event_end_us": 2363583636660.588,
+          "union_us_by_kind": {
+            "gpu_memcpy": 2940.83349609375,
+            "gpu_memset": 0.0,
+            "h2d": 2940.83349609375,
+            "kernel": 1347.04931640625
+          }
+        }
+      },
+      "event_category_counts": {
+        "": 62,
+        "Trace": 1,
+        "ac2g": 1397,
+        "cpu_op": 3061,
+        "cuda_driver": 22,
+        "cuda_runtime": 809,
+        "gpu_memcpy": 16,
+        "gpu_user_annotation": 80,
+        "kernel": 550,
+        "overhead": 1,
+        "user_annotation": 208
+      },
+      "gpu_complete_events": 566,
+      "interpretation": "GPU busy is an interval union across streams. Gaps are inside first-to-last recorded GPU activity only, not a whole-step idle percentage or proof of a particular bottleneck. CPU phase annotations end before the final CUDA sync. All durations include profiler overhead.",
+      "maximum_gpu_intervals": 1000000,
+      "microbatch_cpu_phase_annotations": {},
+      "soup_marker_counts": {
+        "soup.expert.fetch": 16,
+        "soup.expert.file_identity": 16,
+        "soup.followup.fetch": 16,
+        "soup.followup.nf4_dequant": 32,
+        "soup.followup.packing_layout": 16,
+        "soup.followup.transfer_stage": 16,
+        "soup.nf4.dequantize_4bit": 32,
+        "soup.nf4.dequantize_blockwise": 32,
+        "soup.nf4.quant_state": 32
+      },
+      "status": "parsed"
+    },
+    "usage_limit": "Totals reconcile warmup; per-expert frequencies are observer records",
+    "window": {
+      "cache_after": {
+        "device": {
+          "budget_bytes": 2147483648,
+          "entries": 227,
+          "evictions": 0,
+          "hits": 2670,
+          "misses": 57860,
+          "payload_bytes": 2142240768
+        },
+        "host": {
+          "budget_bytes": 8589934592,
+          "copied_bytes": 8587801152,
+          "entries": 3528,
+          "evictions": 0,
+          "hits": 36639,
+          "insertions": 3528,
+          "misses": 21221,
+          "payload_bytes": 8587801152,
+          "rejected_admissions": 17466
+        },
+        "host_cache_policy": "static",
+        "host_staging_bytes": 2473984,
+        "logical_fetches": 81766,
+        "materializations": 78869,
+        "storage_bytes_read": 94207789168,
+        "storage_reads": 38702,
+        "transfer": {
+          "device_staging_bytes": 4869128,
+          "h2d_bytes": 140863873040,
+          "h2d_copies": 57860,
+          "host_copy_calls": 462880,
+          "layout_builds": 57860,
+          "mode": "packed",
+          "pinned_host_bytes": 4869128
+        }
+      },
+      "cache_before": {
+        "device": {
+          "budget_bytes": 2147483648,
+          "entries": 227,
+          "evictions": 0,
+          "hits": 2670,
+          "misses": 57844,
+          "payload_bytes": 2142240768
+        },
+        "host": {
+          "budget_bytes": 8589934592,
+          "copied_bytes": 8587801152,
+          "entries": 3528,
+          "evictions": 0,
+          "hits": 36623,
+          "insertions": 3528,
+          "misses": 21221,
+          "payload_bytes": 8587801152,
+          "rejected_admissions": 17466
+        },
+        "host_cache_policy": "static",
+        "host_staging_bytes": 2473984,
+        "logical_fetches": 81750,
+        "materializations": 78853,
+        "storage_bytes_read": 94207789168,
+        "storage_reads": 38702,
+        "transfer": {
+          "device_staging_bytes": 4869128,
+          "h2d_bytes": 140824920016,
+          "h2d_copies": 57844,
+          "host_copy_calls": 462752,
+          "layout_builds": 57844,
+          "mode": "packed",
+          "pinned_host_bytes": 4869128
+        }
+      },
+      "cache_delta": {
+        "device_hits": 0,
+        "host_hits": 16,
+        "logical_fetches": 16,
+        "materializations": 16,
+        "storage_bytes_read": 0,
+        "storage_reads": 0
+      },
+      "microbatch": 0,
+      "phase": "forward",
+      "profiled_fetches": 16,
+      "requested_fetches": 16,
+      "restored": true,
+      "skip_fetches": 1024,
+      "started": true,
+      "stopped": true
+    }
+  },
+  "exploration": {
+    "all": {
+      "cuda": {
+        "allocated_bytes": 3022057472,
+        "peak_allocated_bytes": 4049777664,
+        "peak_reserved_bytes": 4276092928,
+        "reserved_bytes": 4276092928
+      },
+      "median_step_seconds": 13.141746342997067,
+      "sampled_peak_rss_bytes": 14132690944,
+      "setup_seconds": 36.83474488300271,
+      "updates_seconds": [
+        14.144790051039308,
+        13.146843133028597,
+        13.136649552965537,
+        13.13622161699459,
+        12.98224251694046,
+        13.50239988300018
+      ],
+      "whole_entry_seconds": 154.1950718719745
+    },
+    "baseline": {
+      "cuda": {
+        "allocated_bytes": 2890985472,
+        "peak_allocated_bytes": 3918705664,
+        "peak_reserved_bytes": 4141875200,
+        "reserved_bytes": 4141875200
+      },
+      "median_step_seconds": 13.595654703502078,
+      "sampled_peak_rss_bytes": 12860043264,
+      "setup_seconds": 38.57548952102661,
+      "updates_seconds": [
+        14.590796108008362,
+        13.604007625952363,
+        13.587301781051792,
+        13.368882504990324,
+        13.333601207006723,
+        14.025976622942835
+      ],
+      "whole_entry_seconds": 158.8462122810306
+    },
+    "hostpacked": {
+      "cuda": {
+        "allocated_bytes": 2890985472,
+        "peak_allocated_bytes": 3918705664,
+        "peak_reserved_bytes": 4141875200,
+        "reserved_bytes": 4141875200
+      },
+      "median_step_seconds": 13.11745190655347,
+      "sampled_peak_rss_bytes": 14492356608,
+      "setup_seconds": 49.93259430199396,
+      "updates_seconds": [
+        14.07217982900329,
+        12.831009824061766,
+        13.026224176050164,
+        13.208679637056775,
+        12.710191246005706,
+        13.518902560928836
+      ],
+      "whole_entry_seconds": 170.0132227189606
+    },
+    "larger": {
+      "cuda": {
+        "allocated_bytes": 3023106048,
+        "peak_allocated_bytes": 4050826240,
+        "peak_reserved_bytes": 4288675840,
+        "reserved_bytes": 4288675840
+      },
+      "median_step_seconds": 13.570726147503592,
+      "sampled_peak_rss_bytes": 12840947712,
+      "setup_seconds": 37.47496029490139,
+      "updates_seconds": [
+        14.453459796961397,
+        13.255562656908296,
+        13.656797230942175,
+        13.48465506406501,
+        13.293047094950452,
+        13.7494769039331
+      ],
+      "whole_entry_seconds": 156.03986739902757
+    },
+    "prefetch_after": {
+      "cuda": {
+        "allocated_bytes": 2890985472,
+        "peak_allocated_bytes": 3918705664,
+        "peak_reserved_bytes": 4141875200,
+        "reserved_bytes": 4141875200
+      },
+      "median_step_seconds": 13.785647091979627,
+      "sampled_peak_rss_bytes": 12849496064,
+      "setup_seconds": 37.65275299898349,
+      "updates_seconds": [
+        14.805341353989206,
+        13.493121459963731,
+        13.878923506010324,
+        13.69237067794893,
+        13.527643910958432,
+        14.066402542986907
+      ],
+      "whole_entry_seconds": 158.19865997694433
+    },
+    "usage2": {
+      "cuda": {
+        "allocated_bytes": 2889936896,
+        "peak_allocated_bytes": 3917657088,
+        "peak_reserved_bytes": 4139778048,
+        "reserved_bytes": 4139778048
+      },
+      "median_step_seconds": 13.530236734019127,
+      "sampled_peak_rss_bytes": 12817362944,
+      "setup_seconds": 37.76990897592623,
+      "updates_seconds": [
+        14.536216596956365,
+        13.499313461012207,
+        13.52970425807871,
+        13.530769209959544,
+        13.188571447972208,
+        14.022843822953291
+      ],
+      "whole_entry_seconds": 157.7500382590806
+    }
+  },
+  "launch_manifest_sha256": "09bc057b507fcae2d9cd59bb92d2f6f0b8f4298be9b9f1a82b6589044b37eb42",
+  "limits": {
+    "placement": "Frequency/traffic proxy, no latency/global optimality claim",
+    "precision": "Six separate two-update/four-micro full captures",
+    "profile": "Instrumented diagnostic; not an unprofiled speed denominator",
+    "quality": "No downstream quality/convergence claim",
+    "storage": "Physical NVMe unverified; logical reads are not physical I/O",
+    "timed_tensors": "NO VERDICT on unrecorded full final timed tensors"
+  },
+  "qualification_run_sha256": "7ed25e53603309a3ef052fbec3dc40b2dc8665a22cb4ba038d644f32e422b23c",
+  "retention": {
+    "archive_bytes": 626984960,
+    "archive_sha256": "c9ed74011c8ab1c36e92af456adedce2d6d3e7e6aa7597afbb701d3b0ca54959",
+    "decoded_unique_chunks_verified": 450,
+    "inner_manifest_sha256": "4018cce277f51d55cdb51ed5003eec4580d97f97db731b0548ba16d5aa665432",
+    "original_bytes": 7061120837,
+    "verified_files": 321
+  },
+  "selection": "hostpacked",
+  "source_commit": "9873f3239db47ee6c5539cea8b125261cdba82c1",
+  "speed_verdict": "CONFIRMED_PRACTICAL_WIN",
+  "stage_id": "soup-expert-followup-20261029-a",
+  "status": "passed_standalone_followup_audit",
+  "workers_including_diagnostic": 21
+}

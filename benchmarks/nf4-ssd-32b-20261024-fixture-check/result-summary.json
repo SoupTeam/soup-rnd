@@ -1,0 +1,304 @@
+{
+  "study": "nf4-ssd-32b-20261024",
+  "success": false,
+  "status": "FAILED",
+  "worker_summary": {
+    "status": "FAILED",
+    "cohorts": {},
+    "stages": [
+      {
+        "name": "cuda-source-controls",
+        "exit_code": 1,
+        "seconds": 9.276350498199463,
+        "started_unix": 1792860057.2566354
+      }
+    ],
+    "bundles": [
+      {
+        "name": "sweep-joint-cuda-source-controls",
+        "bytes": 6604800
+      },
+      {
+        "name": "final",
+        "bytes": 10240
+      }
+    ],
+    "funding": "Combined authorization; preceding 4B and 32B RAM-source attempts included once",
+    "source_sha256": "53f733e31a058ed9e3d6ad48e468e6abeda7a6070b86b0c6620a1da8c3935dd2",
+    "last_admission": {
+      "admitted": true,
+      "estimated_total_usd": 4.25728746652208,
+      "remaining_seconds": 21225.000591993332,
+      "required_seconds": 1390.0169619201854,
+      "encoded_bytes_forecast": 1073741824,
+      "raw_bytes_forecast": 2147483648,
+      "local_free_bytes": 54427664384,
+      "donor_savings_assumed": false,
+      "remote_free_bytes": 152669847552
+    },
+    "current_stage": "cuda-source-controls",
+    "error": "CohortError: Actual GPU source/regression controls failed"
+  },
+  "protocol": {
+    "study": "soup-nf4-ssd-32b-20261024",
+    "models": [
+      {
+        "model_id": "Qwen/Qwen3-32B",
+        "size_b": 32,
+        "revision": "9216db5781bf21249d130ec9da846c4624c16137",
+        "config": {
+          "architectures": [
+            "Qwen3ForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "bos_token_id": 151643,
+          "eos_token_id": 151645,
+          "head_dim": 128,
+          "hidden_act": "silu",
+          "hidden_size": 5120,
+          "initializer_range": 0.02,
+          "intermediate_size": 25600,
+          "max_position_embeddings": 40960,
+          "max_window_layers": 64,
+          "model_type": "qwen3",
+          "num_attention_heads": 64,
+          "num_hidden_layers": 64,
+          "num_key_value_heads": 8,
+          "rms_norm_eps": 1e-06,
+          "rope_scaling": null,
+          "rope_theta": 1000000,
+          "sliding_window": null,
+          "tie_word_embeddings": false,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.51.0",
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 151936
+        },
+        "weight_bytes": 65524246528,
+        "weight_files": [
+          "model-00001-of-00017.safetensors",
+          "model-00002-of-00017.safetensors",
+          "model-00003-of-00017.safetensors",
+          "model-00004-of-00017.safetensors",
+          "model-00005-of-00017.safetensors",
+          "model-00006-of-00017.safetensors",
+          "model-00007-of-00017.safetensors",
+          "model-00008-of-00017.safetensors",
+          "model-00009-of-00017.safetensors",
+          "model-00010-of-00017.safetensors",
+          "model-00011-of-00017.safetensors",
+          "model-00012-of-00017.safetensors",
+          "model-00013-of-00017.safetensors",
+          "model-00014-of-00017.safetensors",
+          "model-00015-of-00017.safetensors",
+          "model-00016-of-00017.safetensors",
+          "model-00017-of-00017.safetensors"
+        ]
+      }
+    ],
+    "maximum_stage_usd": 13.34,
+    "context_tokens": 512,
+    "batch": 1,
+    "accumulation": 2,
+    "lora_rank_alpha": 4,
+    "seed": 792,
+    "dataset": "Frozen BoolQ train rows, capacity/numerical workload only",
+    "task_quality_not_measured": true,
+    "ram_upper_bound_bytes": 34359738368,
+    "ram_bound_requirement": "Physical total or native kernel cgroup <=32GiB",
+    "swap_policy": "Abort on any observed container swap use",
+    "source": "Fixed NF4 SSD source, four cache arms",
+    "timing_order": [
+      [
+        "baseline",
+        "ram",
+        "both",
+        "vram"
+      ],
+      [
+        "ram",
+        "vram",
+        "baseline",
+        "both"
+      ],
+      [
+        "vram",
+        "both",
+        "ram",
+        "baseline"
+      ],
+      [
+        "both",
+        "baseline",
+        "vram",
+        "ram"
+      ]
+    ],
+    "timing_warmup": 2,
+    "timing_measured_updates": 4,
+    "timing_initialization": "Identical seeded native adapters, reset optimizer",
+    "expected_trainable_tensors": 896,
+    "reference_first_rtol": 0.01,
+    "atol": 1e-05,
+    "loss_three_decimals": true,
+    "finite_required": true,
+    "resident_selection": "Native automatic capacity probe; fixed before accuracy/timing",
+    "expected_8b_baseline_encoded_bytes": 1073741824,
+    "expected_whole_matrix_encoded_bytes": 10737418240,
+    "no_cross_precision_or_larger_model_quality_claim": true,
+    "data_manifest_sha256": "4cdfc55bb072b03167d14acf8f560fc22a55c1c823d5b2d6c5a752200ea6e92f",
+    "source_sha256": "53f733e31a058ed9e3d6ad48e468e6abeda7a6070b86b0c6620a1da8c3935dd2",
+    "source_base_head": "197581e3bd5d2bb29923961da1b370a0026af03d",
+    "candidate_ram_ceilings_mib": [
+      14336,
+      8192,
+      4096
+    ],
+    "candidate_contexts": [
+      512
+    ],
+    "frozen_data_sha256": "c017bc3aa232448b410f55ea883f6b7bda09c48c6e49069cc1ba3b1a1daccdd6",
+    "profile": "Separate CUDA diagnostic after accuracy approval, before normal timings",
+    "capture": {
+      "reference_first_rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "exact_inputs_initial_adapters": true,
+      "finite_required": true,
+      "updates": 2
+    },
+    "diagnostic_window": {
+      "warmup": 1,
+      "measured": 3,
+      "total_optimizer_updates": 4,
+      "not_performance_evidence": true
+    }
+  },
+  "hardware": {
+    "scope": "32B capacity with physical/cgroup RAM <=32GiB",
+    "samples": [
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792859717.0948124
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792859722.121579
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792859727.1483347
+      }
+    ],
+    "ram_scope": {
+      "limit_enforced": true,
+      "requested_ram_upper_bound_bytes": 34359738368,
+      "effective_ram_upper_bound_bytes": 31950110720,
+      "host_mem_total_bytes": 33282760704,
+      "native_cgroup_limit_bytes": 31950110720,
+      "container_swap_current_bytes": 0,
+      "method": "PHYSICAL_32GB_CLASS",
+      "parent_limits_and_system_settings_unchanged": true,
+      "host_swap_total_bytes": 8589930496,
+      "swap_policy": "Enabled host swap is not called disabled; abort on container swap use",
+      "proc_self_cgroup": "0::/\n"
+    },
+    "passed": true,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+    "gpu_uuid": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099",
+    "host_meminfo": "MemTotal:       32502696 kB\nMemFree:        20047456 kB\nMemAvailable:   30797888 kB\nBuffers:           20080 kB\nCached:         10653588 kB\nSwapCached:       134704 kB\nActive:          1737268 kB\nInactive:        9293816 kB\nActive(anon):     217488 kB\nInactive(anon):   148596 kB\nActive(file):    1519780 kB\nInactive(file):  9145220 kB\nUnevictable:       26768 kB\nMlocked:           26768 kB\nSwapTotal:       8388604 kB\nSwapFree:        8120572 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:             34880 kB\nWriteback:             0 kB\nAnonPages:        376120 kB\nMapped:           192724 kB\nShmem:               280 kB\nKReclaimable:     553664 kB\nSlab:             856012 kB\nSReclaimable:     553664 kB\nSUnreclaim:       302348 kB\nKernelStack:        8688 kB\nPageTables:        10788 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    24639952 kB\nCommitted_AS:    3012876 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:      179496 kB\nVmallocChunk:          0 kB\nPercpu:            14976 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:    22051432 kB\nDirectMap2M:    11139072 kB\nDirectMap1G:           0 kB\n",
+    "cgroup": {
+      "/sys/fs/cgroup/memory.max": "31950110720\n"
+    }
+  },
+  "independent_reports": {},
+  "performance": null,
+  "validation": {
+    "local_protocol_and_retention_controls": {
+      "tests": 32,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "context_refusal_control": {
+      "tests": 1,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "profile_interval_control": {
+      "tests": 1,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "native_profile_and_stop_protocol_controls": {
+      "tests": 3,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "shared_account_ownership_controls": {
+      "tests": 4,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "gpu_host_controls": {
+      "tests": 149,
+      "errors": 0,
+      "failures": 1,
+      "skipped": 0
+    }
+  },
+  "cleanup": {
+    "verified_absent": true,
+    "instance_id": 57537866,
+    "volume_id": 57537865,
+    "account_instance_count": 1,
+    "account_volume_count": 0,
+    "unix": 1792860183.5415497,
+    "method": "Fresh independent read-only account listings",
+    "scope": "Exact owned instance and volume IDs; unrelated resources untouched",
+    "unrelated_instances": [
+      {
+        "id": 57533867,
+        "label": "soup-g4-20261024"
+      }
+    ]
+  },
+  "controller_error": null,
+  "cost": {
+    "current_stage_conservative_usd": 0.3128391193623794,
+    "combined_since_4b_conservative_usd": 3.1553767513736264,
+    "combined_available_before_4b_usd": 13.343605273574783,
+    "combined_remaining_usd": 10.188228522201156,
+    "additional_ten_dollar_allowance_used": 0,
+    "invoice_claim": false
+  },
+  "raw_retention": {
+    "files": 191,
+    "logical_bytes": 23576565
+  },
+  "scope": "Same-NF4 numerical/capacity/residency workload; no 32B task-quality result",
+  "classification": {
+    "stage": "cuda-source-controls",
+    "model_download_or_training_started": false,
+    "failure": "New GPU test requested an empty hotset: tiny pinned ceiling and eligible group fully covered by ordinary read-ahead",
+    "production_fix_exercised_by_this_regression": false,
+    "original_control_result": {
+      "tests": 149,
+      "errors": 0,
+      "failures": 1,
+      "skipped": 0
+    }
+  }
+}

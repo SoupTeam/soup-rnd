@@ -1,0 +1,70 @@
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_bf16_control.py:346:101
+    |
+344 |                 routing = routes.evidence(len(ids), expected_routes)
+345 |                 if not routing["strict_ok"]:
+346 |                     raise RuntimeError("strict routing observation changed or is incomplete; no SGD")
+    |                                                                                                     ^
+347 |                 if len(losses) != len(ids) or any(not math.isfinite(value) for value in losses):
+348 |                     raise RuntimeError("missing/nonfinite per-microbatch loss; no SGD")
+    |
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_bf16_control.py:513:101
+    |
+511 |         if floor is not None:
+512 |             update_floor = stand.RunRecord(
+513 |                 logs=floor.logs, rates=floor.rates, grads=[payloads["ga_floor"]["updates"]], steps=1,
+    |                                                                                                     ^
+514 |             )
+515 |             update_ref = stand.RunRecord(
+    |
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_bf16_control.py:519:101
+    |
+517 |             )
+518 |             update_cand = stand.RunRecord(
+519 |                 logs=floor.logs, rates=floor.rates, grads=[payloads["l2l_none"]["updates"]], steps=1,
+    |                                                                                                     ^
+520 |             )
+521 |             baseline["update_floor_check"] = stand.judge_tolerance(
+    |
+
+E501 Line too long (102 > 100)
+   --> benchmarks/harness/p3_bf16_control.py:739:101
+    |
+737 |         "g4_thresholds": thresholds(),
+738 |         "a3_rule": "unchanged l2l_mistral_stand.decide(mode='bf16')",
+739 |         "scope_note": "No forced routes, no candidates selected, baseline and storage gates separate",
+    |                                                                                                     ^^
+740 |     }
+741 |     temporary_root = os.environ.get("TMPDIR") or tempfile.gettempdir()
+    |
+
+F401 [*] `torch` imported but unused
+   --> benchmarks/harness/p3_bf16_diagnostics.py:192:12
+    |
+191 | def _routing(original: dict[str, Any], restored: dict[str, Any], shape: Any) -> dict[str, Any]:
+192 |     import torch
+    |            ^^^^^
+193 |
+194 |     left, right = original.get("router"), restored.get("router")
+    |
+help: Remove unused import: `torch`
+    |
+191 | def _routing(original: dict[str, Any], restored: dict[str, Any], shape: Any) -> dict[str, Any]:
+    -     import torch
+192 |
+    |
+
+N818 Exception name `OracleMismatch` should be named with an Error suffix
+  --> benchmarks/harness/p3_bf16_fixture.py:43:7
+   |
+43 | class OracleMismatch(RuntimeError):
+   |       ^^^^^^^^^^^^^^
+44 |     """The reference does not represent the shard values or execution arithmetic."""
+   |
+
+Found 6 errors.
+[*] 1 fixable with `--fix`.

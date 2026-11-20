@@ -1,0 +1,147 @@
+{
+  "device": "cuda",
+  "shape": [
+    1,
+    64,
+    128
+  ],
+  "seed": 23,
+  "ks": [
+    1,
+    4
+  ],
+  "cases": [
+    {
+      "k": 1,
+      "arms": {
+        "bf16": {
+          "status": "COMPLETE",
+          "routing": {
+            "complete": true
+          },
+          "window_loss": 4.19633674621582,
+          "store_host_bytes": 49152,
+          "oracle_host_bytes": 0,
+          "step_rss_sampled_peak_bytes": 1689919488,
+          "process_rss_high_water_bytes": 1689399296,
+          "cuda_allocated_peak_bytes": 68242432,
+          "error": null,
+          "e1_rms_row_rel_max": 0.0,
+          "e1_worst_row_rel_max": 0.0,
+          "e1_pass": true,
+          "e2_rms_row_rel_max": 0.0,
+          "e2_pass": true
+        },
+        "fp8": {
+          "status": "ROUTING_REFUSED",
+          "routing": {
+            "complete": false,
+            "layer": 2,
+            "microbatch": 0,
+            "changed_tokens": 3,
+            "tokens": 64,
+            "message": "routing guard: layer 2 micro-batch 0 was routed differently in the recompute than in the forward (3 of 64 tokens chose other experts), so its gradients would not be those of the forward. The router's weights, its correction bias or its input changed between the two."
+          },
+          "window_loss": null,
+          "store_host_bytes": 25665,
+          "oracle_host_bytes": 0,
+          "step_rss_sampled_peak_bytes": 1659789312,
+          "process_rss_high_water_bytes": 1659510784,
+          "cuda_allocated_peak_bytes": 68034560,
+          "error": null
+        },
+        "fp8_oracle": {
+          "status": "COMPLETE",
+          "routing": {
+            "complete": true
+          },
+          "window_loss": 4.19633674621582,
+          "store_host_bytes": 25665,
+          "oracle_host_bytes": 36352,
+          "step_rss_sampled_peak_bytes": 1687564288,
+          "process_rss_high_water_bytes": 1687244800,
+          "cuda_allocated_peak_bytes": 68242432,
+          "error": null,
+          "e1_rms_row_rel_max": 0.025869181909579993,
+          "e1_worst_row_rel_max": 0.030974906358330556,
+          "e1_pass": true,
+          "e2_rms_row_rel_max": 0.041530393364841815,
+          "e2_pass": true,
+          "e3": {
+            "global_rel_l2": 0.05368039301705306,
+            "min_cosine": 0.992760156468035,
+            "tensors": 30,
+            "pass": false
+          },
+          "loss_abs_diff": 0.0
+        }
+      }
+    },
+    {
+      "k": 4,
+      "arms": {
+        "bf16": {
+          "status": "COMPLETE",
+          "routing": {
+            "complete": true
+          },
+          "window_loss": 4.2003408670425415,
+          "store_host_bytes": 196608,
+          "oracle_host_bytes": 0,
+          "step_rss_sampled_peak_bytes": 1689686016,
+          "process_rss_high_water_bytes": 1689128960,
+          "cuda_allocated_peak_bytes": 68317696,
+          "error": null,
+          "e1_rms_row_rel_max": 0.0,
+          "e1_worst_row_rel_max": 0.0,
+          "e1_pass": true,
+          "e2_rms_row_rel_max": 0.0,
+          "e2_pass": true
+        },
+        "fp8": {
+          "status": "ROUTING_REFUSED",
+          "routing": {
+            "complete": false,
+            "layer": 2,
+            "microbatch": 0,
+            "changed_tokens": 3,
+            "tokens": 64,
+            "message": "routing guard: layer 2 micro-batch 0 was routed differently in the recompute than in the forward (3 of 64 tokens chose other experts), so its gradients would not be those of the forward. The router's weights, its correction bias or its input changed between the two."
+          },
+          "window_loss": null,
+          "store_host_bytes": 102465,
+          "oracle_host_bytes": 0,
+          "step_rss_sampled_peak_bytes": 1660219392,
+          "process_rss_high_water_bytes": 1659891712,
+          "cuda_allocated_peak_bytes": 68102144,
+          "error": null
+        },
+        "fp8_oracle": {
+          "status": "COMPLETE",
+          "routing": {
+            "complete": true
+          },
+          "window_loss": 4.2003408670425415,
+          "store_host_bytes": 102465,
+          "oracle_host_bytes": 47104,
+          "step_rss_sampled_peak_bytes": 1689022464,
+          "process_rss_high_water_bytes": 1688707072,
+          "cuda_allocated_peak_bytes": 68317696,
+          "error": null,
+          "e1_rms_row_rel_max": 0.025819825007589475,
+          "e1_worst_row_rel_max": 0.03160923831455516,
+          "e1_pass": true,
+          "e2_rms_row_rel_max": 0.04056118867189305,
+          "e2_pass": true,
+          "e3": {
+            "global_rel_l2": 0.05860672061063229,
+            "min_cosine": 0.9955920621246904,
+            "tensors": 30,
+            "pass": false
+          },
+          "loss_abs_diff": 0.0
+        }
+      }
+    }
+  ]
+}

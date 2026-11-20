@@ -1,0 +1,40 @@
++ export DEBIAN_FRONTEND=noninteractive
++ DEBIAN_FRONTEND=noninteractive
++ apt-get update -qq
+W: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/InRelease: Key is stored in legacy trusted.gpg keyring (/etc/apt/trusted.gpg), see the DEPRECATION section in apt-key(8) for details.
++ apt-get install -y -qq python3-venv python3-pip git rsync
+debconf: delaying package configuration, since apt-utils is not installed
++ cd /root/volume
++ python3 -m venv venv
++ . venv/bin/activate
+++ deactivate nondestructive
+++ '[' -n '' ']'
+++ '[' -n '' ']'
+++ hash -r
+++ '[' -n '' ']'
+++ unset VIRTUAL_ENV
+++ unset VIRTUAL_ENV_PROMPT
+++ '[' '!' nondestructive = nondestructive ']'
+++ '[' linux-gnu = cygwin ']'
+++ '[' linux-gnu = msys ']'
+++ export VIRTUAL_ENV=/root/volume/venv
+++ VIRTUAL_ENV=/root/volume/venv
+++ _OLD_VIRTUAL_PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ PATH=/root/volume/venv/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ export PATH
+++ '[' -n '' ']'
+++ '[' -z '' ']'
+++ _OLD_VIRTUAL_PS1=
+++ PS1='(venv) '
+++ export PS1
+++ VIRTUAL_ENV_PROMPT='(venv) '
+++ export VIRTUAL_ENV_PROMPT
+++ hash -r
++ pip install -q --upgrade pip
++ pip install -q torch
++ cd repo
++ pip install -q -e '.[dev]' bitsandbytes huggingface_hub hf_transfer tiktoken
++ python -c 'import torch,transformers,peft,bitsandbytes;print(torch.__version__,torch.cuda.is_available(),torch.cuda.get_device_capability())'
+2.15.0+cu132 True (12, 0)
++ echo SETUP_DONE
+SETUP_DONE

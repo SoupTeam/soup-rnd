@@ -1,0 +1,36 @@
+{
+    'policy': 'retain all MoE decoder boundaries in BF16; compress dense 
+boundaries',
+    'diagnosis': 'native decoder routing changes in both MoE layers, not just 
+embeddings',
+    'status': 'REJECTED_BEFORE_IMPLEMENTATION',
+    'baseline_plan': {
+        'requested_k': 64,
+        'effective_k': 64,
+        'available_host_bytes': 5368709120,
+        'activation_bytes': 4093640704,
+        'routing_record_bytes': 15204352,
+        'routing_comparison_bytes': 4096,
+        'n_layers': 61,
+        'max_shape': (1, 64, 7168),
+        'dtype': 'bfloat16',
+        'pin': True,
+        'codec': 'none',
+        'device_type': 'cuda',
+        'host_bytes': 4108849152
+    },
+    'retained_bf16_layers': 58,
+    'compressed_dense_layers': 3,
+    'candidate_host_charge_lower_bound_bytes': 3907522560,
+    'maximum_possible_saving_fraction': 0.04899829235687648,
+    'minimum_useful_saving_fraction': 0.25,
+    'bound_assumption': 'Dense boundaries cost zero; routes and retained slabs 
+stay charged',
+    'omitted_costs': 'Candidate payload, scales, metadata, scratch, extra 
+compute: all >= 0',
+    'implemented': False,
+    'numerically_validated': False,
+    'whole_step_policy_overhead': None,
+    'separate_input_policy_validation': 'not applicable: memory screen rejects 
+selection'
+}

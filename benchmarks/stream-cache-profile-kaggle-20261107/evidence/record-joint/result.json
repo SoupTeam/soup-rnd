@@ -1,0 +1,65 @@
+{
+  "status": "passed",
+  "policy": "joint",
+  "phase": "record",
+  "updates": 8,
+  "placement": {
+    "ram_indices": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      16,
+      17,
+      18,
+      19
+    ],
+    "gpu_indices": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "retained_layers": 24
+  },
+  "messages": [
+    "training.stream_resident_layers=8: measured resident candidate fits the shared cap; resident layers [8, 9, 10, 11, 12, 13, 14, 15], payload 56289504 bytes, cap 8589934592 bytes, setup reserve 90701824 bytes (optimizer state estimated; setup forward/backward, no optimizer step).",
+    "[cyan]training.stream_recompute='auto':[/] the last 24 of 24 streamed layers keep their activations, the rest recompute (measured at batch 1 x seq 256: one layer 18.4 MB retained, charged 20.1 MB at reserved/allocated 1.09; budget 8.26 GB = training.stream_vram_override 8.50 GB minus the reserved peak 234.9 MB)",
+    "[cyan]Cached stream activation plan:[/] 24 retained layers; complete retained suffix fits the shared cap; shared cap 8589934592 bytes, setup/optimizer reserves 67108864/23592960 bytes",
+    "Stream cache profile: 8 GPU layers, RAM ceiling 96 MiB, 24 layers retaining activations; recording real updates.",
+    "Stream cache profile saved to /kaggle/temp/soup-profile-uohsuzbi/cache-profile-work/history.json; actual training continued."
+  ],
+  "setup_seconds": 3.675765869000031,
+  "train_seconds": 7.367967156999953,
+  "full_seconds": 11.043734862000008,
+  "step_seconds_after_2": 0.8809475584999973,
+  "peak_vram_allocated_bytes": 604945920,
+  "peak_vram_reserved_bytes": 633339904,
+  "peak_rss_bytes": 1652396032,
+  "losses": [
+    7.786526203155518,
+    7.822332859039307,
+    7.881069183349609,
+    7.838099479675293,
+    7.79380464553833,
+    7.8489179611206055,
+    7.813292503356934,
+    7.777803421020508,
+    7.844970703125,
+    7.844526767730713,
+    7.804714202880859,
+    7.812043190002441,
+    7.884367942810059,
+    7.875136375427246,
+    7.835472106933594,
+    7.856574058532715
+  ],
+  "comparisons": [],
+  "adapter_tensors": 336,
+  "profile_identity": "06700e5e56ff9bc0745b037d21bf2b27beb66c0d9a2eef20c403b247ad8d0294"
+}

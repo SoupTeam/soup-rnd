@@ -1,0 +1,469 @@
+{
+  "source": "v3-discovery",
+  "rows": [
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 1,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 3,
+      "fp8_routing_refusals": 0,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 1.5391208679999977,
+        "ga2": 0.06420479999999884,
+        "ga_floor": 0.03136632700000064,
+        "l2l_none": 0.14157627799997385,
+        "l2l_fp8": 0.12054183399999374
+      },
+      "first_window_gradient_rel_l2": 0.05645884774776226,
+      "first_window_min_cosine": 0.9934561410690974
+    },
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 4,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.2502460390000181,
+        "ga2": 0.26919139000000314,
+        "ga_floor": 0.005437545000006594,
+        "l2l_none": 0.4412025999999969,
+        "l2l_fp8": 0.19142240899998342
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 16,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.9572783399999878,
+        "ga2": 0.9397606279999877,
+        "ga_floor": 0.005702035000012984,
+        "l2l_none": 1.7302493450000043,
+        "l2l_fp8": 0.5842668820000085
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 64,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 3.687207184999977,
+        "ga2": 3.702583197000024,
+        "ga_floor": 0.006275028999993992,
+        "l2l_none": 6.949879613999997,
+        "l2l_fp8": 2.1972184240000274
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 1,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 2,
+      "fp8_routing_refusals": 1,
+      "fp8_e3_passes": 1,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.5685632910000322,
+        "ga2": 0.06395748400001366,
+        "ga_floor": 0.006036205999976119,
+        "l2l_none": 0.11613952699997299,
+        "l2l_fp8": 0.11321802800000569
+      },
+      "first_window_gradient_rel_l2": 0.03764934470618651,
+      "first_window_min_cosine": 0.9800154201663989
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 4,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.2520225909999567,
+        "ga2": 0.25002464900001087,
+        "ga_floor": 0.005992929999990793,
+        "l2l_none": 0.45247098299995514,
+        "l2l_fp8": 0.3021437670000182
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 16,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.9932836729999508,
+        "ga2": 0.9920912649999991,
+        "ga_floor": 0.005997777000004589,
+        "l2l_none": 1.8070977099999936,
+        "l2l_fp8": 0.8446493789999749
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 64,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 4.036973805000002,
+        "ga2": 3.9029225620000148,
+        "ga_floor": 0.0058912480000117284,
+        "l2l_none": 7.251792797999997,
+        "l2l_fp8": 2.5177439149999827
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 1,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 2,
+      "fp8_routing_refusals": 1,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.5435574029999657,
+        "ga2": 0.06378371400001015,
+        "ga_floor": 0.00677234900001622,
+        "l2l_none": 0.1365932719999705,
+        "l2l_fp8": 0.1327839909999966
+      },
+      "first_window_gradient_rel_l2": 0.061354975305015616,
+      "first_window_min_cosine": 0.9900935571396626
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 4,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.24421569600002613,
+        "ga2": 0.24488832899999124,
+        "ga_floor": 0.0062695529999814426,
+        "l2l_none": 0.5280362849999847,
+        "l2l_fp8": 0.35921654200001285
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 16,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.9880346099999997,
+        "ga2": 0.9622119030000249,
+        "ga_floor": 0.006513535000010506,
+        "l2l_none": 1.9481652799999551,
+        "l2l_fp8": 0.8987626919999911
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 64,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 3.8645992230000275,
+        "ga2": 3.812041695000005,
+        "ga_floor": 0.006334330000015598,
+        "l2l_none": 7.887657907000005,
+        "l2l_fp8": 2.8842674520000173
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 1,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 2,
+      "fp8_routing_refusals": 1,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "PASS",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.546032007000008,
+        "ga2": 0.06957768699999178,
+        "ga_floor": 0.006990330000007816,
+        "l2l_none": 0.1382813850000275,
+        "l2l_fp8": 0.13816013099994962
+      },
+      "first_window_gradient_rel_l2": 0.06465414675598645,
+      "first_window_min_cosine": 0.8539138929404411
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 4,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 0.2758457649999855,
+        "ga2": 0.27186909199997444,
+        "ga_floor": 0.008318824999946628,
+        "l2l_none": 0.5609391130000176,
+        "l2l_fp8": 0.3736372900000333
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 16,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 1.0797887670000819,
+        "ga2": 1.0763126589999956,
+        "ga_floor": 0.006931695000048421,
+        "l2l_none": 2.185453829000039,
+        "l2l_fp8": 0.9145707879999918
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 64,
+      "bf16_control_exact": true,
+      "bf16_a3_statuses": [
+        "no_floor",
+        "no_floor",
+        "no_floor"
+      ],
+      "fp8_completed_steps": 0,
+      "fp8_routing_refusals": 3,
+      "fp8_e3_passes": 0,
+      "decoder_gates": {
+        "complete": true,
+        "e1": "PASS",
+        "e2": "FAIL",
+        "scope": "first full window, including maximum sequence length; not all windows"
+      },
+      "first_window_seconds": {
+        "ga1": 4.292581930000097,
+        "ga2": 4.266946504999964,
+        "ga_floor": 0.007032376999973167,
+        "l2l_none": 8.582904140999972,
+        "l2l_fp8": 3.0615265749999026
+      },
+      "first_window_gradient_rel_l2": null,
+      "first_window_min_cosine": null
+    }
+  ]
+}

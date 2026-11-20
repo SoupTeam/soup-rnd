@@ -1,0 +1,87 @@
+{
+  "status": "FOUR_ARMS_COMPLETE",
+  "protocol_sha256": "d22871c398d29e25c614129a1a084903fbc0dce09a5bb5d2659c08d9102b2f82",
+  "pair_input_checks": [
+    {
+      "length": 1024,
+      "matched_steps": 64,
+      "input_and_label_identities_equal": true
+    },
+    {
+      "length": 4096,
+      "matched_steps": 64,
+      "input_and_label_identities_equal": true
+    }
+  ],
+  "arms": [
+    {
+      "arm": "bf16_l2l",
+      "length": 1024,
+      "completed_steps": 64,
+      "first_loss": 0.7852686047554016,
+      "last_loss": 0.7251471132040024,
+      "adapter_delta_l2": 2.021127873234605,
+      "adapter_relative_delta_l2": 0.12007677717314157,
+      "final_adapter_manifest_sha256": "7f78f7020e4ec3f5e1a5a51c3f722ed664dac197cf727fbdfc51fca012edbd9c",
+      "f1_outcome": "void",
+      "timing_valid": false,
+      "raw_wall_seconds": 2951.7430033859855,
+      "cuda_allocated_peak_bytes": 2930118144,
+      "cuda_reserved_peak_bytes": 3512729600,
+      "process_rss_sampled_peak_bytes": 4026753024,
+      "archive_sha256": "9487acdd615ec2118cb83a6dab2363af673d268f52ee2df4eaa1e6357397094e"
+    },
+    {
+      "arm": "oracle_block64_e4m3",
+      "length": 1024,
+      "completed_steps": 64,
+      "first_loss": 0.7852686047554016,
+      "last_loss": 0.7259038686752319,
+      "adapter_delta_l2": 2.0170515152558153,
+      "adapter_relative_delta_l2": 0.11983459757867893,
+      "final_adapter_manifest_sha256": "aee6c2dfadeeaa93587b2522608b52b48356829f2a8ec99300c1a43b214c2aec",
+      "f1_outcome": "ok",
+      "timing_valid": true,
+      "raw_wall_seconds": 3957.6567390160053,
+      "cuda_allocated_peak_bytes": 2930118144,
+      "cuda_reserved_peak_bytes": 3510632448,
+      "process_rss_sampled_peak_bytes": 3821019136,
+      "archive_sha256": "a3a760f434c08b5073408c7c72de81552dc1d1ccdc087b15b42c096a9f4389f1"
+    },
+    {
+      "arm": "bf16_l2l",
+      "length": 4096,
+      "completed_steps": 64,
+      "first_loss": 0.6831637620925903,
+      "last_loss": 0.6722508072853088,
+      "adapter_delta_l2": 1.8157250884137899,
+      "adapter_relative_delta_l2": 0.1078736381484942,
+      "final_adapter_manifest_sha256": "968a8b2198bd90c7b90634fe2895b527e27b950d7adb3adc6522c66510a2e187",
+      "f1_outcome": "ok",
+      "timing_valid": true,
+      "raw_wall_seconds": 895.6750971289875,
+      "cuda_allocated_peak_bytes": 8995092480,
+      "cuda_reserved_peak_bytes": 10976493568,
+      "process_rss_sampled_peak_bytes": 4037296128,
+      "archive_sha256": "aae959f4829547329f3b942b0e8c76629d03ccddf6f0bc18c1e0b773f67250a7"
+    },
+    {
+      "arm": "oracle_block64_e4m3",
+      "length": 4096,
+      "completed_steps": 64,
+      "first_loss": 0.6831637620925903,
+      "last_loss": 0.6730606555938721,
+      "adapter_delta_l2": 1.8173302016178943,
+      "adapter_relative_delta_l2": 0.10796899917097044,
+      "final_adapter_manifest_sha256": "86e07e75df5f2ed8e17fa7fca1e39da0b5154bb85ace8de51a109836633110ed",
+      "f1_outcome": "ok",
+      "timing_valid": true,
+      "raw_wall_seconds": 1756.0994396960014,
+      "cuda_allocated_peak_bytes": 8995092480,
+      "cuda_reserved_peak_bytes": 10974396416,
+      "process_rss_sampled_peak_bytes": 3835584512,
+      "archive_sha256": "3798d1a1e652ebddf46ac3dfb5255f63f84c412226c9067e16fbdad7b2547d7c"
+    }
+  ],
+  "performance_exclusion": "BF16 L1024 whole-command F1 is void; its raw time and memory observation are not a valid performance block. No ratio involving that temporal block is admitted."
+}

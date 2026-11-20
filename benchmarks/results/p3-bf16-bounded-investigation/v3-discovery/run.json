@@ -1,0 +1,234 @@
+{
+  "base_revision": "e94dda7ac6e4895549dea6e4d70af99eabe3b81e",
+  "stage": "discovery",
+  "commands": [
+    {
+      "name": "clone",
+      "argv": [
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "https://github.com/SoupTeam/soup-rnd.git",
+        "/kaggle/working/soup"
+      ],
+      "returncode": 0,
+      "seconds": 13.60195859700002
+    },
+    {
+      "name": "fetch",
+      "argv": [
+        "git",
+        "fetch",
+        "--depth",
+        "1",
+        "origin",
+        "e94dda7ac6e4895549dea6e4d70af99eabe3b81e"
+      ],
+      "returncode": 0,
+      "seconds": 0.8168726270000093
+    },
+    {
+      "name": "checkout",
+      "argv": [
+        "git",
+        "checkout",
+        "--detach",
+        "e94dda7ac6e4895549dea6e4d70af99eabe3b81e"
+      ],
+      "returncode": 0,
+      "seconds": 0.3178332669999975
+    },
+    {
+      "name": "dependencies",
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "transformers==5.19.0",
+        "peft==0.21.2",
+        "accelerate",
+        "safetensors",
+        "rich",
+        "pydantic>=2",
+        "pytest",
+        "pytest-cov",
+        "psutil",
+        "ruff",
+        "datasets",
+        "trl>=0.29,<1",
+        "bitsandbytes",
+        "typer<0.21",
+        "plotext",
+        "pyyaml"
+      ],
+      "returncode": 0,
+      "seconds": 18.460014229000024
+    },
+    {
+      "name": "remove-incompatible-torchao",
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "pip",
+        "uninstall",
+        "-y",
+        "torchao"
+      ],
+      "returncode": 0,
+      "seconds": 0.7660811590000094
+    },
+    {
+      "name": "gpu-facts",
+      "argv": [
+        "nvidia-smi",
+        "--query-gpu=name,memory.total,compute_cap,driver_version",
+        "--format=csv,noheader"
+      ],
+      "returncode": 0,
+      "seconds": 0.06432502600000589
+    },
+    {
+      "name": "ruff",
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "ruff",
+        "check",
+        "src/soup_cli/",
+        "scripts/",
+        "tests/",
+        "benchmarks/"
+      ],
+      "returncode": 1,
+      "seconds": 0.716366206999993
+    },
+    {
+      "name": "discovery-dense-p3",
+      "argv": [
+        "/usr/bin/python3",
+        "benchmarks/harness/p3_bf16_control.py",
+        "--device",
+        "cuda",
+        "--weight-format",
+        "dense",
+        "--adapter-scope",
+        "p3",
+        "--input-set",
+        "discovery",
+        "--output",
+        "/kaggle/working/evidence/discovery-dense-p3.json"
+      ],
+      "returncode": 1,
+      "seconds": 119.73105715600002
+    },
+    {
+      "name": "discovery-dense-broad",
+      "argv": [
+        "/usr/bin/python3",
+        "benchmarks/harness/p3_bf16_control.py",
+        "--device",
+        "cuda",
+        "--weight-format",
+        "dense",
+        "--adapter-scope",
+        "broad",
+        "--input-set",
+        "discovery",
+        "--output",
+        "/kaggle/working/evidence/discovery-dense-broad.json"
+      ],
+      "returncode": 1,
+      "seconds": 101.44128708699998
+    },
+    {
+      "name": "discovery-nf4-p3",
+      "argv": [
+        "/usr/bin/python3",
+        "benchmarks/harness/p3_bf16_control.py",
+        "--device",
+        "cuda",
+        "--weight-format",
+        "nf4",
+        "--adapter-scope",
+        "p3",
+        "--input-set",
+        "discovery",
+        "--output",
+        "/kaggle/working/evidence/discovery-nf4-p3.json"
+      ],
+      "returncode": 1,
+      "seconds": 103.45158125399996
+    },
+    {
+      "name": "discovery-nf4-broad",
+      "argv": [
+        "/usr/bin/python3",
+        "benchmarks/harness/p3_bf16_control.py",
+        "--device",
+        "cuda",
+        "--weight-format",
+        "nf4",
+        "--adapter-scope",
+        "broad",
+        "--input-set",
+        "discovery",
+        "--output",
+        "/kaggle/working/evidence/discovery-nf4-broad.json"
+      ],
+      "returncode": 1,
+      "seconds": 112.16499301199997
+    },
+    {
+      "name": "trainer-contract",
+      "argv": [
+        "/usr/bin/python3",
+        "benchmarks/harness/p3_bf16_trainer_contract.py",
+        "--device",
+        "cuda",
+        "--output",
+        "/kaggle/working/evidence/trainer-contract.json"
+      ],
+      "returncode": 1,
+      "seconds": 52.80944912299992
+    }
+  ],
+  "model_source": "deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+  "status": "FAIL",
+  "overlay_sha256": {
+    "src/soup_cli/config/schema.py": "d341f361a08c0ac5b3ae0b9b453264bceca519d4de61fea43ec372c3fa69138c",
+    "src/soup_cli/trainer/l2l_trainer.py": "7c52ea4ec8433e39bde88ee6f76899afafed64ef010ca8f43d9839e57d227364",
+    "src/soup_cli/trainer/stream_setup.py": "d3113b3235f441c99aedd77fde29fab63b3689ffb169e5cbcbfa187da46e8362",
+    "src/soup_cli/utils/activation_codec.py": "194968b54df5de3621e20ab43ee4e5601251ea2bcfdb28ac2f188b2fd1b3fb98",
+    "src/soup_cli/utils/fp8_activations.py": "2061b183a9a56fafa1964dd7a56fae6e64f53fce337142dba1e964941e2846a0",
+    "src/soup_cli/utils/moe_l2l_budget.py": "2cf43a5bb0f69ccd9ccf3187d26fccbb673f33c0d512e0bbb067c576942acfed",
+    "src/soup_cli/utils/c3_l2l_budget.py": "a1542dd8b14efa05da04b49106060783b3b3a2b83c635384fc2a61ecbd4ab036",
+    "src/soup_cli/utils/l2l_step.py": "6a23b07e16074629db93400256c0a7ebecc108ab6a4f3645d60c73004e01303c",
+    "benchmarks/harness/g4_activation_codec.py": "aec9ef58d341bd39a3b94cbd3977af63328fe5c219e8b378aafc405b3b0041f2",
+    "benchmarks/harness/g4_probe.py": "92efe91169ae0caece9bf6826ea964e86cbdf8a88bd9996b9ad0b9109d4c3ea9",
+    "benchmarks/harness/p3_fp8_smoke.py": "35790cf0c69367057d9b5c8477e580e98911a34242d0e489f48f665224b1b96e",
+    "benchmarks/harness/p3_fp8_memory.py": "bb21311b6483b5567fd71e5677f8e079b41be6aa998a63a49292f7d46f71eceb",
+    "benchmarks/harness/p3_bf16_accounting.py": "03c25dbca2ce7d3282e8f3741ac1fb6f139cdf5d512848d8ad9bf20d63fcc3c4",
+    "benchmarks/results/p3-bf16-bounded-investigation/protocol.json": "41e3b51d61b5a6f029d5db560efbd15ef5c2b20e5c3c3f99bb62cd8118039238",
+    "tests/test_fp8_activations.py": "6475a3c7376911515ba96e5f072a9e7ecda710f74d9337df07988942d459aa13",
+    "tests/test_fp8_l2l_trainer.py": "ed9e49ff808c05eb85600a5e56c0d85946271ba69e48a93a99b5a1556751828a",
+    "tests/test_moe_l2l_budget.py": "9a3e64fea076fbbaa9218d5fa18faa0dfe4ade7aa55bd4ccc96a5f6e54e604ae",
+    "tests/test_c3_public_l2l.py": "fbfcc65f04e153fc2dbafb78301887bfc0d12c99555e95513bee47bc752fa991",
+    "tests/test_issue621_recipe_snapshot.py": "401fb1c6fad3753f22ef902c52dc2e930b1b90316869c66eb709ffa437c12107",
+    "docs/performance-and-quantization.md": "3f8b5a1196b312f4378944c6a169132775157f3984f1fc13c1cdccab78267f59",
+    "CONTRIBUTING.md": "118e4573a2b53da6be439f48085d91e1e8abef96209bd907ea17c3e7c0658eb2",
+    "benchmarks/harness/p3_bf16_control.py": "39d75bd912d137ed45977d702d9decf318ad6b3e5e8226d6a422e02e51c1e041",
+    "benchmarks/harness/p3_bf16_fixture.py": "e62a6fff1b08ee299ca1a8e94f61e7fb7b9c513daab994de05ab7fa8f8ffa0f9",
+    "benchmarks/harness/p3_bf16_diagnostics.py": "4ccb03310b42e5058b80a75621329ae9c2891987d89d453486472de6a4fd687a",
+    "benchmarks/harness/p3_bf16_trainer_contract.py": "610d53721bb7c1610a63f33ce9f71c734e1ed413bf4725a0b0a9a63c0a660b91"
+  },
+  "mounted_model": {
+    "path": "/kaggle/input/models/deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+    "model_type": "deepseek_v3",
+    "num_hidden_layers": 61,
+    "hidden_size": 7168,
+    "config_sha256": "4422016f41c506339e0510a32812a63da554dc9febd5f1368e7240ded14e4a27"
+  }
+}

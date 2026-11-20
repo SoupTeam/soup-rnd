@@ -1,0 +1,97 @@
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import traceback
+import zipfile
+from pathlib import Path
+
+PIN = '47cc89806b029e7ba06239a025ea418179a7fed02780b39d9bf2f8c8bc8d5f0f'
+output = Path("/kaggle/working/prelaunch-evidence")
+output.mkdir(exist_ok=False)
+owned = Path(tempfile.mkdtemp(prefix="prelaunch-", dir="/kaggle/working"))
+record = {"status": "FAILED", "scope": "CPU control-flow only; no native qualification", "commands": [], "admission_sha256": PIN}
+
+def command(argv, name, env=None, cwd=None, allow_failure=False):
+    started = time.monotonic()
+    with (output / (name + ".log")).open("x") as handle:
+        done = subprocess.run(list(map(str, argv)), stdout=handle, stderr=subprocess.STDOUT,
+                              env=env, cwd=cwd, timeout=1800, check=False)
+    record["commands"].append({"name": name, "returncode": done.returncode, "seconds": time.monotonic()-started})
+    if done.returncode and not allow_failure:
+        raise RuntimeError(name + " failed")
+    return done.returncode
+
+try:
+    choices = [p for p in Path("/kaggle/input").rglob("execution-admission.json") if hashlib.sha256(p.read_bytes()).hexdigest() == PIN]
+    if len(choices) != 1:
+        raise ValueError("Pinned source admission absent or ambiguous")
+    admission_path = choices[0]
+    admission = json.loads(admission_path.read_bytes())
+    overlay = admission_path.parent / "source-overlay.bin"
+    if hashlib.sha256(overlay.read_bytes()).hexdigest() != admission["source_overlay_sha256"]:
+        raise ValueError("Source archive hash mismatch")
+    shutil.copyfile(admission_path, output / "execution-admission.json")
+    root = owned / "soup"
+    root.mkdir()
+    with zipfile.ZipFile(overlay) as archive:
+        if len(archive.namelist()) != len(set(archive.namelist())) or set(archive.namelist()) != set(admission["source_files_sha256"]):
+            raise ValueError("Source inventory mismatch")
+        for name in archive.namelist():
+            raw = archive.read(name)
+            if hashlib.sha256(raw).hexdigest() != admission["source_files_sha256"][name]:
+                raise ValueError("Member hash mismatch: " + name)
+            target = os.path.realpath(root / name)
+            if os.path.commonpath([os.path.realpath(root), target]) != os.path.realpath(root):
+                raise ValueError("Path escape")
+            Path(target).parent.mkdir(parents=True, exist_ok=True)
+            Path(target).write_bytes(raw)
+    dependencies = ('torch==2.11.0', 'transformers==5.19.0', 'peft==0.21.2', 'accelerate==1.15.0', 'bitsandbytes==0.50.2', 'safetensors==0.8.0', 'rich==13.9.4', 'pydantic==2.14.1', 'numpy==2.1.3', 'ruff==0.17.4', 'pytest==8.4.2', 'psutil==7.2.2', 'pyyaml==6.0.3', 'trl==0.29.1', 'datasets==5.1.0', 'requests==2.32.5')
+    command([sys.executable,"-m","pip","install","uv==0.13.7"],"uv")
+    uv = [sys.executable,"-m","uv"]
+    environment = owned / "py312"
+    env = dict(os.environ, UV_CACHE_DIR=str(owned / "uv-cache"))
+    command([*uv,"venv","--python","3.12.3","--seed",environment],"venv",env)
+    python = environment / "bin/python"
+    command([*uv,"pip","install","--python",python,*dependencies,"-e",root],"dependencies",env)
+    env.update(PYTHONPATH=str(root / "src")+":"+str(root),CUDA_VISIBLE_DEVICES="",P3_QUALITY_DEVICE="cpu",PYTHONHASHSEED="23",OMP_NUM_THREADS="2",MKL_NUM_THREADS="2",TOKENIZERS_PARALLELISM="false",PYTEST_DISABLE_PLUGIN_AUTOLOAD="1",CUBLAS_WORKSPACE_CONFIG=":4096:8",HF_HUB_DISABLE_TELEMETRY="1",WANDB_DISABLED="true")
+    command([*uv,"pip","freeze","--python",python],"packages",env)
+    lint = command([python,"-m","ruff","check","src/soup_cli/","scripts/","tests/","benchmarks/harness/"],"ruff",env,root,True)
+    tests = sorted(str(path.relative_to(root)) for path in (root / "tests").glob("test_p3_deepseek_quality_*.py"))
+    result = command([python,"-m","pytest",*tests,"-v","--tb=short","-o","addopts=","--junitxml="+str(output / "tests.xml")],"quality-tests",env,root,True)
+    record["test_returncode"] = result
+    record["lint_returncode"] = lint
+    refusal = command([python,"-m","benchmarks.harness.p3_deepseek_quality_prepare","download","--source","/data/e815299b0bcbac849fa540c768ef21845365c9eb","--output",str(output / "unapproved")],"unapproved-download-smoke",env,root,True)
+    if refusal == 0 or (output / "unapproved").exists():
+        raise RuntimeError("Unapproved download did not refuse before side effects")
+    command([python,"-m","benchmarks.harness.p3_deepseek_quality_stage","--output",str(output / "stage-success"),"--seconds","10","--",str(python),"-c","import os; os.write(1,b'stage smoke executed')"],"stage-success-smoke",env,root)
+    expired = command([python,"-m","benchmarks.harness.p3_deepseek_quality_stage","--output",str(output / "stage-timeout"),"--seconds","1","--",str(python),"-c","import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)"],"stage-timeout-smoke",env,root,True)
+    if expired != 124:
+        raise RuntimeError("Deadline smoke did not return124")
+    timing = command([python,"-m","benchmarks.harness.p3_deepseek_quality_timing","--source","/missing","--cache","/missing-cache","--initial","/missing-initial","--initial-sha256","a"*64,"--gate","/missing-gate/manifest.json","--gate-sha256","b"*64,"--data-root","/missing-data","--output",str(output / "timing-refusal"),"--device","cpu","--deadline-seconds","5400"],"timing-gate-refusal-smoke",env,root,True)
+    timing_receipt=json.loads((output / "timing-refusal/manifest.json").read_bytes())
+    if timing == 0 or timing_receipt.get("deadline_seconds") != 5400 or timing_receipt.get("status") != "FAILED":
+        raise RuntimeError("90minute timing failed to refuse missing gate or rejected the bound")
+    native = command([python,"-m","benchmarks.harness.p3_deepseek_quality_smoke","--output",str(output / "native-refusal")],"native-smoke-refusal",env,root,True)
+    native_receipt=json.loads((output / "native-refusal/manifest.json").read_bytes())
+    if native == 0 or native_receipt.get("status") != "FAILED" or native_receipt.get("scientific_admission") is not False:
+        raise RuntimeError("Native smoke incorrectly admitted CPU")
+    command([python,"-c",'import json,sys\nfrom pathlib import Path\nfrom rich.console import Console\nfrom huggingface_hub import HfApi,get_hf_file_metadata,hf_hub_url\nfrom benchmarks.harness import p3_deepseek_quality_prepare as p\nfrom benchmarks.harness import p3_deepseek_quality_model as m\nout=Path(sys.argv[1]);out.mkdir(exist_ok=False)\nrows=p.hub_inventory(HfApi(token=False).model_info(m.MODEL_ID,revision=m.REVISION,files_metadata=True))\nresult={"scope":"public Hub metadata/HEAD and 1660-byte config only","weight_payload_bytes_downloaded":0,"inventory_sha256":m.SOURCE_INVENTORY_SHA256,"files":{}}\nfor name in ("config.json","model-00001-of-000163.safetensors"):\n    head=get_hf_file_metadata(hf_hub_url(m.MODEL_ID,name,revision=m.REVISION),token=False)\n    p.verify_head(head,rows[name])\n    result["files"][name]={"head_verified":True,**rows[name]}\n    if name=="config.json":\n        p._stream_download(head.location,out/name,rows[name])\n        result["files"][name]["local_metadata"]=p.local_descriptor(out/name,rows[name])\np.write_json(out/"result.json",result)\nConsole().print_json(data=result)\n',str(output / "hub-metadata-smoke")],"hub-metadata-smoke",env,root)
+    if result or lint:
+        raise RuntimeError("Prelaunch test/lint failures retained")
+    record["status"] = "COMPLETE"
+except BaseException as error:
+    record["error"] = {"type":type(error).__name__,"message":str(error)}
+    (output / "error.txt").write_text(traceback.format_exc())
+finally:
+    shutil.rmtree(owned)
+    record["cleanup_complete"] = True
+    (output / "run.json").write_text(json.dumps(record,indent=2))
+    artifacts = {p.relative_to(output).as_posix():{"bytes":p.stat().st_size,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()} for p in output.rglob("*") if p.is_file()}
+    (output / "manifest.json").write_text(json.dumps({"artifacts":artifacts},indent=2))
+if record["status"] != "COMPLETE":
+    raise SystemExit(1)

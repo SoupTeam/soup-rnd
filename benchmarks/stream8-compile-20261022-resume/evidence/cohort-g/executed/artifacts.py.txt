@@ -1,0 +1,46 @@
+"""Snapshot live telemetry and pack exact original bytes with the shared codec."""
+import json
+import base64
+import tarfile
+import os
+import shutil
+from pathlib import Path
+
+import lossless_results
+
+ROOT = Path('/root/liger')
+
+
+def pack(name, selection):
+    staging = ROOT / ('export-' + name)
+    staging.mkdir(exist_ok=False)
+    names = sorted(set(selection) | {
+        relative for relative in ('results/progress.json', 'results/gpu-telemetry.jsonl')
+        if (ROOT / relative).is_file()
+    })
+    for relative in names:
+        source = lossless_results.within(ROOT, relative)
+        target = lossless_results.within(staging, relative)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_symlink() or not source.is_file():
+            raise ValueError('invalid original artifact')
+        if relative in {'results/progress.json', 'results/gpu-telemetry.jsonl'}:
+            shutil.copyfile(source, target)
+        else:
+            os.link(source, target)
+    index = lossless_results.pack(staging, names, ROOT / (name + '.tar'))
+    index['name'] = name
+    exports = ROOT / 'exports'
+    exports.mkdir(exist_ok=True)
+    with tarfile.open(ROOT / (name + '.tar'), 'r:') as archive:
+        raw_manifest = archive.extractfile('original-files.json').read()
+        objects = {member.name.split('/')[1]: {'offset': member.offset_data,
+                   'bytes': member.size} for member in archive.getmembers()
+                   if member.name.startswith('objects/')}
+    layout = {'manifest_base64': base64.b64encode(raw_manifest).decode(), 'objects': objects}
+    layout_target = exports / (name + '.layout.json')
+    layout_target.write_text(json.dumps(layout, separators=(',', ':')))
+    temporary = exports / (name + '.tmp')
+    temporary.write_text(json.dumps(index, indent=2))
+    temporary.replace(exports / (name + '.json'))
+    return index

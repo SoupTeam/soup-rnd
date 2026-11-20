@@ -1,0 +1,107 @@
+{
+  "base_revision": "e94dda7ac6e4895549dea6e4d70af99eabe3b81e",
+  "commands": [
+    {
+      "name": "clone",
+      "argv": [
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "https://github.com/SoupTeam/soup-rnd.git",
+        "/kaggle/working/soup"
+      ],
+      "returncode": 0,
+      "seconds": 13.289334896000014
+    },
+    {
+      "name": "fetch",
+      "argv": [
+        "git",
+        "fetch",
+        "--depth",
+        "1",
+        "origin",
+        "e94dda7ac6e4895549dea6e4d70af99eabe3b81e"
+      ],
+      "returncode": 0,
+      "seconds": 0.9077814070000159
+    },
+    {
+      "name": "checkout",
+      "argv": [
+        "git",
+        "checkout",
+        "--detach",
+        "e94dda7ac6e4895549dea6e4d70af99eabe3b81e"
+      ],
+      "returncode": 0,
+      "seconds": 0.28798740299998826
+    },
+    {
+      "name": "dependencies",
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "transformers==5.19.0",
+        "peft==0.21.2",
+        "accelerate",
+        "safetensors",
+        "rich",
+        "pydantic>=2",
+        "pytest",
+        "pytest-cov",
+        "psutil",
+        "ruff",
+        "datasets",
+        "trl>=0.29,<1",
+        "bitsandbytes",
+        "typer<0.21",
+        "plotext",
+        "pyyaml"
+      ],
+      "returncode": 0,
+      "seconds": 26.31754094600001
+    },
+    {
+      "name": "ruff",
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "ruff",
+        "check",
+        "src/soup_cli/",
+        "scripts/",
+        "tests/",
+        "benchmarks/"
+      ],
+      "returncode": 1,
+      "seconds": 0.6096909199999914
+    },
+    {
+      "name": "red-feature-test",
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "pytest",
+        "-o",
+        "addopts=",
+        "-q",
+        "--tb=short",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_fp8_l2l_trainer.py::test_fp8_store_preserves_hidden_rows_and_grows_each_position"
+      ],
+      "returncode": 1,
+      "seconds": 9.45561130599998
+    }
+  ],
+  "model_source": "deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+  "overlay_sha256": {
+    "tests/test_fp8_l2l_trainer.py": "53fae562586a6d10070668a7f019ecec74b08b13b5067d8f9675094d733641aa"
+  },
+  "status": "RED_RECORDED"
+}

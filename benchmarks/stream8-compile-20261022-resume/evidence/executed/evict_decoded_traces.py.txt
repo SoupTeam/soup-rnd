@@ -1,0 +1,61 @@
+"""Evict only restorable decoded traces after full canonical hash verification."""
+import hashlib
+import json
+import os
+import shutil
+import sys
+import tarfile
+import time
+from pathlib import Path
+
+from rich.console import Console
+
+ROOT = Path(__file__).parent
+
+
+def digest(path):
+    value = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(8 * 2**20), b''):
+            value.update(block)
+    return value.hexdigest()
+
+
+rows = []
+inodes = set()
+archives = []
+for name in sys.argv[1:]:
+    folder = ROOT / 'bundles' / name
+    receipt = json.loads((ROOT / f'bundle-{name}-verified.json').read_text())
+    archive = folder / 'results.tar'
+    assert digest(archive) == receipt['sha256']
+    with tarfile.open(archive, 'r:') as stream:
+        manifest = json.loads(stream.extractfile('original-files.json').read())
+    archives.append({'path': str(archive), 'sha256': receipt['sha256']})
+    retained = folder / 'retained'
+    for relative, record in manifest['files'].items():
+        if not relative.endswith('/trace.safetensors'):
+            continue
+        path = retained / relative
+        assert os.path.commonpath([os.path.realpath(retained), os.path.realpath(path)]) == os.path.realpath(retained)
+        if not path.exists():
+            continue
+        assert not path.is_symlink() and path.stat().st_size == record['bytes']
+        inode = (path.stat().st_dev, path.stat().st_ino)
+        if inode not in inodes:
+            assert digest(path) == record['sha256']
+            inodes.add(inode)
+        rows.append({'path': str(path), 'original_sha256': record['sha256'],
+                     'original_bytes': record['bytes']})
+ledger = {'action': 'evict derived decoded traces only; all original bytes retained in canonical archives',
+          'archives': archives, 'decoded_copies': rows, 'free_before': shutil.disk_usage(ROOT).free,
+          'restore': 'python benchmarks/harness/lossless_results.py unpack CANONICAL_ARCHIVE SCRATCH_DIRECTORY',
+          'unix': time.time()}
+target = ROOT / f'decoded-cache-eviction-{int(time.time())}.json'
+target.write_text(json.dumps(ledger, indent=2), encoding='utf-8')
+for row in rows:
+    Path(row['path']).unlink()
+ledger.update(removed_decoded_links=len(rows), free_after=shutil.disk_usage(ROOT).free)
+target.write_text(json.dumps(ledger, indent=2), encoding='utf-8')
+Console().print({'removed_derived_links': len(rows), 'canonical_archives_kept': len(archives),
+                 'free_bytes': ledger['free_after']})

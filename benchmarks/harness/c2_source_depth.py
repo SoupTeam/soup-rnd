@@ -11,7 +11,12 @@ from typing import Any
 from soup_cli.utils import async_disk_source as shipped
 from soup_cli.utils.async_disk_source import AsyncDiskSource, _PendingRead
 
-SHIPPED_SHA256 = "874bc027e530c813c41b0efcf07d419edf0bdf483afe509ed1968de3a8eed75c"
+SHIPPED_SHA256 = "17bca116e3f5935d4d916e3f3fde425a9544ca22890cda713b7892b56b1451df"
+# Reviewed RAM/GPU-cache source, in addition to the original measured baseline.
+# Historical timing evidence remains bound to its original source/adapter hashes.
+RAM_CACHE_SHIPPED_SHA256 = "3c9b81077924a2b75a5ea07dfe6af785d25c554b527e27d7c1a7f8e0612d92f7"
+MAIN_SHIPPED_SHA256 = "874bc027e530c813c41b0efcf07d419edf0bdf483afe509ed1968de3a8eed75c"
+D2_MAIN_SHIPPED_SHA256 = "6bac3f9f297e40702194c841f2bc7bafd7d2d0f5f160256fcaf72c6b9dec3cbd"
 
 
 def depth_source(depth: int) -> type:
@@ -19,7 +24,9 @@ def depth_source(depth: int) -> type:
     if type(depth) is not int or depth not in (1, 2):
         raise ValueError("experimental depth must be 1 or 2")
     actual = hashlib.sha256(Path(shipped.__file__).read_text(encoding="utf-8").encode()).hexdigest()
-    if actual != SHIPPED_SHA256:
+    if actual not in (
+        SHIPPED_SHA256, RAM_CACHE_SHIPPED_SHA256, MAIN_SHIPPED_SHA256, D2_MAIN_SHIPPED_SHA256,
+    ):
         raise RuntimeError("shipped source drifted; review the C2 adapter before measuring")
 
     class C2DepthSource(AsyncDiskSource):
@@ -46,7 +53,8 @@ def depth_source(depth: int) -> type:
             position = 0
             while position < len(self._queue):
                 idx = self._queue[position]
-                if idx in self._slot_of or idx in self._in_flight_batch:
+                if (idx in getattr(self, "_cache", ()) or idx in getattr(self, "_resident", ())
+                        or idx in self._slot_of or idx in self._in_flight_batch):
                     self._queue.pop(position)
                     continue
                 root = self._root_of[idx]

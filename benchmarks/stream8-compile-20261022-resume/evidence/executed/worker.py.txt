@@ -1,0 +1,365 @@
+"""Accuracy first; export each model before proceeding; no provisioning."""
+
+import importlib.metadata
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import traceback
+from pathlib import Path
+
+ROOT = Path("/root/liger")
+OUT = ROOT / "results"
+REPO = ROOT / "repo"
+sys.path[:0] = [str(ROOT), str(REPO), str(REPO / "src")]
+POLICY = json.loads((ROOT / "policy.json").read_text())
+PROTOCOL = json.loads((ROOT / "protocol.json").read_text())
+RETENTION = json.loads((ROOT / "retention-policy.json").read_text())
+PUBLISHED = set()
+SUMMARY = {"status": "STARTED", "stages": [], "bundles": [], "models": {}, "timings": []}
+HELPERS = ["source.tar.gz", "source-manifest.json", "setup.sh", "worker.py", "prepare_model.py",
+           "artifacts.py", "pin_entry.py", "telemetry.py", "pytest_gpu_entry.py", "constraints.txt",
+           "protocol.json", "entry.py", "bench.py", "remote_ranges.py", "lossless_results.py", "retention-policy.json"]
+
+
+def save():
+    temporary = OUT / "progress.tmp"
+    temporary.write_text(json.dumps(SUMMARY, indent=2))
+    temporary.replace(OUT / "progress.json")
+    controller_progress = ROOT / "results/progress-r2.tmp"
+    controller_progress.write_text(json.dumps(SUMMARY, indent=2))
+    controller_progress.replace(ROOT / "results/progress.json")
+
+
+def stage(name, args, maximum=900, required=True):
+    remaining = POLICY["created_unix"] + POLICY["maximum_seconds"] - time.time() - 300
+    if name.startswith("capture-"):
+        # After the first fully verified export, reserve from its ACTUAL encoded size.
+        # The multiplier covers reference+new candidate plus variation; each stage
+        # still waits for archive-specific size admission and complete local ACK.
+        encoded = RETENTION.get("actual_baseline_encoded_bytes")
+        reserve = ((encoded * 2.5 + 64 * 2**20) / RETENTION["encoded_bytes_per_second"]
+                   if encoded else RETENTION["initial_raw_reserve_seconds"])
+        if remaining < maximum + reserve:
+            raise RuntimeError("do not create another full capture without raw retention reserve")
+    if remaining < 120:
+        raise RuntimeError("retain five-minute artifact and cleanup reserve")
+    SUMMARY["current_stage"] = name
+    save()
+    start = time.time()
+    with (OUT / (name + ".log")).open("w") as log:
+        child = subprocess.Popen(args, cwd=REPO, stdout=log, stderr=subprocess.STDOUT,
+                                 start_new_session=True)
+        try:
+            code = child.wait(timeout=min(maximum, remaining))
+        except BaseException:
+            os.killpg(child.pid, signal.SIGKILL)
+            child.wait()
+            raise
+    SUMMARY["stages"].append({"name": name, "exit_code": code,
+                              "seconds": time.time() - start, "started_unix": start})
+    save()
+    telemetry = OUT / "gpu-telemetry.jsonl"
+    if telemetry.exists():
+        for line in telemetry.read_text().splitlines():
+            sample = json.loads(line)
+            if start <= sample["unix"] <= time.time():
+                processes = [row for row in sample.get("processes", "").splitlines()
+                             if row.strip() and row.lstrip()[0].isdigit()]
+                if len(processes) > 1:
+                    raise RuntimeError("external GPU compute peers: reject this cohort")
+    if code and required:
+        raise RuntimeError(name + " failed")
+    return code
+
+
+def bundle(name):
+    from artifacts import pack
+
+    selection = ({str(path.relative_to(ROOT)) for path in OUT.rglob("*") if path.is_file()}
+                 - PUBLISHED) | {"results/progress.json"}
+    selection.update(name for name in HELPERS if name not in PUBLISHED)
+    if name.startswith("accuracy-"):
+        size = name.split("-")[-1]
+        reference = OUT / f"model-{size}/capture-baseline"
+        selection.update(str(path.relative_to(ROOT)) for path in reference.rglob("*") if path.is_file())
+    name = name if name == "final" else "f-" + name
+    index = pack(name, sorted(selection))
+    PUBLISHED.update(selection)
+    SUMMARY["bundles"].append({"name": name, "bytes": index["archive_bytes"]})
+    save()
+    while not (ROOT / ("ack-" + name)).exists():
+        if time.time() > POLICY["created_unix"] + POLICY["maximum_seconds"] - 180:
+            raise RuntimeError("verified artifact ACK deadline")
+        time.sleep(2)
+    RETENTION.update(json.loads((ROOT / "retention-policy.json").read_text()))
+    return index
+
+
+def invocation(size, arm, indices, dest, *extra):
+    return [sys.executable, str(ROOT / "entry.py"), "--config", str(ROOT / f"model-{size}.yaml"),
+            "--arm", arm, "--indices", ",".join(map(str, indices)), "--output", str(dest), *extra]
+
+
+def compare(first, second):
+    import torch
+    from safetensors.torch import load_file
+
+    from benchmarks.harness.liger_streaming_parity import compare as original_compare
+
+    verdict = original_compare(first, second)
+    left = load_file(str(first / "trace.safetensors"))
+    right = load_file(str(second / "trace.safetensors"))
+    verdict["bitwise_equal"] = all(torch.equal(value, right[name]) for name, value in left.items())
+    verdict["tensor_count"] = len(left)
+    return verdict
+
+
+def trajectory(first, second, expected_tensors):
+    import torch
+    from safetensors.torch import load_file
+
+    left = load_file(str(first / "adapter/adapter_model.safetensors"))
+    right = load_file(str(second / "adapter/adapter_model.safetensors"))
+    assert set(left) == set(right) and len(left) == expected_tensors
+    finite_close = all(torch.isfinite(value).all() and torch.isfinite(right[name]).all()
+                       and torch.allclose(value, right[name], rtol=.01, atol=.00001)
+                       for name, value in left.items())
+    metrics = [json.loads((folder / "metrics.json").read_text()) for folder in (first, second)]
+    losses = [[row["loss"] for row in metric["training_log_history"] if "loss" in row]
+              for metric in metrics]
+    assert all(len(values) == 14 for values in losses)
+    loss_close = all(f"{a:.3f}" == f"{b:.3f}" for a, b in zip(*losses, strict=True))
+    assert metrics[0]["initial_adapter_sha256"] == metrics[1]["initial_adapter_sha256"]
+    assert metrics[0]["data_sha256"] == metrics[1]["data_sha256"]
+    for metric in metrics:
+        assert metric["amp"] == {"bf16": True, "fp16": False}
+        assert len(metric["seconds"]) == 8
+        assert all(shape == [1, 1024] for shape in metric["input_shapes"])
+    return {"passed": bool(finite_close and loss_close), "loss_three_decimals": loss_close,
+            "bitwise_equal": all(torch.equal(value, right[name]) for name, value in left.items()),
+            "losses_equal": losses[0] == losses[1], "adapter_tensors": len(left)}
+
+
+def run_model(model):
+    from benchmarks.harness.streaming_residency_compile_bench import select_resident_layers
+
+    size = model["size_b"]
+    key = str(size)
+    report = SUMMARY["models"].setdefault(key, {"model_id": model["model_id"],
+        "gates": {}, "timed_candidates": []})
+    report["status"] = "STARTED"
+    if size >= 24:
+        caps = [next(int(line.split()[1])*1024 for line in Path("/proc/meminfo").read_text().splitlines() if line.startswith("MemAvailable:"))]
+        for lp,cp in [(Path("/sys/fs/cgroup/memory.max"),Path("/sys/fs/cgroup/memory.current")), (Path("/sys/fs/cgroup/memory/memory.limit_in_bytes"),Path("/sys/fs/cgroup/memory/memory.usage_in_bytes"))]:
+            if lp.exists() and cp.exists() and lp.read_text().strip() != "max":
+                caps.append(int(lp.read_text())-int(cp.read_text()))
+        required = model["weight_bytes"] + 8 * 2**30
+        report["host_admission"] = {"usable_bytes":min(caps),"required_bytes":required,"basis":"one dense pinned host weight store plus8GiB reserve; measured RSS and cgroup limit retained"}
+        if min(caps) < required:
+            report["status"] = "NOT_STAGED_HOST_RAM_RESERVE"
+            save()
+            if size == 32:
+                run_model(PROTOCOL["fallback_model"])
+            return
+    save()
+    folder = OUT / f"model-{size}"
+    baseline = folder / "capture-baseline"
+    reuse = size == 8 and (baseline / "capture.json").is_file()
+    if reuse:
+        assert json.loads((baseline / "capture.json").read_text())["status"] == "CAPTURED"
+        assert (ROOT / "ack-r2-baseline-8").exists()
+        baseline_index = json.loads((ROOT / "exports/r2-baseline-8.json").read_text())
+        report["reference_reused_from_verified_export"] = True
+    else:
+        guard = json.loads((ROOT / "guard-status.json").read_text())
+        expected_encoded = (RETENTION['expected_first_new_encoded_bytes'] if size == 8
+                            and 'actual_baseline_encoded_bytes' not in RETENTION
+                            else RETENTION.get("actual_baseline_encoded_bytes", 1046507520) * 1.5)
+        transfer_reserve = expected_encoded / RETENTION["encoded_bytes_per_second"] * 1.3 + 300
+        staging_admission = (guard["conservative_usd"]
+                             + model["weight_bytes"] / 1e9 * POLICY["down_usd_per_gb"]
+                             + (transfer_reserve + 1200) * POLICY["hourly_usd"] / 3600 + .35)
+        remaining = POLICY["created_unix"] + POLICY["maximum_seconds"] - time.time()
+        report["staging_admission"] = {"estimated_total_usd": staging_admission,
+            "expected_encoded_allowance_bytes": expected_encoded,
+            "based_on_actual_first_archive": True,
+            "transfer_reserve_seconds": transfer_reserve, "remaining_seconds": remaining}
+        if staging_admission > 4.8 or remaining < transfer_reserve + 1800:
+            report.update(status="NOT_STAGED_TIME_OR_BUDGET_RESERVE")
+            save()
+            return
+        if size == 32:
+            available = next(int(line.split()[1])*1024
+                             for line in Path("/proc/meminfo").read_text().splitlines()
+                             if line.startswith("MemAvailable:"))
+            caps = [available]
+            for limit_path, current_path in [
+                (Path("/sys/fs/cgroup/memory.max"), Path("/sys/fs/cgroup/memory.current")),
+                (Path("/sys/fs/cgroup/memory/memory.limit_in_bytes"),
+                 Path("/sys/fs/cgroup/memory/memory.usage_in_bytes"))]:
+                if limit_path.exists() and limit_path.read_text().strip() != "max" and current_path.exists():
+                    caps.append(int(limit_path.read_text()) - int(current_path.read_text()))
+            report["actual_usable_host_bytes_before_32B"] = min(caps)
+            if min(caps) < 100 * 2**30:
+                report.update(status="32B_NOT_STAGED_HOST_RAM_RESERVE")
+                save()
+                run_model(PROTOCOL["fallback_model"])
+                return
+        stage(f"prepare-{size}", [sys.executable, str(ROOT / "prepare_model.py"), str(size)], 1800)
+        folder.mkdir()
+        if stage(f"capture-{size}-baseline", invocation(size, "baseline", [], baseline, "--capture"),
+                 1200, required=False):
+            report.update(status="BASELINE_FAILED_NO_CAPACITY_OR_SPEED_CLAIM")
+            save()
+            return
+        baseline_index = bundle(f"baseline-{size}")
+    RETENTION["actual_baseline_encoded_bytes"] = baseline_index["archive_bytes"]
+    report["baseline_encoded_export"] = baseline_index
+    save()
+    info = json.loads((baseline / "residency-compile-provenance.json").read_text())
+    indices = select_resident_layers(info["layer_count"], info["per_layer_bytes"],
+                                     info["peak_reserved_bytes"], 7 * 2**30, int(.75 * 2**30))
+    report.update(indices=indices, selection_baseline=info)
+    if not indices:
+        native_sem = folder / "semantics-baseline"
+        stage(f"semantics-{size}-baseline", invocation(size, "baseline", [], native_sem, "--semantics"), 900)
+        report["baseline_semantics_executed"] = True
+        report.update(status="BASELINE_CAPTURE_PASSED_NO_RESIDENCY_HEADROOM")
+        save()
+        return
+    candidates = []
+    for arm in ("resident", "resident_compile", "resident_compile_precise"):
+        if arm == "resident_compile_precise" and "resident_compile" in candidates:
+            report["precise_arm_skipped"] = "default compilation already qualified"
+            continue
+        target = folder / ("capture-" + arm)
+        gate = report["gates"].get(arm)
+        if gate is None:
+            executed = stage(f"capture-{size}-{arm}",
+                             invocation(size, arm, indices, target, "--capture"),
+                             1800, required=False) == 0
+            gate = {"executed": executed}
+            report["gates"][arm] = gate
+            if executed:
+                gate["primary"] = compare(baseline, target)
+                gate["passed"] = gate["primary"]["passed"]
+            else:
+                gate["passed"] = False
+        else:
+            report.setdefault("captures_reused_from_verified_exports", []).append(arm)
+        save()
+        if gate["passed"]:
+            # Causal/padding checks are independent from the training capture.
+            native_sem = folder / "semantics-baseline"
+            if not native_sem.exists():
+                stage(f"semantics-{size}-baseline",
+                      invocation(size, "baseline", [], native_sem, "--semantics"), 900)
+            candidate_sem = folder / ("semantics-" + arm)
+            semantic_ok = stage(f"semantics-{size}-{arm}",
+                                invocation(size, arm, indices, candidate_sem, "--semantics"),
+                                1200, required=False) == 0
+            gate["semantic_executed"] = semantic_ok
+            if semantic_ok:
+                gate["semantics"] = compare(native_sem, candidate_sem)
+                gate["passed"] = gate["semantics"]["passed"]
+            else:
+                gate["passed"] = False
+        if gate["passed"]:
+            candidates.append(arm)
+        if arm == "resident" and not gate["passed"]:
+            report["status"] = "RESIDENCY_FAILED_ACCURACY_NO_TIMING"
+            save()
+            return
+        save()
+    report["qualified_candidates"] = candidates
+    bundle(f"accuracy-{size}")
+    for arm in candidates:
+        control = "baseline" if arm == "resident" else "resident"
+        for cycle, order in enumerate(PROTOCOL["pair_order"]):
+            destinations = {}
+            for letter in order:
+                current = control if letter == "A" else arm
+                dest = folder / f"timing-{arm}-pair-{cycle}-{current}"
+                destinations[current] = dest
+                stage(f"timing-{size}-{arm}-{cycle}-{current}",
+                      invocation(size, current, [] if current == "baseline" else indices, dest),
+                      1500)
+                SUMMARY["timings"].append({"size": size, "comparison": arm, "pair": cycle,
+                                           "arm": current, "path": str(dest.relative_to(OUT))})
+                save()
+            check = trajectory(destinations[control], destinations[arm], info["layer_count"] * 14)
+            report.setdefault("trajectories", {})[f"{arm}-{cycle}"] = check
+            save()
+            if not check["passed"]:
+                raise RuntimeError("final trajectory accuracy gate failed; no speed verdict")
+        report["timed_candidates"].append(arm)
+        bundle(f"timings-{size}-{arm}")
+    report["status"] = "COMPLETE_CAPTURED_NOT_AN_INDEPENDENT_VERDICT"
+    save()
+
+
+def cleanup_model(size):
+    """Only this lease's pinned snapshot and its exact derived cache after ACK."""
+    from soup_cli.utils.layer_shard import resolve_shard_dir
+
+    base = ROOT / f"model-{size}"
+    cache = Path(resolve_shard_dir(str(base)))
+    approved_roots = [os.path.realpath(ROOT), os.path.realpath(Path.home() / ".cache/soup")]
+    for target in (base, cache):
+        absolute = os.path.realpath(target)
+        assert any(os.path.commonpath([root, absolute]) == root and absolute != root
+                   for root in approved_roots), absolute
+        if target.exists():
+            shutil.rmtree(target)
+
+
+def main():
+    stage("scoped-regressions", [sys.executable, str(ROOT / "pytest_gpu_entry.py"),
+          "tests/test_streaming_residency_candidate.py",
+          "tests/test_streaming_residency_compile_bench.py", "--no-cov", "-q",
+          "--junitxml=" + str(OUT / "scoped-regressions.xml")], 180)
+    (OUT / "environment.json").write_text(json.dumps({
+        "python": sys.version,
+        "packages": sorted([{"name": item.metadata["Name"], "version": item.version}
+                            for item in importlib.metadata.distributions()], key=lambda x: x["name"]),
+        "gpu": subprocess.check_output(["nvidia-smi", "-q"], text=True),
+        "source_sha256": POLICY["source_sha256"],
+    }, indent=2))
+    for model in PROTOCOL["models"]:
+        size = model["size_b"]
+        try:
+            run_model(model)
+        except BaseException as error:
+            SUMMARY["models"].setdefault(str(size), {}).update(
+                status="FAILED", error=f"{type(error).__name__}: {error}")
+            (OUT / f"model-{size}-error.log").write_text(traceback.format_exc())
+            save()
+        bundle(f"complete-{size}")
+        cleanup_model(size)
+    SUMMARY["status"] = "MATRIX_FINISHED_REQUIRES_INDEPENDENT_REPLAY"
+    save()
+
+
+if __name__ == "__main__":
+    OUT.mkdir(exist_ok=True)
+    save()
+    try:
+        main()
+    except BaseException as error:
+        SUMMARY.update(status="FAILED", error=f"{type(error).__name__}: {error}")
+        (OUT / "error.log").write_text(traceback.format_exc())
+        save()
+    finally:
+        try:
+            bundle("final")
+            if SUMMARY["status"] != "FAILED":
+                SUMMARY["status"] = "COMPLETE"
+            save()
+        except BaseException as error:
+            SUMMARY["export_error"] = f"{type(error).__name__}: {error}"
+            save()
+        (ROOT / "worker.exited").touch()

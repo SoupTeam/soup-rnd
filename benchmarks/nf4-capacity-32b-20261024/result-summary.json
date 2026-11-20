@@ -1,0 +1,256 @@
+{
+  "study": "nf4-capacity-32b-20261024",
+  "success": false,
+  "status": "BLOCKED_NATIVE_RAM_SOURCE_POLICY",
+  "worker_summary": {
+    "status": "FAILED",
+    "cohorts": {},
+    "stages": [
+      {
+        "name": "cuda-controls",
+        "exit_code": 0,
+        "seconds": 9.276163578033447,
+        "started_unix": 1792854589.0841584
+      },
+      {
+        "name": "prepare-nf4-disk",
+        "exit_code": 0,
+        "seconds": 363.103036403656,
+        "started_unix": 1792854618.4883313
+      },
+      {
+        "name": "baseline-capacity",
+        "exit_code": 1,
+        "seconds": 14.792571783065796,
+        "started_unix": 1792855007.623807
+      }
+    ],
+    "bundles": [
+      {
+        "name": "study-cuda-controls",
+        "bytes": 6533120
+      },
+      {
+        "name": "study-prepared-nf4",
+        "bytes": 102400
+      },
+      {
+        "name": "study-baseline-capacity",
+        "bytes": 40960
+      },
+      {
+        "name": "final",
+        "bytes": 10240
+      }
+    ],
+    "funding": "Combined authorization; all preceding 4B leases included",
+    "source_sha256": "52281b4c394824f7c5b32793ae071ff8e22a03767d3f8806e024f98e0919ccab",
+    "last_admission": {
+      "admitted": true,
+      "estimated_total_usd": 3.53299587450998,
+      "remaining_seconds": 20859.82512164116,
+      "required_seconds": 2628.455229303292,
+      "encoded_bytes_forecast": 1073741824,
+      "raw_bytes_forecast": 2147483648,
+      "local_free_bytes": 53620314112,
+      "donor_savings_assumed": false,
+      "remote_free_bytes": 87040507904
+    },
+    "current_stage": "baseline-capacity",
+    "error": "CohortError: Capacity screen did not complete: baseline-capacity"
+  },
+  "protocol": {
+    "study": "soup-nf4-capacity-32b-20261024",
+    "models": [
+      {
+        "model_id": "Qwen/Qwen3-32B",
+        "size_b": 32,
+        "revision": "9216db5781bf21249d130ec9da846c4624c16137",
+        "config": {
+          "architectures": [
+            "Qwen3ForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "bos_token_id": 151643,
+          "eos_token_id": 151645,
+          "head_dim": 128,
+          "hidden_act": "silu",
+          "hidden_size": 5120,
+          "initializer_range": 0.02,
+          "intermediate_size": 25600,
+          "max_position_embeddings": 40960,
+          "max_window_layers": 64,
+          "model_type": "qwen3",
+          "num_attention_heads": 64,
+          "num_hidden_layers": 64,
+          "num_key_value_heads": 8,
+          "rms_norm_eps": 1e-06,
+          "rope_scaling": null,
+          "rope_theta": 1000000,
+          "sliding_window": null,
+          "tie_word_embeddings": false,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.51.0",
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 151936
+        },
+        "weight_bytes": 65524246528,
+        "weight_files": [
+          "model-00001-of-00017.safetensors",
+          "model-00002-of-00017.safetensors",
+          "model-00003-of-00017.safetensors",
+          "model-00004-of-00017.safetensors",
+          "model-00005-of-00017.safetensors",
+          "model-00006-of-00017.safetensors",
+          "model-00007-of-00017.safetensors",
+          "model-00008-of-00017.safetensors",
+          "model-00009-of-00017.safetensors",
+          "model-00010-of-00017.safetensors",
+          "model-00011-of-00017.safetensors",
+          "model-00012-of-00017.safetensors",
+          "model-00013-of-00017.safetensors",
+          "model-00014-of-00017.safetensors",
+          "model-00015-of-00017.safetensors",
+          "model-00016-of-00017.safetensors",
+          "model-00017-of-00017.safetensors"
+        ]
+      }
+    ],
+    "maximum_stage_usd": 13.34,
+    "context_tokens": 512,
+    "batch": 1,
+    "accumulation": 2,
+    "lora_rank_alpha": 4,
+    "seed": 792,
+    "dataset": "Frozen BoolQ train rows, capacity/numerical workload only",
+    "task_quality_not_measured": true,
+    "ram_upper_bound_bytes": 34359738368,
+    "ram_bound_requirement": "Physical total or native kernel cgroup <=32GiB",
+    "swap_policy": "Abort on any observed container swap use",
+    "source": "NF4 RAM baseline and same-format resident decoder weights",
+    "timing_order": [
+      [
+        "baseline",
+        "resident"
+      ],
+      [
+        "resident",
+        "baseline"
+      ],
+      [
+        "resident",
+        "baseline"
+      ],
+      [
+        "baseline",
+        "resident"
+      ]
+    ],
+    "timing_warmup": 2,
+    "timing_measured_updates": 4,
+    "timing_initialization": "Identical seeded native adapters, reset optimizer",
+    "expected_trainable_tensors": 896,
+    "reference_first_rtol": 0.01,
+    "atol": 1e-05,
+    "loss_three_decimals": true,
+    "finite_required": true,
+    "resident_selection": "Native automatic capacity probe; fixed before accuracy/timing",
+    "expected_8b_baseline_encoded_bytes": 1073741824,
+    "expected_whole_matrix_encoded_bytes": 5368709120,
+    "no_cross_precision_or_larger_model_quality_claim": true,
+    "data_manifest_sha256": "4cdfc55bb072b03167d14acf8f560fc22a55c1c823d5b2d6c5a752200ea6e92f",
+    "source_sha256": "52281b4c394824f7c5b32793ae071ff8e22a03767d3f8806e024f98e0919ccab",
+    "source_base_head": "54680f7574ba536a51478f301e9b8e66d79bc39f"
+  },
+  "hardware": {
+    "scope": "32B capacity with physical/cgroup RAM <=32GiB",
+    "samples": [
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792854316.8660586
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792854321.8945732
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792854326.9217272
+      }
+    ],
+    "ram_scope": {
+      "limit_enforced": true,
+      "requested_ram_upper_bound_bytes": 34359738368,
+      "effective_ram_upper_bound_bytes": 31950110720,
+      "host_mem_total_bytes": 33282760704,
+      "native_cgroup_limit_bytes": 31950110720,
+      "container_swap_current_bytes": 0,
+      "method": "PHYSICAL_32GB_CLASS",
+      "parent_limits_and_system_settings_unchanged": true,
+      "host_swap_total_bytes": 8589930496,
+      "swap_policy": "Enabled host swap is not called disabled; abort on container swap use",
+      "proc_self_cgroup": "0::/\n"
+    },
+    "passed": true,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+    "gpu_uuid": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099",
+    "host_meminfo": "MemTotal:       32502696 kB\nMemFree:         9064976 kB\nMemAvailable:   30464000 kB\nBuffers:          252192 kB\nCached:         21056004 kB\nSwapCached:         3924 kB\nActive:          1928540 kB\nInactive:       19835156 kB\nActive(anon):     394148 kB\nInactive(anon):    70072 kB\nActive(file):    1534392 kB\nInactive(file): 19765084 kB\nUnevictable:       26132 kB\nMlocked:           26132 kB\nSwapTotal:       8388604 kB\nSwapFree:        8361980 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:             35136 kB\nWriteback:             0 kB\nAnonPages:        480636 kB\nMapped:           508232 kB\nShmem:               984 kB\nKReclaimable:     657892 kB\nSlab:            1049896 kB\nSReclaimable:     657892 kB\nSUnreclaim:       392004 kB\nKernelStack:        8848 kB\nPageTables:        10780 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    24639952 kB\nCommitted_AS:    3002844 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:      179704 kB\nVmallocChunk:          0 kB\nPercpu:            14976 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:    21723752 kB\nDirectMap2M:    11466752 kB\nDirectMap1G:           0 kB\n",
+    "cgroup": {
+      "/sys/fs/cgroup/memory.max": "31950110720\n"
+    }
+  },
+  "independent_reports": {},
+  "performance": null,
+  "validation": {
+    "local_protocol_and_retention_controls": {
+      "tests": 14,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "gpu_host_controls": {
+      "tests": 144,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  },
+  "cleanup": {
+    "verified_absent": true,
+    "instance_id": 57528611,
+    "volume_id": 57528610,
+    "account_instance_count": 0,
+    "account_volume_count": 0,
+    "unix": 1792855110.5018406,
+    "method": "Fresh independent read-only account listings"
+  },
+  "controller_error": null,
+  "cost": {
+    "current_stage_conservative_usd": 0.49209717523132834,
+    "combined_since_4b_conservative_usd": 2.334226691809584,
+    "combined_available_before_4b_usd": 13.343605273574783,
+    "combined_remaining_usd": 11.009378581765198,
+    "additional_ten_dollar_allowance_used": 0,
+    "invoice_claim": false
+  },
+  "raw_retention": {
+    "files": 193,
+    "logical_bytes": 24725884
+  },
+  "scope": "Same-NF4 numerical/capacity/residency workload; no 32B task-quality result",
+  "classification": {
+    "root_cause": "Native full RAM source rejects 19.2 GB base/extras under 55% physical RAM policy",
+    "before_any_optimizer_update": true,
+    "not_a_cuda_oom_or_physical_infeasibility_proof": true,
+    "next_supported_source": "disk with partial RAM/GPU caches",
+    "worker_status_preserved": "FAILED"
+  }
+}

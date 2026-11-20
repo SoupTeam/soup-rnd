@@ -1,0 +1,63 @@
+{
+  "status": "passed",
+  "policy": "manual",
+  "phase": "record",
+  "updates": 8,
+  "placement": {
+    "ram_indices": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      16,
+      17,
+      18,
+      19
+    ],
+    "gpu_indices": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "retained_layers": 0
+  },
+  "messages": [
+    "training.stream_resident_layers=8: measured resident candidate fits the shared cap; resident layers [8, 9, 10, 11, 12, 13, 14, 15], payload 56289504 bytes, cap 8589934592 bytes, setup reserve 90701824 bytes (optimizer state estimated; setup forward/backward, no optimizer step).",
+    "Stream cache profile: 8 GPU layers, RAM ceiling 96 MiB, 0 layers retaining activations; recording real updates.",
+    "Stream cache profile saved to /kaggle/temp/soup-profile-uohsuzbi/cache-profile-work/history.json; actual training continued."
+  ],
+  "setup_seconds": 2.595912649000013,
+  "train_seconds": 9.87025166799998,
+  "full_seconds": 12.466166097000041,
+  "step_seconds_after_2": 1.1996969209999975,
+  "peak_vram_allocated_bytes": 230107648,
+  "peak_vram_reserved_bytes": 255852544,
+  "peak_rss_bytes": 1650130944,
+  "losses": [
+    7.786526203155518,
+    7.822332859039307,
+    7.881069183349609,
+    7.838099479675293,
+    7.79380464553833,
+    7.8489179611206055,
+    7.813292503356934,
+    7.777803421020508,
+    7.844970703125,
+    7.844526767730713,
+    7.804714202880859,
+    7.812043190002441,
+    7.884367942810059,
+    7.875136375427246,
+    7.835472106933594,
+    7.856574058532715
+  ],
+  "comparisons": [],
+  "adapter_tensors": 336,
+  "profile_identity": "06700e5e56ff9bc0745b037d21bf2b27beb66c0d9a2eef20c403b247ad8d0294"
+}

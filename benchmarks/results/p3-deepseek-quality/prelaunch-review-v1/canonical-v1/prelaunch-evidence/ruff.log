@@ -1,0 +1,39 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> benchmarks/harness/p3_deepseek_quality_smoke.py:187:5
+    |
+186 |   def _fixture_runs(root: Path, report: dict) -> None:
+187 | /     from . import p3_deepseek_quality_model as model_api
+188 | |     from . import p3_deepseek_quality_timing as timing
+189 | |     from . import p3_deepseek_quality_train as train
+190 | |     from tests.test_p3_deepseek_quality_model import _checkpoint
+191 | |     from tests.test_p3_deepseek_quality_train import study_pack
+    | |_______________________________________________________________^
+192 |
+193 |       fixture_root = _child(root, "fixtures")
+    |
+help: Organize imports
+    |
+186 | def _fixture_runs(root: Path, report: dict) -> None:
+187 +     from tests.test_p3_deepseek_quality_model import _checkpoint
+188 +     from tests.test_p3_deepseek_quality_train import study_pack
+189 +
+190 |     from . import p3_deepseek_quality_model as model_api
+191 |     from . import p3_deepseek_quality_timing as timing
+192 |     from . import p3_deepseek_quality_train as train
+    -     from tests.test_p3_deepseek_quality_model import _checkpoint
+    -     from tests.test_p3_deepseek_quality_train import study_pack
+193 |
+    |
+
+E501 Line too long (103 > 100)
+   --> benchmarks/harness/p3_deepseek_quality_smoke.py:238:101
+    |
+237 |     with _attempt(root, report, "resource-only-forward") as record:
+238 |         tokenizer = AutoTokenizer.from_pretrained(pack.parent / "train-fixture", local_files_only=True)
+    |                                                                                                     ^^^
+239 |         observations: list[dict] = []
+240 |         record["observations"] = observations
+    |
+
+Found 2 errors.
+[*] 1 fixable with `--fix`.
