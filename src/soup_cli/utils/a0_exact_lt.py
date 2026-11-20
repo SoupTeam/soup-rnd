@@ -402,31 +402,40 @@ def _build(load: Any, include_paths: List[str], ldflags: List[str], verbose: boo
 
 def _nvcc_home() -> str:
     """A directory with ``bin/nvcc``: CUDA_HOME, /usr/local/cuda, or the nvidia-cuda-nvcc wheel
-    (``nvidia/cu13``, where lib64 and libcudart.so are linked in when missing)."""
+    (``nvidia/cu13``). A wheel layout gets ``lib64`` and ``libcudart.so`` links when missing."""
     import glob
 
     for home in (os.environ.get("CUDA_HOME"), "/usr/local/cuda"):
         if home and os.path.isfile(os.path.join(home, "bin", "nvcc")):
+            _link_wheel_libs(home)
             return home
     import nvidia
 
     for root in getattr(nvidia, "__path__", []):
         for bin_dir in sorted(glob.glob(os.path.join(root, "*", "bin"))):
             home = os.path.dirname(bin_dir)
-            if not os.path.isfile(os.path.join(bin_dir, "nvcc")):
-                continue
-            lib = os.path.join(home, "lib")
-            try:
-                if not os.path.exists(os.path.join(home, "lib64")):
-                    os.symlink("lib", os.path.join(home, "lib64"))
-                runtime = os.path.join(lib, "libcudart.so")
-                versions = sorted(glob.glob(runtime + ".*"))
-                if not os.path.exists(runtime) and versions:
-                    os.symlink(os.path.basename(versions[0]), runtime)
-            except OSError:
-                pass
-            return home
+            if os.path.isfile(os.path.join(bin_dir, "nvcc")):
+                _link_wheel_libs(home)
+                return home
     raise RuntimeError("no nvcc found (set CUDA_HOME or install nvidia-cuda-nvcc)")
+
+
+def _link_wheel_libs(home: str) -> None:
+    """Pip wheels ship ``lib/libcudart.so.13`` only; the linker wants ``lib64`` and the bare name."""
+    import glob
+
+    lib = os.path.join(home, "lib")
+    if not os.path.isdir(lib):
+        return
+    try:
+        if not os.path.exists(os.path.join(home, "lib64")):
+            os.symlink("lib", os.path.join(home, "lib64"))
+        runtime = os.path.join(lib, "libcudart.so")
+        versions = sorted(glob.glob(runtime + ".*"))
+        if not os.path.exists(runtime) and versions:
+            os.symlink(os.path.basename(versions[0]), runtime)
+    except OSError:
+        pass
 
 
 def toolchain_error() -> Optional[str]:
@@ -442,10 +451,29 @@ def toolchain_error() -> Optional[str]:
         return "ninja is not installed (pip install ninja)"
     try:
         _nvcc_home()
-        _cuda_paths()
+        include_paths, _ = _cuda_paths()
     except (RuntimeError, ImportError) as exc:
         return str(exc) if isinstance(exc, RuntimeError) else f"no CUDA toolkit wheel ({exc})"
-    return None
+    return _cublas_mismatch(include_paths[0])
+
+
+def _cublas_mismatch(include: str) -> Optional[str]:
+    """The headers' cuBLAS major against the CUDA major torch runs on. A build against the other
+    major links a cuBLASLt that torch does not load and crashes in its first call."""
+    import re
+
+    import torch
+
+    try:
+        with open(os.path.join(include, "cublas_api.h"), encoding="utf-8", errors="ignore") as fh:
+            found = re.search(r"#define\s+CUBLAS_VER_MAJOR\s+(\d+)", fh.read())
+    except OSError:
+        return None
+    torch_cuda = str(torch.version.cuda or "")
+    if found is None or not torch_cuda or found.group(1) == torch_cuda.split(".")[0]:
+        return None
+    return (f"the CUDA headers in {include} are cuBLAS {found.group(1)}, torch runs on CUDA "
+            f"{torch_cuda}; point CUDA_HOME at a matching toolkit (the nvidia-cuda-nvcc wheel)")
 
 
 def _cuda_paths() -> Tuple[List[str], List[str]]:
@@ -456,7 +484,16 @@ def _cuda_paths() -> Tuple[List[str], List[str]]:
     home = os.environ.get("CUDA_HOME") or ("/usr/local/cuda" if os.path.isdir("/usr/local/cuda")
                                            else None)
     if home and os.path.isfile(os.path.join(home, "include", "cublasLt.h")):
-        return [os.path.join(home, "include")], [f"-L{os.path.join(home, 'lib64')}", "-lcublasLt"]
+        include = os.path.join(home, "include")
+        cccl = os.path.join(include, "cccl")  # pip wheels keep nv/target here; toolkits find it
+        paths = [include] + ([cccl] if os.path.isdir(cccl) else [])
+        lib = next((d for d in (os.path.join(home, "lib64"), os.path.join(home, "lib"))
+                    if glob.glob(os.path.join(d, "libcublasLt.so*"))), os.path.join(home, "lib64"))
+        if os.path.exists(os.path.join(lib, "libcublasLt.so")):
+            return paths, [f"-L{lib}", "-lcublasLt", f"-Wl,-rpath,{lib}"]
+        libs = sorted(glob.glob(os.path.join(lib, "libcublasLt.so*")))  # wheels: only the .so.13
+        link = f"-l:{os.path.basename(libs[0])}" if libs else "-lcublasLt"
+        return paths, [f"-L{lib}", link, f"-Wl,-rpath,{lib}"]
     import nvidia  # the CUDA wheels torch depends on
 
     for root in getattr(nvidia, "__path__", []):

@@ -145,3 +145,17 @@ def test_a_failed_kernels_build_is_an_error_under_strict_and_a_fallback_otherwis
     with pytest.raises(RuntimeError, match="nvcc failed"):
         a0_exact_lt.load_extension(strict=True)
     assert a0_exact_lt.load_extension().module == "aten-only"
+
+
+def test_headers_of_another_cuda_major_than_torch_are_reported(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from soup_cli.utils import a0_exact_lt
+
+    monkeypatch.setattr(torch.version, "cuda", "13.0")
+    major = 13
+    (tmp_path / "cublas_api.h").write_text(f"#define CUBLAS_VER_MAJOR {major + 1}\n")
+    assert "CUDA_HOME" in str(a0_exact_lt._cublas_mismatch(str(tmp_path)))
+    (tmp_path / "cublas_api.h").write_text(f"#define CUBLAS_VER_MAJOR {major}\n")
+    assert a0_exact_lt._cublas_mismatch(str(tmp_path)) is None
+    assert a0_exact_lt._cublas_mismatch(str(tmp_path / "missing")) is None
