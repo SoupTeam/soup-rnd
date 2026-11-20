@@ -14,7 +14,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from benchmarks.harness.a0_exact_lt import (  # noqa: E402
+from soup_cli.utils.a0_exact_lt import (  # noqa: E402
     AlgoTable,
     MergedLinear,
     bucket_segments,

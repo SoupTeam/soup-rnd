@@ -6,8 +6,6 @@ skips it without a card. The remote series script runs it on the rental host.
 
 from __future__ import annotations
 
-import sys
-
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -16,8 +14,7 @@ pytestmark = pytest.mark.gpu
 
 
 def load() -> object:
-    sys.path.insert(0, "benchmarks/harness")
-    import a0_exact_lt
+    from soup_cli.utils import a0_exact_lt
 
     return a0_exact_lt.load_extension().module
 
@@ -117,8 +114,7 @@ def test_copy_segments_round_trips_through_a_permutation() -> None:
 
 
 def test_spreading_the_groups_over_streams_does_not_change_the_expert_bits() -> None:
-    sys.path.insert(0, "benchmarks/harness")
-    import a0_exact_lt
+    from soup_cli.utils import a0_exact_lt
 
     backend = a0_exact_lt.load_extension()
     fused = a0_exact_lt.FusedExpert(backend)
@@ -152,8 +148,7 @@ def test_expert_calls_from_several_threads_match_the_single_thread_bits() -> Non
     import random
     import threading
 
-    sys.path.insert(0, "benchmarks/harness")
-    import a0_exact_lt
+    from soup_cli.utils import a0_exact_lt
 
     backend = a0_exact_lt.load_extension()
     fused = a0_exact_lt.FusedExpert(backend)

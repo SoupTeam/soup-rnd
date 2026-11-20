@@ -93,7 +93,7 @@ class FusedCpuBackend(CpuBackend):
         self.registered: List[tuple] = []
 
     def matmul(self, x: Any, w: Any, transposed: bool, algo: Any) -> Any:
-        from benchmarks.harness.a0_exact_lt import native_matmul
+        from soup_cli.utils.a0_exact_lt import native_matmul
 
         return native_matmul(x, w, transposed)  # discovery runs one segment: exact on CPU
 

@@ -9,7 +9,6 @@ from typing import Any, Callable, List, Tuple
 
 from benchmarks.harness import b13_moe_fixture as fixture
 from benchmarks.harness import p3_route_preserving_mbr_soup_bridge as bridge
-from benchmarks.harness.a0_exact_lt import native_matmul
 from benchmarks.harness.p72_invariant_expert_gemm import (
     EXPERT_GEMM_CHOICES,
     expert_gemm_context,
@@ -17,6 +16,7 @@ from benchmarks.harness.p72_invariant_expert_gemm import (
     segmented_expert_gemm,
 )
 from soup_cli.utils import l2l_step
+from soup_cli.utils.a0_exact_lt import native_matmul
 from tests.test_b13_l2l_moe import Rig
 from tests.test_b13_l2l_moe import make_rig as make_rig  # noqa: F401  (pytest fixture)
 from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
