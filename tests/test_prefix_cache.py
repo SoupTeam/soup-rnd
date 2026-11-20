@@ -328,3 +328,19 @@ def test_schema_cache_needs_no_dropout_and_no_streaming():
     with pytest.raises(Exception, match="stream_layers"):
         _cfg(lora={"r": 4, "target_modules": ["q_proj"], "dropout": 0.0}, stream_layers=True,
              lora_layers={"method": "progressive", "prefix_cache": True})
+
+
+def test_inputs_embeds_from_a_wrapper_still_keys_by_the_embedded_ids():
+    """A multimodal wrapper embeds the ids and passes inputs_embeds to the decoder."""
+    from soup_cli.utils.prefix_cache import PrefixCache, find_decoder
+
+    model = _prepare("qwen3_5", 2)
+    decoder = find_decoder(model)
+    cache = PrefixCache(model, 2, 1 << 30).install()
+    ids = _rows(1)[0]
+    for _ in range(2):
+        embeds = decoder.embed_tokens(ids)
+        decoder(inputs_embeds=embeds)
+    assert (cache.stats.misses, cache.stats.hits, cache.stats.passthrough) == (1, 1, 0)
+    decoder(inputs_embeds=torch.zeros(1, 10, decoder.config.hidden_size))  # no ids seen: run
+    assert cache.stats.passthrough == 1

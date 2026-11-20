@@ -136,19 +136,26 @@ class PrefixCache:
         self._check_deterministic()
         self._pin = torch.cuda.is_available()
 
+        fresh = {"ids": None}
+
         def on_embedding(_module: Any, args: Any) -> None:
+            # A multimodal wrapper embeds the ids itself and hands the decoder inputs_embeds;
+            # the ids it embedded just before the decoder call are the batch's.
             if args and torch.is_tensor(args[0]):
+                fresh["ids"] = args[0]
                 self.batch.input_ids = args[0]
 
         def on_decoder(_module: Any, args: Any, kwargs: Dict[str, Any]) -> None:
+            ids = kwargs.get("input_ids")
+            if not torch.is_tensor(ids):
+                ids = fresh["ids"]
+            fresh["ids"] = None
             self.batch.reset()
+            self.batch.input_ids = ids
             mask = kwargs.get("attention_mask")
             self.batch.attention_mask = mask if torch.is_tensor(mask) and mask.ndim == 2 else None
             pos = kwargs.get("position_ids")
             self.batch.position_ids = pos if torch.is_tensor(pos) else None
-            ids = kwargs.get("input_ids")
-            if torch.is_tensor(ids):
-                self.batch.input_ids = ids
 
         self._handles.append(self.decoder.register_forward_pre_hook(on_decoder, with_kwargs=True))
         self._handles.append(self.decoder.embed_tokens.register_forward_pre_hook(on_embedding))
