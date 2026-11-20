@@ -2,6 +2,7 @@
 # Remote side of the single Vast run (RTX 4060 Ti 8 GB) of ticket 01. Runs ON the instance.
 #
 #   env: STAGES="probe bits profile speed"  BLOCKS=5  DEADLINE_HOURS=<hours for the sweeps>
+#        VRAM_LIMIT_GIB=8  (allocator limit: the card may have more than the 8 GiB of the ticket)
 #        TORCH_SPEC="torch==2.14.*"  (skipped when torch is already 2.14+)
 #   in:  /root/soup/{src,benchmarks/harness}   (the tarball from the local launcher)
 #   out: /root/mbr/out/*.json, summary.md, /root/mbr/results.tgz, /root/mbr/DONE
@@ -38,6 +39,7 @@ fs=$(df -T "$WORK" | tail -1 | awk '{print $2}')
 
 # --- run ---
 export MBR_SRC=$ROOT MBR_WORK=$WORK/data MBR_OUT=$OUT MBR_SKIP_PIP=1 CUDA_VISIBLE_DEVICES=0
+export MBR_VRAM_LIMIT_GIB=${VRAM_LIMIT_GIB:-8}
 export MBR_STAGES=${STAGES// /,} MBR_BLOCKS=${BLOCKS:-5} TMPDIR=$WORK/data
 [ -n "${DEADLINE_HOURS:-}" ] && export MBR_DEADLINE_HOURS=$DEADLINE_HOURS
 mkdir -p "$MBR_WORK"

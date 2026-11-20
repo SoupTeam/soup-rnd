@@ -309,6 +309,12 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     device = "cuda" if cuda else "cpu"
     dtype = torch.bfloat16 if cuda else torch.float32
     b5_real_moe._reset_peak_rss()
+    vram_limit = float(os.environ.get("MBR_VRAM_LIMIT_GIB", "0"))
+    if cuda and vram_limit:
+        # Emulates a smaller card (the ticket's 8 GiB) on a bigger one: the allocator raises an
+        # OOM at the limit. NVML still counts the CUDA context, which the limit does not cover.
+        total = torch.cuda.get_device_properties(0).total_memory
+        torch.cuda.set_per_process_memory_fraction(min(1.0, vram_limit * 2**30 / total))
     if cuda:
         torch.cuda.reset_peak_memory_stats()
 
@@ -358,7 +364,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             out: Dict[str, Any] = {
                 "step_seconds": median_after_warmup(seconds), "all_step_seconds": seconds,
                 "loss": float(sum(float(x) for x in losses)),
-                "grad_sha256": grad_digest(grads),
+                "grad_sha256": grad_digest(grads), "vram_limit_gib": vram_limit or None,
                 "direct_io": direct_io_record(
                     requested=True,
                     actual=all(r.direct for r in getattr(runtime, "expert_readers", ()))),
