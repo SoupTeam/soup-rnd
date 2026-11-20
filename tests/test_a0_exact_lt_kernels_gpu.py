@@ -1,7 +1,7 @@
 """The elementwise kernels of the fused expert against the ATen chains they replace, bit for bit.
 
-Needs CUDA and a toolkit for the extension build, so it is skipped elsewhere; the remote series
-script runs it on the rental host (``python tests/test_a0_exact_lt_kernels_gpu.py``).
+Needs CUDA and a toolkit for the extension build (``pytest -m gpu --no-cov``); the conftest hook
+skips it without a card. The remote series script runs it on the rental host.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA GPU")
+pytestmark = pytest.mark.gpu
 
 
 def load() -> object:
