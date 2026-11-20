@@ -156,3 +156,45 @@ def test_ladder_verdict_compares_each_arm_digest_to_a0_and_skips_missing_a0() ->
 
 def test_nvml_peak_parses_the_largest_used_memory_sample() -> None:
     assert mm.parse_nvml_used(["512 MiB", "7011 MiB", "6900 MiB"]) == 7011 * 2**20
+
+
+def test_amdahl_share_needed_for_a_target_gain() -> None:
+    # +10% total with a 2x local speedup needs 18.2% of the path; 1.5x needs 27.3%
+    got = mm.amdahl_min_share(target_gain=0.10, local_speedup=2.0)
+    assert got == pytest.approx(0.182, abs=1e-3)
+    got = mm.amdahl_min_share(target_gain=0.10, local_speedup=1.5)
+    assert got == pytest.approx(0.273, abs=1e-3)
+    with pytest.raises(ValueError):
+        mm.amdahl_min_share(target_gain=0.10, local_speedup=1.0)
+
+
+def test_phase_shares_sum_to_one_and_name_the_largest_phase() -> None:
+    summary = {"e_bwd": {"seconds": 6.0, "calls": 3}, "r1": {"seconds": 3.0, "calls": 3},
+               "fwd": {"seconds": 1.0, "calls": 3}}
+    shares = mm.phase_shares(summary)
+    assert shares["e_bwd"] == pytest.approx(0.6) and sum(shares.values()) == pytest.approx(1.0)
+    assert mm.phase_shares({}) == {}
+
+
+def test_environment_record_keeps_versions_and_marks_missing_tools_unknown() -> None:
+    def lookup(name: str) -> str | None:
+        return {"torch": "2.14.0", "triton": "3.5.0"}.get(name)
+
+    out = mm.environment_record(lookup, git_sha="abc", ptxas=None)
+    assert out["versions"]["torch"] == "2.14.0" and out["versions"]["triton"] == "3.5.0"
+    assert out["versions"]["bitsandbytes"] == "unknown"
+    assert out["git_sha"] == "abc" and out["ptxas"] == "unknown"
+
+
+def test_direct_io_flag_is_recorded_and_a_silent_fallback_is_called_out() -> None:
+    assert mm.direct_io_record(requested=True, actual=True) == {"requested": True,
+                                                                 "actual": True, "fallback": False}
+    assert mm.direct_io_record(requested=True, actual=False)["fallback"] is True
+
+
+def test_profile_plan_is_one_normal_mode_run_per_arm_and_window_flagged_for_profiling() -> None:
+    plan = mm.profile_plan()
+    assert len(plan) == 3 + 3 + 2 + 2
+    assert all(p["profile"] and p["kind"] == "speed" and p["deterministic"] is False
+               for p in plan)
+    assert not any(p["arm"] == "A0" and p["k"] > 8 for p in plan)

@@ -64,7 +64,7 @@ def main() -> int:
     env = dict(os.environ, PYTHONPATH=os.pathsep.join(
         str(root / s) for s in ("src", ".", "benchmarks/harness")))
     result: dict = {}
-    for name, extra in (("bits", ["--seq", "64"]), ("speed", ["--blocks", "1"])):
+    for name, extra in (("bits", ["--seq", "64"]), ("speed", ["--blocks", "1"]), ("profile", [])):
         out = OUT / f"smoke-{name}"
         done = subprocess.run(
             [sys.executable, str(root / "benchmarks/harness/mbr_measure.py"), name,

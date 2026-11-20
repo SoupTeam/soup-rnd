@@ -124,6 +124,13 @@ def speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
     return plan
 
 
+def profile_plan() -> List[Dict[str, Any]]:
+    """One phase-profiled normal-mode run per arm and window, apart from the timed runs so the
+    instrumented step does not touch their peaks or times."""
+    return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "speed", "deterministic": False,
+             "profile": True} for k, seq in WINDOWS for arm in arms_for(k=k)]
+
+
 def bit_plan(*, seq: int) -> List[Dict[str, Any]]:
     """Deterministic-mode ladder: every arm at k = 1, 2, 4, 8."""
     return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits", "deterministic": True}
@@ -155,6 +162,36 @@ def ladder_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[int, str], str]
 def parse_nvml_used(samples: Sequence[str]) -> int:
     """Largest ``memory.used`` sample of ``nvidia-smi --query-gpu=memory.used`` in bytes."""
     return max(int(s.split()[0]) for s in samples) * 2**20
+
+
+def amdahl_min_share(*, target_gain: float, local_speedup: float) -> float:
+    """Share of the critical path a phase must hold so that speeding it up by ``local_speedup``
+    gives ``target_gain`` overall (0.10 = +10% throughput): p = (1 - 1/(1+g)) / (1 - 1/s)."""
+    if local_speedup <= 1.0:
+        raise ValueError("a local speedup must be above 1")
+    return (1 - 1 / (1 + target_gain)) / (1 - 1 / local_speedup)
+
+
+def phase_shares(summary: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    """Each phase's share of the summed phase seconds (``PhaseClock.summary()`` layout)."""
+    total = sum(entry["seconds"] for entry in summary.values())
+    return {name: entry["seconds"] / total for name, entry in summary.items()} if total else {}
+
+
+_TRACKED = ("torch", "triton", "transformers", "peft", "bitsandbytes", "safetensors")
+
+
+def environment_record(lookup: Callable[[str], Any], *, git_sha: Any, ptxas: Any
+                       ) -> Dict[str, Any]:
+    """Tool versions and the git sha of a run; a missing one is written as ``unknown``."""
+    return {"versions": {name: lookup(name) or "unknown" for name in _TRACKED},
+            "git_sha": git_sha or "unknown", "ptxas": ptxas or "unknown"}
+
+
+def direct_io_record(*, requested: bool, actual: bool) -> Dict[str, bool]:
+    """O_DIRECT is requested but the reader falls back to buffered reads on some filesystems
+    (overlayfs); a fallback means the run measured the page cache, so it is flagged."""
+    return {"requested": requested, "actual": actual, "fallback": requested and not actual}
 
 
 # --------------------------------------------------------------------------
@@ -279,9 +316,17 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 seconds.append(time.perf_counter() - started)
             grads = {n: p.grad.detach().float().flatten().cpu().tolist()
                      for n, p in sorted(params.items()) if p.grad is not None}
-            return {"step_seconds": median_after_warmup(seconds), "all_step_seconds": seconds,
-                    "loss": float(sum(float(x) for x in losses)),
-                    "grad_sha256": grad_digest(grads)}
+            out: Dict[str, Any] = {
+                "step_seconds": median_after_warmup(seconds), "all_step_seconds": seconds,
+                "loss": float(sum(float(x) for x in losses)),
+                "grad_sha256": grad_digest(grads),
+                "direct_io": direct_io_record(
+                    requested=True,
+                    actual=all(r.direct for r in getattr(runtime, "expert_readers", ()))),
+                "environment": _environment()}
+            if args.profile:
+                out["phases"] = _profile_step(stepper, store, ids, options, cuda)
+            return out
         finally:
             runtime.close()
 
@@ -294,6 +339,44 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     return make_row(arm=args.arm, k=args.k, seq=args.seq, kind=args.kind,
                     deterministic=args.deterministic, result=result,
                     dataset_sha256=data["sha256"])
+
+
+def _environment() -> Dict[str, Any]:  # pragma: no cover - needs the host's tools
+    import shutil
+    import subprocess
+    from importlib import metadata
+
+    def lookup(name: str) -> Any:
+        try:
+            return metadata.version(name)
+        except metadata.PackageNotFoundError:
+            return None
+
+    def run(command: List[str]) -> Any:
+        try:
+            return subprocess.run(command, capture_output=True, text=True, check=True,
+                                  timeout=20).stdout.strip() or None
+        except (OSError, subprocess.SubprocessError):
+            return None
+
+    ptxas = run(["ptxas", "--version"]) if shutil.which("ptxas") else None
+    return environment_record(lookup, git_sha=run(["git", "rev-parse", "HEAD"]), ptxas=ptxas)
+
+
+def _profile_step(stepper: Any, store: Any, ids: List[Any], options: Dict[str, Any],
+                  cuda: bool) -> Dict[str, Any]:  # pragma: no cover - needs the model
+    """One CUDA-synchronised phase-profiled step (PR #72 ``PhaseClock``). Instrumented time is
+    longer than a real step, so only the shares are meaningful, not the seconds."""
+    from benchmarks.harness.p72_phase_profiler import PhaseClock, install
+    from soup_cli.utils.l2l_step import label_tokens
+
+    clock = PhaseClock("cuda" if cuda else "cpu")
+    with install(clock):
+        stepper.run(ids, store, n_items=label_tokens(ids), labels=[i.clone() for i in ids],
+                    **options)
+    summary = clock.summary()
+    return {"summary": summary, "shares": phase_shares(summary),
+            "amdahl_min_share_2x_for_10pct": amdahl_min_share(target_gain=0.10, local_speedup=2.0)}
 
 
 class _NullContext:
@@ -322,6 +405,8 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
             command += ["--tokenizer", args.tokenizer]
         if item["deterministic"]:
             command.append("--deterministic")
+        if item.get("profile"):
+            command.append("--profile")
         proc = subprocess.run(command, capture_output=True, text=True)
         line = next((ln for ln in reversed(proc.stdout.splitlines()) if ln.startswith("{")), None)
         row = json.loads(line) if line else {
@@ -340,7 +425,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
 
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "speed", "bits"):
+    for name in ("run", "speed", "bits", "profile"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -355,6 +440,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--seq", type=int, required=True)
             p.add_argument("--kind", choices=("speed", "bits"), required=True)
             p.add_argument("--deterministic", action="store_true")
+            p.add_argument("--profile", action="store_true",
+                           help="add one phase-profiled step (normal mode only)")
         if name == "speed":
             p.add_argument("--blocks", type=int, default=5)
         if name == "bits":
@@ -363,7 +450,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     if args.command == "run":
         print(json.dumps(run_one(args)))
         return 0
-    plan = speed_plan(blocks=args.blocks) if args.command == "speed" else bit_plan(seq=args.seq)
+    plan = {"speed": lambda: speed_plan(blocks=args.blocks),
+            "bits": lambda: bit_plan(seq=args.seq), "profile": profile_plan}[args.command]()
     rows = sweep(args, plan)
     if args.command == "bits":
         for (k, arm), verdict in sorted(ladder_verdict(rows).items()):
