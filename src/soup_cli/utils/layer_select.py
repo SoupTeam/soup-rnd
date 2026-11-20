@@ -80,6 +80,9 @@ class LayerSelectPolicy:
     freeze_below: Optional[int] = None
     freeze_threshold: float = 0.10
     max_freeze_below: Optional[int] = None
+    freeze_deadline: Optional[int] = None
+    min_freeze_below: Optional[int] = None
+    freeze_smoothing: float = 0.0
     prefix_cache: bool = False
     prefix_cache_bytes: int = 8 << 30
 
@@ -98,6 +101,12 @@ class LayerSelectPolicy:
                 raise ValueError("freeze_step and freeze_below must be >= 1")
             if not 0.0 < self.freeze_threshold < 1.0:
                 raise ValueError("freeze_threshold must be in (0, 1)")
+            if (self.freeze_deadline is None) != (self.min_freeze_below is None):
+                raise ValueError("freeze_deadline and min_freeze_below go together")
+            if self.freeze_deadline is not None and self.freeze_step is not None:
+                raise ValueError("freeze_deadline belongs to the rule, not to freeze_step")
+            if not 0.0 <= self.freeze_smoothing < 1.0:
+                raise ValueError("freeze_smoothing must be in [0, 1)")
         elif self.k is None or self.k < 1:
             raise ValueError(f"method {self.method!r} needs k >= 1")
         if self.prefix_cache and self.method == "lisa":
@@ -239,6 +248,8 @@ class Selection:
     history: List[Tuple[int, List[int]]] = field(default_factory=list)
     backward_cut: str = ""
     cache: List[Dict[str, Any]] = field(default_factory=list)
+    #: progressive: per window, the step and each trainable layer's summed adapter gradient norm
+    norms: List[Tuple[int, Dict[int, float]]] = field(default_factory=list)
 
     def to_json(self) -> Dict[str, Any]:
         return {
@@ -248,6 +259,8 @@ class Selection:
             "scores": {str(k): v for k, v in sorted(self.scores.items())},
             "history": [{"step": s, "layers": ls} for s, ls in self.history],
             "prefix_cache": self.cache,
+            "norms": [{"step": st, "layers": {str(k): v for k, v in sorted(n.items())}}
+                      for st, n in self.norms],
         }
 
 
@@ -413,30 +426,62 @@ class _LayerSelectBody:  # noqa: N801
 
     def on_pre_optimizer_step(self, args: Any, state: Any, control: Any = None,
                               **kwargs: Any) -> Any:
-        if (self.policy.method != "progressive" or self.policy.freeze_step is not None
-                or self.selection is None or self.by_layer is None):
+        """Progressive: add each trainable layer's adapter gradient norm to the window.
+
+        The sums stay on the device and are read once per window, so a step does not
+        synchronise per parameter.
+        """
+        if self.policy.method != "progressive" or self.selection is None or self.by_layer is None:
             return control
         window = self.__dict__.setdefault("_window", {})
         for idx in self.selection.layers:
-            total = 0.0
-            for _n, p in self.by_layer[idx]:
-                if p.grad is not None:
-                    total += float(p.grad.detach().float().norm())
-            window[idx] = window.get(idx, 0.0) + total
+            norms = [p.grad.detach().float().norm() for _n, p in self.by_layer[idx]
+                     if p.grad is not None]
+            if norms:
+                total = sum(norms[1:], norms[0])
+                window[idx] = total if idx not in window else window[idx] + total
         return control
+
+    def _close_window(self, step: int) -> Dict[int, float]:
+        window = {idx: float(v) for idx, v in self.__dict__.pop("_window", {}).items()}
+        self.selection.norms.append((step, dict(window)))
+        return window
 
     def _progressive_step(self, step: int, optimizer: Any) -> None:
         policy = self.policy
-        layers = self.selection.layers
+        if step % policy.interval_steps == 0:
+            window = self._close_window(step)
+        else:
+            window = None
         if policy.freeze_step is not None:
             if step == policy.freeze_step:
                 self.freeze_below(policy.freeze_below, step, optimizer)
             return
-        if step % policy.interval_steps != 0:
-            return
-        window = self.__dict__.pop("_window", {})
-        previous = self.__dict__.get("_previous")
-        self._previous = window
+        if window is not None:
+            self._rule(step, window, optimizer)
+        deadline = policy.freeze_deadline
+        if (deadline is not None and step == deadline
+                and min(self.selection.layers) < policy.min_freeze_below):
+            self.freeze_below(policy.min_freeze_below, step, optimizer)
+
+    def _rule(self, step: int, window: Dict[int, float], optimizer: Any) -> None:
+        """Freeze, from the lowest trainable layer up, layers whose (smoothed) norm settled."""
+        policy = self.policy
+        beta = policy.freeze_smoothing
+        if beta > 0.0:
+            ema = self.__dict__.setdefault("_ema", {})
+            previous = dict(ema)
+            for idx, value in window.items():
+                ema[idx] = value if idx not in ema else beta * ema[idx] + (1.0 - beta) * value
+            self._windows_seen = self.__dict__.get("_windows_seen", 0) + 1
+            current = dict(ema)
+            if self._windows_seen < 3:  # let the average warm up
+                return
+        else:
+            previous = self.__dict__.get("_previous")
+            self._previous = window
+            current = window
+        layers = self.selection.layers
         if not previous or not layers:
             return
         cap = policy.max_freeze_below
@@ -446,7 +491,7 @@ class _LayerSelectBody:  # noqa: N801
         for idx in layers:
             if idx >= cap:
                 break
-            before, now = previous.get(idx), window.get(idx)
+            before, now = previous.get(idx), current.get(idx)
             if not before or now is None or abs(now - before) / before >= policy.freeze_threshold:
                 break
             cut = idx + 1
@@ -472,9 +517,17 @@ class _LayerSelectBody:  # noqa: N801
     def _install_cache(self, step: int) -> None:
         if not self.policy.prefix_cache or self.model is None:
             return
-        self._remove_cache()
         cutoff = min(self.selection.layers)
         if cutoff <= 0:
+            return
+        cache = self.__dict__.get("cache")
+        if cache is not None:
+            # The kept outputs of the old cut stay valid (the layers under it are still
+            # frozen): rows start from them and only the newly frozen layers run once more.
+            record = {"from_step": self.__dict__.get("_cache_from", 0), **cache.stats.to_json()}
+            self.selection.cache.append(record)
+            cache.raise_cutoff(cutoff)
+            self._cache_from = step
             return
         from soup_cli.utils.prefix_cache import PrefixCache
 
@@ -535,6 +588,9 @@ def attach_layer_select_callback(trainer: Any, tcfg: Any, output_dir: Optional[s
         freeze_below=getattr(cfg, "freeze_below", None),
         freeze_threshold=float(getattr(cfg, "freeze_threshold", 0.10)),
         max_freeze_below=getattr(cfg, "max_freeze_below", None),
+        freeze_deadline=getattr(cfg, "freeze_deadline", None),
+        min_freeze_below=getattr(cfg, "min_freeze_below", None),
+        freeze_smoothing=float(getattr(cfg, "freeze_smoothing", 0.0) or 0.0),
         prefix_cache=bool(getattr(cfg, "prefix_cache", False)),
         prefix_cache_bytes=int(float(getattr(cfg, "prefix_cache_gb", 8.0)) * (1 << 30)),
     )

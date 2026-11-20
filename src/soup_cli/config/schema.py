@@ -1160,6 +1160,24 @@ class LoraLayersConfig(BaseModel):
     freeze_below: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
     freeze_threshold: float = Field(default=0.10, gt=0.0, lt=1.0)
     max_freeze_below: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
+    freeze_deadline: Optional[int] = Field(
+        default=None, ge=1, strict=True,
+        description=(
+            "progressive rule: the optimizer step by which the bottom must be frozen; if the "
+            "rule has not reached min_freeze_below by then, it is frozen to it (the cache then "
+            "has the rest of the run to pay off)."
+        ),
+    )
+    min_freeze_below: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
+    freeze_smoothing: float = Field(
+        default=0.0, ge=0.0, lt=1.0,
+        description=(
+            "progressive rule: 0 compares each window's gradient norm with the previous "
+            "window's; beta > 0 compares an exponential moving average (beta * old + (1 - beta) "
+            "* new) instead, so one noisy window does not hold the freeze back. Use a smaller "
+            "freeze_threshold with it (the average moves less)."
+        ),
+    )
     prefix_cache: bool = Field(
         default=False,
         description=(
@@ -1175,7 +1193,9 @@ class LoraLayersConfig(BaseModel):
     def _check_method_fields(self) -> "LoraLayersConfig":
         progressive_only = {
             "freeze_step": self.freeze_step, "freeze_below": self.freeze_below,
-            "max_freeze_below": self.max_freeze_below,
+            "max_freeze_below": self.max_freeze_below, "freeze_deadline": self.freeze_deadline,
+            "min_freeze_below": self.min_freeze_below,
+            "freeze_smoothing": self.freeze_smoothing or None,
         }
         if self.method != "progressive":
             given = [name for name, value in progressive_only.items() if value is not None]
@@ -1197,6 +1217,15 @@ class LoraLayersConfig(BaseModel):
             if (self.freeze_step is None) != (self.freeze_below is None):
                 raise ValueError(
                     "training.lora_layers: freeze_step and freeze_below go together"
+                )
+            if (self.freeze_deadline is None) != (self.min_freeze_below is None):
+                raise ValueError(
+                    "training.lora_layers: freeze_deadline and min_freeze_below go together"
+                )
+            if self.freeze_deadline is not None and self.freeze_step is not None:
+                raise ValueError(
+                    "training.lora_layers: freeze_deadline belongs to the rule; a schedule "
+                    "(freeze_step) already fixes when the bottom freezes"
                 )
             return self
         if self.method == "fixed":

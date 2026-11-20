@@ -539,8 +539,8 @@ class L2LStep:
         self._replicas: Optional[List[Any]] = None
 
     def _prefix_cache(self, micro_batches: Sequence[Any], passes: Sequence[Any],
-                      cut: int) -> Tuple[Any, Optional[List[str]], Optional[List[Any]]]:
-        """The installed frozen-prefix cache, the window's keys and its kept bottom outputs.
+                      cut: int) -> Tuple[Any, Optional[List[str]], Any]:
+        """The installed frozen-prefix cache, the window's keys and ``(starts, kept)``.
 
         ``(None, None, None)`` without a cache, with extra passes (they would need the
         bottom), or when the cache's cutoff is above the lowest trainable layer.
@@ -557,7 +557,7 @@ class L2LStep:
         keys = cache.l2l_keys(micro_batches)
         if keys is None:
             return None, None, None
-        return cache, keys, cache.l2l_lookup(keys, micro_batches[0].device)
+        return cache, keys, cache.l2l_starts(keys, micro_batches[0].device)
 
     def _lowest_trainable(self) -> int:
         """The lowest decoder layer with a trainable parameter (``len(layers)`` when none).
@@ -733,7 +733,12 @@ class L2LStep:
         # output of the frozen bottom is kept, the window starts at the cache's cutoff and the
         # bottom is neither loaded nor computed; otherwise it runs and is kept.
         prefix, prefix_keys, kept = self._prefix_cache(micro_batches, passes, cut)
-        start = prefix.cutoff if kept is not None else 0
+        # Per micro-batch: the layer it resumes from (the cut when kept there, a lower level
+        # when kept at an older cut, 0 when new); the window loads nothing below the lowest.
+        starts = [0] * k
+        if prefix_keys is not None:
+            starts, kept = kept
+        start = min(starts)
         prefetcher = getattr(self.runtime, "prefetcher", None)
         if start and prefetcher is not None:
             prefetcher.prime_start = start
@@ -745,22 +750,24 @@ class L2LStep:
         pass_hidden: List[List[Any]] = []
         with torch.no_grad():
             hidden = []
-            if kept is not None:
-                hidden = kept
-            else:
-                for ids in micro_batches:
-                    if train_embedding:
-                        embedding_states.append(l2l_rng.snapshot())
-                    hidden.append(self.owner.embed_tokens(ids))
+            for mb, ids in enumerate(micro_batches):
+                if starts[mb]:
+                    hidden.append(kept[mb])
+                    continue
+                if train_embedding:
+                    embedding_states.append(l2l_rng.snapshot())
+                hidden.append(self.owner.embed_tokens(ids))
             for spec, ids in zip(passes, pass_ids):
                 with self._pass_adapters(spec):
                     pass_hidden.append([self.owner.embed_tokens(x) for x in ids])
             for idx, layer in enumerate(self.layers):
                 if idx < start:
                     continue
-                if prefix_keys is not None and kept is None and idx == prefix.cutoff:
-                    prefix.l2l_store(prefix_keys, hidden)
+                if prefix_keys is not None and idx == prefix.cutoff:
+                    prefix.l2l_store(prefix_keys, hidden, starts)
                 for mb in range(k):
+                    if idx < starts[mb]:
+                        continue  # this micro-batch resumes higher up
                     if idx >= cut:
                         store.put(idx, mb, hidden[mb])
                     pair = contexts.get((idx, mb))

@@ -44,7 +44,7 @@ import hashlib
 import logging
 import types
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,8 @@ class CacheStats:
     passthrough: int = 0
     l2l_hits: int = 0
     l2l_misses: int = 0
+    partial: int = 0  # batches / windows that started from an older, lower cut
+    l2l_partial: int = 0
 
     def to_json(self) -> Dict[str, int]:
         return dict(vars(self))
@@ -87,7 +89,8 @@ class _Batch:
 
     def reset(self) -> None:
         self.armed = False  # inside a training-mode decoder call
-        self.mode = "off"  # off | hit | miss
+        self.mode = "off"  # off | hit | partial | miss
+        self.start = 0  # the layer the bottom resumes from (cutoff on a hit, 0 on a miss)
         self.shape = None  # (B, T) the keys were made for
         self.keys: List[str] = []
         self.missing: List[int] = []
@@ -113,7 +116,10 @@ class PrefixCache:
             raise ValueError(f"prefix cache: cutoff {cutoff} outside 1..{n_layers - 1}")
         self.cutoff = int(cutoff)
         self.max_bytes = int(max_bytes)
+        #: key -> (level, tensor): the row's output of layer ``level - 1``. Raising the cut keeps
+        #: lower levels, which stay valid since the layers under them are still frozen.
         self.store: Dict[str, Any] = {}
+        self.patched = 0
         self.stats = CacheStats(cutoff=self.cutoff)
         self.batch = _Batch()
         self._handles: List[Any] = []
@@ -193,15 +199,39 @@ class PrefixCache:
         # bottom layers would act on a later call with another row's keys.
         self._handles.append(self.decoder.register_forward_hook(after_decoder, always_call=True))
         self._handles.append(self.decoder.embed_tokens.register_forward_pre_hook(on_embedding))
-        for idx in range(self.cutoff):
+        self._patch_to(self.cutoff)
+        setattr(self.decoder, OWNER_ATTR, self)
+        self._set_floor(self.cutoff)
+        return self
+
+    def _patch_to(self, cutoff: int) -> None:
+        for idx in range(self.patched, cutoff):
             layer = self.decoder.layers[idx]
             original = layer.forward
             self._originals.append((layer, vars(layer).get("forward")))
             layer.forward = types.MethodType(self._wrap(idx, original), layer)
-        setattr(self.decoder, OWNER_ATTR, self)
+        self.patched = max(self.patched, cutoff)
+
+    def _set_floor(self, idx: int) -> None:
         if self.prefetcher is not None and hasattr(self.prefetcher, "backward_floor"):
-            self.prefetcher.backward_floor = self.cutoff
-        return self
+            self.prefetcher.backward_floor = idx
+
+    def raise_cutoff(self, cutoff: int) -> None:
+        """Serve a higher cut. Kept rows of lower cuts stay: such a row resumes from its level,
+        and only the layers frozen since then run for it before it is kept at the new cut."""
+        if cutoff <= self.cutoff:
+            raise ValueError(f"prefix cache: new cutoff {cutoff} is not above {self.cutoff}")
+        if cutoff >= len(self.decoder.layers):
+            raise ValueError(f"prefix cache: cutoff {cutoff} leaves no layer above it")
+        self.cutoff = int(cutoff)
+        self._frozen = self._frozen_parameters()
+        self._check_frozen()
+        self._check_deterministic()
+        self._versions = tuple(p._version for p in self._frozen)
+        self._patch_to(self.cutoff)
+        self._set_floor(self.cutoff)
+        self.disarm()
+        self.stats = CacheStats(cutoff=self.cutoff, bytes_stored=self.stats.bytes_stored)
 
     def remove(self) -> None:
         for handle in self._handles:
@@ -216,8 +246,8 @@ class PrefixCache:
         if getattr(self.decoder, OWNER_ATTR, None) is self:
             delattr(self.decoder, OWNER_ATTR)
         self._set_prime_start(0)
-        if self.prefetcher is not None and hasattr(self.prefetcher, "backward_floor"):
-            self.prefetcher.backward_floor = 0
+        self._set_floor(0)
+        self.patched = 0
         self.store.clear()
         self.batch.reset()
 
@@ -251,14 +281,23 @@ class PrefixCache:
             return
         self._check_versions()
         batch.keys = keys
-        batch.missing = [i for i, k in enumerate(keys) if k not in self.store]
-        if batch.missing:
-            batch.mode = "miss"
-            self.stats.misses += 1
-        else:
-            batch.mode = "hit"
+        levels = [self.level(k) for k in keys]
+        batch.missing = [i for i, lv in enumerate(levels) if lv < self.cutoff]
+        if not batch.missing:
+            batch.mode, batch.start = "hit", self.cutoff
             self.stats.hits += 1
-            self._set_prime_start(self.cutoff)
+        elif len(set(levels)) == 1 and levels[0] > 0:
+            # every row kept at the same lower cut: resume from it
+            batch.mode, batch.start = "partial", levels[0]
+            self.stats.partial += 1
+        else:
+            batch.mode, batch.start = "miss", 0
+            self.stats.misses += 1
+        self._set_prime_start(batch.start)
+
+    def level(self, key: str) -> int:
+        entry = self.store.get(key)
+        return 0 if entry is None else entry[0]
 
     def _batch_keys(self, ids: Any, mask: Any, pos: Any) -> Optional[List[str]]:
         import torch
@@ -286,16 +325,17 @@ class PrefixCache:
 
     def _wrap(self, idx: int, original: Any) -> Any:
         cache = self
-        last = self.cutoff - 1
 
         def forward(layer_self: Any, hidden_states: Any, *args: Any, **kwargs: Any) -> Any:
             batch = cache.batch
-            if batch.armed and batch.mode == "hit":
+            if idx >= cache.cutoff:  # a layer that trains again only after a remove()
+                return original(hidden_states, *args, **kwargs)
+            if batch.armed and idx < batch.start:
                 if idx == 0:
                     return cache._kept(hidden_states)
                 return hidden_states
             out = original(hidden_states, *args, **kwargs)
-            if idx == last and batch.armed and batch.mode == "miss":
+            if idx == cache.cutoff - 1 and batch.armed and batch.mode in ("miss", "partial"):
                 out = cache._finish(out)
             return out
 
@@ -310,7 +350,7 @@ class PrefixCache:
                 f"prefix cache: layer 0 got hidden states of shape {tuple(hidden.shape)} for a "
                 f"batch looked up as {batch.shape}"
             )
-        rows = [self.store[k] for k in batch.keys]
+        rows = [self.store[k][1] for k in batch.keys]
         device = hidden.device
         non_blocking = device.type == "cuda"
         if batch.real is None:
@@ -338,7 +378,9 @@ class PrefixCache:
 
     def _keep(self, key: str, row: Any) -> None:
         size = row.numel() * row.element_size()
-        if self.stats.bytes_stored + size > self.max_bytes:
+        old = self.store.get(key)
+        freed = 0 if old is None else old[1].numel() * old[1].element_size()
+        if self.stats.bytes_stored - freed + size > self.max_bytes:
             self.stats.rows_not_stored += 1
             return
         kept = row.detach().to("cpu", copy=True)
@@ -347,9 +389,9 @@ class PrefixCache:
                 kept = kept.pin_memory()
             except RuntimeError:  # pinned RAM exhausted: keep it pageable
                 pass
-        self.store[key] = kept
+        self.store[key] = (self.cutoff, kept)
         self.stats.rows_stored += 1
-        self.stats.bytes_stored += size
+        self.stats.bytes_stored += size - freed
 
     # ---------------------------------------------------------- L2L path
 
@@ -364,22 +406,35 @@ class PrefixCache:
             keys.append(_row_key(ids.shape[1], ids[0].detach().to("cpu", torch.int64)))
         return keys
 
-    def l2l_lookup(self, keys: Sequence[str], device: Any) -> Optional[List[Any]]:
-        """The kept bottom output of every micro-batch (``[1, T, H]`` on ``device``), or None.
+    def l2l_starts(self, keys: Sequence[str], device: Any) -> Tuple[List[int], List[Any]]:
+        """Per micro-batch: the layer it resumes from and its kept tensor (``[1, T, H]``).
 
-        None unless every micro-batch is kept: a window either skips the bottom for all of its
-        micro-batches or computes it for all of them, since each layer is loaded once per window.
+        A micro-batch kept at the cut starts at the cut, one kept at a lower cut starts at that
+        level, a new one at layer 0 (its tensor is None). The window loads no layer below the
+        lowest start.
         """
         self._check_versions()
-        if any(k not in self.store for k in keys):
-            self.stats.l2l_misses += 1
-            return None
-        self.stats.l2l_hits += 1
+        starts, kept = [], []
         non_blocking = getattr(device, "type", str(device)) == "cuda"
-        return [self.store[k].to(device, non_blocking=non_blocking).unsqueeze(0) for k in keys]
+        for key in keys:
+            entry = self.store.get(key)
+            if entry is None:
+                starts.append(0)
+                kept.append(None)
+            else:
+                starts.append(entry[0])
+                kept.append(entry[1].to(device, non_blocking=non_blocking).unsqueeze(0))
+        if all(st == self.cutoff for st in starts):
+            self.stats.l2l_hits += 1
+        elif min(starts) > 0:
+            self.stats.l2l_partial += 1
+        else:
+            self.stats.l2l_misses += 1
+        return starts, kept
 
-    def l2l_store(self, keys: Sequence[str], hidden: Sequence[Any]) -> None:
-        """Keep each micro-batch's output of layer ``cutoff-1`` that is not kept yet."""
-        for key, h in zip(keys, hidden):
-            if key not in self.store:
+    def l2l_store(self, keys: Sequence[str], hidden: Sequence[Any],
+                  starts: Optional[Sequence[int]] = None) -> None:
+        """Keep each micro-batch's output of layer ``cutoff-1`` that is not kept at the cut."""
+        for i, (key, h) in enumerate(zip(keys, hidden)):
+            if (starts[i] if starts is not None else self.level(key)) < self.cutoff:
                 self._keep(key, h[0])
