@@ -33,6 +33,15 @@ pip uninstall -y torchao >/dev/null 2>&1
 python3 -c "import torch,triton;print('torch',torch.__version__,'triton',triton.__version__,torch.cuda.get_device_name(0))"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
 uptime; lscpu | grep -E "Model name|^CPU\(s\)"; df -hT "$WORK" | tail -1
+# lt-fused builds the exact-GEMM extension: the CUDA wheels must match torch's CUDA major (a
+# system toolkit of another major links the wrong cuBLASLt and segfaults). Pins: nvvm and crt
+# newer than nvcc make ptxas refuse the PTX.
+case " $STAGES " in *" lever-"*)
+  pip install -q "nvidia-cuda-nvcc==13.0.*" "nvidia-cuda-cccl==13.0.*" "nvidia-nvvm==13.0.*" \
+    "nvidia-cuda-crt==13.0.*" ninja
+  export CUDA_HOME=$(python3 -c "import nvidia,os;print(os.path.join(list(nvidia.__path__)[0],'cu13'))")
+  echo "CUDA_HOME=$CUDA_HOME" ;;
+esac
 # O_DIRECT silently falls back on overlayfs: say so before the clock runs.
 fs=$(df -T "$WORK" | tail -1 | awk '{print $2}')
 [ "$fs" = overlay ] && echo "WARNING: $WORK is on overlay; direct_io may fall back (the reports flag it)"

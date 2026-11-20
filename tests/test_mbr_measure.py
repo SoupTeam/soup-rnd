@@ -232,3 +232,81 @@ def test_markdown_table_has_one_line_per_arm_and_window_and_shows_oom() -> None:
     text = mm.markdown_table(table)
     assert "| C | 8 | 64 | 12.0 |" in text and "OOM" in text
     assert text.count("\n") >= 3
+
+
+# ---- lever arms (ticket 02): E = C + lt-fused, F = E + async_lease, G = F + fast_row_gather ----
+def test_lever_arms_stack_on_the_ordered_arm() -> None:
+    c = mm.arm_options("C", k=8)
+    for arm in ("E", "F", "G"):
+        assert mm.arm_options(arm, k=8) == c  # the step options are C's; the levers sit outside
+    assert mm.arm_runtime("C") == {"expert_gemm": "native", "async_lease": False,
+                                   "fast_row_gather": False}
+    assert mm.arm_runtime("E") == {"expert_gemm": "lt-fused", "async_lease": False,
+                                   "fast_row_gather": False}
+    assert mm.arm_runtime("F")["async_lease"] and not mm.arm_runtime("F")["fast_row_gather"]
+    assert mm.arm_runtime("G") == {"expert_gemm": "lt-fused", "async_lease": True,
+                                   "fast_row_gather": True}
+    assert mm.arm_runtime("A0") == mm.arm_runtime("B0") == mm.arm_runtime("C")
+
+
+def test_lever_speed_plan_is_symmetric_and_normal_mode() -> None:
+    plan = mm.lever_speed_plan(blocks=1)
+    assert len(plan) == 8 * len(mm.WINDOWS)
+    first = [p["arm"] for p in plan[:8]]
+    assert first == ["C", "E", "F", "G", "G", "F", "E", "C"]
+    assert all(p["kind"] == "speed" and not p["deterministic"] for p in plan)
+
+
+def test_lever_bit_plan_covers_a0_and_every_lever_in_deterministic_mode() -> None:
+    plan = mm.lever_bit_plan(seq=64)
+    assert {p["arm"] for p in plan} == {"A0", "C", "E", "F", "G"}
+    assert {p["k"] for p in plan} == set(mm.BIT_LADDER)
+    assert all(p["kind"] == "bits" and p["deterministic"] for p in plan)
+
+
+def _speed(arm: str, k: int, seq: int, step: float, nvml: int = 100, block: int = 0) -> dict:
+    return {"arm": arm, "k": k, "seq": seq, "kind": "speed", "status": "ok", "block": block,
+            "step_seconds": step, "peak_allocated": nvml, "peak_reserved": nvml,
+            "peak_nvml": nvml}
+
+
+def _gate_rows(gain: float, nvml_lever: int = 100, windows: int = 4) -> list:
+    rows = []
+    for k, seq in mm.WINDOWS[:windows]:
+        rows += [_speed("C", k, seq, 100.0), _speed("E", k, seq, 100.0 * (1 - gain), nvml_lever)]
+    return rows
+
+
+def test_a_lever_with_a_three_percent_gain_in_three_windows_passes_speed() -> None:
+    rows = _gate_rows(0.04, windows=3) + [_speed("C", 64, 512, 100.0), _speed("E", 64, 512, 101.0)]
+    gate = mm.lever_gate(rows, lever="E", previous="C")
+    assert gate["speed"]["windows_won"] == 3 and gate["speed"]["pass"] is True
+    assert gate["speed"]["t_test"] == "not computed (fewer than 5 blocks)"
+
+
+def test_two_winning_windows_fail_speed_unless_vram_needs_the_lever() -> None:
+    rows = _gate_rows(0.04, windows=2) + [_speed("C", 64, 64, 100.0), _speed("E", 64, 64, 100.0),
+                                          _speed("C", 64, 512, 100.0), _speed("E", 64, 512, 100.0)]
+    assert mm.lever_gate(rows, lever="E", previous="C")["speed"]["pass"] is False
+
+
+def test_vram_worse_in_one_window_fails_and_an_oom_relief_counts() -> None:
+    worse = _gate_rows(0.05, nvml_lever=101)
+    assert mm.lever_gate(worse, lever="E", previous="C")["vram"]["pass"] is False
+    rows = _gate_rows(0.05)
+    rows[-2] = {"arm": "C", "k": 64, "seq": 512, "kind": "speed", "status": "OOM",
+                "peak_allocated": 8, "peak_reserved": 8, "peak_nvml": 9, "block": 0}
+    gate = mm.lever_gate(rows, lever="E", previous="C")
+    assert gate["vram"]["pass"] is True and gate["vram"]["oom_relief"] == [(64, 512)]
+
+
+def test_bits_gate_follows_the_ladder_against_a0() -> None:
+    def bit(arm: str, k: int, sha: str) -> dict:
+        return {"arm": arm, "k": k, "seq": 64, "kind": "bits", "status": "ok",
+                "grad_sha256": sha, "loss": 1.0}
+
+    ok = [bit("A0", k, "x") for k in mm.BIT_LADDER] + [bit("E", k, "x") for k in mm.BIT_LADDER]
+    assert mm.lever_gate(ok, lever="E", previous="C")["bits"]["pass"] is True
+    broken = ok[:-1] + [bit("E", 8, "y")]
+    gate = mm.lever_gate(broken, lever="E", previous="C")
+    assert gate["bits"]["pass"] is False and gate["bits"]["differs_at"] == [8]

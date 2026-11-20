@@ -109,7 +109,8 @@ def main() -> int:
         else:
             extra = {"bits": ["--seq", "64"], "speed": ["--blocks",
                                                         os.environ.get("MBR_BLOCKS", "5")],
-                     "profile": []}[stage]
+                     "profile": [], "lever-bits": ["--seq", "64"],
+                     "lever-speed": ["--blocks", os.environ.get("MBR_BLOCKS", "1")]}[stage]
             if os.environ.get("MBR_DEADLINE_HOURS"):
                 extra += ["--deadline-hours", os.environ["MBR_DEADLINE_HOURS"]]
             REPORT["stages"][stage] = run([stage, "--out", str(OUT / stage), *common, *extra],

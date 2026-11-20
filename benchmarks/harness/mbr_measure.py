@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import statistics
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64), (64, 512))
 BIT_LADDER: Tuple[int, ...] = (1, 2, 4, 8)
@@ -98,16 +98,119 @@ def take_window(input_ids: Sequence[Sequence[int]], *, k: int) -> List[List[int]
 def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
     """``L2LStep.run`` keywords of an arm: A0 plain L2L, B0 route-preserving MBR, C B0 plus the
     ordered backward (the exact GEMM joins C with ticket 02)."""
-    if arm not in ("A0", "B0", "C"):
+    if arm not in ("A0", "B0", "C", *LEVER_ARMS):
         raise ValueError(f"unknown arm {arm!r}")
-    if arm not in arms_for(k=k):
+    if arm in ("A0", "B0", "C") and arm not in arms_for(k=k):
         raise ValueError(f"arm {arm} does not exist at k={k} (A0 only at k<={A0_MAX_K})")
     if arm == "A0":
         return {}
     options: Dict[str, Any] = {"route_preserving_mbr": True, "mbr_group_size": k}
-    if arm == "C":
+    if arm == "C" or arm in LEVER_ARMS:
         options["mbr_ordered_backward"] = True
     return options
+
+
+# Lever arms of ticket 02, each stacked on the one before: C is B0 plus the ordered backward, E
+# adds the exact expert GEMM (``lt-fused``), F the async lease, G the light row gathers. They run
+# the step options of C; the levers are switched outside ``L2LStep.run`` (``arm_runtime``).
+LEVER_ARMS: Dict[str, Dict[str, Any]] = {
+    "E": {"expert_gemm": "lt-fused", "async_lease": False, "fast_row_gather": False},
+    "F": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": False},
+    "G": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": True},
+}
+LEVER_PREVIOUS = {"E": "C", "F": "E", "G": "F"}
+LEVER_MIN_GAIN = 0.03
+LEVER_MIN_WINDOWS = 3
+LEVER_T_CRITICAL = 2.78  # two-sided 5% with 4 degrees of freedom (5 blocks)
+VRAM_TOLERANCE_BYTES = 64 * 2**20  # reserved and NVML wobble; allocated is compared exactly
+
+
+def arm_runtime(arm: str) -> Dict[str, Any]:
+    """The levers outside ``L2LStep.run``: expert GEMM mode, async lease, fast row gather."""
+    return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
+                                     "fast_row_gather": False}))
+
+
+def lever_speed_plan(*, blocks: int = 1) -> List[Dict[str, Any]]:
+    """Normal-mode runs C-E-F-G-G-F-E-C per window, block-major like ``speed_plan``."""
+    return [{"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
+             "deterministic": False}
+            for block in range(blocks) for k, seq in WINDOWS
+            for arm in ("C", "E", "F", "G", "G", "F", "E", "C")]
+
+
+def lever_bit_plan(*, seq: int) -> List[Dict[str, Any]]:
+    """Deterministic ladder k = 1, 2, 4, 8 for A0, C and every lever arm."""
+    return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits", "deterministic": True}
+            for k in BIT_LADDER for arm in ("A0", "C", *LEVER_ARMS)]
+
+
+def _vram_not_worse(lever: Dict[str, Any], previous: Dict[str, Any]) -> Optional[bool]:
+    """True/False for a comparable pair; None when the lever relieves an OOM of the previous."""
+    if previous["status"] != "ok" and lever["status"] == "ok":
+        return None
+    if lever["status"] != "ok" and previous["status"] == "ok":
+        return False
+    if (lever["peak_allocated"] or 0) > (previous["peak_allocated"] or 0):
+        return False
+    return all((lever[n] or 0) <= (previous[n] or 0) + VRAM_TOLERANCE_BYTES
+               for n in ("peak_reserved", "peak_nvml"))
+
+
+def _paired_t(gains: Sequence[float]) -> Optional[float]:
+    if len(gains) < 2:
+        return None
+    spread = statistics.stdev(gains)
+    if spread == 0:
+        return float("inf") if statistics.mean(gains) > 0 else 0.0
+    return statistics.mean(gains) / (spread / len(gains) ** 0.5)
+
+
+def lever_gate(rows: Sequence[Dict[str, Any]], *, lever: str, previous: str) -> Dict[str, Any]:
+    """The D1 gates of one lever against the arm before it: bits against A0 (ladder, deterministic
+    rows), peak VRAM in every window (an OOM of the previous arm that the lever removes counts as
+    a reason to take it), and speed (at least 3% in at least 3 of 4 windows; with 5 or more blocks
+    the paired t of the per-block gains must exceed 2.78 too)."""
+    bit_rows = [r for r in rows if r.get("kind") == "bits"]
+    verdicts = ladder_verdict(bit_rows)
+    differs = [k for k in BIT_LADDER if verdicts.get((k, lever)) != "equal"]
+    speed_rows = [r for r in rows if r.get("kind") == "speed"]
+    table = summarize_rows(speed_rows)
+    windows_won, relief, worse, detail = 0, [], [], {}
+    for k, seq in WINDOWS:
+        now, before = table.get((lever, k, seq)), table.get((previous, k, seq))
+        if now is None or before is None:
+            continue
+        verdict = _vram_not_worse(now, before)
+        if verdict is None:
+            relief.append((k, seq))
+        elif verdict is False:
+            worse.append((k, seq))
+        if now["step_seconds"] is None or before["step_seconds"] is None:
+            continue
+        gain = 1 - now["step_seconds"] / before["step_seconds"]
+        per_block: Dict[int, Dict[str, List[float]]] = {}
+        for r in speed_rows:
+            if (r["k"], r["seq"]) == (k, seq) and r.get("status") == "ok" \
+                    and r["arm"] in (lever, previous):
+                per_block.setdefault(r.get("block", 0), {}).setdefault(r["arm"], []).append(
+                    r["step_seconds"])
+        gains = [1 - statistics.median(v[lever]) / statistics.median(v[previous])
+                 for v in per_block.values() if lever in v and previous in v]
+        t_value = _paired_t(gains) if len(gains) >= 5 else None
+        won = gain >= LEVER_MIN_GAIN and (t_value is None or t_value > LEVER_T_CRITICAL)
+        windows_won += int(won)
+        detail[(k, seq)] = {"gain": gain, "t": t_value}
+    blocks = max((len({r.get("block", 0) for r in speed_rows if r["arm"] == lever}),), default=0)
+    vram_pass = not worse
+    return {
+        "bits": {"pass": not differs, "differs_at": differs},
+        "vram": {"pass": vram_pass, "worse_in": worse, "oom_relief": relief},
+        "speed": {"pass": windows_won >= LEVER_MIN_WINDOWS or (vram_pass and bool(relief)),
+                  "windows_won": windows_won, "windows": detail,
+                  "needed_for_vram": bool(relief) and windows_won < LEVER_MIN_WINDOWS,
+                  "t_test": "not computed (fewer than 5 blocks)" if blocks < 5 else "computed"},
+    }
 
 
 def speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
@@ -324,7 +427,24 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 "peak_nvml": sampler.peak if cuda else None,
                 "peak_ram": b5_real_moe._peak_rss()}
 
+    runtime_levers = arm_runtime(args.arm)
+
     def work() -> Dict[str, Any]:
+        from contextlib import ExitStack
+
+        from benchmarks.harness.p72_invariant_expert_gemm import (
+            async_lease_context,
+            fast_row_gather_context,
+        )
+        from soup_cli.utils.expert_gemm import expert_gemm_context
+
+        with ExitStack() as levers:  # entered before the model is built: the class defaults
+            levers.enter_context(fast_row_gather_context(runtime_levers["fast_row_gather"]))
+            levers.enter_context(async_lease_context(runtime_levers["async_lease"]))
+            levers.enter_context(expert_gemm_context(runtime_levers["expert_gemm"]))
+            return build_and_run()
+
+    def build_and_run() -> Dict[str, Any]:
         index = read_shard_index(args.cache)
         lora = LoraConfig(r=args.lora_r, lora_alpha=2 * args.lora_r, lora_dropout=0.0,
                           bias="none", target_modules=["q_proj", "kv_b_proj", "o_proj"],
@@ -363,7 +483,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                      for n, p in sorted(params.items()) if p.grad is not None}
             out: Dict[str, Any] = {
                 "step_seconds": median_after_warmup(seconds), "all_step_seconds": seconds,
-                "loss": float(sum(float(x) for x in losses)),
+                "loss": float(sum(float(x) for x in losses)), "levers": runtime_levers,
                 "grad_sha256": grad_digest(grads), "vram_limit_gib": vram_limit or None,
                 "direct_io": direct_io_record(
                     requested=True,
@@ -476,7 +596,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
 
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "speed", "bits", "profile"):
+    for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -496,22 +616,29 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--deterministic", action="store_true")
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
-        if name == "speed":
-            p.add_argument("--blocks", type=int, default=5)
-        if name == "bits":
+        if name in ("speed", "lever-speed"):
+            p.add_argument("--blocks", type=int, default=5 if name == "speed" else 1)
+        if name in ("bits", "lever-bits"):
             p.add_argument("--seq", type=int, default=64)
     args = parser.parse_args(argv)
     if args.command == "run":
         print(json.dumps(run_one(args)))
         return 0
     plan = {"speed": lambda: speed_plan(blocks=args.blocks),
-            "bits": lambda: bit_plan(seq=args.seq), "profile": profile_plan}[args.command]()
+            "bits": lambda: bit_plan(seq=args.seq), "profile": profile_plan,
+            "lever-speed": lambda: lever_speed_plan(blocks=args.blocks),
+            "lever-bits": lambda: lever_bit_plan(seq=args.seq)}[args.command]()
     rows = sweep(args, plan)
     (Path(args.out) / "summary.md").write_text(markdown_table(summarize_rows(rows)),
                                                  encoding="utf-8")
-    if args.command == "bits":
+    if args.command in ("bits", "lever-bits"):
         for (k, arm), verdict in sorted(ladder_verdict(rows).items()):
             print(f"k={k} {arm}: {verdict}")
+    if args.command.startswith("lever-"):
+        gates = {lever: lever_gate(rows, lever=lever, previous=before)
+                 for lever, before in LEVER_PREVIOUS.items()}
+        (Path(args.out) / "gates.json").write_text(
+            json.dumps(gates, indent=2, default=str), encoding="utf-8")
     return 0
 
 
