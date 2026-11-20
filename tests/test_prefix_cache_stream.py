@@ -271,3 +271,49 @@ def test_progressive_freeze_with_cache_through_the_trainer(tmp_path, monkeypatch
     assert stats["cutoff"] == CUTOFF
     served = stats["l2l_hits"] if l2l else stats["hits"]
     assert served >= 2, stats
+
+
+def test_l2l_captures_of_other_rows_never_corrupt_the_cache(tmp_path, monkeypatch):
+    """The L2L trainer captures layer calls per micro-batch shape: a decoder forward in training
+    mode that capture_layer_call stops early with an exception. That forward must not leave the
+    cache armed with its row's keys (the Kaggle failure: a later window stored another row's
+    output under the captured row's key, then a hit returned a tensor of the wrong length)."""
+    import torch
+
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+    from soup_cli.utils.prefix_cache import PrefixCache
+
+    hermetic_ram(monkeypatch, tmp_path)
+    gen = torch.Generator().manual_seed(9)
+    rows = [torch.randint(0, 64, (1, n), generator=gen) for n in (5, 8, 6, 7)]
+    windows = [rows[0:2], rows[2:4]]
+    probe = torch.randint(0, 64, (1, 4), generator=gen)  # a row no window holds
+
+    def train(cache, name):
+        harness = _load("l2l_schedule")
+        model, runtime = _streamed(tmp_path, name)
+        try:
+            pc = PrefixCache(model, CUTOFF, 1 << 30).install() if cache else None
+            opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=1e-2)
+            losses = []
+            for _ in range(EPOCHS):
+                for mbs in windows:
+                    capture_layer_call(model, probe)  # an interrupted training-mode forward
+                    calls = [capture_layer_call(model, mb) for mb in mbs]
+                    step = L2LStep(model, runtime, calls[0])
+                    harness.zero_grads(model)
+                    losses.extend(step.run(mbs, _store(2), calls=calls))
+                    opt.step()
+                    opt.zero_grad(set_to_none=True)
+            return losses, _adapters(model), pc
+        finally:
+            runtime.close()
+
+    plain, plain_state, _ = train(False, "g")
+    cached, state, pc = train(True, "h")
+    assert all(torch.equal(a, b) for a, b in zip(plain, cached))
+    assert all(torch.equal(state[n], plain_state[n]) for n in state)
+    # The captures run the bottom too, so they keep every window row (and the probe) before the
+    # first window: then every window, from epoch 1 on, reads the cache.
+    assert pc.stats.rows_stored == 5
+    assert (pc.stats.l2l_hits, pc.stats.l2l_misses) == (2 * EPOCHS, 0)

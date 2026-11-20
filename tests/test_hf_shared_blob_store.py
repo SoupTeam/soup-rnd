@@ -175,3 +175,31 @@ def test_symlinked_store_directory_is_not_trusted(tmp_path, monkeypatch) -> None
     with pytest.raises(ValueError, match="outside the Hugging Face blob store"):
         materialize_model_weights(plan)
     assert not os.path.lexists(plan.weights_dir)
+
+
+@pytest.mark.requires_symlink
+def test_concurrent_materialization_uses_the_winners_copy(tmp_path, monkeypatch) -> None:
+    """Two `soup train` runs started together: the second rename finds the target the first
+    one just made (ENOTEMPTY). The matching copy is used and the loser's staging removed."""
+    from soup_cli.utils import spectrum_scan
+    from soup_cli.utils.spectrum_scan import materialize_model_weights, plan_model_weights
+
+    snapshot, shared = _shared_store_snapshot(tmp_path)
+    _use_snapshot(monkeypatch, tmp_path, snapshot)
+    plan = plan_model_weights("org/model")
+    real_replace = os.replace
+    raced = []
+
+    def racing(src, dst):
+        if not raced:
+            raced.append(dst)
+            materialize_model_weights(plan)  # the other process finishes first
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(spectrum_scan.os, "replace", racing)
+    resolved = Path(materialize_model_weights(plan))
+
+    assert raced and resolved == Path(plan.weights_dir)
+    assert (resolved / "model.safetensors").read_bytes() == shared.read_bytes()
+    leftovers = [p for p in resolved.parent.iterdir() if p.name.startswith(".")]
+    assert leftovers == []

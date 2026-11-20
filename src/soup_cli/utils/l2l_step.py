@@ -548,7 +548,11 @@ class L2LStep:
         from soup_cli.utils.prefix_cache import OWNER_ATTR
 
         cache = getattr(self.owner, OWNER_ATTR, None)
-        if cache is None or passes or cache.cutoff > cut:
+        if cache is None:
+            return None, None, None
+        # The step calls the layers itself; the decoder-call path of the cache must be inert.
+        cache.disarm()
+        if passes or cache.cutoff > cut:
             return None, None, None
         keys = cache.l2l_keys(micro_batches)
         if keys is None:

@@ -26,6 +26,7 @@ them. LISA (per-step layer sampling) is split to #267.
 """
 from __future__ import annotations
 
+import errno
 import json
 import logging
 import math
@@ -878,7 +879,20 @@ def _materialize_cached_snapshot(plan: ModelWeightsPlan) -> str:
             shutil.rmtree(target)
         elif os.path.lexists(target):
             raise ValueError("materialized weights path must be a directory")
-        os.replace(staging, target)
+        try:
+            os.replace(staging, target)
+        except OSError as exc:
+            # Another process (two `soup train` runs started together on one host)
+            # materialized the same snapshot between the check above and the rename. Its
+            # copy is used when it matches; this one's staging is removed below.
+            if exc.errno not in (errno.ENOTEMPTY, errno.EEXIST) or not os.path.isdir(target):
+                raise
+            if _materialized_matches_hf_snapshot(
+                plan.source_dir, target, plan.source_files,
+                source_revision=plan.source_revision,
+            ) is None:
+                raise
+            return target
         staging = ""
         return target
     finally:

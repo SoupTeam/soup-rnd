@@ -182,14 +182,16 @@ class PrefixCache:
             self._decide(module, ids, kwargs)
 
         def after_decoder(*_args: Any) -> None:
-            self.batch.reset()
-            self._set_prime_start(0)
+            self.disarm()
 
         # Prepended: on a streamed model it must decide before the runtime's own pre-hook
         # primes the first weight load.
         self._handles.append(self.decoder.register_forward_pre_hook(
             on_decoder, with_kwargs=True, prepend=True))
-        self._handles.append(self.decoder.register_forward_hook(after_decoder))
+        # always_call: a forward cut short by an exception (L2L's capture_layer_call stops the
+        # decoder once it has seen every layer type) must not leave the batch armed, or the
+        # bottom layers would act on a later call with another row's keys.
+        self._handles.append(self.decoder.register_forward_hook(after_decoder, always_call=True))
         self._handles.append(self.decoder.embed_tokens.register_forward_pre_hook(on_embedding))
         for idx in range(self.cutoff):
             layer = self.decoder.layers[idx]
@@ -218,6 +220,11 @@ class PrefixCache:
             self.prefetcher.backward_floor = 0
         self.store.clear()
         self.batch.reset()
+
+    def disarm(self) -> None:
+        """Forget the current decoder call: the bottom layers run plainly until the next one."""
+        self.batch.reset()
+        self._set_prime_start(0)
 
     def _set_prime_start(self, idx: int) -> None:
         if self.prefetcher is not None and hasattr(self.prefetcher, "prime_start"):
@@ -316,6 +323,11 @@ class PrefixCache:
     def _finish(self, out: Any) -> Any:
         """Zero the padding of a computed bottom output and keep its missing rows."""
         batch = self.batch
+        if tuple(out.shape[:2]) != batch.shape:
+            raise RuntimeError(
+                f"prefix cache: layer {self.cutoff - 1} returned shape {tuple(out.shape)} for a "
+                f"batch looked up as {batch.shape}; nothing is kept"
+            )
         real = batch.real
         if real is not None:
             out = out.masked_fill(~real.to(out.device).unsqueeze(-1), 0)
