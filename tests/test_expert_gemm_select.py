@@ -128,3 +128,20 @@ def test_detect_environment_reports_this_machine() -> None:
     assert found.torch_version == torch.__version__
     assert found.cuda_available == torch.cuda.is_available()
     assert (found.capability is not None) == found.cuda_available
+
+
+def test_a_failed_kernels_build_is_an_error_under_strict_and_a_fallback_otherwise(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from soup_cli.utils import a0_exact_lt
+
+    def build(load: Any, inc: Any, ld: Any, verbose: Any, with_kernels: bool) -> Any:
+        if with_kernels:
+            raise RuntimeError("nvcc failed")
+        return "aten-only"
+
+    monkeypatch.setattr(a0_exact_lt, "_cuda_paths", lambda: ([], []))
+    monkeypatch.setattr(a0_exact_lt, "_build", build)
+    with pytest.raises(RuntimeError, match="nvcc failed"):
+        a0_exact_lt.load_extension(strict=True)
+    assert a0_exact_lt.load_extension().module == "aten-only"

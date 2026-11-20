@@ -354,10 +354,13 @@ _KERNELS_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "a0_exact_lt_kernels.cu")
 
 
-def load_extension(verbose: bool = False, kernels: bool = True) -> LtExtensionBackend:
+def load_extension(
+    verbose: bool = False, kernels: bool = True, strict: bool = False
+) -> LtExtensionBackend:
     """JIT-build the extension (CUDA only; needs cublasLt headers). With ``kernels`` the
     elementwise CUDA kernels of the fused expert are built too (needs nvcc, from CUDA_HOME or
-    the ``nvidia-cuda-nvcc`` wheel); when that build fails the ATen-only extension is used."""
+    the ``nvidia-cuda-nvcc`` wheel); when that build fails the ATen-only extension is used, unless ``strict``
+    (then the build error is raised: ``lt-fused`` needs the kernels and must not run without them)."""
     from torch.utils.cpp_extension import load
 
     include_paths, ldflags = _cuda_paths()
@@ -366,6 +369,8 @@ def load_extension(verbose: bool = False, kernels: bool = True) -> LtExtensionBa
             module = _build(load, include_paths, ldflags, verbose, with_kernels=True)
             return LtExtensionBackend(module)
         except Exception as exc:  # noqa: BLE001 - nvcc missing or a build error: say so, fall back
+            if strict:
+                raise
             from rich.console import Console
 
             Console(stderr=True).out(

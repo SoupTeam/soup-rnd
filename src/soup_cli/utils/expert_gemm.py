@@ -418,7 +418,7 @@ def lt_fused_expert_gemm(
     if backend is None:  # the real extension: refuse before building anything
         require_lt_fused()
     fused = a0_exact_lt.FusedExpert(
-        backend if backend is not None else a0_exact_lt.load_extension(), require_cuda)
+        backend if backend is not None else a0_exact_lt.load_extension(strict=True), require_cuda)
     if streams != 1:
         fused.backend.set_streams(streams)
     state = LtMergedState(table=fused.table)
