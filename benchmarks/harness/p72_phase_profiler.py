@@ -38,10 +38,13 @@ class _Frame:
 
 
 class PhaseClock:
-    def __init__(self, device: str = "cpu") -> None:
+    """``now`` is the time source (``time.perf_counter``); tests pass a clock they move by hand."""
+
+    def __init__(self, device: str = "cpu", now: Callable[[], float] = time.perf_counter) -> None:
         import torch
 
         self._torch = torch
+        self._now = now
         self.cuda = str(device).startswith("cuda")
         self.main = threading.get_ident()
         self.stage = "fwd"
@@ -77,7 +80,7 @@ class PhaseClock:
         if not self._accepts():
             return None
         self._sync()
-        now = time.perf_counter()
+        now = self._now()
         with self._lock:
             if self._stack:
                 top = self._stack[-1]
@@ -90,7 +93,7 @@ class PhaseClock:
         if frame is None:
             return
         self._sync()
-        now = time.perf_counter()
+        now = self._now()
         with self._lock:
             if not self._stack or self._stack[-1] is not frame:
                 raise RuntimeError(f"phase frame {frame.label!r} closed out of order")
@@ -107,11 +110,11 @@ class PhaseClock:
     def frame(self, label: str) -> Iterator[None]:
         handle = self.push(label)
         if handle is None:
-            start = time.perf_counter()
+            start = self._now()
             try:
                 yield
             finally:
-                self.background[label] += time.perf_counter() - start
+                self.background[label] += self._now() - start
             return
         try:
             yield

@@ -14,29 +14,44 @@ from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 TINY = ["--blocks", "1", "--warmup", "1", "--kinds", "mbr", "--max-unattributed", "0.2"]
 
 
+class ManualTime:
+    """A clock that only moves when a test says so: no sleep, so a slow runner cannot stretch it."""
+
+    def __init__(self) -> None:
+        self.value = 0.0
+
+    def __call__(self) -> float:
+        return self.value
+
+    def advance(self, seconds: float) -> None:
+        self.value += seconds
+
+
 def test_clock_charges_each_phase_only_its_own_time():
-    clock = profiler.PhaseClock("cpu")
+    ticks = ManualTime()
+    clock = profiler.PhaseClock("cpu", now=ticks)
     with clock.run():
-        time.sleep(0.01)
+        ticks.advance(0.01)
         with clock.frame("outer"):
-            time.sleep(0.01)
+            ticks.advance(0.01)
             with clock.frame("inner"):
-                time.sleep(0.03)
-    assert clock.totals["inner"] == pytest.approx(0.03, abs=0.015)
-    assert clock.totals["outer"] == pytest.approx(0.01, abs=0.015)
-    assert clock.totals[profiler.ROOT] == pytest.approx(0.01, abs=0.015)
+                ticks.advance(0.03)
+    assert clock.totals["inner"] == pytest.approx(0.03)
+    assert clock.totals["outer"] == pytest.approx(0.01)
+    assert clock.totals[profiler.ROOT] == pytest.approx(0.01)
     assert clock.counts["inner"] == 1
 
 
 def test_worker_thread_frames_nest_under_a_blocked_autograd_backward():
     import threading
 
-    clock = profiler.PhaseClock("cpu")
+    ticks = ManualTime()
+    clock = profiler.PhaseClock("cpu", now=ticks)
 
     def worker():
         with clock.frame("load"):
             with clock.frame("disk_read"):
-                time.sleep(0.02)
+                ticks.advance(0.02)
 
     with clock.run():
         with clock.frame("bwd/autograd_backward"):
@@ -44,8 +59,26 @@ def test_worker_thread_frames_nest_under_a_blocked_autograd_backward():
             thread.start()
             thread.join()
     assert clock.counts["disk_read"] == 1
-    assert clock.totals["disk_read"] == pytest.approx(0.02, abs=0.015)
+    assert clock.totals["disk_read"] == pytest.approx(0.02)
     assert not clock.background
+
+
+def test_background_frames_use_the_injected_clock_too():
+    import threading
+
+    ticks = ManualTime()
+    clock = profiler.PhaseClock("cpu", now=ticks)
+
+    def prefetch():
+        with clock.frame("read"):
+            ticks.advance(0.04)
+
+    with clock.run():
+        thread = threading.Thread(target=prefetch, name="expert-prefetch_0")
+        thread.start()
+        thread.join()
+    assert clock.background["read"] == pytest.approx(0.04)
+    assert "read" not in clock.totals
 
 
 def test_worker_thread_frames_outside_autograd_stay_in_background():
