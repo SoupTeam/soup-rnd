@@ -115,6 +115,6 @@ $$T_{\text{step}} \approx \max\!\left(\frac{D_{\text{fwd}}}{B_{\text{disk}}},\, 
 
 ## 5. Следующие шаги в коде (перед запуском Gate 1–2)
 
-1. В `_native_expert_async/native_stream_async.cpp`: добавить `O_DIRECT` с выравниванием `STATX_DIOALIGN` (`4096 B`), поддержку `double-quant` NF4 (`4.125 bpw`) и опциональный `--shard-roots` на 2 NVMe.
-2. Запустить 15-минутный микробенч `7168×2048` (`M=128, 1024`) на RTX 4060 Ti: проверить `IQ3_XXS/Q3_K` декодер, реальные TFLOPS и точность `dX` у `sm_89` FP8 (`torch._scaled_mm`, `fast_accum` True vs False).
-3. Снять пофазный профиль `R1` / `E-Bwd` / `R2` в `l2l_step.py`, добавить `--lora-start-layer` + `--prefix-boundary-cache` и прогнать Gate 1 + Gate 2 в `cgroup 32 GiB (swap=0)` на физическом NVMe.
+1. В `expert_shard.py` (`ExpertShardReader._open`) и `_native_expert_async/native_stream_async.cpp`: `O_DIRECT` уже проложен до C++, но тихо откатывается в buffered при `OSError` — добавить строгую проверку `direct=True` (без тихого отката на целевом `ext4/xfs` bind-mount), поддержку `double-quant` NF4 (`4.125 bpw`) и опциональный `--shard-roots` на 2 NVMe.
+2. Запустить пофазный профиль `Fwd / R1 / E-Bwd / R2` на Kanana `k=64, S=512` и 15-минутный микробенч `7168×2048` (`M=1, 2, 3, 128, 1024`) на RTX 4060 Ti: проверить `IQ3_XXS/Q3_K` декодер и `sm_89` FP8 GEMM (сначала `E4M3` + FP32-acc на `Triton 3.2+`, затем `FP16-acc` на `Triton 3.5+ / CUDA 12.8+`).
+3. Добавить `--lora-start-layer` + `--prefix-boundary-cache` в `l2l_step.py` и прогнать Gate 1 + Gate 2 в `cgroup 32 GiB (swap=0)` на физическом NVMe (подробный план следующих экспериментов см. в `reports/deepseek-p3-next-wave-research-2026-11-20.md`).
