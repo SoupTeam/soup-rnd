@@ -359,8 +359,8 @@ def load_extension(
 ) -> LtExtensionBackend:
     """JIT-build the extension (CUDA only; needs cublasLt headers). With ``kernels`` the
     elementwise CUDA kernels of the fused expert are built too (needs nvcc, from CUDA_HOME or
-    the ``nvidia-cuda-nvcc`` wheel); when that build fails the ATen-only extension is used, unless ``strict``
-    (then the build error is raised: ``lt-fused`` needs the kernels and must not run without them)."""
+    the ``nvidia-cuda-nvcc`` wheel). When that build fails the ATen-only extension is used, unless ``strict``: then
+    the build error is raised, because ``lt-fused`` must not run without the kernels."""
     from torch.utils.cpp_extension import load
 
     include_paths, ldflags = _cuda_paths()
