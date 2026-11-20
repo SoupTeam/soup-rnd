@@ -1,0 +1,162 @@
+[W1119 12:43:45.208272731 Context.cpp:629] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+torch 2.14.1+cu130 cuda 13.0 gpu NVIDIA GeForce RTX 3060
+
+== A. torch preferred_blas_library cublaslt vs cublas (A0)
+[fwd_gate_up] Lt == A0: 49/64; mismatched M: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+[fwd_down] Lt == A0: 49/64; mismatched M: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+[bwd_down] Lt == A0: 59/64; mismatched M: [1, 44, 45, 46, 64]
+[bwd_gate_up] Lt == A0: 26/64; mismatched M: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 35, 36, 37, 38]
+
+== B. nvmath-python: which heuristic algo reproduces A0
+nvmath 1.0.1
+libcublas mapped: ['/root/venv/lib/python3.12/site-packages/nvidia/cu13/lib/libcublas.so.13', '/root/venv/lib/python3.12/site-packages/nvidia/cu13/lib/libcublasLt.so.13']
+[fwd_gate_up/col] M with an A0-exact heuristic algo: 37/64, distinct configs: 6
+    {'tile': 'UNDEFINED', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '11', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(32, 32)', 'stages': '(128, 1)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 18..38 (9)
+    {'tile': '(64, 128)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 24..40 (3)
+    {'tile': '(64, 64)', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 41..63 (12)
+    {'tile': '(64, 128)', 'stages': '(64, 3)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 42..62 (9)
+    {'tile': '(64, 128)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 48..64 (3)
+[fwd_gate_up/row] M with an A0-exact heuristic algo: 64/64, distinct configs: 6
+    {'tile': 'UNDEFINED', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '11', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(64, 64)', 'stages': '(64, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 2..16 (15)
+    {'tile': '(128, 64)', 'stages': '(64, 3)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 17..63 (16)
+    {'tile': '(128, 64)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 22..62 (14)
+    {'tile': '(128, 64)', 'stages': '(64, 3)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 41..57 (10)
+    {'tile': '(128, 64)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 48..64 (8)
+[fwd_down/col] M with an A0-exact heuristic algo: 45/64, distinct configs: 7
+    {'tile': 'UNDEFINED', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '13', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(32, 32)', 'stages': '(128, 1)', 'split_k': '2', 'reduction_scheme': '1', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 2..4 (2)
+    {'tile': '(32, 32)', 'stages': '(128, 1)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 6..38 (13)
+    {'tile': '(64, 64)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 8..64 (4)
+    {'tile': '(64, 128)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 16..40 (4)
+    {'tile': '(64, 64)', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 41..63 (12)
+    {'tile': '(64, 128)', 'stages': '(64, 3)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 42..62 (9)
+[fwd_down/row] M with an A0-exact heuristic algo: 64/64, distinct configs: 5
+    {'tile': 'UNDEFINED', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '13', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(64, 64)', 'stages': '(64, 5)', 'split_k': '2', 'reduction_scheme': '1', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 2..4 (3)
+    {'tile': '(16, 16)', 'stages': '(128, 2)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 5..16 (12)
+    {'tile': '(128, 64)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 17..35 (19)
+    {'tile': '(128, 64)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 36..64 (29)
+[bwd_down/col] M with an A0-exact heuristic algo: 7/64, distinct configs: 5
+    {'tile': '(16, 16)', 'stages': '(128, 2)', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(64, 64)', 'stages': '(64, 5)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 32..40 (2)
+    {'tile': '(32, 32)', 'stages': '(128, 2)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 44..46 (2)
+    {'tile': '(64, 64)', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 45..45 (1)
+    {'tile': '(128, 128)', 'stages': '(32, 1)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 64..64 (1)
+[bwd_down/row] M with an A0-exact heuristic algo: 64/64, distinct configs: 4
+    {'tile': '(16, 16)', 'stages': '(128, 2)', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(64, 64)', 'stages': '(64, 5)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 2..64 (28)
+    {'tile': '(64, 64)', 'stages': '(64, 5)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 16..63 (16)
+    {'tile': '(64, 64)', 'stages': '(64, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 17..35 (19)
+[bwd_gate_up/col] M with an A0-exact heuristic algo: 40/64, distinct configs: 11
+    {'tile': '(16, 16)', 'stages': '(128, 2)', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(32, 32)', 'stages': '(128, 1)', 'split_k': '2', 'reduction_scheme': '1', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 2..14 (7)
+    {'tile': '(64, 64)', 'stages': '(32, 6)', 'split_k': '2', 'reduction_scheme': '1', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 16..16 (1)
+    {'tile': '(32, 32)', 'stages': '(128, 1)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 18..34 (7)
+    {'tile': '(64, 128)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 24..32 (2)
+    {'tile': '(64, 64)', 'stages': 'UNDEFINED', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 35..39 (3)
+    {'tile': '(64, 64)', 'stages': '(32, 6)', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 36..40 (3)
+    {'tile': '(128, 256)', 'stages': 'UNDEFINED', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 41..55 (8)
+    {'tile': '(64, 64)', 'stages': 'UNDEFINED', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 57..63 (4)
+    {'tile': '(64, 128)', 'stages': '(64, 3)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 58..62 (3)
+    {'tile': '(64, 128)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 64..64 (1)
+[bwd_gate_up/row] M with an A0-exact heuristic algo: 64/64, distinct configs: 5
+    {'tile': '(16, 16)', 'stages': '(128, 2)', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 1..1 (1)
+    {'tile': '(64, 64)', 'stages': '(64, 5)', 'split_k': '2', 'reduction_scheme': '1', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 2..16 (15)
+    {'tile': '(128, 64)', 'stages': '(64, 4)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '1', 'custom_option': '0', 'inner_shape': '0'}: M 17..34 (18)
+    {'tile': '(256, 64)', 'stages': '(32, 4)', 'split_k': '3', 'reduction_scheme': '4', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 35..56 (22)
+    {'tile': '(128, 64)', 'stages': '(32, 6)', 'split_k': '1', 'reduction_scheme': '0', 'cta_swizzling': '0', 'custom_option': '0', 'inner_shape': '0'}: M 57..64 (8)
+libcublas mapped after nvmath: ['/root/venv/lib/python3.12/site-packages/nvidia/cu13/lib/libcublas.so.13', '/root/venv/lib/python3.12/site-packages/nvidia/cu13/lib/libcublasLt.so.13']
+
+== C. T3: one forced-algo call per class on concatenated rows vs A0 per segment
+[fwd_gate_up/col] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]: skipped (no A0-exact algo for some M)
+    [3, 7, 12, 5, 9, 1, 15, 4]: skipped (no A0-exact algo for some M)
+    [8, 8, 8, 8, 8, 8]: skipped (no A0-exact algo for some M)
+    [32, 64, 4, 1, 2, 8, 6]: skipped (no A0-exact algo for some M)
+    [64, 32, 48, 2, 6, 3, 12]: skipped (no A0-exact algo for some M)
+    [8, 1, 2, 1, 32]: skipped (no A0-exact algo for some M)
+    [12, 32, 2, 64]: skipped (no A0-exact algo for some M)
+    [24, 32, 12, 64, 1, 2, 1, 24]: skipped (no A0-exact algo for some M)
+    [64, 48, 16, 3]: skipped (no A0-exact algo for some M)
+[fwd_gate_up/row] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]      buckets 5 equal True | B0s 0.359 ms, lever 0.266 ms, B0 0.151 ms
+    [3, 7, 12, 5, 9, 1, 15, 4]         buckets 2 equal True | B0s 0.376 ms, lever 0.109 ms, B0 0.045 ms
+    [8, 8, 8, 8, 8, 8]                 buckets 1 equal True | B0s 0.289 ms, lever 0.055 ms, B0 0.044 ms
+    [32, 64, 4, 1, 2, 8, 6]            buckets 4 equal True | B0s 0.318 ms, lever 0.215 ms, B0 0.081 ms
+    [64, 32, 48, 2, 6, 3, 12]          buckets 3 equal True | B0s 0.325 ms, lever 0.173 ms, B0 0.126 ms
+    [8, 1, 2, 1, 32]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [12, 32, 2, 64]                    buckets 3 equal True | B0s 0.184 ms, lever 0.162 ms, B0 0.081 ms
+    [24, 32, 12, 64, 1, 2, 1, 24]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [64, 48, 16, 3]                    buckets 2 equal True | B0s 0.185 ms, lever 0.129 ms, B0 0.125 ms
+[fwd_down/col] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]: skipped (no A0-exact algo for some M)
+    [3, 7, 12, 5, 9, 1, 15, 4]: skipped (no A0-exact algo for some M)
+    [8, 8, 8, 8, 8, 8]                 buckets 1 equal True | B0s 0.131 ms, lever 0.056 ms, B0 0.031 ms
+    [32, 64, 4, 1, 2, 8, 6]            buckets 5 equal True | B0s 0.190 ms, lever 0.277 ms, B0 0.071 ms
+    [64, 32, 48, 2, 6, 3, 12]: skipped (no A0-exact algo for some M)
+    [8, 1, 2, 1, 32]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [12, 32, 2, 64]                    buckets 4 equal True | B0s 0.113 ms, lever 0.223 ms, B0 0.070 ms
+    [24, 32, 12, 64, 1, 2, 1, 24]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [64, 48, 16, 3]: skipped (no A0-exact algo for some M)
+[fwd_down/row] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]      buckets 5 equal True | B0s 0.219 ms, lever 0.271 ms, B0 0.081 ms
+    [3, 7, 12, 5, 9, 1, 15, 4]         buckets 3 equal True | B0s 0.195 ms, lever 0.166 ms, B0 0.030 ms
+    [8, 8, 8, 8, 8, 8]                 buckets 1 equal True | B0s 0.130 ms, lever 0.055 ms, B0 0.030 ms
+    [32, 64, 4, 1, 2, 8, 6]            buckets 5 equal True | B0s 0.190 ms, lever 0.272 ms, B0 0.071 ms
+    [64, 32, 48, 2, 6, 3, 12]          buckets 4 equal True | B0s 0.195 ms, lever 0.220 ms, B0 0.081 ms
+    [8, 1, 2, 1, 32]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [12, 32, 2, 64]                    buckets 4 equal True | B0s 0.113 ms, lever 0.220 ms, B0 0.070 ms
+    [24, 32, 12, 64, 1, 2, 1, 24]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [64, 48, 16, 3]                    buckets 3 equal True | B0s 0.113 ms, lever 0.167 ms, B0 0.123 ms
+[bwd_down/col] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]: skipped (no A0-exact algo for some M)
+    [3, 7, 12, 5, 9, 1, 15, 4]: skipped (no A0-exact algo for some M)
+    [8, 8, 8, 8, 8, 8]: skipped (no A0-exact algo for some M)
+    [32, 64, 4, 1, 2, 8, 6]: skipped (no A0-exact algo for some M)
+    [64, 32, 48, 2, 6, 3, 12]: skipped (no A0-exact algo for some M)
+    [8, 1, 2, 1, 32]: skipped (no A0-exact algo for some M)
+    [12, 32, 2, 64]: skipped (no A0-exact algo for some M)
+    [24, 32, 12, 64, 1, 2, 1, 24]: skipped (no A0-exact algo for some M)
+    [64, 48, 16, 3]: skipped (no A0-exact algo for some M)
+[bwd_down/row] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]      buckets 4 equal False | B0s 0.189 ms, lever 0.218 ms, B0 0.079 ms
+    [3, 7, 12, 5, 9, 1, 15, 4]         buckets 2 equal True | B0s 0.185 ms, lever 0.113 ms, B0 0.024 ms
+    [8, 8, 8, 8, 8, 8]                 buckets 1 equal True | B0s 0.138 ms, lever 0.053 ms, B0 0.024 ms
+    [32, 64, 4, 1, 2, 8, 6]            buckets 3 equal False | B0s 0.164 ms, lever 0.166 ms, B0 0.040 ms
+    [64, 32, 48, 2, 6, 3, 12]          buckets 2 equal False | B0s 0.164 ms, lever 0.106 ms, B0 0.064 ms
+    [8, 1, 2, 1, 32]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [12, 32, 2, 64]                    buckets 2 equal False | B0s 0.093 ms, lever 0.106 ms, B0 0.040 ms
+    [24, 32, 12, 64, 1, 2, 1, 24]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [64, 48, 16, 3]                    buckets 2 equal False | B0s 0.093 ms, lever 0.107 ms, B0 0.077 ms
+[bwd_gate_up/col] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]: skipped (no A0-exact algo for some M)
+    [3, 7, 12, 5, 9, 1, 15, 4]: skipped (no A0-exact algo for some M)
+    [8, 8, 8, 8, 8, 8]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [32, 64, 4, 1, 2, 8, 6]            buckets 4 equal True | B0s 0.362 ms, lever 0.229 ms, B0 0.120 ms
+    [64, 32, 48, 2, 6, 3, 12]: skipped (no A0-exact algo for some M)
+    [8, 1, 2, 1, 32]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [12, 32, 2, 64]                    buckets 3 equal True | B0s 0.215 ms, lever 0.168 ms, B0 0.119 ms
+    [24, 32, 12, 64, 1, 2, 1, 24]: forced algo failed cuBLASLtError('the requested functionality is not supported (CUBLAS_STATUS_NOT_SUPPORTED). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [64, 48, 16, 3]: skipped (no A0-exact algo for some M)
+[bwd_gate_up/row] all slices equal: False
+    [1, 1, 1, 1, 1, 1, 1, 1]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [4, 20, 58, 7, 33, 12, 1, 64]      buckets 4 equal True | B0s 0.420 ms, lever 0.255 ms, B0 0.153 ms
+    [3, 7, 12, 5, 9, 1, 15, 4]         buckets 2 equal True | B0s 0.413 ms, lever 0.117 ms, B0 0.055 ms
+    [8, 8, 8, 8, 8, 8]                 buckets 1 equal True | B0s 0.317 ms, lever 0.058 ms, B0 0.054 ms
+    [32, 64, 4, 1, 2, 8, 6]            buckets 4 equal True | B0s 0.361 ms, lever 0.225 ms, B0 0.120 ms
+    [64, 32, 48, 2, 6, 3, 12]          buckets 4 equal True | B0s 0.374 ms, lever 0.224 ms, B0 0.153 ms
+    [8, 1, 2, 1, 32]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [12, 32, 2, 64]                    buckets 3 equal True | B0s 0.216 ms, lever 0.165 ms, B0 0.119 ms
+    [24, 32, 12, 64, 1, 2, 1, 24]: forced algo failed cuBLASLtError('an unsupported value or parameter was passed to the function (CUBLAS_STATUS_INVALID_VALUE). You can set CUBLASLT_LOG_LEVEL=5 environment variable to enable cuBLAS logging to learn more.')
+    [64, 48, 16, 3]                    buckets 3 equal True | B0s 0.215 ms, lever 0.172 ms, B0 0.218 ms
+
+done (0.0 s tail)
