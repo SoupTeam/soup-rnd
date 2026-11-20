@@ -1,0 +1,330 @@
+[
+  {
+    "kind": "mbr",
+    "baseline_seconds": [
+      0.19394091702997684,
+      0.21867483295500278,
+      0.19888395816087723,
+      0.21730779204517603,
+      0.18442304199561477,
+      0.18288883310742676
+    ],
+    "baseline_median": 0.19641243759542704,
+    "instrumented_wall_median": 0.19748889561742544,
+    "instrumentation_ratio": 1.0054806000840726,
+    "phases": {
+      "bwd/activation_store": {
+        "seconds": 0.00031537481117993593,
+        "calls": 32.0,
+        "share": 0.001596924273610191
+      },
+      "bwd/attn_router_shared_other": {
+        "seconds": 0.03886224771849811,
+        "calls": 32.0,
+        "share": 0.19678193853380938
+      },
+      "bwd/autograd_backward": {
+        "seconds": 0.032219956163316965,
+        "calls": 11.0,
+        "share": 0.1631481915101359
+      },
+      "bwd/expert_dispatch_overhead": {
+        "seconds": 0.003901207819581032,
+        "calls": 3.0,
+        "share": 0.019754061651843114
+      },
+      "bwd/mbr_join_split_glue": {
+        "seconds": 0.0006214375607669353,
+        "calls": 3.0,
+        "share": 0.003146696217142159
+      },
+      "expert_dequant_nf4": {
+        "seconds": 0.013474151957780123,
+        "calls": 280.0,
+        "share": 0.06822739028265258
+      },
+      "expert_disk_read": {
+        "seconds": 0.03371450153645128,
+        "calls": 140.0,
+        "share": 0.1707159353494125
+      },
+      "expert_gemm_bwd_vjp": {
+        "seconds": 0.012086020782589912,
+        "calls": 70.0,
+        "share": 0.061198482804840304
+      },
+      "expert_gemm_fwd": {
+        "seconds": 0.004771714564412832,
+        "calls": 70.0,
+        "share": 0.024161938571253015
+      },
+      "expert_lease_sync": {
+        "seconds": 0.00017740216571837664,
+        "calls": 140.0,
+        "share": 0.0008982893198311224
+      },
+      "expert_load_h2d_and_misc": {
+        "seconds": 0.0035498664947226644,
+        "calls": 140.0,
+        "share": 0.017975018208615887
+      },
+      "fwd/activation_store": {
+        "seconds": 0.0002516442909836769,
+        "calls": 32.0,
+        "share": 0.0012742199514405156
+      },
+      "fwd/attn_router_shared_other": {
+        "seconds": 0.03459399682469666,
+        "calls": 32.0,
+        "share": 0.1751693264400647
+      },
+      "fwd/autograd_backward": {
+        "seconds": 0.00098897994030267,
+        "calls": 8.0,
+        "share": 0.005007774929373838
+      },
+      "fwd/expert_dispatch_overhead": {
+        "seconds": 0.009846242726780474,
+        "calls": 3.0,
+        "share": 0.04985719676034125
+      },
+      "fwd/mbr_join_split_glue": {
+        "seconds": 0.000511209829710424,
+        "calls": 3.0,
+        "share": 0.002588549741554772
+      },
+      "layer_weight_load": {
+        "seconds": 0.00016958278138190508,
+        "calls": 8.0,
+        "share": 0.0008586952742417479
+      },
+      "optimizer_clip_and_step": {
+        "seconds": 0.0011351045686751604,
+        "calls": 1.0,
+        "share": 0.005747688066847462
+      },
+      "unattributed_run_glue": {
+        "seconds": 0.003962123184464872,
+        "calls": 1.0,
+        "share": 0.020062511221594345
+      }
+    },
+    "gap": 2.4708844263936286e-05,
+    "unattributed": 0.020062511221594345,
+    "parity": {
+      "instrumented_equals_baseline": true,
+      "baseline_AA_equal": true
+    },
+    "gemm_by_bucket": {
+      "expert_gemm_fwd|M<=8": {
+        "leases": 156,
+        "seconds": 0.009132591541856527,
+        "rows": 594,
+        "leases_per_step": 26.0,
+        "seconds_per_step": 0.0015220985903094213,
+        "share_of_step": 0.007707261644006676,
+        "mean_rows": 3.8076923076923075
+      },
+      "expert_gemm_fwd|M<=32": {
+        "leases": 138,
+        "seconds": 0.00969458813779056,
+        "rows": 2364,
+        "leases_per_step": 23.0,
+        "seconds_per_step": 0.0016157646896317601,
+        "share_of_step": 0.00818154704131726,
+        "mean_rows": 17.130434782608695
+      },
+      "expert_gemm_fwd|M<=128": {
+        "leases": 126,
+        "seconds": 0.010429625865072012,
+        "rows": 6258,
+        "leases_per_step": 21.0,
+        "seconds_per_step": 0.001738270977512002,
+        "share_of_step": 0.008801866920555231,
+        "mean_rows": 49.666666666666664
+      },
+      "expert_gemm_bwd_vjp|M<=128": {
+        "leases": 126,
+        "seconds": 0.029364383779466152,
+        "rows": 6258,
+        "leases_per_step": 21.0,
+        "seconds_per_step": 0.004894063963244359,
+        "share_of_step": 0.024781464030894762,
+        "mean_rows": 49.666666666666664
+      },
+      "expert_gemm_bwd_vjp|M<=8": {
+        "leases": 156,
+        "seconds": 0.022821830585598946,
+        "rows": 594,
+        "leases_per_step": 26.0,
+        "seconds_per_step": 0.0038036384309331575,
+        "share_of_step": 0.019260011653017432,
+        "mean_rows": 3.8076923076923075
+      },
+      "expert_gemm_bwd_vjp|M<=32": {
+        "leases": 138,
+        "seconds": 0.0223343288525939,
+        "rows": 2364,
+        "leases_per_step": 23.0,
+        "seconds_per_step": 0.0037223881420989833,
+        "share_of_step": 0.018848594653696257,
+        "mean_rows": 17.130434782608695
+      }
+    },
+    "gates": {
+      "gap_ok": true,
+      "coverage_ok": true,
+      "parity_ok": true
+    }
+  },
+  {
+    "kind": "l2l",
+    "baseline_seconds": [
+      0.5223032080102712,
+      0.510215749964118,
+      0.5133247079793364,
+      0.5142692078370601,
+      0.5597918750718236,
+      0.47325441683642566
+    ],
+    "baseline_median": 0.5137969579081982,
+    "instrumented_wall_median": 0.5310307709733024,
+    "instrumentation_ratio": 1.033542069099178,
+    "phases": {
+      "bwd/activation_store": {
+        "seconds": 0.000481646042317152,
+        "calls": 32.0,
+        "share": 0.0009070021336698901
+      },
+      "bwd/attn_router_shared_other": {
+        "seconds": 0.04316291701979935,
+        "calls": 32.0,
+        "share": 0.081281385899141
+      },
+      "bwd/autograd_backward": {
+        "seconds": 0.052525278995744884,
+        "calls": 32.0,
+        "share": 0.09891193103456823
+      },
+      "bwd/expert_dispatch_overhead": {
+        "seconds": 0.013331583933904767,
+        "calls": 24.0,
+        "share": 0.025105106262429778
+      },
+      "expert_dequant_nf4": {
+        "seconds": 0.07205864449497312,
+        "calls": 1564.0,
+        "share": 0.13569579849939784
+      },
+      "expert_disk_read": {
+        "seconds": 0.15645545639563352,
+        "calls": 782.0,
+        "share": 0.29462597074906477
+      },
+      "expert_gemm_bwd_vjp": {
+        "seconds": 0.05658715113531798,
+        "calls": 391.0,
+        "share": 0.10656096450230546
+      },
+      "expert_gemm_fwd": {
+        "seconds": 0.019749392173253,
+        "calls": 391.0,
+        "share": 0.03719067378535377
+      },
+      "expert_lease_sync": {
+        "seconds": 0.0009839585982263088,
+        "calls": 782.0,
+        "share": 0.0018529220000243214
+      },
+      "expert_load_h2d_and_misc": {
+        "seconds": 0.01869681547395885,
+        "calls": 782.0,
+        "share": 0.035208534977531146
+      },
+      "fwd/activation_store": {
+        "seconds": 0.0002767902333289385,
+        "calls": 32.0,
+        "share": 0.0005212320047322721
+      },
+      "fwd/attn_router_shared_other": {
+        "seconds": 0.04050552099943161,
+        "calls": 32.0,
+        "share": 0.07627716360991824
+      },
+      "fwd/autograd_backward": {
+        "seconds": 0.0010063129011541605,
+        "calls": 8.0,
+        "share": 0.0018950180595179726
+      },
+      "fwd/expert_dispatch_overhead": {
+        "seconds": 0.04764132446143776,
+        "calls": 24.0,
+        "share": 0.08971480950928347
+      },
+      "layer_weight_load": {
+        "seconds": 0.0001968955621123314,
+        "calls": 8.0,
+        "share": 0.00037077994887462054
+      },
+      "optimizer_clip_and_step": {
+        "seconds": 0.0011946875602006912,
+        "calls": 1.0,
+        "share": 0.002249752039813064
+      },
+      "unattributed_run_glue": {
+        "seconds": 0.005203858716413379,
+        "calls": 1.0,
+        "share": 0.009799542702347475
+      }
+    },
+    "gap": 8.985176778530893e-06,
+    "unattributed": 0.009799542702347475,
+    "parity": {
+      "instrumented_equals_baseline": true,
+      "baseline_AA_equal": true
+    },
+    "gemm_by_bucket": {
+      "expert_gemm_fwd|M<=32": {
+        "leases": 186,
+        "seconds": 0.01203345344401896,
+        "rows": 1872,
+        "leases_per_step": 31.0,
+        "seconds_per_step": 0.00200557557400316,
+        "share_of_step": 0.0037767596222855987,
+        "mean_rows": 10.064516129032258
+      },
+      "expert_gemm_fwd|M<=8": {
+        "leases": 2160,
+        "seconds": 0.11524603213183582,
+        "rows": 7344,
+        "leases_per_step": 360.0,
+        "seconds_per_step": 0.019207672021972638,
+        "share_of_step": 0.036170544292127856,
+        "mean_rows": 3.4
+      },
+      "expert_gemm_bwd_vjp|M<=8": {
+        "leases": 2160,
+        "seconds": 0.3153564741369337,
+        "rows": 7344,
+        "leases_per_step": 360.0,
+        "seconds_per_step": 0.05255941235615561,
+        "share_of_step": 0.09897620859111766,
+        "mean_rows": 3.4
+      },
+      "expert_gemm_bwd_vjp|M<=32": {
+        "leases": 186,
+        "seconds": 0.029288950841873884,
+        "rows": 1872,
+        "leases_per_step": 31.0,
+        "seconds_per_step": 0.004881491806978981,
+        "share_of_step": 0.009192483889458824,
+        "mean_rows": 10.064516129032258
+      }
+    },
+    "gates": {
+      "gap_ok": true,
+      "coverage_ok": true,
+      "parity_ok": true
+    }
+  }
+]

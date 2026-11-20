@@ -1,0 +1,37 @@
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+shape moonlight window normal: SMs 28, peak 334 GB/s (copy, read + write); groups per form 2.73, mean SMs busy per kernel 26.1 (93%), mean read 206 GB/s
+one stream: measured 0.801 ms/call = GEMM sum 0.724 + other 0.077
+streams | measured | SM model | err % | gain measured % | gain model %
+      1 |    0.801 |    0.801 |    +0 |   +0.0 |   +0.0
+      2 |    0.738 |    0.811 |   +10 |   -7.9 |   +1.2
+      3 |    0.775 |    0.815 |    +5 |   -3.3 |   +1.8
+      4 |    0.820 |    0.817 |    -0 |   +2.4 |   +1.9
+shape moonlight window wide: SMs 28, peak 334 GB/s (copy, read + write); groups per form 4.04, mean SMs busy per kernel 26.3 (94%), mean read 166 GB/s
+one stream: measured 1.866 ms/call = GEMM sum 1.686 + other 0.180
+streams | measured | SM model | err % | gain measured % | gain model %
+      1 |    1.866 |    1.866 |    +0 |   +0.0 |   +0.0
+      2 |    1.784 |    1.868 |    +5 |   -4.4 |   +0.1
+      3 |    1.630 |    1.869 |   +15 |  -12.7 |   +0.1
+      4 |    1.643 |    1.884 |   +15 |  -12.0 |   +1.0
+shape moonlight window short: SMs 28, peak 334 GB/s (copy, read + write); groups per form 2.58, mean SMs busy per kernel 26.1 (93%), mean read 200 GB/s
+one stream: measured 0.817 ms/call = GEMM sum 0.742 + other 0.074
+streams | measured | SM model | err % | gain measured % | gain model %
+      1 |    0.817 |    0.817 |    +0 |   +0.0 |   +0.0
+      2 |    0.743 |    0.827 |   +11 |   -9.0 |   +1.2
+      3 |    0.760 |    0.830 |    +9 |   -6.9 |   +1.6
+      4 |    0.768 |    0.831 |    +8 |   -5.9 |   +1.7
+shape 671b window normal: SMs 28, peak 334 GB/s (copy, read + write); groups per form 2.38, mean SMs busy per kernel 27.7 (99%), mean read 245 GB/s
+one stream: measured 2.944 ms/call = GEMM sum 2.831 + other 0.113
+streams | measured | SM model | err % | gain measured % | gain model %
+      1 |    2.944 |    2.944 |    +0 |   +0.0 |   +0.0
+      2 |    2.807 |    2.964 |    +6 |   -4.7 |   +0.7
+      3 |    2.791 |    2.967 |    +6 |   -5.2 |   +0.8
+      4 |    2.789 |    2.967 |    +6 |   -5.2 |   +0.8
+shape 671b window wide: SMs 28, peak 334 GB/s (copy, read + write); groups per form 3.77, mean SMs busy per kernel 27.8 (99%), mean read 202 GB/s
+one stream: measured 6.867 ms/call = GEMM sum 6.339 + other 0.528
+streams | measured | SM model | err % | gain measured % | gain model %
+      1 |    6.867 |    6.867 |    +0 |   +0.0 |   +0.0
+      2 |    6.680 |    6.888 |    +3 |   -2.7 |   +0.3
+      3 |    6.494 |    6.904 |    +6 |   -5.4 |   +0.5
+      4 |    6.529 |    6.919 |    +6 |   -4.9 |   +0.8

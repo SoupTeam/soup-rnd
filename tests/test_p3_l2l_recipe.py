@@ -31,6 +31,10 @@ def test_default_recipe_uses_the_accumulation_steps_as_effective_k():
     recipe = resolve_l2l_recipe(_tcfg(gradient_accumulation_steps=16))
     assert (recipe.requested_k, recipe.effective_k) == (16, 16)
     assert (recipe.activation_codec, recipe.auto_k) == ("none", False)
+    assert not recipe.two_read_experts
+    assert not recipe.grouped_expert_routes
+    assert not recipe.route_preserving_mbr
+    assert recipe.mbr_group_size is None
 
 
 def test_fp8_codec_is_refused_at_launch_by_name():
@@ -98,6 +102,115 @@ def test_resume_with_another_codec_is_refused(tmp_path, monkeypatch):
     write_recipe(tmp_path / "out", replace(recipe, activation_codec="fp8_e4m3"))
     with pytest.raises(ValueError, match="activation_codec.*fp8_e4m3.*none"):
         validate_resume(tmp_path / "out", recipe)
+
+
+def test_mbr_recipe_records_streaming_switches_and_group_size(tmp_path, monkeypatch):
+    from soup_cli.utils.l2l_recipe import load_recipe, resolve_l2l_recipe, write_recipe
+
+    monkeypatch.chdir(tmp_path)
+    recipe = resolve_l2l_recipe(_tcfg(
+        gradient_accumulation_steps=8,
+        l2l_two_read_experts=True,
+        l2l_grouped_expert_routes=True,
+        l2l_route_preserving_mbr=True,
+        l2l_mbr_group_size=4,
+    ))
+    write_recipe(tmp_path / "out", recipe)
+    assert load_recipe(tmp_path / "out") == recipe
+    assert recipe.mbr_group_size == 4
+    assert recipe.route_preserving_mbr
+
+
+def test_resume_refuses_a_changed_mbr_recipe(tmp_path, monkeypatch):
+    from soup_cli.utils.l2l_recipe import resolve_l2l_recipe, validate_resume, write_recipe
+
+    monkeypatch.chdir(tmp_path)
+    common = {
+        "l2l_two_read_experts": True,
+        "l2l_grouped_expert_routes": True,
+        "l2l_route_preserving_mbr": True,
+    }
+    write_recipe(
+        tmp_path / "out",
+        resolve_l2l_recipe(_tcfg(**common, l2l_mbr_group_size=4)),
+    )
+    with pytest.raises(ValueError, match="mbr_group_size.*4.*2"):
+        validate_resume(
+            tmp_path / "out",
+            resolve_l2l_recipe(_tcfg(**common, l2l_mbr_group_size=2)),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("two_read_experts", False),
+        ("grouped_expert_routes", False),
+        ("route_preserving_mbr", False),
+        ("mbr_group_size", 2),
+    ],
+)
+def test_resume_rejects_each_mbr_switch_change(tmp_path, monkeypatch, field, value):
+    from dataclasses import replace
+
+    from soup_cli.utils.l2l_recipe import L2LRecipe, validate_resume, write_recipe
+
+    monkeypatch.chdir(tmp_path)
+    recipe = L2LRecipe(
+        requested_k=8,
+        effective_k=8,
+        activation_codec="none",
+        auto_k=False,
+        two_read_experts=True,
+        grouped_expert_routes=True,
+        route_preserving_mbr=True,
+        mbr_group_size=8,
+    )
+    write_recipe(tmp_path, recipe)
+    validate_resume(tmp_path, recipe)
+    with pytest.raises(ValueError, match=field):
+        validate_resume(tmp_path, replace(recipe, **{field: value}))
+
+
+def test_old_recipe_defaults_new_experimental_fields_to_off(tmp_path):
+    from soup_cli.utils.l2l_recipe import RECIPE_NAME, load_recipe
+
+    output = tmp_path / "out"
+    output.mkdir()
+    (output / RECIPE_NAME).write_text(
+        json.dumps({
+            "requested_k": 4,
+            "effective_k": 4,
+            "activation_codec": "none",
+            "auto_k": False,
+        }),
+        encoding="utf-8",
+    )
+    recipe = load_recipe(output)
+    assert recipe is not None
+    assert not recipe.route_preserving_mbr
+    assert recipe.mbr_group_size is None
+
+
+@pytest.mark.parametrize(
+    ("settings", "message"),
+    [
+        ({"l2l_route_preserving_mbr": True}, "requires both"),
+        ({"l2l_mbr_group_size": 2}, "requires training.l2l_route_preserving_mbr"),
+        (
+            {
+                "l2l_two_read_experts": True,
+                "l2l_grouped_expert_routes": True,
+                "l2l_route_preserving_mbr": True,
+                "l2l_mbr_group_size": 5,
+            },
+            "cannot exceed",
+        ),
+    ],
+)
+def test_mbr_config_rejects_inconsistent_options(settings, message):
+    with pytest.raises(ValueError, match=message):
+        _tcfg(**settings)
 
 
 # --------------------------------------------------------------------------

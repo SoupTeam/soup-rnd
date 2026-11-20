@@ -21,6 +21,18 @@ from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 # ==========================================================================
 
 
+
+def _peft_rewrites_shared_targets() -> bool:
+    """True for peft before 0.22.0, which moves shared-expert targets onto the routed experts."""
+    from importlib.metadata import version
+
+    from packaging.version import Version
+
+    return Version(version("peft")) < Version("0.22.0")
+
+
+PEFT_REWRITES_SHARED_TARGETS = _peft_rewrites_shared_targets()
+
 def test_deepseek_v3_is_accepted_under_its_own_name() -> None:
     from soup_cli.utils.layer_stream import _STREAM_ARCH_ALIASES, stream_arch_of
 

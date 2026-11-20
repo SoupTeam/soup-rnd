@@ -315,6 +315,12 @@ def _require_known_expert_disk_bound(expert_layout, source_files=()):
         )
 
 
+def _guard_expert_cache_reuse(shard_dir, cached):
+    """Refuse a nonempty expert cache unless the cache inspector approved reuse."""
+    if os.path.isdir(shard_dir) and os.listdir(shard_dir) and cached is None:
+        raise ValueError("per_expert disk budget requires a new or validated cache directory")
+
+
 def _warn_if_ngram_source_unused(*, arch: str, requested: str, ngram_bytes: int, notify) -> None:
     """Make a user-supplied PLE policy visible when the checkpoint has no PLE."""
     if arch == "qwen4_exp" and requested != "auto" and not ngram_bytes:
@@ -724,6 +730,18 @@ class StreamingSetupMixin:
         )
         if expert_layout and arch != "deepseek_v3":
             raise ValueError("per_expert streaming supports DeepSeek-V3-family bases only")
+        two_read_experts = bool(getattr(tcfg, "l2l_two_read_experts", False))
+        grouped_expert_routes = bool(getattr(tcfg, "l2l_grouped_expert_routes", False))
+        if (two_read_experts or grouped_expert_routes) and not expert_layout:
+            raise ValueError(
+                "L2L expert replay and grouped routes require "
+                "training.stream_expert_layout='per_expert'"
+            )
+        if (two_read_experts or grouped_expert_routes) and arch != "deepseek_v3":
+            raise ValueError(
+                "L2L expert replay and grouped routes currently support DeepSeek-V3-family "
+                "streaming only"
+            )
 
         on_cuda = str(self.device).startswith("cuda")
         # #385 — ASK THE CARD. bf16 needs Ampere, and a T4 (Colab free), a P100
@@ -834,8 +852,6 @@ class StreamingSetupMixin:
                     raise ValueError(
                         "per_expert disk budget requires NF4 without double quant and one disk"
                     )
-                if os.path.isdir(shard_dir) and os.listdir(shard_dir):
-                    raise ValueError("per_expert disk budget requires a new cache directory")
                 source_paths = [
                     os.path.join(weights_plan.source_dir, entry[0])
                     for entry in weights_plan.source_files
@@ -879,6 +895,8 @@ class StreamingSetupMixin:
                     layout=layout,
                     expert_layout=expert_layout,
                 )
+            if expert_layout:
+                _guard_expert_cache_reuse(shard_dir, cached)
             write_total = 0 if cached is not None else shard_estimate
             shares = _stripe_write_shares(write_total, 1 + len(stripe_roots))
             dirs = stripe_dirs(shard_dir, stripe_roots)
@@ -1217,7 +1235,7 @@ class StreamingSetupMixin:
                     microbatches=self._effective_k(tcfg), dtype=dtype,
                     pin=on_cuda, shape_round=RESERVATION_ROUND,
                     codec=tcfg.l2l_activation_codec,
-                    device_type="cuda" if on_cuda else "cpu",
+                    device_type=str(getattr(self.device, "type", self.device)).split(":", 1)[0],
                 )
                 partial_budget = self._c3_l2l_plan.weights
             console.print(
@@ -1252,6 +1270,8 @@ class StreamingSetupMixin:
             console=console,
             quant=quant,
             double_quant=double_quant,
+            two_read_experts=two_read_experts,
+            grouped_expert_routes=grouped_expert_routes,
             tier=tier,
             weights_dir=weights_dir,
             ngram_source=ngram_source,
@@ -1408,7 +1428,7 @@ class StreamingSetupMixin:
             pin=pin,
             host_workspace_bytes_per_batch=window_bytes,
             codec=tcfg.l2l_activation_codec,
-            device_type="cuda" if pin else "cpu",
+            device_type=str(getattr(self.device, "type", self.device)).split(":", 1)[0],
         )
         # Reuse C3's activation lease and shape guard without enabling its optional
         # dense weight cache. Routing records join the activation partition, so the
@@ -1419,7 +1439,8 @@ class StreamingSetupMixin:
             PartialRamBudget(ram.budget_bytes, non_activation_bytes, 0),
             n_layers=index.n_layers, batch_size=batch, max_length=length, hidden_size=hidden,
             microbatches=memory.effective_k, dtype=dtype, pin=pin, shape_round=1,
-            codec=tcfg.l2l_activation_codec, device_type="cuda" if pin else "cpu",
+            codec=tcfg.l2l_activation_codec,
+            device_type=str(getattr(self.device, "type", self.device)).split(":", 1)[0],
             routing_bytes=routing_bytes,
         )
         self._moe_l2l_memory_plan = memory
@@ -1553,11 +1574,21 @@ class StreamingSetupMixin:
             weight_dirs=self._stream_weight_dirs,
             c3_plan=getattr(self, "_c3_l2l_plan", None),
             effective_k=effective_k,
+            two_read_experts=bool(getattr(tcfg, "l2l_two_read_experts", False)),
+            grouped_expert_routes=bool(getattr(tcfg, "l2l_grouped_expert_routes", False)),
+            route_preserving_mbr=bool(getattr(tcfg, "l2l_route_preserving_mbr", False)),
+            mbr_group_size=getattr(tcfg, "l2l_mbr_group_size", None),
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
             f"{effective_k} micro-batch(es)"
         )
+        if getattr(tcfg, "l2l_route_preserving_mbr", False):
+            console.print(
+                "[yellow]Experimental route-preserving MBR:[/] grouped routed-expert FFN "
+                f"size {tcfg.l2l_mbr_group_size or effective_k}; attention/router stay "
+                "micro-batch-local"
+            )
         return trainer
 
     def _close_stream_runtime(self) -> None:

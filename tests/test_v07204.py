@@ -712,7 +712,9 @@ class TestBitExactVsResident:
         assert diff == 0.0, f"{task}: streamed vs resident loss differs by {diff}"
 
     @pytest.mark.parametrize("task", _ALL_PREFERENCE)
-    def test_layer_zero_adapter_receives_gradient(self, tmp_path, monkeypatch, task):
+    def test_layer_zero_adapter_receives_gradient(
+        self, tmp_path, monkeypatch, task, mps_nondeterministic_ops
+    ):
         """plan P2: a `detach()`/`no_grad()` anywhere in the base forward severs
         the graph. The lower adapters then never train while the loss still
         falls, because the upper ones still learn."""
@@ -971,7 +973,7 @@ class TestKtoNeedsMoreThanOneRow:
         cfg = _stream_cfg(str(tmp_path / "m"), tmp_path / "o", task="kto", batch_size=2)
         assert cfg.training.batch_size == 2
 
-    def test_kto_streams_at_batch_two(self, tmp_path, monkeypatch):
+    def test_kto_streams_at_batch_two(self, tmp_path, monkeypatch, mps_nondeterministic_ops):
         """Runs EVERYWHERE, and tolerates exactly one known failure signature.
 
         v0.72.4 first gated this on `skipif(not cuda)` with the rationale that "a
@@ -1023,7 +1025,9 @@ class TestTheReferenceForwardActuallyHappens:
     reference forward cannot pass unnoticed."""
 
     @pytest.mark.parametrize("task", _REFERENCE_USING)
-    def test_a_reference_using_loss_reads_more_layers_than_sft(self, tmp_path, monkeypatch, task):
+    def test_a_reference_using_loss_reads_more_layers_than_sft(
+        self, tmp_path, monkeypatch, task, mps_nondeterministic_ops
+    ):
         def reads_for(task, root):
             # The real device, deliberately: KTO's `get_batch_loss_metrics`
             # moves the batch to `self.accelerator.device` itself

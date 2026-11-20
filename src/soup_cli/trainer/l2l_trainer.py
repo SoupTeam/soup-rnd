@@ -190,6 +190,10 @@ class L2LState:
     _routing_lease: Optional[MemoryLease] = field(default=None, init=False, repr=False)
     #: The recipe's effective k (``soup_cli.utils.l2l_recipe``); None when the caller gave none.
     effective_k: Optional[int] = None
+    two_read_experts: bool = False
+    grouped_expert_routes: bool = False
+    route_preserving_mbr: bool = False
+    mbr_group_size: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.loss is None:
@@ -248,6 +252,11 @@ class L2LState:
         if getattr(self.runtime, "expert_pool", None) is not None:
             fields["l2l_expert_fetches"] = self.totals.expert_fetches
             fields["l2l_expert_bytes_read"] = self.totals.expert_bytes_read
+            fields["l2l_two_read_experts"] = self.two_read_experts
+            fields["l2l_grouped_expert_routes"] = self.grouped_expert_routes
+        if self.route_preserving_mbr:
+            fields["l2l_route_preserving_mbr"] = True
+            fields["l2l_mbr_group_size"] = self.mbr_group_size or self.effective_k
         return fields
 
     def spill_directory(self) -> str:
@@ -720,7 +729,16 @@ def run_window(
         routing["routing_budget"] = (
             state.memory_plan.routing_record_bytes, state.memory_plan.routing_comparison_bytes
         )
-    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference, **routing)
+    losses = stepper.run(
+        ids_list,
+        store,
+        calls=calls,
+        head=head,
+        reference=reference,
+        **routing,
+        route_preserving_mbr=state.route_preserving_mbr,
+        mbr_group_size=state.mbr_group_size,
+    )
     return losses, stepper.counters
 
 
@@ -830,6 +848,10 @@ def attach_l2l_state(
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
     effective_k: Optional[int] = None,
+    two_read_experts: bool = False,
+    grouped_expert_routes: bool = False,
+    route_preserving_mbr: bool = False,
+    mbr_group_size: Optional[int] = None,
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
@@ -861,6 +883,10 @@ def attach_l2l_state(
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
         output_dir=getattr(args, "output_dir", None),
+        two_read_experts=two_read_experts,
+        grouped_expert_routes=grouped_expert_routes,
+        route_preserving_mbr=route_preserving_mbr,
+        mbr_group_size=mbr_group_size,
     )
     trainer._soup_l2l = state
     return state

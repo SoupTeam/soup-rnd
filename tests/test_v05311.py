@@ -1297,7 +1297,7 @@ class TestOnARealTrlTrainer:
         assert "preference_loss_weights" in message, message
 
     def test_a_reference_free_blend_on_a_real_trainer_is_the_weighted_sum(
-        self, tmp_path, monkeypatch,
+        self, tmp_path, monkeypatch, mps_nondeterministic_ops,
     ):
         """Pin the `attach_policy_logp_capture` call in `setup()` (#1425 review).
 

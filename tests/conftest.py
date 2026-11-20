@@ -72,6 +72,30 @@ def mps_is_the_accelerator() -> bool:
         return False
 
 
+@pytest.fixture
+def mps_nondeterministic_ops():
+    """Temporarily allow MPS ops without deterministic kernels in integration tests.
+
+    MPS currently has no deterministic implementations for a few reduction/scatter
+    ops used by Transformers/TRL. Functional integration tests that do not assert
+    bitwise repeatability should not inherit strict mode from an earlier test.
+    Restore both flags so this does not weaken determinism checks elsewhere.
+    """
+    if not mps_is_the_accelerator():
+        yield
+        return
+
+    import torch
+
+    deterministic = torch.are_deterministic_algorithms_enabled()
+    warn_only = torch.is_deterministic_algorithms_warn_only_enabled()
+    try:
+        torch.use_deterministic_algorithms(False)
+        yield
+    finally:
+        torch.use_deterministic_algorithms(deterministic, warn_only=warn_only)
+
+
 def accelerator_device() -> str:
     """The device ``TrainingArguments`` picks by itself: cuda, else mps, else cpu (#1355).
 

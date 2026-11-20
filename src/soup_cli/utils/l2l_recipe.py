@@ -1,4 +1,4 @@
-"""The resolved L2L run recipe: effective k, activation codec and the snapshot on disk.
+"""The resolved L2L run recipe and the snapshot on disk.
 
 ``training.gradient_accumulation_steps`` is what the user asks for. The effective k is what the
 run uses. Every consumer (the HF training arguments, the loss scale the HF loop derives from
@@ -9,7 +9,7 @@ directory and checked on resume, because a different k changes the optimizer-ste
 
 import json
 import os
-from dataclasses import asdict, dataclass, fields
+from dataclasses import MISSING, asdict, dataclass, fields
 from pathlib import Path
 from typing import Any, Optional
 
@@ -26,6 +26,10 @@ class L2LRecipe:
     effective_k: int
     activation_codec: str
     auto_k: bool
+    two_read_experts: bool = False
+    grouped_expert_routes: bool = False
+    route_preserving_mbr: bool = False
+    mbr_group_size: Optional[int] = None
 
 
 def validate_l2l_options(tcfg: Any) -> None:
@@ -55,11 +59,21 @@ def resolve_l2l_recipe(tcfg: Any, *, effective_k: int | None = None) -> L2LRecip
         effective_k = requested
     if type(effective_k) is not int or not 1 <= effective_k <= requested:
         raise ValueError("training.l2l_auto_k requires a resolved, RAM-fitting effective k")
+    mbr_group_size = getattr(tcfg, "l2l_mbr_group_size", None)
+    if mbr_group_size is not None and mbr_group_size > effective_k:
+        raise ValueError(
+            f"training.l2l_mbr_group_size={mbr_group_size} exceeds the "
+            f"effective L2L window of {effective_k} micro-batches"
+        )
     return L2LRecipe(
         requested_k=requested,
         effective_k=effective_k,
         activation_codec=str(tcfg.l2l_activation_codec),
         auto_k=auto_k,
+        two_read_experts=bool(getattr(tcfg, "l2l_two_read_experts", False)),
+        grouped_expert_routes=bool(getattr(tcfg, "l2l_grouped_expert_routes", False)),
+        route_preserving_mbr=bool(getattr(tcfg, "l2l_route_preserving_mbr", False)),
+        mbr_group_size=mbr_group_size,
     )
 
 
@@ -79,7 +93,17 @@ def load_recipe(output_dir: "str | os.PathLike[str]") -> Optional[L2LRecipe]:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return L2LRecipe(**{field.name: data[field.name] for field in fields(L2LRecipe)})
+        values = {}
+        for field in fields(L2LRecipe):
+            if field.name in data:
+                values[field.name] = data[field.name]
+            elif field.default is not MISSING:
+                values[field.name] = field.default
+            else:
+                raise ValueError(f"recipe is missing required field {field.name!r}")
+        if any(value is MISSING for value in values.values()):
+            raise ValueError("recipe is missing a required field")
+        return L2LRecipe(**values)
     except (ValueError, KeyError, TypeError) as exc:
         raise ValueError(f"{path} is not a valid L2L recipe: {exc}") from exc
 
@@ -92,7 +116,14 @@ def validate_resume(output_dir: "str | os.PathLike[str]", recipe: L2LRecipe) -> 
     saved = load_recipe(output_dir)
     if saved is None:
         return
-    for name in ("effective_k", "activation_codec"):
+    for name in (
+        "effective_k",
+        "activation_codec",
+        "two_read_experts",
+        "grouped_expert_routes",
+        "route_preserving_mbr",
+        "mbr_group_size",
+    ):
         before, now = getattr(saved, name), getattr(recipe, name)
         if before != now:
             raise ValueError(

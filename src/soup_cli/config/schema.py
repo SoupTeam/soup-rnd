@@ -3582,6 +3582,37 @@ class TrainingConfig(BaseModel):
             "Only valid with training.l2l=true."
         ),
     )
+    l2l_two_read_experts: bool = Field(
+        default=False,
+        description=(
+            "EXPERIMENTAL — replay routed-expert choices during L2L checkpoint recompute so "
+            "each hit expert is read in forward and expert backward, not recompute. Requires "
+            "SFT L2L with DeepSeek-V3 per_expert streaming. Off by default."
+        ),
+    )
+    l2l_grouped_expert_routes: bool = Field(
+        default=False,
+        description=(
+            "EXPERIMENTAL — group routed-expert token indices within each streamed-expert call. "
+            "Requires SFT L2L with DeepSeek-V3 per_expert streaming. Off by default."
+        ),
+    )
+    l2l_route_preserving_mbr: bool = Field(
+        default=False,
+        description=(
+            "EXPERIMENTAL — combine routed expert FFN work across L2L micro-batches while "
+            "keeping attention and router calls micro-batch-local. Requires both "
+            "l2l_two_read_experts and l2l_grouped_expert_routes. Off by default."
+        ),
+    )
+    l2l_mbr_group_size: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "EXPERIMENTAL — number of L2L micro-batches combined for routed-expert FFN work. "
+            "Only valid with l2l_route_preserving_mbr=true; null means the full effective window."
+        ),
+    )
 
     @field_validator("l2l_spill_dir")
     @classmethod
@@ -6642,6 +6673,10 @@ class SoupConfig(BaseModel):
         l2l_options = {
             "l2l_activation_codec": tcfg.l2l_activation_codec != "none",
             "l2l_auto_k": tcfg.l2l_auto_k,
+            "l2l_two_read_experts": tcfg.l2l_two_read_experts,
+            "l2l_grouped_expert_routes": tcfg.l2l_grouped_expert_routes,
+            "l2l_route_preserving_mbr": tcfg.l2l_route_preserving_mbr,
+            "l2l_mbr_group_size": tcfg.l2l_mbr_group_size is not None,
         }
         for name, differs_from_default in l2l_options.items():
             if differs_from_default and not tcfg.l2l:
@@ -6774,6 +6809,30 @@ class SoupConfig(BaseModel):
                 )
             if tcfg.moe_lora or tcfg.lora.target_parameters:
                 raise ValueError("per_expert streaming cannot train routed-expert adapters")
+        if tcfg.l2l_two_read_experts or tcfg.l2l_grouped_expert_routes:
+            if tcfg.stream_expert_layout != "per_expert":
+                raise ValueError(
+                    "training.l2l_two_read_experts and l2l_grouped_expert_routes require "
+                    "training.stream_expert_layout='per_expert'"
+                )
+        if tcfg.l2l_route_preserving_mbr:
+            if not tcfg.l2l_two_read_experts or not tcfg.l2l_grouped_expert_routes:
+                raise ValueError(
+                    "training.l2l_route_preserving_mbr requires both "
+                    "l2l_two_read_experts=true and l2l_grouped_expert_routes=true"
+                )
+            if (
+                tcfg.l2l_mbr_group_size is not None
+                and tcfg.l2l_mbr_group_size > tcfg.gradient_accumulation_steps
+            ):
+                raise ValueError(
+                    "training.l2l_mbr_group_size cannot exceed "
+                    "training.gradient_accumulation_steps"
+                )
+        elif tcfg.l2l_mbr_group_size is not None:
+            raise ValueError(
+                "training.l2l_mbr_group_size requires training.l2l_route_preserving_mbr=true"
+            )
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
         # read-ahead reader belongs to the NVMe disk tier, so a non-default

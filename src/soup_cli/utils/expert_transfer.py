@@ -95,6 +95,10 @@ class PackedHostHotset:
         self.hits += 1
         return block
 
+    def holds(self, key: Hashable) -> bool:
+        """Whether ``key`` is cached, without touching the hit and miss counters."""
+        return key in self._blocks
+
     def put(self, key: Hashable, block: Any) -> bool:
         """Admit a copy of ``block`` when ``key`` is new and the whole block fits."""
         if key in self._blocks or block.numel() > self.budget_bytes - self.payload_bytes:

@@ -1,0 +1,21 @@
+torch 2.14.1+cu130 gpu NVIDIA GeForce RTX 3060
+
+== 1-row segments as one batched call vs A0 M=1 per segment
+[fwd_gate_up] b=2: torch matmul 3D: False; torch bmm expand: False; nvmath batched (4 algos): 0 exact
+[fwd_gate_up] b=3: torch matmul 3D: False; torch bmm expand: False; nvmath batched (4 algos): 0 exact
+[fwd_gate_up] b=8: torch matmul 3D: False; torch bmm expand: True; nvmath batched (4 algos): 1 exact
+[fwd_down] b=2: torch matmul 3D: False; torch bmm expand: False; nvmath batched (5 algos): 3 exact
+[fwd_down] b=3: torch matmul 3D: False; torch bmm expand: False; nvmath batched (4 algos): 0 exact
+[fwd_down] b=8: torch matmul 3D: False; torch bmm expand: False; nvmath batched (4 algos): 0 exact
+[bwd_down] b=2: torch matmul 3D: False; torch bmm expand: False; nvmath batched (5 algos): 0 exact
+[bwd_down] b=3: torch matmul 3D: False; torch bmm expand: False; nvmath batched (6 algos): 0 exact
+[bwd_down] b=8: torch matmul 3D: False; torch bmm expand: False; nvmath batched (6 algos): 0 exact
+[bwd_gate_up] b=2: torch matmul 3D: False; torch bmm expand: False; nvmath batched (6 algos): 0 exact
+[bwd_gate_up] b=3: torch matmul 3D: False; torch bmm expand: False; nvmath batched (6 algos): 0 exact
+[bwd_gate_up] b=8: torch matmul 3D: False; torch bmm expand: False; nvmath batched (6 algos): 0 exact
+
+== realistic groups: 40, mean segments 6.70, mean rows 118.9
+[fwd_gate_up] all slices equal: True; calls per group 4.58 (B0s 6.70); ms per group B0s 0.293, lever 0.213, B0 0.094; failures []
+[fwd_down] all slices equal: True; calls per group 4.70 (B0s 6.70); ms per group B0s 0.183, lever 0.201, B0 0.062; failures []
+[bwd_down] all slices equal: True; calls per group 4.12 (B0s 6.70); ms per group B0s 0.158, lever 0.174, B0 0.049; failures []
+[bwd_gate_up] all slices equal: True; calls per group 4.75 (B0s 6.70); ms per group B0s 0.338, lever 0.245, B0 0.107; failures []
