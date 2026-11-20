@@ -111,14 +111,15 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
 
 
 def speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
-    """Normal-mode runs: per window, ``blocks`` blocks in A-B-C-C-B-A order (A0 left out when
-    k > 8, which leaves B-C-C-B)."""
+    """Normal-mode runs in A-B-C-C-B-A order (A0 left out when k > 8, which leaves B-C-C-B).
+
+    Block-major: block 0 covers all four windows before block 1 starts, so a run cut short by
+    the budget still has every window with the same number of blocks (or one more)."""
     plan: List[Dict[str, Any]] = []
-    for k, seq in WINDOWS:
-        arms = arms_for(k=k)
-        order = [a for a in ("A0", "B0", "C", "C", "B0", "A0") if a in arms]
-        for block in range(blocks):
-            for arm in order:
+    for block in range(blocks):
+        for k, seq in WINDOWS:
+            arms = arms_for(k=k)
+            for arm in [a for a in ("A0", "B0", "C", "C", "B0", "A0") if a in arms]:
                 plan.append({"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
                              "deterministic": False})
     return plan
@@ -162,6 +163,44 @@ def ladder_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[int, str], str]
 def parse_nvml_used(samples: Sequence[str]) -> int:
     """Largest ``memory.used`` sample of ``nvidia-smi --query-gpu=memory.used`` in bytes."""
     return max(int(s.split()[0]) for s in samples) * 2**20
+
+
+def summarize_rows(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[str, int, int], Dict[str, Any]]:
+    """Per (arm, k, seq): median step seconds over the ok runs, max of each peak, run count.
+    A cell with an OOM keeps the OOM status and its peaks; it has no step time."""
+    cells: Dict[Tuple[str, int, int], List[Dict[str, Any]]] = {}
+    for row in rows:
+        cells.setdefault((row["arm"], row["k"], row["seq"]), []).append(row)
+    out: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
+    for key, group in cells.items():
+        ok = [r for r in group if r.get("status") == "ok"]
+        bad = [r for r in group if r.get("status") != "ok"]
+
+        def peak(name: str) -> Any:
+            values = [r[name] for r in group if r.get(name) is not None]
+            return max(values) if values else None
+
+        out[key] = {
+            "step_seconds": statistics.median(r["step_seconds"] for r in ok) if ok else None,
+            "runs": len(group), "status": bad[0]["status"] if bad else "ok",
+            **{name: peak(name) for name in PEAK_KEYS}}
+    return out
+
+
+def markdown_table(table: Dict[Tuple[str, int, int], Dict[str, Any]]) -> str:
+    """The summary table for ``benchmarks/``: seconds and GiB, OOM shown in the status column."""
+    def gib(value: Any) -> str:
+        return "-" if value is None else f"{value / 2**30:.2f}"
+
+    lines = ["| arm | k | S | step s | alloc GiB | reserved GiB | NVML GiB | RAM GiB | runs "
+             "| status |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    for (arm, k, seq), c in sorted(table.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][0])):
+        step = "-" if c["step_seconds"] is None else f"{c['step_seconds']:.1f}"
+        lines.append(f"| {arm} | {k} | {seq} | {step} | {gib(c['peak_allocated'])} | "
+                     f"{gib(c['peak_reserved'])} | {gib(c['peak_nvml'])} | {gib(c['peak_ram'])} | "
+                     f"{c['runs']} | {c['status']} |")
+    return "\n".join(lines) + "\n"
 
 
 def amdahl_min_share(*, target_gain: float, local_speedup: float) -> float:
@@ -391,12 +430,17 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
     """Run each plan item in a fresh process; append every row to ``<out>/rows.jsonl``."""
     import subprocess
     import sys
+    import time
     from pathlib import Path
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     rows: List[Dict[str, Any]] = []
+    deadline = time.time() + args.deadline_hours * 3600 if args.deadline_hours else None
     for item in plan:
+        if deadline is not None and time.time() > deadline:
+            print(f"deadline reached, {len(rows)} of {len(plan)} runs done", flush=True)
+            break
         command = [sys.executable, __file__, "run", "--arm", item["arm"], "--k", str(item["k"]),
                    "--seq", str(item["seq"]), "--kind", item["kind"], "--source", args.source,
                    "--cache", args.cache, "--steps", str(args.steps), "--out", str(out),
@@ -422,6 +466,7 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
 
 def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     import argparse
+    from pathlib import Path
 
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -432,6 +477,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         p.add_argument("--out", required=True)
         p.add_argument("--steps", type=int, default=4, help="first step is warm-up")
         p.add_argument("--lora-r", type=int, default=16)
+        if name != "run":
+            p.add_argument("--deadline-hours", type=float, default=0,
+                           help="stop launching runs after this many hours (0: no limit)")
         p.add_argument("--tokenizer", default=None, help="default: the --source folder")
         p.add_argument("--device", choices=("auto", "cpu"), default="auto")
         if name == "run":
@@ -453,6 +501,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     plan = {"speed": lambda: speed_plan(blocks=args.blocks),
             "bits": lambda: bit_plan(seq=args.seq), "profile": profile_plan}[args.command]()
     rows = sweep(args, plan)
+    (Path(args.out) / "summary.md").write_text(markdown_table(summarize_rows(rows)),
+                                                 encoding="utf-8")
     if args.command == "bits":
         for (k, arm), verdict in sorted(ladder_verdict(rows).items()):
             print(f"k={k} {arm}: {verdict}")

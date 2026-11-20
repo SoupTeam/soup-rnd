@@ -9,6 +9,9 @@ Stages, from ``MBR_STAGES`` (comma list, default ``probe``):
   speed    A-B-C-C-B-A blocks over the four windows (``MBR_BLOCKS``, default 5).
   profile  one phase-profiled run per arm and window.
 
+Also the entry of the Vast run (``mbr_measure_vast.sh`` sets ``MBR_SRC``, ``MBR_WORK``,
+``MBR_OUT``, ``MBR_SKIP_PIP``, ``MBR_DEADLINE_HOURS``).
+
 Needs the repo source as a dataset (``/kaggle/input/.../{src,benchmarks}``). /kaggle/working has
 only about 20 GiB, so the checkpoint and cache live in /tmp (gone after the run); only the small
 JSON reports go to /kaggle/working, written after every stage.
@@ -104,6 +107,8 @@ def main() -> int:
             extra = {"bits": ["--seq", "64"], "speed": ["--blocks",
                                                         os.environ.get("MBR_BLOCKS", "5")],
                      "profile": []}[stage]
+            if os.environ.get("MBR_DEADLINE_HOURS"):
+                extra += ["--deadline-hours", os.environ["MBR_DEADLINE_HOURS"]]
             REPORT["stages"][stage] = run([stage, "--out", str(OUT / stage), *common, *extra],
                                           stage)
         save()

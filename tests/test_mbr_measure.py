@@ -198,3 +198,37 @@ def test_profile_plan_is_one_normal_mode_run_per_arm_and_window_flagged_for_prof
     assert all(p["profile"] and p["kind"] == "speed" and p["deterministic"] is False
                for p in plan)
     assert not any(p["arm"] == "A0" and p["k"] > 8 for p in plan)
+
+
+def test_speed_plan_is_block_major_so_a_cut_run_keeps_every_window() -> None:
+    plan = mm.speed_plan(blocks=2)
+    first_block = [p for p in plan if p["block"] == 0]
+    assert {(p["k"], p["seq"]) for p in first_block} == set(mm.WINDOWS)
+    assert plan[:len(first_block)] == first_block
+
+
+def test_summarize_rows_takes_median_step_and_max_peaks_per_arm_and_window() -> None:
+    def row(arm, step, nvml, status="ok"):
+        return {"arm": arm, "k": 8, "seq": 64, "kind": "speed", "mode": "normal",
+                "status": status, "step_seconds": step, "peak_allocated": 10, "peak_reserved": 20,
+                "peak_nvml": nvml, "peak_ram": 5}
+
+    rows = [row("C", 10.0, 100), row("C", 14.0, 120), row("C", 12.0, 110),
+            row("B0", 20.0, 90), {"arm": "C", "k": 64, "seq": 512, "kind": "speed",
+                                  "mode": "normal", "status": "OOM", "peak_nvml": 8000}]
+    table = mm.summarize_rows(rows)
+    cell = table[("C", 8, 64)]
+    assert cell["step_seconds"] == 12.0 and cell["peak_nvml"] == 120 and cell["runs"] == 3
+    oom = table[("C", 64, 512)]
+    assert oom["status"] == "OOM" and oom["step_seconds"] is None
+
+
+def test_markdown_table_has_one_line_per_arm_and_window_and_shows_oom() -> None:
+    table = {("C", 8, 64): {"step_seconds": 12.0, "peak_allocated": 2**30,
+                            "peak_reserved": 2**30, "peak_nvml": 2**31, "peak_ram": 2**32,
+                            "runs": 3, "status": "ok"},
+             ("C", 64, 512): {"step_seconds": None, "peak_allocated": None, "peak_reserved": None,
+                              "peak_nvml": 8000, "peak_ram": None, "runs": 1, "status": "OOM"}}
+    text = mm.markdown_table(table)
+    assert "| C | 8 | 64 | 12.0 |" in text and "OOM" in text
+    assert text.count("\n") >= 3
