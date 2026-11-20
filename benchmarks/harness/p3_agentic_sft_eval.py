@@ -71,6 +71,7 @@ def _load_tokenizer(case: str, weights: Path) -> Any:
 
     if case in ("tiny", "tiny_qwen38"):
         cfg = load_stream_config(str(weights), False)
+        cfg = getattr(cfg, "text_config", None) or cfg
         return _SimpleByteTokenizer(vocab_size=int(cfg.vocab_size))
     from huggingface_hub import snapshot_download
     from transformers import AutoTokenizer
@@ -95,6 +96,7 @@ def _load_tokenizer(case: str, weights: Path) -> Any:
     tok = AutoTokenizer.from_pretrained(str(weights), trust_remote_code=True)
     if tok.eos_token_id is None:
         cfg = load_stream_config(str(weights), False)
+        cfg = getattr(cfg, "text_config", None) or cfg
         tok.eos_token_id = int(getattr(cfg, "eos_token_id", 2) or 2)
     if tok.pad_token_id is None:
         tok.pad_token_id = tok.eos_token_id
@@ -118,7 +120,7 @@ def _extract_valid_tool_calls(text: str) -> List[Dict[str, Any]]:
     return calls
 
 
-def _compact_tools_json(system_text: str, max_chars: int = 900) -> Optional[str]:
+def _compact_tools_json(system_text: str, max_chars: int = 360) -> Optional[str]:
     m = _TOOLS_BLOCK_RE.search(system_text)
     raw = m.group(1).strip() if m else system_text.strip()
     try:
@@ -138,17 +140,16 @@ def _compact_tools_json(system_text: str, max_chars: int = 900) -> Optional[str]
             continue
         params = fn.get("parameters", {})
         props = params.get("properties", {}) if isinstance(params, dict) else {}
-        req = params.get("required", []) if isinstance(params, dict) else []
         clean_props = {}
         if isinstance(props, dict):
             for k, v in props.items():
                 if isinstance(v, dict):
-                    clean_props[k] = {"type": v.get("type", "string")}
+                    clean_props[k] = v.get("type", "string")
         compact_list.append(
             {
                 "name": fn["name"],
-                "description": str(fn.get("description", ""))[:90],
-                "parameters": {"properties": clean_props, "required": req},
+                "description": str(fn.get("description", ""))[:50],
+                "parameters": clean_props,
             }
         )
     if not compact_list:
@@ -171,93 +172,43 @@ def _build_enterprise_agentic_split(
     tool_catalog = [
         {
             "name": "get_camera_live_feed",
-            "description": "Retrieve live video stream from a security camera",
-            "parameters": {
-                "properties": {
-                    "camera_id": {"type": "string"},
-                    "stream_quality": {"type": "string"},
-                },
-                "required": ["camera_id", "stream_quality"],
-            },
+            "description": "Retrieve live security camera video stream",
+            "parameters": {"camera_id": "string", "stream_quality": "string"},
         },
         {
             "name": "record_camera_feed",
-            "description": "Record video feed from a security camera for a duration",
-            "parameters": {
-                "properties": {
-                    "camera_id": {"type": "string"},
-                    "duration": {"type": "integer"},
-                },
-                "required": ["camera_id", "duration"],
-            },
+            "description": "Record security camera feed for a duration",
+            "parameters": {"camera_id": "string", "duration": "integer"},
         },
         {
             "name": "kill_process",
-            "description": "Send a termination signal to an OS process by PID",
-            "parameters": {
-                "properties": {
-                    "process_id": {"type": "integer"},
-                    "signal": {"type": "string"},
-                },
-                "required": ["process_id", "signal"],
-            },
+            "description": "Send termination signal to OS process by PID",
+            "parameters": {"process_id": "integer", "signal": "string"},
         },
         {
             "name": "dblink_connect_and_query",
-            "description": "Execute a read-only SQL query on a target database host",
-            "parameters": {
-                "properties": {
-                    "dbname": {"type": "string"},
-                    "table": {"type": "string"},
-                    "limit": {"type": "integer"},
-                },
-                "required": ["dbname", "table", "limit"],
-            },
+            "description": "Execute read-only SQL query on database table",
+            "parameters": {"dbname": "string", "table": "string", "limit": "integer"},
         },
         {
             "name": "fetch_product_details",
-            "description": "Look up catalog metadata for a product SKU and warehouse",
-            "parameters": {
-                "properties": {
-                    "sku": {"type": "string"},
-                    "warehouse": {"type": "string"},
-                },
-                "required": ["sku", "warehouse"],
-            },
+            "description": "Look up catalog metadata for SKU in warehouse",
+            "parameters": {"sku": "string", "warehouse": "string"},
         },
         {
             "name": "generate_basic_auth_header",
-            "description": "Create an HTTP Basic Auth credential header for an API client",
-            "parameters": {
-                "properties": {
-                    "username": {"type": "string"},
-                    "scope": {"type": "string"},
-                },
-                "required": ["username", "scope"],
-            },
+            "description": "Create HTTP Basic Auth header for API client",
+            "parameters": {"username": "string", "scope": "string"},
         },
         {
             "name": "scale_k8s_deployment",
-            "description": "Scale a Kubernetes deployment in a target namespace",
-            "parameters": {
-                "properties": {
-                    "deployment": {"type": "string"},
-                    "namespace": {"type": "string"},
-                    "replicas": {"type": "integer"},
-                },
-                "required": ["deployment", "namespace", "replicas"],
-            },
+            "description": "Scale Kubernetes deployment in namespace",
+            "parameters": {"deployment": "string", "namespace": "string", "replicas": "integer"},
         },
         {
             "name": "query_prometheus_metric",
-            "description": "Fetch an aggregated Prometheus metric over a time window",
-            "parameters": {
-                "properties": {
-                    "metric": {"type": "string"},
-                    "window": {"type": "string"},
-                },
-                "required": ["metric", "window"],
-            },
+            "description": "Fetch Prometheus metric over time window",
+            "parameters": {"metric": "string", "window": "string"},
         },
     ]
 
@@ -370,7 +321,7 @@ def _load_or_fetch_agentic_examples(
     needed: int,
 ) -> List[Dict[str, Any]]:
     cache_dir.mkdir(parents=True, exist_ok=True)
-    curated_path = cache_dir / "curated_agentic_tool_calls_v2.json"
+    curated_path = cache_dir / "curated_agentic_tool_calls_v3.json"
     if curated_path.exists():
         rows = json.loads(curated_path.read_text(encoding="utf-8"))
         if len(rows) >= needed:
@@ -402,11 +353,11 @@ def _load_or_fetch_agentic_examples(
                 calls = _extract_valid_tool_calls(gpt_val)
                 if len(calls) != 1:
                     continue
-                tools_str = _compact_tools_json(sys_val, max_chars=520)
+                tools_str = _compact_tools_json(sys_val, max_chars=360)
                 if not tools_str:
                     continue
                 call_json = json.dumps(calls[0], ensure_ascii=False, separators=(",", ":"))
-                if len(call_json) > 160:
+                if len(call_json) > 130:
                     continue
                 seen_queries.add(usr_val)
                 hermes_compact.append(
@@ -474,8 +425,6 @@ def _evaluate_held_out_l2l(
     """Compute exact held-out response NLL, PPL, and next-token accuracy via L2L forward."""
     import torch
     from torch.nn import functional as F  # noqa: N812
-
-    from soup_cli.utils import l2l_rng
 
     causal, owner = stepper.causal, stepper.owner
     call = stepper.call
@@ -562,8 +511,8 @@ def _evaluate_held_out_l2l(
         for moe, prev_ctrl in saved_controllers:
             moe._expert_controller = prev_ctrl
         store.end_step()
-        let_rng = l2l_rng  # keep reference clean
-        del let_rng
+        if device.startswith("cuda"):
+            torch.cuda.empty_cache()
 
     mean_nll = total_nll / max(total_tokens, 1)
     ppl = math.exp(min(mean_nll, 20.0))
@@ -669,6 +618,7 @@ def _evaluate_batched_generation(
     prompt_len: int,
     max_new_tokens: int,
     device: str,
+    sub_bs: int = 8,
 ) -> Dict[str, Any]:
     import torch
 
@@ -676,53 +626,74 @@ def _evaluate_batched_generation(
         return {}
     t0 = time.perf_counter()
     aligned = [_align_prompt_ids(ex, tokenizer, prompt_len) for ex in gen_examples]
-    input_ids = torch.tensor(aligned, dtype=torch.long, device=device)
-    attention_mask = torch.ones_like(input_ids)
 
     was_training = model.training
     model.eval()
-    generated_cols: List[Any] = []
-    past = None
-    cur_ids = input_ids
-    cur_mask = attention_mask
+    all_pred_rows: List[List[int]] = []
+    supports_logits_to_keep = True
     try:
         with torch.no_grad():
-            for step_t in range(max_new_tokens):
-                out = model(
-                    input_ids=cur_ids,
-                    attention_mask=cur_mask,
-                    past_key_values=past,
-                    use_cache=True,
-                )
-                past = out.past_key_values
-                next_tok = out.logits[:, -1:, :].argmax(dim=-1)
-                generated_cols.append(next_tok.detach().cpu())
-                cur_ids = next_tok
-                cur_mask = torch.cat(
-                    [
-                        cur_mask,
-                        torch.ones(
-                            (cur_mask.shape[0], 1), dtype=cur_mask.dtype, device=cur_mask.device
-                        ),
-                    ],
-                    dim=1,
-                )
-                if step_t >= 12 and step_t % 4 == 0:
-                    partial = torch.cat(generated_cols, dim=1)
-                    done_all = True
-                    for row_i in range(partial.shape[0]):
-                        txt = tokenizer.decode(partial[row_i].tolist(), skip_special_tokens=True)
-                        if "</tool_call>" not in txt:
-                            done_all = False
-                            break
-                    if done_all:
-                        break
+            for b_start in range(0, len(aligned), sub_bs):
+                b_slice = aligned[b_start : b_start + sub_bs]
+                cur_ids: Any = torch.tensor(b_slice, dtype=torch.long, device=device)
+                cur_mask: Any = torch.ones_like(cur_ids)
+                past: Any = None
+                generated_cols: List[Any] = []
+                try:
+                    for step_t in range(max_new_tokens):
+                        call_kw: Dict[str, Any] = dict(
+                            input_ids=cur_ids,
+                            attention_mask=cur_mask,
+                            past_key_values=past,
+                            use_cache=True,
+                        )
+                        if supports_logits_to_keep:
+                            try:
+                                out = model(**call_kw, logits_to_keep=1)
+                            except TypeError:
+                                supports_logits_to_keep = False
+                                out = model(**call_kw)
+                        else:
+                            out = model(**call_kw)
+                        past = out.past_key_values
+                        next_tok = out.logits[:, -1:, :].argmax(dim=-1)
+                        del out
+                        generated_cols.append(next_tok.detach().cpu())
+                        cur_ids = next_tok
+                        cur_mask = torch.cat(
+                            [
+                                cur_mask,
+                                torch.ones(
+                                    (cur_mask.shape[0], 1),
+                                    dtype=cur_mask.dtype,
+                                    device=cur_mask.device,
+                                ),
+                            ],
+                            dim=1,
+                        )
+                        if step_t >= 12 and step_t % 4 == 0:
+                            partial = torch.cat(generated_cols, dim=1)
+                            done_all = True
+                            for row_i in range(partial.shape[0]):
+                                txt = tokenizer.decode(
+                                    partial[row_i].tolist(), skip_special_tokens=True
+                                )
+                                if "</tool_call>" not in txt:
+                                    done_all = False
+                                    break
+                            if done_all:
+                                break
+                    batch_mat = torch.cat(generated_cols, dim=1)
+                    for row_i in range(batch_mat.shape[0]):
+                        all_pred_rows.append(batch_mat[row_i].tolist())
+                finally:
+                    del past, cur_ids, cur_mask, generated_cols
+                    if device.startswith("cuda"):
+                        torch.cuda.empty_cache()
     finally:
-        del past, cur_ids, cur_mask
         if was_training:
             model.train()
 
-    gen_matrix = torch.cat(generated_cols, dim=1)
     scores_accum = {
         "valid_xml": 0.0,
         "valid_json": 0.0,
@@ -732,7 +703,7 @@ def _evaluate_batched_generation(
     }
     samples: List[Dict[str, Any]] = []
     for i, ex in enumerate(gen_examples):
-        pred_txt = tokenizer.decode(gen_matrix[i].tolist(), skip_special_tokens=True)
+        pred_txt = tokenizer.decode(all_pred_rows[i], skip_special_tokens=True)
         # Cut after first closing </tool_call> if single-tool ground truth
         if len(ex["ground_truth_calls"]) == 1 and "</tool_call>" in pred_txt:
             end_pos = pred_txt.find("</tool_call>") + len("</tool_call>")
@@ -784,7 +755,19 @@ def main() -> None:
     parser.add_argument("--gen-prompt-len", type=int, default=256)
     parser.add_argument("--gen-max-new-tokens", type=int, default=56)
     parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument(
+        "--head-lr",
+        type=float,
+        default=0.0,
+        help="Optional separate learning rate for embed_tokens / lm_head LoRA params (0 = --lr).",
+    )
     parser.add_argument("--lora-r", type=int, default=8)
+    parser.add_argument(
+        "--train-head",
+        action="store_true",
+        help="Also attach LoRA adapters to embed_tokens and lm_head (needed for base models "
+        "with uninitialized special tokens such as <tool_call>).",
+    )
     parser.add_argument("--host-cache-gib", type=float, default=3.5)
     parser.add_argument("--dph-usd", type=float, default=0.42)
     parser.add_argument("--output", type=str, required=True)
@@ -829,6 +812,10 @@ def main() -> None:
         pair = _build_sft_tensor_pair(ex, tokenizer, args.seq_len)
         if pair is not None:
             valid_pairs.append((ex, pair))
+    console.print(
+        f"[dim]Tokenized {len(valid_pairs)}/{len(raw_examples)} unique tasks "
+        f"fitting S={args.seq_len}[/dim]"
+    )
 
     if not valid_pairs:
         # Compact fallback for tiny seq_len unit tests with byte-level tokenizers
@@ -882,6 +869,8 @@ def main() -> None:
     index = read_shard_index(str(shards))
     is_moe = index.arch == "deepseek_v3"
     targets = list(KANANA_TARGETS) if is_moe else list(QWEN38_27B_TARGETS)
+    if args.train_head:
+        targets = targets + ["embed_tokens", "lm_head"]
     lora_cfg = LoraConfig(
         r=args.lora_r,
         lora_alpha=args.lora_r * 2,
@@ -935,7 +924,7 @@ def main() -> None:
 
         model.train()
         trainables = fixture.trainables(model)
-        cfg = model.config
+        cfg = getattr(model.config, "text_config", None) or model.config
         sample_mb = train_slice[0][1][0].to(args.device)
         stepper = l2l_step.L2LStep(
             model, runtime, l2l_step.capture_layer_call(model, sample_mb)
@@ -980,6 +969,7 @@ def main() -> None:
                 prompt_len=min(args.gen_prompt_len, args.seq_len - 16),
                 max_new_tokens=args.gen_max_new_tokens,
                 device=args.device,
+                sub_bs=16 if is_moe else 8,
             )
             console.print(
                 f"[yellow]BEFORE SFT:[/yellow] NLL={before_l2l['response_nll']:.4f} "
@@ -994,7 +984,17 @@ def main() -> None:
             # 2. SFT Training with Unified GO + FP8 block64 (+ DeepseekRoutingOracle on MoE)
             if is_moe:
                 oracle = DeepseekRoutingOracle(model, host_budget=host_budget, pin=is_cuda)
-            opt = torch.optim.AdamW(trainables.values(), lr=args.lr, weight_decay=0.01)
+            head_lr = args.head_lr if args.head_lr > 0 else args.lr
+            head_params = [
+                p for n, p in trainables.items() if ("lm_head" in n or "embed_tokens" in n)
+            ]
+            body_params = [
+                p for n, p in trainables.items() if not ("lm_head" in n or "embed_tokens" in n)
+            ]
+            param_groups = [{"params": body_params, "lr": args.lr}]
+            if head_params:
+                param_groups.append({"params": head_params, "lr": head_lr})
+            opt = torch.optim.AdamW(param_groups, weight_decay=0.01)
             if is_cuda:
                 torch.cuda.synchronize(args.device)
                 torch.cuda.reset_peak_memory_stats(args.device)
@@ -1052,6 +1052,11 @@ def main() -> None:
                         )
                 train_wall_s = time.perf_counter() - t_train0
 
+            opt.zero_grad(set_to_none=True)
+            del opt
+            if is_cuda:
+                torch.cuda.empty_cache()
+
             if oracle is not None:
                 oracle_stats = oracle.report()
                 oracle_host_mib = round(
@@ -1081,6 +1086,7 @@ def main() -> None:
                 prompt_len=min(args.gen_prompt_len, args.seq_len - 16),
                 max_new_tokens=args.gen_max_new_tokens,
                 device=args.device,
+                sub_bs=16 if is_moe else 8,
             )
             console.print(
                 f"[green]AFTER SFT:[/green]  NLL={after_l2l['response_nll']:.4f} "
@@ -1109,7 +1115,9 @@ def main() -> None:
                 "k": args.k,
                 "seq_len": args.seq_len,
                 "lr": args.lr,
+                "head_lr": head_lr,
                 "lora_r": args.lora_r,
+                "train_head": bool(args.train_head),
                 "activation_codec": "fp8_e4m3_block64",
                 "routing_oracle": is_moe,
                 "total_train_tokens": total_train_tokens,

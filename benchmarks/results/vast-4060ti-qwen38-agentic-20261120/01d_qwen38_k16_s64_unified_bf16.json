@@ -1,0 +1,99 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "qwen38_27b",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "native",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": false,
+  "cuda_nf4_decode": false,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 16,
+  "seq_len": 64,
+  "group_size": 16,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "unified_go",
+      "activation_codec": "bf16",
+      "fp8_group_size": null,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 671088640,
+      "store_host_mib": 640.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        25.0987
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 16,
+      "seq_len": 64,
+      "tokens": 1024,
+      "wall_s": 25.0992,
+      "tokens_per_s": 40.7981,
+      "cuda_allocated_peak_gib": 3.1603,
+      "cuda_reserved_peak_gib": 3.2129,
+      "nvml_peak_gib": 3.8154,
+      "nvml_poll_samples": 1243,
+      "nvml_used_gib": 1.88958740234375,
+      "rss_peak_gib": 11.7861,
+      "rss_gib": 11.8397,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 0,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 0,
+      "window_dequant_stats": {
+        "dequant_calls": 256,
+        "cache_reuses": 3840,
+        "custom_4bit_calls": 11776
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 2542796800,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "fbe0db89624413e8852b572d59af4cc87bbefa68b6d8012b3b232daf268d030e",
+      "gradients_sha256": "88c8b84941d64e7c2a69259dea5b1fee98beb4a8f82a16e017e058518cdcfc88",
+      "adapter_sha256": "1fb1d5b4b591c898709e0c4b35dd74b83003a3fd7e3b8f4df5f51f7ff31f3ddc",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.001480400562286377,
+          "relative_l2": 0.003730620217254333,
+          "min_cosine": 0.9995690218073061
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.0001999763771891594,
+          "relative_l2": 0.00022165910542361954,
+          "min_cosine": 0.9999980568614486
+        }
+      },
+      "run_index": 0,
+      "status": "ok"
+    }
+  ]
+}

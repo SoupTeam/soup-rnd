@@ -549,7 +549,7 @@ def _run_arm(
         initial_lora = fixture.snapshot(model, gradients=False)
 
         step_batches = [[b.to(device) for b in sb] for sb in step_batches_cpu]
-        cfg = model.config
+        cfg = getattr(model.config, "text_config", None) or model.config
         stepper = l2l_step.L2LStep(
             model, runtime, l2l_step.capture_layer_call(model, step_batches[0][0])
         )
@@ -805,6 +805,7 @@ def main() -> None:
         prepared=args.prepared,
     )
     cfg = load_stream_config(str(weights), False)
+    cfg = getattr(cfg, "text_config", None) or cfg
     gen = torch.Generator().manual_seed(2026)
     step_batches_cpu = [
         [

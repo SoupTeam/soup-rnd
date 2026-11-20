@@ -1,0 +1,99 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "qwen38_27b",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "native",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": false,
+  "cuda_nf4_decode": false,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 64,
+  "seq_len": 512,
+  "group_size": 64,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "unified_go_fp8_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": 64,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 11408506880,
+      "store_host_mib": 10880.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        164.0594
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 64,
+      "seq_len": 512,
+      "tokens": 32768,
+      "wall_s": 164.0603,
+      "tokens_per_s": 199.7315,
+      "cuda_allocated_peak_gib": 4.014,
+      "cuda_reserved_peak_gib": 4.3145,
+      "nvml_peak_gib": 4.9482,
+      "nvml_poll_samples": 8122,
+      "nvml_used_gib": 3.24700927734375,
+      "rss_peak_gib": 27.8587,
+      "rss_gib": 27.918,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 0,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 0,
+      "window_dequant_stats": {
+        "dequant_calls": 992,
+        "cache_reuses": 62496,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 2542796800,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "da8d7ab954aea7651139b467b5101ad41ef470fb63df810223ca5f9bd5392e87",
+      "gradients_sha256": "c9d7857f566b30cf5b21ed2f958b256f6b75c691c51eecdaa14836c620ede41f",
+      "adapter_sha256": "a5ce9b8f25cfce36fe6dc52bf2806370ea7e478c35764ce1b494d0f114647efa",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.002378487028181553,
+          "relative_l2": 0.0058303637673251555,
+          "min_cosine": 0.9978320071898822
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.00019996799528598785,
+          "relative_l2": 0.0003216664409176014,
+          "min_cosine": 0.9999947975125617
+        }
+      },
+      "run_index": 0,
+      "status": "ok"
+    }
+  ]
+}

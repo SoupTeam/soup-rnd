@@ -1,0 +1,298 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "case": "kanana",
+  "model_repo": "kakaocorp/kanana-2-30b-a3b-base-2601",
+  "is_moe": true,
+  "dataset": "NousResearch/hermes-function-calling-v1",
+  "steps": 30,
+  "k": 16,
+  "seq_len": 256,
+  "lr": 0.0008,
+  "lora_r": 16,
+  "train_head": true,
+  "activation_codec": "fp8_e4m3_block64",
+  "routing_oracle": true,
+  "total_train_tokens": 122880,
+  "total_active_target_tokens": 14137,
+  "train_wall_s": 388.045,
+  "train_tokens_per_s": 316.66,
+  "train_cost_usd": 0.0453,
+  "step_losses": [
+    2.0701,
+    1.3909,
+    1.2566,
+    1.0904,
+    0.8817,
+    0.7582,
+    0.6582,
+    0.5788,
+    0.5058,
+    0.4242,
+    0.3561,
+    0.2883,
+    0.2245,
+    0.1538,
+    0.0927,
+    0.0583,
+    0.0494,
+    0.0474,
+    0.048,
+    0.0459,
+    0.0477,
+    0.0463,
+    0.0473,
+    0.0475,
+    0.0472,
+    0.0469,
+    0.0472,
+    0.0465,
+    0.047,
+    0.0462
+  ],
+  "step_walls_s": [
+    13.09,
+    12.927,
+    13.061,
+    13.058,
+    12.965,
+    13.047,
+    12.958,
+    12.969,
+    12.912,
+    12.869,
+    12.738,
+    12.863,
+    12.827,
+    12.982,
+    12.969,
+    12.869,
+    12.979,
+    12.896,
+    12.872,
+    12.866,
+    12.871,
+    12.942,
+    12.81,
+    12.815,
+    12.953,
+    12.967,
+    12.976,
+    13.063,
+    12.984,
+    12.944
+  ],
+  "store_host_mib": 408.0,
+  "oracle_host_mib": 7.344,
+  "rss_peak_gib": 19.2681,
+  "rss_end_gib": 19.2814,
+  "cuda_allocated_peak_gib": 1.2523,
+  "cuda_reserved_peak_gib": 1.3809,
+  "nvml_peak_gib": 1.9677,
+  "nvml_used_gib": 1.52825927734375,
+  "window_dequant_stats": {
+    "dequant_calls": 576,
+    "cache_reuses": 10896,
+    "custom_4bit_calls": 2288
+  },
+  "large_pool_release_stats": {
+    "enabled": true,
+    "slot_nbytes": 525336576,
+    "forward_body_allocated_bytes": 0,
+    "backward_body_allocated_bytes": 0,
+    "releases": 2,
+    "allocations": 2
+  },
+  "routing_oracle_stats": {
+    "complete": true,
+    "expected_pairs": 752,
+    "steps_completed": 30,
+    "step_counts": {
+      "native_forward": 752,
+      "oracle_peek": 752,
+      "oracle_recompute": 752,
+      "oracle_vjp": 752
+    },
+    "total_counts": {
+      "native_forward": 22560,
+      "oracle_peek": 22560,
+      "oracle_recompute": 22560,
+      "oracle_vjp": 22560
+    },
+    "id_dtype": "torch.int16",
+    "moe_layers": 47,
+    "owned_host_storage_bytes": 7700480,
+    "host_reserved_bytes": 7700480,
+    "pinned": true,
+    "closed": false,
+    "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward"
+  },
+  "native_telemetry": {
+    "io_workers": 4,
+    "ring_slots": 8,
+    "range_reads": 23896,
+    "requested_range_bytes": 15954030128,
+    "worker_read_ns": 10785348410,
+    "worker_pack_ns": 1391796435,
+    "worker_admit_ns": 5310364182,
+    "sync_hit_copy_ns": 0,
+    "main_wait_worker_ns": 2178509768,
+    "main_pinned_copy_ns": 66188634231,
+    "ring_immediate_ready": 500502,
+    "cross_layer_prefetched": 168222,
+    "cross_layer_promotions": 1380,
+    "cross_layer_discards": 0,
+    "cuda_nf4_launches": 506990,
+    "sampled_nf4_decodes": 31671,
+    "sampled_nf4_decode_ms": 471.49718564748764,
+    "sampled_h2d_pairs": 31245,
+    "sampled_h2d_ms": 7226.485503748059,
+    "sampled_h2d_overlap_fraction": 0.11408490155943067
+  },
+  "before_sft": {
+    "held_out_l2l": {
+      "eval_examples": 32,
+      "eval_target_tokens": 942,
+      "response_nll": 2.0836,
+      "response_ppl": 8.0332,
+      "response_token_acc_pct": 77.6
+    },
+    "free_generation": {
+      "gen_examples": 16,
+      "gen_wall_s": 43.02,
+      "valid_tool_call_xml_pct": 0.0,
+      "valid_json_schema_pct": 0.0,
+      "tool_name_acc_pct": 0.0,
+      "arg_key_f1_pct": 0.0,
+      "full_action_exact_match_pct": 0.0,
+      "samples": [
+        {
+          "user_query": "Open the live video stream for camera garage_north at 1080p resolution.",
+          "ground_truth": "<tool_call>\n{\"name\":\"get_camera_live_feed\",\"arguments\":{\"camera_id\":\"garage_north\",\"stream_quality\":\"1080p\"}}\n</tool_call>",
+          "prediction": "{\"name\":\"get_camera_live_feed\",\"arguments\":{\"camera_id\":\"garage_north\",\"stream_quality\":\"1080p\"}}\n\n### Agent Response\n{\"name\":\"get_camera_live_feed\",\"",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        },
+        {
+          "user_query": "Start recording camera front_door for 27 minutes.",
+          "ground_truth": "<tool_call>\n{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":27}}\n</tool_call>",
+          "prediction": "{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":\"27\"}}\n\n### Agent System Registry\nRespond ONLY with one or more  {\"name\":\"...\",\"arguments\":",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        },
+        {
+          "user_query": "Terminate process ID 1287 immediately using signal SIGHUP.",
+          "ground_truth": "<tool_call>\n{\"name\":\"kill_process\",\"arguments\":{\"process_id\":1287,\"signal\":\"SIGHUP\"}}\n</tool_call>",
+          "prediction": "```yaml\n{\n  \"name\": \"kill_process\",\n  \"arguments\": {\n    \"process_id\": 1287,\n    \"signal\": \"SIGHUP\"\n  }\n}\n```",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        },
+        {
+          "user_query": "Query database inventory_us and fetch 46 rows from table shipments.",
+          "ground_truth": "<tool_call>\n{\"name\":\"dblink_connect_and_query\",\"arguments\":{\"dbname\":\"inventory_us\",\"table\":\"shipments\",\"limit\":46}}\n</tool_call>",
+          "prediction": "{\"name\":\"dblink_connect_and_query\",\"arguments\":{\"dbname\":\"inventory_us\",\"table\":\"shipments\",\"limit\":\"46\"}}\n\n### Agent Response\n{\"name\":\"dblink_connect_and_query",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "after_sft": {
+    "held_out_l2l": {
+      "eval_examples": 32,
+      "eval_target_tokens": 942,
+      "response_nll": 0.0463,
+      "response_ppl": 1.0474,
+      "response_token_acc_pct": 96.71
+    },
+    "free_generation": {
+      "gen_examples": 16,
+      "gen_wall_s": 39.1,
+      "valid_tool_call_xml_pct": 0.0,
+      "valid_json_schema_pct": 0.0,
+      "tool_name_acc_pct": 0.0,
+      "arg_key_f1_pct": 0.0,
+      "full_action_exact_match_pct": 0.0,
+      "samples": [
+        {
+          "user_query": "Open the live video stream for camera garage_north at 1080p resolution.",
+          "ground_truth": "<tool_call>\n{\"name\":\"get_camera_live_feed\",\"arguments\":{\"camera_id\":\"garage_north\",\"stream_quality\":\"1080p\"}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"get_camera_live_feed\",\"arguments\":{\"camera_id\":\"garage_north\",\"stream_quality\":\"1080p\"}}\n<tool_call>\n<tool_call>\n<tool_call>\n<tool_call>",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        },
+        {
+          "user_query": "Start recording camera front_door for 27 minutes.",
+          "ground_truth": "<tool_call>\n{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":27}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":27}}\n<tool_call>\n\n\n<tool_call>\n<tool_call>\n<tool_call>\n<tool_call>\n<tool_call>\n<tool_call>",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        },
+        {
+          "user_query": "Terminate process ID 1287 immediately using signal SIGHUP.",
+          "ground_truth": "<tool_call>\n{\"name\":\"kill_process\",\"arguments\":{\"process_id\":1287,\"signal\":\"SIGHUP\"}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"kill_process\",\"arguments\":{\"process_id\":1287,\"signal\":\"SIGHUP\"}}\n<tool_call>\n\n\n<tool_call>\n<tool_call>\n<tool_call>\n<tool_call>\n<tool_call>",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        },
+        {
+          "user_query": "Query database inventory_us and fetch 46 rows from table shipments.",
+          "ground_truth": "<tool_call>\n{\"name\":\"dblink_connect_and_query\",\"arguments\":{\"dbname\":\"inventory_us\",\"table\":\"shipments\",\"limit\":46}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"dblink_connect_and_query\",\"arguments\":{\"dbname\":\"inventory_us\",\"table\":\"shipments\",\"limit\":46}}\n<tool_call>",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "delta": {
+    "response_nll_drop": 2.0373,
+    "response_ppl_before": 8.0332,
+    "response_ppl_after": 1.0474,
+    "response_token_acc_gain_pct": 19.11,
+    "valid_json_schema_gain_pct": 0.0,
+    "tool_name_acc_gain_pct": 0.0,
+    "arg_key_f1_gain_pct": 0.0,
+    "full_action_exact_match_gain_pct": 0.0
+  }
+}

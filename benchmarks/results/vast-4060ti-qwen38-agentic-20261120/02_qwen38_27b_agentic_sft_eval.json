@@ -1,0 +1,225 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "case": "qwen38_27b",
+  "model_repo": "Qwen/Qwen3.8-27B",
+  "is_moe": false,
+  "dataset": "NousResearch/hermes-function-calling-v1",
+  "steps": 16,
+  "k": 16,
+  "seq_len": 256,
+  "lr": 0.0005,
+  "lora_r": 16,
+  "activation_codec": "fp8_e4m3_block64",
+  "routing_oracle": false,
+  "total_train_tokens": 65536,
+  "total_active_target_tokens": 7743,
+  "train_wall_s": 411.03,
+  "train_tokens_per_s": 159.44,
+  "train_cost_usd": 0.048,
+  "step_losses": [
+    0.3724,
+    0.1613,
+    0.1088,
+    0.0187,
+    0.0063,
+    0.0039,
+    0.0017,
+    0.0008,
+    0.0005,
+    0.0003,
+    0.0002,
+    0.0002,
+    0.0001,
+    0.0001,
+    0.0,
+    0.0
+  ],
+  "step_walls_s": [
+    31.228,
+    25.27,
+    25.289,
+    25.322,
+    25.323,
+    25.326,
+    25.324,
+    25.324,
+    25.325,
+    25.334,
+    25.335,
+    25.325,
+    25.324,
+    25.327,
+    25.326,
+    25.327
+  ],
+  "store_host_mib": 1360.0,
+  "oracle_host_mib": 0.0,
+  "rss_peak_gib": 13.2412,
+  "rss_end_gib": 13.2412,
+  "cuda_allocated_peak_gib": 4.6303,
+  "cuda_reserved_peak_gib": 4.6816,
+  "nvml_peak_gib": 5.1064,
+  "nvml_used_gib": 5.28997802734375,
+  "window_dequant_stats": {
+    "dequant_calls": 608,
+    "cache_reuses": 9120,
+    "custom_4bit_calls": 6144
+  },
+  "large_pool_release_stats": {
+    "enabled": true,
+    "slot_nbytes": 2542796800,
+    "forward_body_allocated_bytes": 0,
+    "backward_body_allocated_bytes": 0,
+    "releases": 2,
+    "allocations": 2
+  },
+  "routing_oracle_stats": null,
+  "native_telemetry": null,
+  "before_sft": {
+    "held_out_l2l": {
+      "eval_examples": 32,
+      "eval_target_tokens": 964,
+      "response_nll": 0.3725,
+      "response_ppl": 1.4513,
+      "response_token_acc_pct": 93.36
+    },
+    "free_generation": {
+      "gen_examples": 16,
+      "gen_wall_s": 341.23,
+      "valid_tool_call_xml_pct": 50.0,
+      "valid_json_schema_pct": 50.0,
+      "tool_name_acc_pct": 50.0,
+      "arg_key_f1_pct": 50.0,
+      "full_action_exact_match_pct": 50.0,
+      "samples": [
+        {
+          "user_query": "Open the live video stream for camera garage_north at 1080p resolution.",
+          "ground_truth": "<tool_call>\n{\"name\":\"get_camera_live_feed\",\"arguments\":{\"camera_id\":\"garage_north\",\"stream_quality\":\"1080p\"}}\n</tool_call>",
+          "prediction": "assistant\n<think>\nThe user wants to open the live video stream for camera \"garage_north\" at 1080p resolution. I need to use the `get",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        },
+        {
+          "user_query": "Start recording camera front_door for 27 minutes.",
+          "ground_truth": "<tool_call>\n{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":27}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":27}}\n</tool_call>",
+          "scores": {
+            "valid_xml": 1.0,
+            "valid_json": 1.0,
+            "tool_name_match": 1.0,
+            "arg_key_f1": 1.0,
+            "exact_action_match": 1.0
+          }
+        },
+        {
+          "user_query": "Terminate process ID 1287 immediately using signal SIGHUP.",
+          "ground_truth": "<tool_call>\n{\"name\":\"kill_process\",\"arguments\":{\"process_id\":1287,\"signal\":\"SIGHUP\"}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"kill_process\",\"arguments\":{\"process_id\":1287,\"signal\":\"SIGHUP\"}}\n</tool_call>",
+          "scores": {
+            "valid_xml": 1.0,
+            "valid_json": 1.0,
+            "tool_name_match": 1.0,
+            "arg_key_f1": 1.0,
+            "exact_action_match": 1.0
+          }
+        },
+        {
+          "user_query": "Query database inventory_us and fetch 46 rows from table shipments.",
+          "ground_truth": "<tool_call>\n{\"name\":\"dblink_connect_and_query\",\"arguments\":{\"dbname\":\"inventory_us\",\"table\":\"shipments\",\"limit\":46}}\n</tool_call>",
+          "prediction": "assistant\n<think>\nThe user wants to query the database \"inventory_us\" and fetch 46 rows from the table \"shipments\". I need to use the `",
+          "scores": {
+            "valid_xml": 0.0,
+            "valid_json": 0.0,
+            "tool_name_match": 0.0,
+            "arg_key_f1": 0.0,
+            "exact_action_match": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "after_sft": {
+    "held_out_l2l": {
+      "eval_examples": 32,
+      "eval_target_tokens": 964,
+      "response_nll": 0.0,
+      "response_ppl": 1.0,
+      "response_token_acc_pct": 100.0
+    },
+    "free_generation": {
+      "gen_examples": 16,
+      "gen_wall_s": 279.27,
+      "valid_tool_call_xml_pct": 100.0,
+      "valid_json_schema_pct": 100.0,
+      "tool_name_acc_pct": 100.0,
+      "arg_key_f1_pct": 100.0,
+      "full_action_exact_match_pct": 100.0,
+      "samples": [
+        {
+          "user_query": "Open the live video stream for camera garage_north at 1080p resolution.",
+          "ground_truth": "<tool_call>\n{\"name\":\"get_camera_live_feed\",\"arguments\":{\"camera_id\":\"garage_north\",\"stream_quality\":\"1080p\"}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"get_camera_live_feed\",\"arguments\":{\"camera_id\":\"garage_north\",\"stream_quality\":\"1080p\"}}\n</tool_call>",
+          "scores": {
+            "valid_xml": 1.0,
+            "valid_json": 1.0,
+            "tool_name_match": 1.0,
+            "arg_key_f1": 1.0,
+            "exact_action_match": 1.0
+          }
+        },
+        {
+          "user_query": "Start recording camera front_door for 27 minutes.",
+          "ground_truth": "<tool_call>\n{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":27}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"record_camera_feed\",\"arguments\":{\"camera_id\":\"front_door\",\"duration\":27}}\n</tool_call>",
+          "scores": {
+            "valid_xml": 1.0,
+            "valid_json": 1.0,
+            "tool_name_match": 1.0,
+            "arg_key_f1": 1.0,
+            "exact_action_match": 1.0
+          }
+        },
+        {
+          "user_query": "Terminate process ID 1287 immediately using signal SIGHUP.",
+          "ground_truth": "<tool_call>\n{\"name\":\"kill_process\",\"arguments\":{\"process_id\":1287,\"signal\":\"SIGHUP\"}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"kill_process\",\"arguments\":{\"process_id\":1287,\"signal\":\"SIGHUP\"}}\n</tool_call>",
+          "scores": {
+            "valid_xml": 1.0,
+            "valid_json": 1.0,
+            "tool_name_match": 1.0,
+            "arg_key_f1": 1.0,
+            "exact_action_match": 1.0
+          }
+        },
+        {
+          "user_query": "Query database inventory_us and fetch 46 rows from table shipments.",
+          "ground_truth": "<tool_call>\n{\"name\":\"dblink_connect_and_query\",\"arguments\":{\"dbname\":\"inventory_us\",\"table\":\"shipments\",\"limit\":46}}\n</tool_call>",
+          "prediction": "<tool_call>\n{\"name\":\"dblink_connect_and_query\",\"arguments\":{\"dbname\":\"inventory_us\",\"table\":\"shipments\",\"limit\":46}}\n</tool_call>",
+          "scores": {
+            "valid_xml": 1.0,
+            "valid_json": 1.0,
+            "tool_name_match": 1.0,
+            "arg_key_f1": 1.0,
+            "exact_action_match": 1.0
+          }
+        }
+      ]
+    }
+  },
+  "delta": {
+    "response_nll_drop": 0.3725,
+    "response_ppl_before": 1.4513,
+    "response_ppl_after": 1.0,
+    "response_token_acc_gain_pct": 6.64,
+    "valid_json_schema_gain_pct": 50.0,
+    "tool_name_acc_gain_pct": 50.0,
+    "arg_key_f1_gain_pct": 50.0,
+    "full_action_exact_match_gain_pct": 50.0
+  }
+}

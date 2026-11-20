@@ -1,0 +1,153 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "qwen38_27b",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "native",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": false,
+  "cuda_nf4_decode": false,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 1,
+  "seq_len": 512,
+  "group_size": 1,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "l2l_ref",
+      "activation_codec": "bf16",
+      "fp8_group_size": null,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 335544320,
+      "store_host_mib": 320.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        14.3099
+      ],
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 1,
+      "seq_len": 512,
+      "tokens": 512,
+      "wall_s": 14.3103,
+      "tokens_per_s": 35.7784,
+      "cuda_allocated_peak_gib": 4.3755,
+      "cuda_reserved_peak_gib": 4.834,
+      "nvml_peak_gib": 5.6943,
+      "nvml_poll_samples": 705,
+      "nvml_used_gib": 5.69427490234375,
+      "rss_peak_gib": 11.1962,
+      "rss_gib": 11.2554,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 0,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 0,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 2542796800,
+        "forward_body_allocated_bytes": 2542796800,
+        "backward_body_allocated_bytes": 2542796800,
+        "releases": 0,
+        "allocations": 0
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "6769651a7a6e2789f5e454c0e4a6db1c266fd901573106c045a83b62b8d1f72b",
+      "gradients_sha256": "31fa0ae2e28679fb2b588de335d1587231b39330a07caf7b7e116c5ff67ed3ad",
+      "adapter_sha256": "6445cf1d82052658ce48adb4010ec5ad71de854994c1e43d44a91988f66aef7c",
+      "vs_first_arm": {
+        "reference": true
+      },
+      "run_index": 0,
+      "status": "ok"
+    },
+    {
+      "arm": "unified_go",
+      "activation_codec": "bf16",
+      "fp8_group_size": null,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 335544320,
+      "store_host_mib": 320.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        8.4312
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 1,
+      "seq_len": 512,
+      "tokens": 512,
+      "wall_s": 8.4313,
+      "tokens_per_s": 60.726,
+      "cuda_allocated_peak_gib": 6.6434,
+      "cuda_reserved_peak_gib": 6.7754,
+      "nvml_peak_gib": 7.6357,
+      "nvml_poll_samples": 414,
+      "nvml_used_gib": 5.50091552734375,
+      "rss_peak_gib": 11.3408,
+      "rss_gib": 11.3739,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 0,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 0,
+      "window_dequant_stats": {
+        "dequant_calls": 992,
+        "cache_reuses": 0,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 2542796800,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "aa9159bdbade335aef7b2145cd199b713d8b6ac968df47caea9bb3152543088c",
+      "gradients_sha256": "31fa0ae2e28679fb2b588de335d1587231b39330a07caf7b7e116c5ff67ed3ad",
+      "adapter_sha256": "6445cf1d82052658ce48adb4010ec5ad71de854994c1e43d44a91988f66aef7c",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": false,
+          "max_abs": 1.9073486328125e-06,
+          "relative_l2": 1.4393878110912892e-07,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "adapter": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        }
+      },
+      "run_index": 1,
+      "status": "ok"
+    }
+  ]
+}
