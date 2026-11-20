@@ -1,0 +1,185 @@
+{
+  "git_sha": "unknown",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda:0",
+  "case": "kanana",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "batch_invariant",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": true,
+  "cuda_nf4_decode": true,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 64,
+  "seq_len": 512,
+  "group_size": 64,
+  "subwindow": 1,
+  "runs": [
+    {
+      "run_index": 0,
+      "arm": "mbr_h2_sync",
+      "status": "oom",
+      "error": "CUDA out of memory. Tried to allocate 248.00 MiB. GPU 0 has a total capacity of 7.65 GiB of which 115.06 MiB is free. Including non-PyTorch memory, this process has 7.51 GiB memory in use. Of the allocated memory 6.68 GiB is allocated by PyTorch, and 619.38 MiB is reserved by PyTorch but unallocated",
+      "cuda_allocated_peak_gib": 6.6803,
+      "nvml_used_gib": 7.67279052734375
+    },
+    {
+      "arm": "unified_go",
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 64,
+      "seq_len": 512,
+      "tokens": 32768,
+      "wall_s": 52.5542,
+      "tokens_per_s": 623.5088,
+      "cuda_allocated_peak_gib": 2.6043,
+      "cuda_reserved_peak_gib": 7.0742,
+      "nvml_used_gib": 6.71380615234375,
+      "rss_gib": 13.4883,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 5994,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 5994,
+      "window_dequant_stats": {
+        "dequant_calls": 672,
+        "cache_reuses": 54368,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 58036,
+        "requested_range_bytes": 38747413248,
+        "worker_read_ns": 18857311434,
+        "worker_pack_ns": 3264231858,
+        "worker_admit_ns": 313514536,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 318280338,
+        "main_pinned_copy_ns": 1413244573,
+        "ring_immediate_ready": 11563,
+        "cross_layer_prefetched": 1663,
+        "cross_layer_promotions": 46,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 17339,
+        "sampled_nf4_decodes": 763,
+        "sampled_nf4_decode_ms": 20.800768141634762,
+        "sampled_h2d_pairs": 757,
+        "sampled_h2d_ms": 173.70934408903122,
+        "sampled_h2d_overlap_fraction": 0.7623320144992135
+      },
+      "cache_stats": {
+        "budget_bytes": 3758096384,
+        "payload_bytes": 3755704320,
+        "entries": 1415,
+        "hits": 2830,
+        "misses": 14509,
+        "rejected": 13094
+      },
+      "losses_sha256": "1c9fa997beba3407d3ca139e3e244c2859b97be95a5cc7b06f2814ae6b651d40",
+      "gradients_sha256": "cad851994418d4b016e15522c5eb7aacfd5b29b9c6d89869c2a05ddf88149640",
+      "adapter_sha256": "7eac0ba5ec7eb6392dec36339172e20221d34e7d736f4b6b6a808fc3d6f0f0ce",
+      "vs_first_arm": {
+        "reference": true
+      },
+      "run_index": 1,
+      "status": "ok"
+    },
+    {
+      "arm": "unified_go",
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 64,
+      "seq_len": 512,
+      "tokens": 32768,
+      "wall_s": 52.6059,
+      "tokens_per_s": 622.8956,
+      "cuda_allocated_peak_gib": 2.6081,
+      "cuda_reserved_peak_gib": 6.6055,
+      "nvml_used_gib": 6.68450927734375,
+      "rss_gib": 13.5572,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 5994,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 5994,
+      "window_dequant_stats": {
+        "dequant_calls": 672,
+        "cache_reuses": 54368,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 58036,
+        "requested_range_bytes": 38747413248,
+        "worker_read_ns": 20650298365,
+        "worker_pack_ns": 3272758108,
+        "worker_admit_ns": 306450944,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 538997694,
+        "main_pinned_copy_ns": 1430382485,
+        "ring_immediate_ready": 11575,
+        "cross_layer_prefetched": 1663,
+        "cross_layer_promotions": 46,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 17339,
+        "sampled_nf4_decodes": 763,
+        "sampled_nf4_decode_ms": 20.65676815714687,
+        "sampled_h2d_pairs": 757,
+        "sampled_h2d_ms": 173.96732780337334,
+        "sampled_h2d_overlap_fraction": 0.7587682490641948
+      },
+      "cache_stats": {
+        "budget_bytes": 3758096384,
+        "payload_bytes": 3755704320,
+        "entries": 1415,
+        "hits": 2830,
+        "misses": 14509,
+        "rejected": 13094
+      },
+      "losses_sha256": "1c9fa997beba3407d3ca139e3e244c2859b97be95a5cc7b06f2814ae6b651d40",
+      "gradients_sha256": "cad851994418d4b016e15522c5eb7aacfd5b29b9c6d89869c2a05ddf88149640",
+      "adapter_sha256": "7eac0ba5ec7eb6392dec36339172e20221d34e7d736f4b6b6a808fc3d6f0f0ce",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "gradients": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "adapter": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      "run_index": 2,
+      "status": "ok"
+    }
+  ]
+}

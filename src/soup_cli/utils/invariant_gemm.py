@@ -46,6 +46,9 @@ def _kernel() -> Any:
     import triton
     import triton.language as tl
 
+    # Triton 3.2 resolves PEP 563 string annotations (tl.constexpr) in module globals.
+    globals()["tl"] = tl
+
     @triton.jit(do_not_specialize=["m"])
     def invariant_gemm_kernel(
         a_ptr, b_ptr, c_ptr, m, n, k,
@@ -172,6 +175,8 @@ ROW_BLOCK = 1024
 def _row_dot_kernel() -> Any:
     import triton
     import triton.language as tl
+
+    globals()["tl"] = tl
 
     @triton.jit(do_not_specialize=["m"])
     def row_dot_kernel(

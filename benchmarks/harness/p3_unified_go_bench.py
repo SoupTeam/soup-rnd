@@ -49,6 +49,25 @@ ARM_SPECS: Dict[str, Dict[str, Any]] = {
         use_controller=False,
         head_impl="full",
     ),
+    "mbr_h2_sync": dict(
+        route_preserving_mbr=True,
+        mbr_decoupled_subwindow=False,
+        mbr_window_dequant=True,
+        release_large_pool_during_layers=False,
+        use_controller=False,
+        head_impl="full",
+    ),
+    "unified_go_qd1": dict(
+        route_preserving_mbr=True,
+        mbr_decoupled_subwindow=True,
+        mbr_window_dequant=True,
+        release_large_pool_during_layers=True,
+        use_controller=True,
+        override_io_workers=1,
+        override_ring_slots=4,
+        override_cross_layer=False,
+        head_impl=None,
+    ),
     "unified_go_full_head": dict(
         route_preserving_mbr=True,
         mbr_decoupled_subwindow=True,
@@ -158,6 +177,7 @@ def _prepare_shards(
     device: str,
     prepared: bool,
 ) -> Tuple[Path, Path]:
+    from benchmarks.harness.b5_real_moe import _meta_construction
     from benchmarks.harness.b13_moe_fixture import moe_config, moe_weights_dir
     from soup_cli.utils.layer_shard import shard_checkpoint
     from soup_cli.utils.layer_stream_runtime import (
@@ -215,7 +235,10 @@ def _prepare_shards(
         if prepared:
             raise FileNotFoundError(f"--prepared set, but {shards}/index.json is missing")
         quant = "nf4" if storage == "nf4" else None
-        skeleton = build_meta_skeleton(str(weights), dtype=dtype, quant=quant, double_quant=False)
+        with _meta_construction():
+            skeleton = build_meta_skeleton(
+                str(weights), dtype=dtype, quant=quant, double_quant=False
+            )
         layout = shard_layout_of(skeleton)
         suffixes = quantised_layer_suffixes(skeleton) if quant == "nf4" else None
         del skeleton
@@ -264,6 +287,7 @@ def _run_arm(
     from peft import LoraConfig, TaskType
 
     from benchmarks.harness import b13_moe_fixture as fixture
+    from benchmarks.harness.b5_real_moe import _meta_construction
     from soup_cli.utils import l2l_step
     from soup_cli.utils.async_expert_controller import AsyncExpertController, cpu_packed_control
     from soup_cli.utils.l2l_activations import ActivationStore
@@ -275,6 +299,7 @@ def _run_arm(
         raise ValueError(f"unknown arm {arm!r}; choose from {sorted(ARM_SPECS)}")
     spec = ARM_SPECS[arm]
 
+    torch.set_num_threads(2)
     torch.use_deterministic_algorithms(True)
     is_cuda = device.startswith("cuda")
     if is_cuda:
@@ -293,23 +318,24 @@ def _run_arm(
     use_packed = is_cuda and storage == "nf4"
     cache_bytes = int(host_cache_gib * (1024**3)) if use_packed else 0
     index = read_shard_index(str(shards))
-    model, runtime = build_streamed_model(
-        model_id=str(weights),
-        shard_dir=str(shards),
-        index=index,
-        lora_config=lora_cfg,
-        device=device,
-        dtype=dtype,
-        quant="nf4" if storage == "nf4" else "none",
-        double_quant=False,
-        tier="disk" if is_cuda else "ram",
-        pin=is_cuda,
-        two_read_experts=True,
-        grouped_expert_routes=True,
-        expert_transfer="packed" if use_packed else "sync",
-        expert_host_cache_bytes=cache_bytes,
-        expert_gemm=expert_gemm if is_cuda else "native",
-    )
+    with _meta_construction():
+        model, runtime = build_streamed_model(
+            model_id=str(weights),
+            shard_dir=str(shards),
+            index=index,
+            lora_config=lora_cfg,
+            device=device,
+            dtype=dtype,
+            quant="nf4" if storage == "nf4" else "none",
+            double_quant=False,
+            tier="disk" if is_cuda else "ram",
+            pin=is_cuda,
+            two_read_experts=True,
+            grouped_expert_routes=True,
+            expert_transfer="packed" if use_packed else "sync",
+            expert_host_cache_bytes=cache_bytes,
+            expert_gemm=expert_gemm if is_cuda else "native",
+        )
     controller: Optional[AsyncExpertController] = None
     try:
         if spec["use_controller"] and expert_loader != "python_sync":
@@ -319,13 +345,16 @@ def _run_arm(
                     runtime.expert_readers[0],
                     int(host_cache_gib * (1024**3)) if host_cache_gib > 0 else 0,
                 )
+            eff_workers = int(spec.get("override_io_workers", io_workers))
+            eff_ring = int(spec.get("override_ring_slots", ring_slots))
+            eff_cl = bool(spec.get("override_cross_layer", cross_layer_prefetch))
             controller = AsyncExpertController(
                 runtime,
                 mode=expert_loader,
                 cuda_nf4_decode=cuda_nf4_decode and is_cuda,
-                io_workers=io_workers,
-                ring_slots=ring_slots,
-                cross_layer_prefetch=cross_layer_prefetch,
+                io_workers=eff_workers,
+                ring_slots=eff_ring,
+                cross_layer_prefetch=eff_cl,
             )
 
         model.train()
@@ -525,30 +554,51 @@ def main() -> None:
 
     console = Console()
     for run_idx, arm in enumerate(args.arms):
-        metrics, lora_snap, loss_map, grads_snap, adapter_snap = _run_arm(
-            arm,
-            weights=weights,
-            shards=shards,
-            storage=args.storage,
-            k=args.k,
-            seq_len=args.seq_len,
-            group_size=group_size,
-            subwindow=args.subwindow,
-            device=args.device,
-            dtype=args.dtype,
-            expert_gemm=args.expert_gemm,
-            expert_loader=args.expert_loader,
-            io_workers=args.io_workers,
-            ring_slots=args.ring_slots,
-            cross_layer_prefetch=args.cross_layer_prefetch,
-            cuda_nf4_decode=args.cuda_nf4_decode,
-            head_loss=args.head_loss,
-            ce_chunk=args.ce_chunk,
-            host_cache_gib=args.host_cache_gib,
-            lora_state=initial_lora,
-            batches_cpu=batches_cpu,
-            track_saved_ledger=args.track_saved_ledger,
-        )
+        try:
+            metrics, lora_snap, loss_map, grads_snap, adapter_snap = _run_arm(
+                arm,
+                weights=weights,
+                shards=shards,
+                storage=args.storage,
+                k=args.k,
+                seq_len=args.seq_len,
+                group_size=group_size,
+                subwindow=args.subwindow,
+                device=args.device,
+                dtype=args.dtype,
+                expert_gemm=args.expert_gemm,
+                expert_loader=args.expert_loader,
+                io_workers=args.io_workers,
+                ring_slots=args.ring_slots,
+                cross_layer_prefetch=args.cross_layer_prefetch,
+                cuda_nf4_decode=args.cuda_nf4_decode,
+                head_loss=args.head_loss,
+                ce_chunk=args.ce_chunk,
+                host_cache_gib=args.host_cache_gib,
+                lora_state=initial_lora,
+                batches_cpu=batches_cpu,
+                track_saved_ledger=args.track_saved_ledger,
+            )
+        except RuntimeError as exc:
+            if "out of memory" not in str(exc).lower():
+                raise
+            if args.device.startswith("cuda"):
+                torch.cuda.empty_cache()
+            oom_row = {
+                "run_index": run_idx,
+                "arm": arm,
+                "status": "oom",
+                "error": str(exc)[:300],
+                "cuda_allocated_peak_gib": (
+                    round(torch.cuda.max_memory_allocated(args.device) / (1024**3), 4)
+                    if args.device.startswith("cuda")
+                    else 0.0
+                ),
+                "nvml_used_gib": _nvml_used_gib() if args.device.startswith("cuda") else None,
+            }
+            runs.append(oom_row)
+            console.print(f"[{run_idx}] arm={arm} [red]OOM[/red]: {oom_row['error']}")
+            continue
         if initial_lora is None:
             initial_lora = lora_snap
             ref_losses, ref_grads, ref_adapter = loss_map, grads_snap, adapter_snap
@@ -560,12 +610,14 @@ def main() -> None:
                 "adapter": _compare_maps(ref_adapter, adapter_snap),
             }
         metrics["run_index"] = run_idx
+        metrics["status"] = "ok"
         runs.append(metrics)
         grad_rel = metrics["vs_first_arm"].get("gradients", {}).get("relative_l2", 0.0)
         console.print(
             f"[{run_idx}] arm={arm} head={metrics['head_loss']} loader={metrics['expert_loader']} "
             f"wall={metrics['wall_s']:.3f}s tok/s={metrics['tokens_per_s']:.2f} "
             f"cuda_alloc={metrics['cuda_allocated_peak_gib']:.3f}GiB "
+            f"nvml={metrics['nvml_used_gib']}GiB "
             f"saved_peak={metrics['saved_storage_peak_mib']}MiB "
             f"recomp_reads={metrics['expert_fetches_recompute']} "
             f"grad_rel_l2={grad_rel:.2e}"

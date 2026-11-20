@@ -1,0 +1,345 @@
+=== [0] Hardware & Software Fingerprint ===
+name, memory.total [MiB], driver_version, pcie.link.gen.current, pcie.link.width.current
+NVIDIA GeForce RTX 4060 Ti, 8188 MiB, 610.57.04, 1, 8
+               total        used        free      shared  buff/cache   available
+Mem:            62Gi       2.9Gi        16Gi       0.0Ki        43Gi        58Gi
+Swap:          1.4Gi        63Mi       1.4Gi
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         160G  370M  160G   1% /
+/opt/conda/lib/python3.11/site-packages/huggingface_hub/constants.py:302: FutureWarning: The `HF_HUB_ENABLE_HF_TRANSFER` environment variable is deprecated as 'hf_transfer' is not used anymore. Please use `HF_XET_HIGH_PERFORMANCE` instead to enable high performance transfer with Xet. Visit https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfxethighperformance for more details.
+  warnings.warn(
+VERSIONS: 2.6.0+cu124 5.23.0 0.22.0 0.50.2 3.2.0 cap: (8, 9)
+=== [1] Build C++17 + CUDA NF4 Extension (--with-cuda-nf4) ===
+running build_ext
+/opt/conda/lib/python3.11/site-packages/torch/utils/cpp_extension.py:458: UserWarning: There are no g++ version bounds defined for CUDA version 12.4
+  warnings.warn(f'There are no {compiler_name} version bounds defined for CUDA version {cuda_str_version}')
+building '_native_expert_stream_async' extension
+creating /workspace/obj/workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async
+Emitting ninja build file /workspace/obj/build.ninja...
+Compiling objects...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+[1/2] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output /workspace/obj/workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/nf4_decode.o.d -DSOUP_WITH_CUDA_NF4=1 -I/opt/conda/lib/python3.11/site-packages/torch/include -I/opt/conda/lib/python3.11/site-packages/torch/include/torch/csrc/api/include -I/opt/conda/lib/python3.11/site-packages/torch/include/TH -I/opt/conda/lib/python3.11/site-packages/torch/include/THC -I/usr/local/cuda/include -I/opt/conda/include/python3.11 -c -c /workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/nf4_decode.cu -o /workspace/obj/workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/nf4_decode.o -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options ''"'"'-fPIC'"'"'' -O3 --ftz=false -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1011"' -DTORCH_EXTENSION_NAME=_native_expert_stream_async -D_GLIBCXX_USE_CXX11_ABI=0 -gencode=arch=compute_89,code=sm_89 -std=c++17
+[2/2] c++ -MMD -MF /workspace/obj/workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/native_stream_async.o.d -pthread -B /opt/conda/compiler_compat -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /opt/conda/include -fPIC -O2 -isystem /opt/conda/include -fPIC -DSOUP_WITH_CUDA_NF4=1 -I/opt/conda/lib/python3.11/site-packages/torch/include -I/opt/conda/lib/python3.11/site-packages/torch/include/torch/csrc/api/include -I/opt/conda/lib/python3.11/site-packages/torch/include/TH -I/opt/conda/lib/python3.11/site-packages/torch/include/THC -I/usr/local/cuda/include -I/opt/conda/include/python3.11 -c -c /workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/native_stream_async.cpp -o /workspace/obj/workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/native_stream_async.o -O3 -std=c++17 -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1011"' -DTORCH_EXTENSION_NAME=_native_expert_stream_async -D_GLIBCXX_USE_CXX11_ABI=0
+g++ -pthread -B /opt/conda/compiler_compat -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /opt/conda/include -fPIC -O2 -isystem /opt/conda/include -pthread -B /opt/conda/compiler_compat -shared /workspace/obj/workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/native_stream_async.o /workspace/obj/workspace/soup-p3-unified-go/src/soup_cli/utils/_native_expert_async/nf4_decode.o -L/opt/conda/lib/python3.11/site-packages/torch/lib -L/usr/local/cuda/lib64 -lc10 -ltorch -ltorch_cpu -ltorch_python -lcudart -lc10_cuda -ltorch_cuda -o /workspace/ext/_native_expert_stream_async.cpython-311-x86_64-linux-gnu.so
+total 316K
+-rwxr-xr-x 1 root root 316K Nov 20 05:33 _native_expert_stream_async.cpython-311-x86_64-linux-gnu.so
+=== [2] CUDA Tiny Verification (batch_invariant + cuda_nf4_decode + M1-M3 + Chunked CE) ===
+============================= test session starts ==============================
+platform linux -- Python 3.11.11, pytest-9.2.0, pluggy-1.7.0 -- /opt/conda/bin/python
+cachedir: .pytest_cache
+hypothesis profile 'default' -> database=DirectoryBasedExampleDatabase(PosixPath('/root/.hypothesis/examples'))
+rootdir: /workspace/soup-p3-unified-go
+configfile: pyproject.toml
+plugins: hypothesis-6.124.7, anyio-4.16.0
+collecting ... collected 7 items
+
+../workspace/soup-p3-unified-go/tests/test_l2l_chunked_ce.py::test_chunked_ce_matches_full_with_masked_rows_and_window_divisor PASSED [ 14%]
+../workspace/soup-p3-unified-go/tests/test_l2l_chunked_ce.py::test_fully_masked_microbatch_has_zero_connected_vjp PASSED [ 28%]
+../workspace/soup-p3-unified-go/tests/test_l2l_chunked_ce.py::test_cce_passes_the_live_slot_and_window_scale_to_the_kernel PASSED [ 42%]
+../workspace/soup-p3-unified-go/tests/test_l2l_chunked_ce.py::test_chunked_head_preserves_two_read_l2l_lora_gradients PASSED [ 57%]
+../workspace/soup-p3-unified-go/tests/test_p3_unified_go.py::test_unified_go_stack_bitwise_parity_two_adamw_steps PASSED [ 71%]
+../workspace/soup-p3-unified-go/tests/test_p3_unified_go.py::test_unified_go_saved_storage_o1_with_chunked_ce_and_async_controller PASSED [ 85%]
+../workspace/soup-p3-unified-go/tests/test_p3_unified_go.py::test_unified_go_train_embedding_and_error_recovery PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_l2l_chunked_ce.py::test_chunked_head_preserves_two_read_l2l_lora_gradients
+  /opt/conda/lib/python3.11/site-packages/huggingface_hub/constants.py:302: FutureWarning: The `HF_HUB_ENABLE_HF_TRANSFER` environment variable is deprecated as 'hf_transfer' is not used anymore. Please use `HF_XET_HIGH_PERFORMANCE` instead to enable high performance transfer with Xet. Visit https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfxethighperformance for more details.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 7 passed, 1 warning in 4.47s =========================
+/opt/conda/lib/python3.11/site-packages/huggingface_hub/constants.py:302: FutureWarning: The `HF_HUB_ENABLE_HF_TRANSFER` environment variable is deprecated as 'hf_transfer' is not used anymore. Please use `HF_XET_HIGH_PERFORMANCE` instead to enable high performance transfer with Xet. Visit https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfxethighperformance for more details.
+  warnings.warn(
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 403.38it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Traceback (most recent call last):
+  File "/workspace/soup-p3-unified-go/benchmarks/harness/p3_unified_go_bench.py", line 656, in <module>
+    main()
+  File "/workspace/soup-p3-unified-go/benchmarks/harness/p3_unified_go_bench.py", line 532, in main
+    weights, shards = _prepare_shards(
+                      ^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/benchmarks/harness/p3_unified_go_bench.py", line 245, in _prepare_shards
+    shard_checkpoint(
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/layer_shard.py", line 1383, in shard_checkpoint
+    resolved_out = _validate_out_dir(out_dir)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/layer_shard.py", line 1002, in _validate_out_dir
+    raise ValueError(
+ValueError: shard output directory must be under $HOME, $CWD or $TMPDIR; got /workspace/tiny-cuda-work/shards
+=== [2] CUDA Tiny Verification (batch_invariant + cuda_nf4_decode + M1-M3 + Chunked CE) ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Traceback (most recent call last):
+  File "/workspace/soup-p3-unified-go/benchmarks/harness/p3_unified_go_bench.py", line 656, in <module>
+    main()
+  File "/workspace/soup-p3-unified-go/benchmarks/harness/p3_unified_go_bench.py", line 558, in main
+    metrics, lora_snap, loss_map, grads_snap, adapter_snap = _run_arm(
+                                                             ^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/benchmarks/harness/p3_unified_go_bench.py", line 373, in _run_arm
+    model, runtime, l2l_step.capture_layer_call(model, batches[0])
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/l2l_step.py", line 240, in capture_layer_call
+    model(input_ids=input_ids)
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/peft/peft_model.py", line 2425, in forward
+    return self.base_model(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/peft/tuners/tuners_utils.py", line 370, in forward
+    return self.model(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/utils/generic.py", line 943, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 687, in forward
+    outputs: MoeModelOutputWithPast = self.model(
+                                      ^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1845, in _call_impl
+    return inner()
+           ^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1793, in inner
+    result = forward_call(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/utils/generic.py", line 1081, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/utils/output_capturing.py", line 361, in wrapper
+    outputs = func(self, *args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 622, in forward
+    hidden_states = decoder_layer(
+                    ^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1845, in _call_impl
+    return inner()
+           ^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1793, in inner
+    result = forward_call(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/layer_stream_runtime.py", line 2058, in forward
+    return self._body(hidden_states, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/layer_stream_runtime.py", line 2170, in _body
+    return functional_call(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/_functorch/functional_call.py", line 148, in functional_call
+    return nn.utils.stateless._functional_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/utils/stateless.py", line 300, in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/modeling_layers.py", line 121, in forward_with_checkpointing
+    return forward(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 527, in forward
+    hidden_states = self.mlp(hidden_states)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 220, in forward
+    hidden_states = self.experts(hidden_states, topk_indices, topk_weights).view(*orig_shape)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/expert_stream.py", line 1037, in forward
+    current = WeightedFrozenExpert.apply(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/autograd/function.py", line 575, in apply
+    return super().apply(*args, **kwargs)  # type: ignore[misc]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/expert_stream.py", line 857, in forward
+    expert_mlp(hidden, gate_up, down, owner.act_fn, owner.linear), weights
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/expert_stream.py", line 768, in expert_mlp
+    gate, up = linear(hidden, gate_up).chunk(2, dim=-1)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/invariant_gemm.py", line 164, in linear
+    return _linear_function().apply(x, weight)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/autograd/function.py", line 575, in apply
+    return super().apply(*args, **kwargs)  # type: ignore[misc]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/invariant_gemm.py", line 133, in forward
+    return matmul(flat, weight.t()).reshape(*x.shape[:-1], weight.shape[0])
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-p3-unified-go/src/soup_cli/utils/invariant_gemm.py", line 114, in matmul
+    _kernel()[grid](
+  File "/opt/conda/lib/python3.11/site-packages/triton/runtime/jit.py", line 330, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/triton/runtime/jit.py", line 623, in run
+    kernel = self.compile(
+             ^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/triton/compiler/compiler.py", line 273, in compile
+    module = src.make_ir(options, codegen_fns, module_map, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/triton/compiler/compiler.py", line 100, in make_ir
+    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+triton.compiler.errors.CompilationError: at 4:13:
+def invariant_gemm_kernel(
+    a_ptr, b_ptr, c_ptr, m, n, k,
+    stride_am, stride_ak, stride_bk, stride_bn, stride_cm, stride_cn,
+    block_m: tl.constexpr, block_n: tl.constexpr, block_k: tl.constexpr,
+             ^
+NameError('tl is not defined')
+=== [2] CUDA Tiny Verification (batch_invariant + cuda_nf4_decode + M1-M3 + Chunked CE) ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=l2l_ref head=full loader=python_sync wall=0.832s tok/s=307.58 
+cuda_alloc=0.063GiB nvml=0.64739990234375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+[1] arm=unified_go_full_head head=full loader=cpp_async_2slot wall=0.256s 
+tok/s=1001.87 cuda_alloc=0.064GiB nvml=0.64739990234375GiB saved_peak=NoneMiB 
+recomp_reads=0 grad_rel_l2=0.00e+00
+[2] arm=unified_go head=chunked loader=cpp_async_2slot wall=0.272s tok/s=941.15 
+cuda_alloc=0.064GiB nvml=0.64739990234375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+Saved unified A-B-B-A benchmark to /workspace/results/tiny-cuda-4060ti.json
+=== [3] Prepare Kanana-2-30B-A3B NF4 Shards on NVMe ===
+Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 15 files:   0%|          | 0/15 [02:31<?, ?it/s]
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/workspace/soup-p3-unified-go/benchmarks/harness/p3_unified_go_bench.py", line 223, in _prepare_shards
+    snapshot_download(
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 276, in _inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/_snapshot_download.py", line 541, in snapshot_download
+    hf_thread_map(
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/utils/tqdm.py", line 441, in hf_thread_map
+    results[future_to_index[future]] = future.result()
+                                       ^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/opt/conda/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/_snapshot_download.py", line 521, in _inner_hf_hub_download
+    hf_hub_download(  # type: ignore
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 276, in _inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1026, in hf_hub_download
+    return _hf_hub_download_to_local_dir(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1505, in _hf_hub_download_to_local_dir
+    _download_to_tmp_and_move(
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 2033, in _download_to_tmp_and_move
+    http_get(
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 459, in http_get
+    for chunk in response.iter_bytes(chunk_size=constants.DOWNLOAD_CHUNK_SIZE):
+  File "/opt/conda/lib/python3.11/site-packages/httpx2/_models.py", line 907, in iter_bytes
+    for decoded in decoder.decode(raw_bytes):
+  File "/opt/conda/lib/python3.11/site-packages/httpx2/_decoders.py", line 192, in decode
+    decompressed = self._decompress(data, output_buffer_limit=output_buffer_limit)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: process() takes no keyword arguments
+=== [3] Fix brotli / install hf_xet and Prepare Kanana-2-30B-A3B NF4 Shards ===
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable.It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 15 files:  33%|███▎      | 5/15 [00:00<00:00, 39.29it/s]Fetching 15 files:  33%|███▎      | 5/15 [00:20<00:00, 39.29it/s]Fetching 15 files:  40%|████      | 6/15 [02:28<04:57, 33.08s/it]Fetching 15 files:  47%|████▋     | 7/15 [02:31<03:26, 25.80s/it]Fetching 15 files:  60%|██████    | 9/15 [02:32<01:32, 15.43s/it]Fetching 15 files:  60%|██████    | 9/15 [02:50<01:32, 15.43s/it]Fetching 15 files:  67%|██████▋   | 10/15 [04:57<03:43, 44.67s/it]Fetching 15 files:  73%|███████▎  | 11/15 [05:11<02:28, 37.07s/it]Fetching 15 files:  80%|████████  | 12/15 [05:11<01:22, 27.53s/it]Fetching 15 files:  87%|████████▋ | 13/15 [05:11<00:40, 20.30s/it]Fetching 15 files:  93%|█████████▎| 14/15 [05:13<00:14, 14.99s/it]Fetching 15 files: 100%|██████████| 15/15 [05:13<00:00, 10.84s/it]Fetching 15 files: 100%|██████████| 15/15 [05:13<00:00, 20.90s/it]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+PREPARED: /workspace/kanana-work/weights /workspace/kanana-work/shards
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         160G   75G   86G  47% /
+=== [4A] Kanana 30B k=8 S=64: l2l_ref vs unified_go_full_head vs unified_go ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=l2l_ref head=full loader=python_sync wall=93.225s tok/s=5.49 
+cuda_alloc=0.752GiB nvml=1.40325927734375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+[1] arm=unified_go_full_head head=full loader=cpp_async_2slot wall=11.981s 
+tok/s=42.73 cuda_alloc=0.769GiB nvml=0.89739990234375GiB saved_peak=NoneMiB 
+recomp_reads=0 grad_rel_l2=0.00e+00
+[2] arm=unified_go head=chunked loader=cpp_async_2slot wall=12.104s tok/s=42.30 
+cuda_alloc=0.770GiB nvml=0.89349365234375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+Saved unified A-B-B-A benchmark to 
+/workspace/results/kanana-k8-s64-parity-4060ti.json
+=== [4B] Kanana 30B k=64 S=64: Paired A-B-B-A + QD1 ablation (4,096 tok/step) ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=mbr_h2_sync head=full loader=python_sync wall=41.116s tok/s=99.62 
+cuda_alloc=1.514GiB nvml=2.23138427734375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+[1] arm=unified_go head=chunked loader=cpp_async_2slot wall=37.249s tok/s=109.96
+cuda_alloc=1.273GiB nvml=1.35833740234375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+[2] arm=unified_go head=chunked loader=cpp_async_2slot wall=37.240s tok/s=109.99
+cuda_alloc=0.828GiB nvml=1.35833740234375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+[3] arm=mbr_h2_sync head=full loader=python_sync wall=40.805s tok/s=100.38 
+cuda_alloc=1.516GiB nvml=2.34271240234375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+[4] arm=unified_go_qd1 head=chunked loader=cpp_async_2slot wall=40.419s 
+tok/s=101.34 cuda_alloc=0.828GiB nvml=1.35638427734375GiB saved_peak=NoneMiB 
+recomp_reads=0 grad_rel_l2=0.00e+00
+Saved unified A-B-B-A benchmark to 
+/workspace/results/kanana-k64-s64-abba-4060ti.json
+=== [4C] Kanana 30B k=64 S=512: Physical 8 GB Wall Stress Test (32,768 tok/step) ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=mbr_h2_sync OOM: CUDA out of memory. Tried to allocate 248.00 MiB. GPU 0
+has a total capacity of 7.65 GiB of which 115.06 MiB is free. Including 
+non-PyTorch memory, this process has 7.51 GiB memory in use. Of the allocated 
+memory 6.68 GiB is allocated by PyTorch, and 619.38 MiB is reserved by PyTorch 
+but unallocated
+[1] arm=unified_go head=chunked loader=cpp_async_2slot wall=52.554s tok/s=623.51
+cuda_alloc=2.604GiB nvml=6.71380615234375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+[2] arm=unified_go head=chunked loader=cpp_async_2slot wall=52.606s tok/s=622.90
+cuda_alloc=2.608GiB nvml=6.68450927734375GiB saved_peak=NoneMiB recomp_reads=0 
+grad_rel_l2=0.00e+00
+Saved unified A-B-B-A benchmark to 
+/workspace/results/kanana-k64-s512-stress-4060ti.json
+=== ALL VAST 4060 TI BENCHMARKS COMPLETE ===
+total 64K
+-rw-r--r-- 1 root root 5.8K Nov 20 05:53 kanana-k64-s512-stress-4060ti.json
+-rw-r--r-- 1 root root  12K Nov 20 05:51 kanana-k64-s64-abba-4060ti.json
+-rw-r--r-- 1 root root 6.9K Nov 20 05:47 kanana-k8-s64-parity-4060ti.json
+-rw-r--r-- 1 root root  27K Nov 20 05:53 run.log
+-rw-r--r-- 1 root root 6.8K Nov 20 05:35 tiny-cuda-4060ti.json
