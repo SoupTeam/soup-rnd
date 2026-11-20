@@ -256,6 +256,30 @@ also includes the streamed layer wrapper, which runs during recompute. A patched
 not detected and is unsupported. `install_streamed_experts(..., two_reads=True)` admits only
 `DeepseekV3DecoderLayer`.
 
+### Host-side levers: `async_lease` and `fast_row_gather` (experimental, off by default)
+
+Two more switches change when the host waits and what it launches, never a number. They are
+class attributes, not parameters of `build_streamed_model`, and have no config field and no CLI
+flag. Set one on the class (`ExpertBufferPool.async_lease = True`,
+`StreamedExperts.fast_row_gather = True`) or on one instance. With neither set the default path
+is unchanged.
+
+| Attribute | Effect | Checked |
+|---|---|---|
+| `ExpertBufferPool.async_lease = True` | With `expert_transfer="packed"` on CUDA, a lease ends without `torch.cuda.synchronize`. By default every lease ends with a device-wide wait, so the host cannot prepare the next expert while the card computes the last one. Under `async_lease` the only host wait left is for the H2D copy that reads the pinned staging region, before the region is written again. The weights, the dequantisation and the GEMMs stay ordered on the stream that loaded the expert, so the lease must be used on that stream. A lease that raises still waits for the whole device. Other transfers and CPU pools keep the old rule. The host-cache key of a reader path is also resolved once per pool instead of on every load. | CPU (`tests/test_expert_async_lease.py`): the default is off and syncs, only `packed` on CUDA skips the sync, the error path still syncs, the path is resolved once only under the option. CUDA (`tests/test_expert_async_lease_cuda.py`, `pytest -m gpu`): output and gradients bit-equal to the default lease, and no device-wide sync per lease. |
+| `StreamedExperts.fast_row_gather = True` | A visit gathers its rows and its route weights with `index_select` and a backward that is one `index_add_` into zeros, instead of the advanced-indexing backward (`index_put_` with `accumulate=True`, a sort and about a dozen kernels). A token reaches an expert once, so the indices of a visit are unique and the backward is a plain scatter; `0 + g` gives the bits of the accumulate, the sign of a zero included. Repeated indices are outside the claim: in bf16 they round differently from the indexing backward, and on CUDA the order of atomics is not defined. | CPU (`tests/test_expert_fast_gather.py`): forward and backward bit-equal to indexing in fp32 and bf16, zeros with a sign included, the streamed experts equal the default path, and no `IndexBackward0` node is left in the graph. |
+
+Measured on Moonlight-16B-A3B (RTX 3060, MBR group 8, window 8x64, packed transfer, host cache,
+prefetch), as the difference between neighbouring steps of one process with the option switched
+on for every second step (16 steps, 15 pairs): `async_lease` took the step from 6.25 s to 5.32 s
+(-0.90 +- 0.04 s) on a Ryzen Threadripper PRO host and from 11.43 s to 9.99 s (-1.32 +- 0.25 s)
+on a Xeon E5-2697A v4 host; `fast_row_gather` made no difference on the first (-0.01 +- 0.05 s)
+and -0.07 +- 0.03 s on the second. These are single-model engineering measurements; the gradient
+digests of every step were unchanged. In the same setting the exact MBR of the benchmark harness
+with both levers was 5.6% (first host) and 9.1% (second host) faster than stock route-preserving
+MBR over five A-B-C-C-B-A blocks; see
+[the exact-MBR speed report](../benchmarks/mbr-exact-speed-20261120.md).
+
 Not ported from the same koko commits: the one-expert lookahead (`prefetch`, `prefetch_after`),
 the usage profile and the GPU placement plan. They are not among the four complete levers, and
 they build on an expert fetcher with cache tiers that this code does not have.

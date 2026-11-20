@@ -478,13 +478,102 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--expert-gemm",
-        choices=("native", "invariant", "segmented", "padded"),
+        choices=("native", "invariant", "segmented", "padded", "lt-merged", "lt-fused"),
         default="native",
         help="routed-expert GEMM: native cuBLAS; invariant (one row per call, plus the "
         "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2); or "
         "segmented (native cuBLAS per micro-batch segment, so every call has the L2L shape, "
         "plus the two-phase MBR backward); or padded (native cuBLAS, every call padded to "
-        "--expert-pad-rows rows, plus the two-phase MBR backward; plan D1)",
+        "--expert-pad-rows rows, plus the two-phase MBR backward; plan D1); or lt-merged "
+        "(segmented, with segments cuBLAS serves with one kernel merged into one cuBLASLt call "
+        "forced onto that kernel, A0 bits kept, plus the two-phase MBR backward); or lt-fused "
+        "(lt-merged with each expert visit as one C++ call, forward and direct backward)",
+    )
+    parser.add_argument(
+        "--expert-streams",
+        type=int,
+        default=1,
+        choices=tuple(range(1, 9)),
+        help="with --expert-gemm lt-fused: CUDA streams the independent GEMM groups of one "
+        "expert call are spread over (1: one stream)",
+    )
+    parser.add_argument(
+        "--mbr-ordered-backward",
+        action="store_true",
+        help="MBR groups are built last micro-batch first so one backward per group adds LoRA "
+        "gradients in micro-batch order, replacing the two-phase backward of the exact modes",
+    )
+    parser.add_argument(
+        "--mbr-split-backward",
+        action="store_true",
+        help="run each MBR group's backward in two phases with the native expert GEMM too "
+        "(measures the cost of the two-phase backward on its own; the exact modes turn it on)",
+    )
+    parser.add_argument(
+        "--expert-fast-gather",
+        action="store_true",
+        help="gather each expert visit's rows and route weights with a light autograd function "
+        "(index_select, then one index_add_ backward instead of the sorted index_put_); same bits",
+    )
+    parser.add_argument(
+        "--alternate-fast-gather",
+        action="store_true",
+        help="turn --expert-fast-gather on for every second step (off for even steps, on for odd "
+        "ones) inside one process; each measured step records which it was",
+    )
+    parser.add_argument(
+        "--expert-async-lease",
+        action="store_true",
+        help="an expert lease ends without a device-wide cuda synchronize (packed transfer only): "
+        "the host prepares the next expert while the card computes; same bits",
+    )
+    parser.add_argument(
+        "--alternate-async-lease",
+        action="store_true",
+        help="--expert-async-lease on for odd steps only, off for even ones (in one process)",
+    )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="torch.use_deterministic_algorithms(True) (set CUBLAS_WORKSPACE_CONFIG=:4096:8 too): "
+        "the backward of attention and index ops adds in a fixed order, so two processes agree",
+    )
+    parser.add_argument(
+        "--train-data",
+        default="",
+        help="training mode: a file from p72_prepare_train_data.py; trains on its windows with one "
+        "AdamW, records a digest of the adapter after every step, and exits",
+    )
+    parser.add_argument(
+        "--train-dump-grads", default="",
+        help="write the LoRA gradients of the first training step (before the optimizer) here")
+    parser.add_argument("--train-epochs", type=int, default=2)
+    parser.add_argument(
+        "--train-seq", type=int, default=0,
+        help="padded length of a training window (0: the longest example of the data file)")
+    parser.add_argument("--train-steps", type=int, default=0, help="0: every step of the epochs")
+    parser.add_argument("--train-lr", type=float, default=1e-4)
+    parser.add_argument(
+        "--train-eval",
+        action="store_true",
+        help="after training, the NLL of every held-out example of the data file",
+    )
+    parser.add_argument(
+        "--causal-delay",
+        default="",
+        help="causal profiling: name=microseconds pairs (expert_fwd, expert_bwd, gather_bwd, "
+        "layer) spun before every call of that point (GIL released); see causal_probe.py",
+    )
+    parser.add_argument(
+        "--alternate-causal",
+        action="store_true",
+        help="with --causal-delay: the delays are on for odd steps only, off for even ones",
+    )
+    parser.add_argument(
+        "--expert-direct-backward",
+        action="store_true",
+        help="with --expert-gemm segmented or lt-merged: compute the expert node's backward "
+        "directly (same ops and bits as autograd, no graph per segment; DeepSeek P3 idea H3)",
     )
     parser.add_argument(
         "--expert-pad-rows",
@@ -527,12 +616,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def step_run_options(
-    kind: str, *, group_size: int, expert_gemm: str, diagnostics: bool
+    kind: str, *, group_size: int, expert_gemm: str, diagnostics: bool,
+    split_backward: bool = False, ordered_backward: bool = False,
 ) -> Dict[str, Any]:
     """Keyword arguments of ``L2LStep.run`` for one bridge run of ``kind`` (``l2l`` or ``mbr``)."""
-    if expert_gemm not in ("native", "invariant", "segmented", "padded"):
+    if expert_gemm not in ("native", "invariant", "segmented", "padded", "lt-merged",
+                           "lt-fused"):
         raise ValueError(
-            f"expert gemm must be native, invariant, segmented or padded, got {expert_gemm!r}"
+            "expert gemm must be native, invariant, segmented, padded or lt-merged, "
+            f"got {expert_gemm!r}"
         )
     mbr = kind == "mbr"
     options: Dict[str, Any] = {
@@ -540,7 +632,11 @@ def step_run_options(
         "mbr_group_size": group_size if mbr else None,
         "collect_phase_stats": diagnostics,
     }
-    if mbr and expert_gemm in ("invariant", "segmented", "padded"):
+    exact = ("invariant", "segmented", "padded", "lt-merged", "lt-fused")
+    if mbr and ordered_backward:
+        # one engine call per group, gradients added in micro-batch order (no two-phase split)
+        options["mbr_ordered_backward"] = True
+    elif mbr and (expert_gemm in exact or split_backward):
         options["mbr_split_backward"] = True
     return options
 
@@ -581,6 +677,8 @@ def main() -> None:
     OUT = (
         Path(args.output).resolve() if args.output else ROOT / "results/route_preserving_mbr_bridge"
     )
+    if args.deterministic:
+        torch.use_deterministic_algorithms(True)
     if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
         raise RuntimeError("STOP: bridge requires exactly one visible CUDA device")
     if not torch.cuda.is_bf16_supported():
@@ -709,6 +807,29 @@ def main() -> None:
                 param.copy_(initial[name].to(device=param.device, dtype=param.dtype))
         model.zero_grad(set_to_none=True)
 
+    step_counter = [0]  # runs so far, for the alternating options
+    causal = None
+    causal_spec = {}
+    if args.causal_delay:
+        from causal_probe import CausalProbe, parse_causal_spec
+
+        causal_spec = parse_causal_spec(args.causal_delay)
+        import a0_exact_lt
+
+        causal = CausalProbe(spin=a0_exact_lt.load_extension().module.spin_us)
+        for point in causal_spec:
+            if point in ("expert_fwd", "expert_bwd"):
+                causal.wrap(point, a0_exact_lt.LtExtensionBackend,
+                            "expert_forward" if point == "expert_fwd" else "expert_backward")
+            elif point == "gather_bwd":
+                from soup_cli.utils.expert_stream import fast_gather_functions
+
+                causal.wrap(point, fast_gather_functions()[0], "backward")
+            elif point == "layer":
+                causal.wrap(point, L2LStep, "_layer")
+            else:
+                raise ValueError(f"unknown causal point {point!r}")
+
     def one_run(
         kind: str, *, keep_artifacts: bool, collect_diagnostics: bool, phase_clock: Any = None
     ) -> Dict[str, Any]:
@@ -737,7 +858,35 @@ def main() -> None:
             # Entered after the phase clock: it wraps F.linear too, and the swap must be outermost.
             from p72_invariant_expert_gemm import expert_gemm_context
 
-            profiling.enter_context(expert_gemm_context(args.expert_gemm, args.expert_pad_rows))
+            profiling.enter_context(
+                expert_gemm_context(
+                    args.expert_gemm,
+                    args.expert_pad_rows,
+                    direct_backward=args.expert_direct_backward,
+                    streams=args.expert_streams,
+                )
+            )
+            from p72_invariant_expert_gemm import (
+                alternating_switch,
+                async_lease_context,
+                fast_row_gather_context,
+            )
+
+            step_no = step_counter[0]
+            step_counter[0] += 1
+            gather_on = args.expert_fast_gather or alternating_switch(
+                step_no, args.alternate_fast_gather)
+            profiling.enter_context(fast_row_gather_context(gather_on))
+            lease_on = args.expert_async_lease or alternating_switch(
+                step_no, args.alternate_async_lease)
+            profiling.enter_context(async_lease_context(lease_on))
+            causal_on = bool(causal_spec) and (
+                alternating_switch(step_no, True) if args.alternate_causal else True)
+            if causal is not None:
+                profiling.enter_context(causal.delays(causal_spec if causal_on else {}))
+            from diag_gpu_profile import maybe_profile
+
+            profiling.enter_context(maybe_profile())  # only with SOUP_GPU_PROFILE_JSON set
             losses = stepper.run(
                 micro_batches,
                 store,
@@ -748,6 +897,8 @@ def main() -> None:
                     group_size=args.mbr_group_size,
                     expert_gemm=args.expert_gemm,
                     diagnostics=collect_diagnostics,
+                    split_backward=args.mbr_split_backward,
+                    ordered_backward=args.mbr_ordered_backward,
                 ),
             )
             if phase_clock is not None:
@@ -792,6 +943,10 @@ def main() -> None:
             "seconds": seconds,
             "wall_seconds_including_artifact_capture": wall_seconds_including_capture,
             "model_step_seconds": model_step_seconds,
+            "fast_gather": bool(gather_on),
+            "async_lease": bool(lease_on),
+            "causal_on": bool(causal_on),
+            "causal_counts": causal.counts() if causal is not None else {},
             "optimizer_seconds": optimizer_seconds,
             "artifact_capture_seconds_excluded": artifact_capture_seconds,
             "tokens_per_second": (K * SEQ) / seconds,
@@ -853,6 +1008,121 @@ def main() -> None:
         model.zero_grad(set_to_none=True)
         return result
 
+    def train_run() -> None:
+        """40-step style training on the windows of ``--train-data``: one AdamW for the whole run,
+        a digest of every LoRA tensor after each step (equal digests of two arms mean equal
+        adapters), the expert fetches and logical bytes of each step, and optionally the NLL of the
+        held-out examples. Written to ``train_steps.json`` and ``final_adapter.pt``."""
+        import torch.nn.functional as functional
+        from p72_invariant_expert_gemm import (
+            async_lease_context,
+            expert_gemm_context,
+            fast_row_gather_context,
+        )
+        from p72_train_compare import nll_summary, target_tokens
+        from p72_train_data import steps_for_epochs, window_arrays
+        from rich.console import Console
+
+        console = Console()
+        saved = torch.load(args.train_data, map_location="cpu", weights_only=True)
+        steps = steps_for_epochs(saved["train_steps"], args.train_epochs)
+        if args.train_steps:
+            steps = steps[: args.train_steps]
+        kind = args.profile_kinds.split(",")[0]
+        pad_id = int(tokenizer.eos_token_id if tokenizer.eos_token_id is not None else 0)
+        seq = args.train_seq or max(len(r["input_ids"]) for w in steps for r in w)
+        first_ids = [torch.tensor([r], dtype=torch.long).cuda()
+                     for r in window_arrays(steps[0], seq, pad_id)[0]]
+        if len(first_ids) != K:
+            raise RuntimeError(f"STOP: a training window must hold {K} examples")
+        # the layer call and the activation store depend on the window's shape, not on its tokens
+        train_calls = [capture_layer_call(model, first_ids[0], draws=False)] * K
+        train_store = _store_for(state, l2l, first_ids, torch.device("cuda"))
+        reset_parameters()
+        optimizer = torch.optim.AdamW(list(params.values()), lr=args.train_lr, weight_decay=0.01)
+        optimizer.zero_grad(set_to_none=True)
+        pool = getattr(runtime, "expert_pool", None)
+        rows: List[Dict[str, Any]] = []
+        started_all = time.perf_counter()
+        for index, window in enumerate(steps):
+            ids, label_rows = window_arrays(window, seq, pad_id)
+            window_ids = [torch.tensor([r], dtype=torch.long).cuda() for r in ids]
+            window_labels = [torch.tensor([r], dtype=torch.long).cuda() for r in label_rows]
+            fetches_before = pool.stats()["fetches"] if pool is not None else 0
+            torch.cuda.synchronize()
+            started = time.perf_counter()
+            with contextlib.ExitStack() as contexts:
+                contexts.enter_context(expert_gemm_context(
+                    args.expert_gemm, args.expert_pad_rows,
+                    direct_backward=args.expert_direct_backward,
+                    streams=args.expert_streams,
+                ))
+                contexts.enter_context(fast_row_gather_context(args.expert_fast_gather))
+                contexts.enter_context(async_lease_context(args.expert_async_lease))
+                losses = l2l.run(
+                    window_ids, train_store, calls=train_calls,
+                    head=sft_head(window_labels, target_tokens(label_rows)),
+                    **step_run_options(
+                        kind, group_size=args.mbr_group_size, expert_gemm=args.expert_gemm,
+                        diagnostics=False, split_backward=args.mbr_split_backward,
+                        ordered_backward=args.mbr_ordered_backward),
+                )
+            torch.cuda.synchronize()
+            step_seconds = time.perf_counter() - started
+            if args.train_dump_grads and index == 0:
+                torch.save({n: (p.grad.detach().cpu() if p.grad is not None else None)
+                            for n, p in params.items()}, args.train_dump_grads)
+            torch.nn.utils.clip_grad_norm_(list(params.values()), 1.0)
+            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
+            torch.cuda.synchronize()
+            fetches = (pool.stats()["fetches"] if pool is not None else 0) - fetches_before
+            packed = pool.stats()["plan"]["packed_region_bytes"] if pool is not None else 0
+            rows.append({
+                "step": index + 1,
+                "loss": float(torch.stack([x.float() for x in losses]).sum().detach().cpu()),
+                "step_seconds": step_seconds,
+                "fetches": fetches,
+                "logical_bytes": fetches * packed,
+                "adapter_sha256": tensor_digest({n: p.detach() for n, p in params.items()}),
+            })
+            console.out(
+                f"TRAIN step {index + 1}/{len(steps)} loss {rows[-1]['loss']:.6f} "
+                f"{step_seconds:.2f}s fetches {fetches} {rows[-1]['adapter_sha256'][:12]}")
+        training_seconds = time.perf_counter() - started_all
+        torch.save({n: p.detach().cpu() for n, p in params.items()}, OUT / "final_adapter.pt")
+        result: Dict[str, Any] = {
+            "kind": kind, "steps": rows, "training_seconds": training_seconds,
+            "total_fetches": sum(r["fetches"] for r in rows),
+            "total_logical_bytes": sum(r["logical_bytes"] for r in rows),
+            "arm": {"expert_gemm": args.expert_gemm, "fast_gather": args.expert_fast_gather,
+                    "async_lease": args.expert_async_lease,
+                    "ordered_backward": args.mbr_ordered_backward},
+            "data_sha256": hashlib.sha256(Path(args.train_data).read_bytes()).hexdigest(),
+            "deterministic": bool(torch.are_deterministic_algorithms_enabled()),
+        }
+        if args.train_eval:
+            model.eval()
+            per_example = []
+            with torch.no_grad(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                for example in saved["heldout_examples"]:
+                    ids = torch.tensor([example["input_ids"]], dtype=torch.long).cuda()
+                    targets = torch.tensor([example["labels"]], dtype=torch.long).cuda()
+                    output = model(input_ids=ids, use_cache=False, return_dict=True)
+                    logits = output.logits[:, :-1, :].float().reshape(-1, output.logits.shape[-1])
+                    nll = float(functional.cross_entropy(
+                        logits, targets[:, 1:].reshape(-1), ignore_index=-100,
+                        reduction="sum").item())
+                    count = int((targets[:, 1:] != -100).sum().item())
+                    per_example.append({"group_sha256": example["group_sha256"],
+                                        "type": example["type"], "nll_sum": nll,
+                                        "target_tokens": count, "nll_token_mean": nll / count})
+            result["heldout"] = {"per_example": per_example, **nll_summary(per_example)}
+            summary_only = {k: v for k, v in result["heldout"].items() if k != "per_example"}
+            console.out("HELDOUT " + json.dumps(summary_only))
+        (OUT / "train_steps.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        console.out(f"TRAINED {args.train_data} {training_seconds:.1f}s")
+
     def run_phase_profile(measured: List[Dict[str, Any]]) -> Dict[str, Any]:
         kinds = list(dict.fromkeys(row["kind"] for row in measured))
         order = [row["kind"] for row in measured]
@@ -893,6 +1163,9 @@ def main() -> None:
         return phase_profile
 
     try:
+        if args.train_data:
+            train_run()
+            return
         if args.phase_profile_only:
             wanted = args.profile_kinds.split(",")
             if not set(wanted) <= {"l2l", "mbr"}:

@@ -1,0 +1,85 @@
+torch 2.14.1+cu130 gpu NVIDIA GeForce RTX 3060
+cuda 13.0 preferred_blas _BlasBackend.Cublas
+
+== 1. kernel map (form: band of M -> kernel names)
+[fwd_gate_up] distinct kernel sets: 10
+  M 1..1: void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)
+  M 2..16: ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn
+  M 17..21: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn
+  M 22..30: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_tn
+  M 31..47: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn
+  M 48..54: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_tn
+  M 55..57: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn
+  M 58..62: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_tn
+  M 63..63: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn
+  M 64..64: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_tn
+  M 72..96: ampere_bf16_s16816gemm_bf16_64x128_ldg8_f2f_stages_32x6_tn
+  M 128..128: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_tn
+  M 160..160: Memset (Device) | void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_tn_align8::Params)
+  M 192..192: ampere_s16816gemm_bf16_256x128_ldg8_stages_32x3_tn | void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 256..256: ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_32x3_tn
+  M 320..320: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_stages_32x1_tn
+  M 384..512: Memset (Device) | ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_32x3_tn
+[fwd_down] distinct kernel sets: 12
+  M 1..1: void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 2, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)
+  M 2..4: Memset (Device) | ampere_bf16_s16816gemm_bf16_64x64_ldg8_f2f_stages_64x5_tn
+  M 5..16: void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8::Params)
+  M 17..64: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_tn
+  M 72..72: void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params) | void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 96..96: void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_32x6_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_32x6_tn_align8::Params)
+  M 128..128: ampere_s16816gemm_bf16_128x128_ldg8_stages_32x5_tn | void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 160..160: Memset (Device) | void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_tn_align8::Params)
+  M 192..192: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_tn
+  M 256..256: Memset (Device) | void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_tn_align8::Params)
+  M 320..320: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_stages_32x1_tn
+  M 384..384: ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_32x3_tn
+  M 448..512: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_tn
+[bwd_down] distinct kernel sets: 9
+  M 1..1: void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_nn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_nn_align8::Params) | void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 2..16: ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_nn
+  M 17..35: ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_nn
+  M 36..43: ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_nn
+  M 44..46: ampere_bf16_s16816gemm_bf16_64x64_ldg8_f2f_stages_64x5_nn
+  M 47..63: ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_nn
+  M 64..64: ampere_bf16_s16816gemm_bf16_64x64_ldg8_f2f_stages_64x5_nn
+  M 72..72: ampere_bf16_s16816gemm_bf16_64x128_ldg8_f2f_stages_32x6_nn
+  M 96..128: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_nn
+  M 160..160: ampere_s16816gemm_bf16_128x128_ldg8_stages_32x5_nn | void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 192..256: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_stages_32x1_nn
+  M 320..320: void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_bf16_128x64_32x6_nn_align2>(cutlass_80_tensorop_bf16_s16816gemm_bf16_128x64_32x6_nn_align2::Params) | void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 384..512: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_stages_32x1_nn
+[bwd_gate_up] distinct kernel sets: 12
+  M 1..1: Memset (Device) | ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_nn
+  M 2..16: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_nn | void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 17..34: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x4_nn
+  M 35..56: void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_bf16_256x64_32x4_nn_align2>(cutlass_80_tensorop_bf16_s16816gemm_bf16_256x64_32x4_nn_align2::Params) | void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 57..64: ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_nn
+  M 72..72: void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_nn_align8::Params) | void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 96..128: ampere_s16816gemm_bf16_128x128_ldg8_stages_32x5_nn | void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 160..160: Memset (Device) | void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_nn_align8::Params)
+  M 192..192: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_nn
+  M 256..256: Memset (Device) | void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_nn_align8::Params)
+  M 320..320: ampere_s16816gemm_bf16_256x128_ldg8_stages_32x3_nn | void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)
+  M 384..384: ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_32x3_nn
+  M 448..512: Memset (Device) | ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_nn
+
+== 2. rows of segment a inside one (a + b) call == a-only call, when kernel sets match
+[fwd_gate_up] pairs with one kernel set: 214, bit-equal: 214, first mismatches: []
+[fwd_down] pairs with one kernel set: 525, bit-equal: 525, first mismatches: []
+[bwd_down] pairs with one kernel set: 528, bit-equal: 528, first mismatches: []
+[bwd_gate_up] pairs with one kernel set: 92, bit-equal: 92, first mismatches: []
+
+== 3. multi-stream segment calls (fwd_gate_up + fwd_down + both bwd forms per segment)
+segments -> serial ms | 2 streams ms (equal) | 4 streams ms (equal) | one-call ms (B0-like)
+[1, 1, 1, 1, 1, 1, 1, 1]           ->   1.17 |   1.03 (True) |   1.07 (True) |   0.15
+[1, 1, 1]                          ->   0.44 |   0.42 (True) |   0.46 (True) |   0.16
+[4, 20, 58, 7, 33, 12, 1, 64]      ->   1.20 |   1.00 (True) |   1.03 (True) |   0.45
+[8, 8, 8, 8, 8, 8]                 ->   0.90 |   0.77 (True) |   0.81 (True) |   0.15
+[32, 64, 4, 1, 2, 8, 6]            ->   1.06 |   0.89 (True) |   0.93 (True) |   0.31
+[64, 32, 48, 2, 6, 3, 12]          ->   1.06 |   0.88 (True) |   0.92 (True) |   0.45
+[8, 1, 2, 1, 32]                   ->   0.75 |   0.66 (True) |   0.69 (True) |   0.15
+[12, 32, 2, 64]                    ->   0.61 |   0.52 (True) |   0.56 (True) |   0.31
+
+== 4. Triton fixed-tile GEMM (block 32x64x64) vs cuBLAS, fwd_gate_up form
+Triton == cuBLAS: 48/64; Triton row 0 invariant to M: 64/64
+time M=64: cuBLAS 0.045 ms, Triton 0.046 ms

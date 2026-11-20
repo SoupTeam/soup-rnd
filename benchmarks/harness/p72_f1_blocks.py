@@ -121,7 +121,8 @@ def summarize(blocks: Sequence[Sequence[Run]]) -> Dict[str, Any]:
 def arm_flags(mode: str, *, host_cache_mib: int) -> Dict[str, List[str]]:
     """Bridge flags of arms A and B. ``pr72``: sync against packed plus prefetch (PR #72).
     ``b0-b1``: ticket 07, both complete with prefetch; B adds the invariant expert GEMM.
-    ``b0-b0s``: the same with the segmented GEMM. ``a0-b0s``: A is the L2L step A0, B is B0s."""
+    ``b0-b0s``: the same with the segmented GEMM. ``a0-b0s``: A is the L2L step A0, B is B0s.
+    ``b0-b0sd`` / ``b0-ltd``: B is B0s / lt-merged with the direct expert backward (A0 bits)."""
     complete = ["--expert-transfer", "packed", "--expert-prefetch",
                 "--expert-host-cache-mib", str(host_cache_mib)]
     if mode == "pr72":
@@ -130,6 +131,42 @@ def arm_flags(mode: str, *, host_cache_mib: int) -> Dict[str, List[str]]:
         return {"A": list(complete), "B": complete + ["--expert-gemm", "invariant"]}
     if mode == "b0-b0s":
         return {"A": list(complete), "B": complete + ["--expert-gemm", "segmented"]}
+    if mode == "b0-b0sd":
+        return {"A": list(complete),
+                "B": complete + ["--expert-gemm", "segmented", "--expert-direct-backward"]}
+    if mode == "b0-ltd":
+        return {"A": list(complete),
+                "B": complete + ["--expert-gemm", "lt-merged", "--expert-direct-backward"]}
+    if mode == "a0-ltfo":
+        a0 = ["--profile-kinds", "l2l", "--expert-transfer", "packed",
+              "--expert-host-cache-mib", str(host_cache_mib)]
+        return {"A": a0, "B": complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward"]}
+    if mode == "b0-ltfs":
+        return {"A": list(complete),
+                "B": complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward",
+                                 "--expert-streams", "2"]}
+    if mode in ("ltfo-ltfs3", "b0-ltfs3"):
+        exact = complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward"]
+        three = exact + ["--expert-streams", "3"]
+        return {"A": exact if mode == "ltfo-ltfs3" else list(complete), "B": three}
+    if mode == "ltfo-ltfs":
+        both = complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward"]
+        return {"A": both, "B": both + ["--expert-streams", "2"]}
+    if mode == "b0-ltfo":
+        return {"A": list(complete),
+                "B": complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward"]}
+    if mode == "b0-ltfog":
+        return {"A": list(complete),
+                "B": complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward",
+                                 "--expert-fast-gather"]}
+    if mode == "b0-ltfoga":
+        return {"A": list(complete),
+                "B": complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward",
+                                 "--expert-fast-gather", "--expert-async-lease"]}
+    if mode == "b0-split":
+        return {"A": list(complete), "B": complete + ["--mbr-split-backward"]}
+    if mode == "b0-ltf":
+        return {"A": list(complete), "B": complete + ["--expert-gemm", "lt-fused"]}
     if mode == "a0-b0s":
         # A0 is the L2L step (complete, no prefetch, native GEMM); the kind flag overrides the
         # driver's default ``--profile-kinds mbr`` because the last value of an option wins.
@@ -174,9 +211,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--host-cache-mib", type=int, default=12288)
     parser.add_argument("--max-blocks", type=int, default=10)
     parser.add_argument(
-        "--arms", default="pr72", choices=["pr72", "b0-b1", "b0-b0s", "a0-b0s"],
+        "--arms", default="pr72",
+        choices=["pr72", "b0-b1", "b0-b0s", "a0-b0s", "b0-b0sd", "b0-ltd", "b0-ltf",
+                 "b0-split", "b0-ltfo", "b0-ltfog", "b0-ltfoga", "a0-ltfo", "b0-ltfs", "ltfo-ltfs",
+                 "ltfo-ltfs3", "b0-ltfs3"],
         help="pr72: sync vs packed+prefetch; b0-b1: native vs invariant GEMM; b0-b0s: native "
-        "vs segmented GEMM; a0-b0s: L2L A0 vs segmented MBR B0s",
+        "vs segmented GEMM; a0-b0s: L2L A0 vs segmented MBR B0s; b0-b0sd / b0-ltd: native vs "
+        "segmented / lt-merged GEMM with the direct expert backward",
     )
     parser.add_argument("--label", default="RTX 3060 (vast.ai), Moonlight MBR")
     parser.add_argument("--required", default="suspend,power",
