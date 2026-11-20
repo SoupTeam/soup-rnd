@@ -1,0 +1,121 @@
+=== [0] System & GPU hardware ===
+name, memory.total [MiB], driver_version
+NVIDIA GeForce RTX 4060 Ti, 8188 MiB, 610.57.04
+               total        used        free      shared  buff/cache   available
+Mem:            62Gi       1.6Gi        52Gi       0.0Ki       8.2Gi        59Gi
+Swap:          1.4Gi       289Mi       1.1Gi
+CPU(s):                                  24
+Model name:                              12th Gen Intel(R) Core(TM) i9-12900
+NUMA node0 CPU(s):                       0-23
+=== [1] Unpack repo & fix brotli / install deps ===
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable.It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+=== [2] Build native C++17 + CUDA nf4_decode extension ===
+native_ext OK, cuda: True NVIDIA GeForce RTX 4060 Ti has_cuda_nf4: False
+=== [3] Test 0: Tiny CUDA pytest + BF16 vs FP8+Oracle bitwise check ===
+============================= test session starts ==============================
+platform linux -- Python 3.11.11, pytest-9.2.0, pluggy-1.7.0 -- /opt/conda/bin/python3.11
+cachedir: .pytest_cache
+hypothesis profile 'default' -> database=DirectoryBasedExampleDatabase(PosixPath('/workspace/soup/.hypothesis/examples'))
+rootdir: /workspace/soup
+configfile: pyproject.toml
+plugins: hypothesis-6.124.7, anyio-4.16.0
+collecting ... collected 7 items
+
+tests/test_p3_fp8_oracle_mbr.py::test_block64_fp8_codec_bitwise_matches_p3_realdata_codec PASSED [ 14%]
+tests/test_p3_fp8_oracle_mbr.py::test_block64_fp8_store_refuses_nonfinite_on_end_step PASSED [ 28%]
+tests/test_p3_fp8_oracle_mbr.py::test_unified_go_fp8_oracle_bitwise_matches_batyr_probe_and_bf16_e3 PASSED [ 42%]
+tests/test_p3_fp8_oracle_mbr.py::test_multistep_fp8_oracle_and_fail_closed_without_oracle PASSED [ 57%]
+tests/test_p3_unified_go.py::test_unified_go_stack_bitwise_parity_two_adamw_steps PASSED [ 71%]
+tests/test_p3_unified_go.py::test_unified_go_saved_storage_o1_with_chunked_ce_and_async_controller PASSED [ 85%]
+tests/test_p3_unified_go.py::test_unified_go_train_embedding_and_error_recovery PASSED [100%]
+
+============================== 7 passed in 6.06s ===============================
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 204.78it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go codec=bf16 oracle=False steps=1 wall=0.564s tok/s=226.83 
+store=0.1MiB oracle_mem=0.0MiB rss_pk=1.82GiB alloc=0.063GiB nvml_pk=0.663GiB 
+grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to /workspace/res/00a_tiny_cuda_bf16.json
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=l2l_ref_fp8_oracle codec=fp8_e4m3 oracle=True steps=1 wall=0.262s 
+tok/s=488.35 store=0.1MiB oracle_mem=0.0MiB rss_pk=1.72GiB alloc=0.063GiB 
+nvml_pk=0.663GiB grad_rel=0.0432 min_cos=0.99780
+[1] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=True steps=1 wall=0.141s 
+tok/s=904.78 store=0.1MiB oracle_mem=0.0MiB rss_pk=1.78GiB alloc=0.063GiB 
+nvml_pk=0.663GiB grad_rel=0.0432 min_cos=0.99780
+[2] arm=unified_go_fp8_no_oracle codec=fp8_e4m3 oracle=False steps=1 wall=0.148s
+tok/s=867.30 store=0.1MiB oracle_mem=0.0MiB rss_pk=1.78GiB alloc=0.063GiB 
+nvml_pk=0.663GiB grad_rel=0.0834 min_cos=0.99595
+[3] arm=unified_go_fp8_perrow_oracle codec=fp8_e4m3 oracle=True steps=1 
+wall=0.139s tok/s=923.08 store=0.0MiB oracle_mem=0.0MiB rss_pk=1.78GiB 
+alloc=0.064GiB nvml_pk=0.663GiB grad_rel=0.0441 min_cos=0.99800
+Saved unified A-B-B-A benchmark to /workspace/res/00b_tiny_cuda_fp8.json
+=== [4] Download & shard Kanana-2-30B-A3B (NF4 BF16) ===
+Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 15 files:   7%|▋         | 1/15 [00:00<00:03,  4.48it/s]Fetching 15 files:  13%|█▎        | 2/15 [02:30<19:13, 88.77s/it]Fetching 15 files:  20%|██        | 3/15 [02:31<09:40, 48.34s/it]Fetching 15 files:  27%|██▋       | 4/15 [02:32<05:27, 29.74s/it]Fetching 15 files:  33%|███▎      | 5/15 [02:34<03:16, 19.62s/it]Fetching 15 files:  40%|████      | 6/15 [05:00<09:25, 62.83s/it]Fetching 15 files:  47%|████▋     | 7/15 [05:03<05:45, 43.17s/it]Fetching 15 files:  53%|█████▎    | 8/15 [05:05<03:31, 30.15s/it]Fetching 15 files:  60%|██████    | 9/15 [05:08<02:10, 21.67s/it]Fetching 15 files:  67%|██████▋   | 10/15 [07:23<04:42, 56.53s/it]Fetching 15 files:  73%|███████▎  | 11/15 [07:40<02:58, 44.58s/it]Fetching 15 files:  80%|████████  | 12/15 [07:41<01:33, 31.06s/it]Fetching 15 files:  87%|████████▋ | 13/15 [07:41<00:43, 21.71s/it]Fetching 15 files:  93%|█████████▎| 14/15 [07:42<00:15, 15.49s/it]Fetching 15 files: 100%|██████████| 15/15 [07:42<00:00, 30.83s/it]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go codec=bf16 oracle=False steps=1 wall=37.103s tok/s=110.39 
+store=768.0MiB oracle_mem=0.0MiB rss_pk=27.74GiB alloc=0.823GiB 
+nvml_pk=1.4677GiB grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to /workspace/res/01a_k64_s64_bf16.json
+=== [5] Test 1: Kanana k=64, S=64 (4096 tok) FP8+Oracle variants (isolated processes) ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=True steps=1 wall=35.536s 
+tok/s=115.26 store=408.0MiB oracle_mem=7.3MiB rss_pk=7.86GiB alloc=0.802GiB 
+nvml_pk=1.454GiB grad_rel=0.0211 min_cos=0.99255
+Saved unified A-B-B-A benchmark to /workspace/res/01b_k64_s64_fp8_oracle.json
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go_fp8_perrow_oracle codec=fp8_e4m3 oracle=True steps=1 
+wall=35.297s tok/s=116.04 store=384.8MiB oracle_mem=7.3MiB rss_pk=7.78GiB 
+alloc=0.802GiB nvml_pk=1.454GiB grad_rel=0.0237 min_cos=0.99236
+Saved unified A-B-B-A benchmark to 
+/workspace/res/01c_k64_s64_fp8_perrow_oracle.json
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go_fp8_no_oracle codec=fp8_e4m3 oracle=False steps=1 
+wall=38.046s tok/s=107.66 store=408.0MiB oracle_mem=0.0MiB rss_pk=7.82GiB 
+alloc=0.823GiB nvml_pk=1.4677GiB grad_rel=0.0212 min_cos=0.99255
+Saved unified A-B-B-A benchmark to /workspace/res/01d_k64_s64_fp8_no_oracle.json
+=== [6] Test 2: Kanana k=64, S=512 (32768 tok) BF16 vs FP8+Oracle x2 (isolated processes) ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go codec=bf16 oracle=False steps=1 wall=53.158s tok/s=616.43 
+store=6144.0MiB oracle_mem=0.0MiB rss_pk=13.51GiB alloc=2.601GiB 
+nvml_pk=3.7001GiB grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to /workspace/res/02a_k64_s512_bf16.json
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=True steps=1 wall=51.957s 
+tok/s=630.68 store=3264.0MiB oracle_mem=58.8MiB rss_pk=10.89GiB alloc=2.505GiB 
+nvml_pk=3.5673GiB grad_rel=0.0139 min_cos=0.99471
+Saved unified A-B-B-A benchmark to 
+/workspace/res/02b_k64_s512_fp8_oracle_r1.json
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=True steps=1 wall=52.007s 
+tok/s=630.07 store=3264.0MiB oracle_mem=58.8MiB rss_pk=10.88GiB alloc=2.505GiB 
+nvml_pk=3.5673GiB grad_rel=0.0139 min_cos=0.99471
+Saved unified A-B-B-A benchmark to 
+/workspace/res/02c_k64_s512_fp8_oracle_r2.json
+=== [7] Test 3: Kanana Multi-step k=8, S=512, 3 AdamW steps BF16 vs FP8+Oracle ===
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go codec=bf16 oracle=False steps=3 wall=38.829s tok/s=316.47 
+store=768.0MiB oracle_mem=0.0MiB rss_pk=8.17GiB alloc=1.124GiB nvml_pk=1.9267GiB
+grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to /workspace/res/03a_k8_s512_3steps_bf16.json
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[0] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=True steps=3 wall=39.122s 
+tok/s=314.09 store=408.0MiB oracle_mem=7.3MiB rss_pk=7.85GiB alloc=1.104GiB 
+nvml_pk=1.9091GiB grad_rel=0.0346 min_cos=0.97066
+Saved unified A-B-B-A benchmark to 
+/workspace/res/03b_k8_s512_3steps_fp8_oracle.json
+=== ALL_DONE_FP8_ORACLE ===
+total 88K
+-rw-r--r-- 1 root root 3.2K Nov 20 07:44 00a_tiny_cuda_bf16.json
+-rw-r--r-- 1 root root  15K Nov 20 07:44 00b_tiny_cuda_fp8.json
+-rw-r--r-- 1 root root 3.3K Nov 20 07:53 01a_k64_s64_bf16.json
+-rw-r--r-- 1 root root 4.5K Nov 20 07:54 01b_k64_s64_fp8_oracle.json
+-rw-r--r-- 1 root root 4.5K Nov 20 07:55 01c_k64_s64_fp8_perrow_oracle.json
+-rw-r--r-- 1 root root 3.8K Nov 20 07:56 01d_k64_s64_fp8_no_oracle.json
+-rw-r--r-- 1 root root 3.3K Nov 20 07:57 02a_k64_s512_bf16.json
+-rw-r--r-- 1 root root 4.5K Nov 20 07:58 02b_k64_s512_fp8_oracle_r1.json
+-rw-r--r-- 1 root root 4.5K Nov 20 07:59 02c_k64_s512_fp8_oracle_r2.json
+-rw-r--r-- 1 root root 3.3K Nov 20 08:00 03a_k8_s512_3steps_bf16.json
+-rw-r--r-- 1 root root 4.5K Nov 20 08:01 03b_k8_s512_3steps_fp8_oracle.json
+-rw-r--r-- 1 root root 8.5K Nov 20 08:01 run.log
