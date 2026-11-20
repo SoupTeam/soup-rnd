@@ -29,6 +29,9 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from typing import Callable, TypeVar
+
+T = TypeVar("T")
 
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")  # exactly one device
 os.environ.setdefault("TMPDIR", "/tmp")             # the shard writer accepts $TMPDIR paths
@@ -46,7 +49,7 @@ def log(message: str) -> None:
     print(f"[{time.time() - T0:7.1f}s] {message}", flush=True)
 
 
-def sh(command: list[str], **kwargs) -> subprocess.CompletedProcess:
+def sh(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
     return subprocess.run(command, capture_output=True, text=True, **kwargs)
 
 
@@ -54,7 +57,7 @@ def save() -> None:
     (OUT / "kanana-report.json").write_text(json.dumps(REPORT, indent=2, default=str))
 
 
-def timed(name: str, fn):
+def timed(name: str, fn: Callable[[], T]) -> T:
     started = time.time()
     try:
         return fn()

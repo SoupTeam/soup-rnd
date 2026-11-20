@@ -13,9 +13,10 @@ Raw rows are outside git (`rows.jsonl` per stage). Harness: `benchmarks/harness/
 ## Setup and limits
 
 - Data: MBPP-train text (`google-research-datasets/mbpp`, full, train, 374 rows), padded to S, k rows per window.
-- Speed: normal mode, 3 steps per process, median of steps after the first (warm-up). The run is **one A-B-C-C-B-A block** (two runs per arm and window), not five: the user stopped after block 0 to save time and money. No t-test is possible with one block; repeat runs inside the block are listed below. The D1 gate (>=3% and t>2.78 at 5 blocks) is not evaluated here; each lever gets its own A/B on this stand.
+- Speed: normal mode, 3 steps per process; the first is warm-up and the **median is over the two timed steps after it** (the ticket asks for three timed steps; the run used `--steps 3`, so this is a deviation). The run is **one A-B-C-C-B-A block** (two runs per arm and window), not five: the user stopped after block 0 to save time and money. No t-test is possible with one block; repeat runs inside the block are listed below. The D1 gate (>=3% and t>2.78 at 5 blocks) is not evaluated here; each lever gets its own A/B on this stand.
 - Bits: deterministic mode (`use_deterministic_algorithms(True, warn_only=True)`), 3 steps, S=64.
-- Software: torch {env['versions']['torch']}, triton {env['versions']['triton']}, transformers {env['versions']['transformers']}, peft {env['versions']['peft']}, bitsandbytes {env['versions']['bitsandbytes']}, CUDA toolkit 12.6 (ptxas). Checkpoint `kakaocorp/kanana-2-30b-a3b-base-2601` @ `0d31365a`, NF4 per-expert cache, LoRA r=16.
+- Software: torch 2.14.1, triton 3.8.0, transformers 5.20.2, peft 0.21.2, bitsandbytes 0.50.2, CUDA toolkit 12.6 (ptxas). The git sha is `unknown` in the rows (the instance held a source tarball, not a checkout); the code is commit `3b4c8b70`. Checkpoint `kakaocorp/kanana-2-30b-a3b-base-2601` @ `0d31365a`, NF4 per-expert cache, LoRA r=16.
+- Dataset hash (sha256 of the padded MBPP-train ids, first 12 hex): S=64: ef6a28fd1450, S=512: 5fcbf8605004.
 - `direct_io`: requested and actual (no fallback) in every row, although the disk is overlayfs.
 
 ## Speed, VRAM, RAM (normal mode, 8 GiB allocator limit)
@@ -48,7 +49,7 @@ Peaks are the max over the runs of a cell; RAM is the process peak RSS. Step tim
 
 Speedup against A0 (k=8): B0 and C are about **5.0-5.2x** faster at S=64 (169.6 s against 33.9 and 32.9 s) and **5.5x** at S=512 (193.3 against 35.2 and 35.4 s). C against B0 differs by 1-3% at S=64 and by 0.6% at S=512 inside one block, so no C-over-B0 gain is shown.
 
-**Window (64,512) is OOM for B0 and C at 8 GiB.** The four OOM rows record the allocator peak (7.98 GiB allocated, 8.00 reserved) and RAM peak 9.9 GiB; the NVML peak at the moment of the error varies from 4.2 to 8.3 GiB because the failure hits at different points. This is the case the large-window mode (D2) is for. A0 does not exist at k=64.
+**Window (64,512) is OOM for B0 and C at 8 GiB.** The four OOM rows record the allocator peak (7.98 GiB allocated, 8.00 reserved) and RAM peak 9.9 GiB; the NVML peak at the moment of the error varies from 3.9 to 8.4 GiB because the failure hits at different points. This is the case the large-window mode (D2) is for. A0 does not exist at k=64.
 
 ## Bit ladder (deterministic, S=64, vs A0)
 
@@ -59,7 +60,7 @@ Speedup against A0 (k=8): B0 and C are about **5.0-5.2x** faster at S=64 (169.6 
 | 4 | differs | differs | 3.433213 | 3.469577 | 3.469577 |
 | 8 | differs | differs | 3.256432 | 3.258760 | 3.258760 |
 
-On sm_89 the ladder is bit-equal to A0 only at k=1. From k=2 both B0 and C differ from A0 in losses and gradient digests (loss differs by 0.56% at k=2, 1.06% at k=4 and 0.07% at k=8). C equals B0 at k=2; at k=4 and k=8 the losses match and the gradient digests differ. The A0 digest at k=8 is identical between the probe, the ladder and the speed runs, so the stand is reproducible. This answers the open question about sm_89 in `decisions.md`: the exact GEMM of ticket 02 is needed for A0 bits, the Moonlight/sm_86 result does not carry over to the present B0 and C.
+On sm_89 the ladder is bit-equal to A0 only at k=1. From k=2 both B0 and C differ from A0 in losses and gradient digests (loss differs by 0.56% at k=2, 1.06% at k=4 and 0.07% at k=8). C equals B0 at k=2; at k=4 and k=8 the losses match and the gradient digests differ. The A0 digest at k=8 is identical between the probe (see `kanana-report.json`), the ladder and the speed runs, so the stand is reproducible. This answers the open question about sm_89 in `decisions.md`: the exact GEMM of ticket 02 is needed for A0 bits, the Moonlight/sm_86 result does not carry over to the present B0 and C.
 
 ## Phase profile (one instrumented step, CUDA-synchronised; shares of summed phase time)
 
