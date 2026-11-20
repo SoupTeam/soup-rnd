@@ -113,6 +113,7 @@ def main() -> None:
     import torch
     from rich.console import Console
 
+    torch.cuda.init()
     console = Console()
     rows: List[Dict[str, Any]] = []
     for seq in args.seqs:

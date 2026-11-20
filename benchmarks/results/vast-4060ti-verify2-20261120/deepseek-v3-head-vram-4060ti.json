@@ -1,0 +1,107 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4060 Ti",
+  "shape": {
+    "hidden_size": 7168,
+    "vocab_size": 129280,
+    "dtype": "bfloat16"
+  },
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "rows": [
+    {
+      "seq_len": 512,
+      "impl": "full",
+      "chunk": null,
+      "status": "ok",
+      "wall_s": 0.1669,
+      "loss": 13.180954933166504,
+      "cuda_allocated_peak_gib": 2.749,
+      "cuda_reserved_peak_gib": 2.8926,
+      "nvml_peak_gib": 3.454
+    },
+    {
+      "seq_len": 512,
+      "impl": "chunked",
+      "chunk": 256,
+      "status": "ok",
+      "wall_s": 0.3518,
+      "loss": 13.180953979492188,
+      "cuda_allocated_peak_gib": 2.1721,
+      "cuda_reserved_peak_gib": 2.1895,
+      "nvml_peak_gib": 2.7509,
+      "grad_bit_equal_to_full": true,
+      "grad_max_abs": 0.0,
+      "loss_abs_diff": 9.5367431640625e-07
+    },
+    {
+      "seq_len": 1024,
+      "impl": "full",
+      "chunk": null,
+      "status": "ok",
+      "wall_s": 0.1153,
+      "loss": 13.207282066345215,
+      "cuda_allocated_peak_gib": 3.7735,
+      "cuda_reserved_peak_gib": 4.0449,
+      "nvml_peak_gib": 4.6064
+    },
+    {
+      "seq_len": 1024,
+      "impl": "chunked",
+      "chunk": 256,
+      "status": "ok",
+      "wall_s": 0.1525,
+      "loss": 13.207280158996582,
+      "cuda_allocated_peak_gib": 2.1858,
+      "cuda_reserved_peak_gib": 2.3262,
+      "nvml_peak_gib": 2.8876,
+      "grad_bit_equal_to_full": false,
+      "grad_max_abs": 1.430511474609375e-06,
+      "loss_abs_diff": 1.9073486328125e-06
+    },
+    {
+      "seq_len": 2048,
+      "impl": "full",
+      "chunk": null,
+      "status": "ok",
+      "wall_s": 0.2267,
+      "loss": 13.232982635498047,
+      "cuda_allocated_peak_gib": 5.7598,
+      "cuda_reserved_peak_gib": 6.291,
+      "nvml_peak_gib": 6.8525
+    },
+    {
+      "seq_len": 2048,
+      "impl": "chunked",
+      "chunk": 256,
+      "status": "ok",
+      "wall_s": 0.3069,
+      "loss": 13.232983589172363,
+      "cuda_allocated_peak_gib": 2.2132,
+      "cuda_reserved_peak_gib": 2.2676,
+      "nvml_peak_gib": 2.829,
+      "grad_bit_equal_to_full": false,
+      "grad_max_abs": 9.5367431640625e-07,
+      "loss_abs_diff": 9.5367431640625e-07
+    },
+    {
+      "seq_len": 4096,
+      "impl": "full",
+      "chunk": null,
+      "status": "oom",
+      "error": "CUDA out of memory. Tried to allocate 1.97 GiB. GPU 0 has a total capacity of 7.65 GiB of which 1.57 GiB is free. Including non-PyTorch memory, this process has 6.07 GiB memory in use. Of the allocated memory 5.79 GiB is allocated by PyTorch, and 74.96 MiB is ",
+      "cuda_allocated_peak_gib": 5.7881,
+      "cuda_reserved_peak_gib": 6.8184,
+      "nvml_peak_gib": 7.3798
+    },
+    {
+      "seq_len": 4096,
+      "impl": "chunked",
+      "chunk": 256,
+      "status": "ok",
+      "wall_s": 0.6198,
+      "loss": 13.187738418579102,
+      "cuda_allocated_peak_gib": 2.2679,
+      "cuda_reserved_peak_gib": 2.3066,
+      "nvml_peak_gib": 2.8681
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "git_sha": "30861b84",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda:0",
+  "case": "kanana",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "batch_invariant",
+  "expert_loader": "python_sync",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": false,
+  "cuda_nf4_decode": false,
+  "head_loss": "full",
+  "ce_chunk": 256,
+  "k": 1,
+  "seq_len": 512,
+  "group_size": 1,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "l2l_ref",
+      "steps": 1,
+      "step_walls_s": [
+        15.3134
+      ],
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 1,
+      "seq_len": 512,
+      "tokens": 512,
+      "wall_s": 15.3138,
+      "tokens_per_s": 33.4338,
+      "cuda_allocated_peak_gib": 1.3628,
+      "cuda_reserved_peak_gib": 1.5684,
+      "nvml_peak_gib": 2.1552,
+      "nvml_poll_samples": 759,
+      "nvml_used_gib": 2.15521240234375,
+      "rss_gib": 7.4496,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 5351,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 5351,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 525336576,
+        "backward_body_allocated_bytes": 525336576,
+        "releases": 0,
+        "allocations": 0
+      },
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "e6761ec8658d3a6255dd686ca0db41560f7a4a340bdb608a4aa76ec57094473f",
+      "gradients_sha256": "be150c35cffae732febef352297ae88b6763b48bfb47a02e15fd574548504695",
+      "adapter_sha256": "167ac050d486b0858311d7cf2836d7384395dd82104dcfdef8da5c0991b55d27",
+      "vs_first_arm": {
+        "reference": true
+      },
+      "run_index": 0,
+      "status": "ok"
+    },
+    {
+      "arm": "l2l_ref",
+      "steps": 1,
+      "step_walls_s": [
+        15.3637
+      ],
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 1,
+      "seq_len": 512,
+      "tokens": 512,
+      "wall_s": 15.3639,
+      "tokens_per_s": 33.3249,
+      "cuda_allocated_peak_gib": 1.394,
+      "cuda_reserved_peak_gib": 1.7246,
+      "nvml_peak_gib": 2.3115,
+      "nvml_poll_samples": 761,
+      "nvml_used_gib": 2.31146240234375,
+      "rss_gib": 9.4766,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 5351,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 5351,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 525336576,
+        "backward_body_allocated_bytes": 525336576,
+        "releases": 0,
+        "allocations": 0
+      },
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "e6761ec8658d3a6255dd686ca0db41560f7a4a340bdb608a4aa76ec57094473f",
+      "gradients_sha256": "be150c35cffae732febef352297ae88b6763b48bfb47a02e15fd574548504695",
+      "adapter_sha256": "167ac050d486b0858311d7cf2836d7384395dd82104dcfdef8da5c0991b55d27",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "gradients": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "adapter": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      "run_index": 1,
+      "status": "ok"
+    }
+  ]
+}
