@@ -1488,7 +1488,11 @@ from the last to the first, so the autograd engine, which runs the node with the
 number first, meets micro-batch 0's nodes first and adds every weight's contributions in
 micro-batch order, in one engine call per group instead of one plus one per micro-batch. It is
 only valid with `route_preserving_mbr=True` and excludes `mbr_split_backward`. Rows, outputs and
-routes keep micro-batch order. Two more off-by-default switches of the expert pool and the expert
+routes keep micro-batch order. `expert_gemm_context("lt-fused")` (API only, off by default) keeps the A0 bits of a grouped MBR
+step by running each micro-batch segment's expert GEMM through a cuBLASLt call forced onto the
+native kernel; it needs CUDA sm_80+, PyTorch 2.14 and a compiler, and raises instead of falling
+back to native ([`expert-forward.md`](expert-forward.md#exact-expert-gemm-lt-fused-experimental-off-by-default)).
+Two more off-by-default switches of the expert pool and the expert
 loop (`ExpertBufferPool.async_lease`, `StreamedExperts.fast_row_gather`) are described in
 [`expert-forward.md`](expert-forward.md#host-side-levers-async_lease-and-fast_row_gather-experimental-off-by-default).
 

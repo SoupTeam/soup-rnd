@@ -256,6 +256,37 @@ also includes the streamed layer wrapper, which runs during recompute. A patched
 not detected and is unsupported. `install_streamed_experts(..., two_reads=True)` admits only
 `DeepseekV3DecoderLayer`.
 
+### Exact expert GEMM: `lt-fused` (experimental, off by default)
+
+`soup_cli.utils.expert_gemm.expert_gemm_context(mode)` picks how a route-preserving MBR group
+(`L2LStep.run(..., route_preserving_mbr=True)`) runs its expert GEMMs. It is an API, with no
+config field and no CLI flag.
+
+| Mode | Effect |
+|---|---|
+| `native` (default) | Nothing is patched and the environment is not probed. Native cuBLAS runs one call of M = all rows of the group, so the bits are the grouped-MBR bits. |
+| `lt-fused` | Each expert call is cut into the micro-batch segments L2L would have run. A cuBLASLt call forced onto the kernel native cuBLAS picks for that segment replaces the native call, so the group keeps the A0 bits (L2L, group size 1). Forward and the direct backward of one expert visit are one extension call each (`a0_exact_lt`, `direct_expert_backward`). |
+
+`lt-fused` builds a C++/CUDA extension (`a0_exact_lt_ext.cpp`, `a0_exact_lt_kernels.cu`) with
+`torch.utils.cpp_extension.load` on first use ([ADR 0002](adr/0002-exact-gemm-optional-jit-extension.md)),
+so an install without a compiler keeps working. It never falls back to `native`. Before it builds
+anything it raises `ExactGemmUnavailableError` (a `RuntimeError`) when one of these fails:
+
+| Requirement | Why |
+|---|---|
+| CUDA is available | the extension is cuBLASLt |
+| compute capability sm_80 or newer | the algo table is checked on sm_80+ cards (tested on sm_89) |
+| PyTorch 2.14 | the fused kernels mirror the ATen reduction order of that series; another series may change bits |
+| a C++ compiler, `ninja`, `nvcc` and the cuBLASLt headers (`CUDA_HOME`, `/usr/local/cuda` or the `nvidia-cuda-nvcc` wheel) | the first-use build |
+
+Checked: CPU (`tests/test_expert_gemm_select.py`) each refusal with the environment probe
+replaced, and that `native` patches nothing; CPU fakes of the extension
+(`tests/test_a0_exact_lt*.py`, `tests/test_direct_expert_backward*.py`); GPU (`pytest -m gpu`,
+`tests/test_a0_exact_lt_kernels_gpu.py`) the kernels against the ATen chains they replace on
+sm_89, and that the installed PyTorch is the 2.14 series. The bit-equality of a full step with
+A0 and the speed of `lt-fused` are measured by the benchmark harness, not by the unit tests; see
+[the exact-MBR speed report](../benchmarks/mbr-exact-speed-20261120.md).
+
 ### Host-side levers: `async_lease` and `fast_row_gather` (experimental, off by default)
 
 Two more switches change when the host waits and what it launches, never a number. They are

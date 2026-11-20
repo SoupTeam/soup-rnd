@@ -12,12 +12,83 @@ the harness modes ``segmented``, ``lt-merged`` and ``padded`` build on the same 
 
 from __future__ import annotations
 
+import re
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Callable, ContextManager, Dict, Iterator, List, Optional, Tuple
 
 from soup_cli.utils import a0_exact_lt, direct_expert_backward
+
+EXPERT_GEMM_CHOICES = ("native", "lt-fused")
+DEFAULT_EXPERT_GEMM = "native"
+EXACT_TORCH_SERIES = (2, 14)  # the ATen reduction tree the fused kernels mirror
+MIN_CAPABILITY = (8, 0)
+
+
+class ExactGemmUnavailableError(RuntimeError):
+    """``--expert-gemm lt-fused`` cannot run exactly here. Never answered with the native path."""
+
+
+@dataclass(frozen=True)
+class GemmEnvironment:
+    torch_version: str
+    cuda_available: bool
+    capability: Optional[Tuple[int, int]]
+    toolchain_error: Optional[str]
+
+
+def detect_environment() -> GemmEnvironment:
+    """What ``lt-fused`` depends on, read from this machine (nothing is built)."""
+    import torch
+
+    cuda = bool(torch.cuda.is_available())
+    capability = tuple(torch.cuda.get_device_capability()) if cuda else None
+    return GemmEnvironment(
+        torch_version=str(torch.__version__),
+        cuda_available=cuda,
+        capability=capability,  # type: ignore[arg-type]
+        toolchain_error=a0_exact_lt.toolchain_error(),
+    )
+
+
+def _torch_series(version: str) -> Optional[Tuple[int, int]]:
+    found = re.match(r"(\d+)\.(\d+)(?:\.|\+|$)", version)
+    return (int(found.group(1)), int(found.group(2))) if found else None
+
+
+def require_lt_fused(environment: Optional[GemmEnvironment] = None) -> None:
+    """Raise ``ExactGemmUnavailableError`` for the first failed requirement of ``lt-fused``."""
+    found = environment if environment is not None else detect_environment()
+    flag = "--expert-gemm lt-fused"
+    if not found.cuda_available:
+        raise ExactGemmUnavailableError(f"{flag} needs CUDA; none is available")
+    if found.capability is None or tuple(found.capability) < MIN_CAPABILITY:
+        have = "unknown" if found.capability is None else "sm_%d%d" % tuple(found.capability)
+        raise ExactGemmUnavailableError(f"{flag} needs a GPU of sm_80 or newer; this one is {have}")
+    want = "%d.%d" % EXACT_TORCH_SERIES
+    if _torch_series(found.torch_version) != EXACT_TORCH_SERIES:
+        raise ExactGemmUnavailableError(
+            f"{flag} mirrors the ATen reductions of PyTorch {want}; this is "
+            f"{found.torch_version}. Use PyTorch {want} or keep the default (native)"
+        )
+    if found.toolchain_error is not None:
+        raise ExactGemmUnavailableError(
+            f"{flag} builds a C++/CUDA extension on first use and cannot here: "
+            f"{found.toolchain_error}"
+        )
+
+
+def expert_gemm_context(mode: str = DEFAULT_EXPERT_GEMM, **options: Any) -> ContextManager[Any]:
+    """``native`` (default): the stock expert GEMMs, nothing patched, no environment probe.
+    ``lt-fused``: A0-exact fused expert visits (``require_lt_fused`` first; it never falls
+    back). ``options`` go to ``lt_fused_expert_gemm``."""
+    if mode == "native":
+        return nullcontext()
+    if mode == "lt-fused":
+        return lt_fused_expert_gemm(**options)
+    raise ValueError(f"expert gemm must be one of {EXPERT_GEMM_CHOICES}, got {mode!r}")
+
 
 _FRAME_DEPTH = 4  # other patches of F.linear (the phase clock) may sit between us and the caller
 
@@ -344,6 +415,8 @@ def lt_fused_expert_gemm(
     """The segmented plan with each expert visit as one extension call in forward and one in
     the direct backward (``a0_exact_lt.FusedExpert``): merged A0-exact Lt GEMMs and the node's
     elementwise ops in C++, so the Python and dispatcher cost per GEMM is gone."""
+    if backend is None:  # the real extension: refuse before building anything
+        require_lt_fused()
     fused = a0_exact_lt.FusedExpert(
         backend if backend is not None else a0_exact_lt.load_extension(), require_cuda)
     if streams != 1:

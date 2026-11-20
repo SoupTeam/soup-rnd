@@ -215,3 +215,11 @@ def test_segment_row_sum_equals_one_aten_sum_per_segment(hid: int) -> None:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider", "--no-cov"]))
+
+
+def test_the_card_runs_the_pytorch_series_whose_aten_reductions_the_kernels_mirror() -> None:
+    """Red on any other PyTorch: the bit-equality with A0 is only claimed for this series."""
+    from soup_cli.utils.expert_gemm import EXACT_TORCH_SERIES, require_lt_fused
+
+    assert tuple(int(p) for p in torch.__version__.split(".")[:2]) == EXACT_TORCH_SERIES
+    require_lt_fused()

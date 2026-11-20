@@ -424,6 +424,25 @@ def _nvcc_home() -> str:
     raise RuntimeError("no nvcc found (set CUDA_HOME or install nvidia-cuda-nvcc)")
 
 
+def toolchain_error() -> Optional[str]:
+    """Why the extension cannot be built here (None when it can): no C++ compiler, no ninja, no
+    nvcc, or no cublasLt headers. Looks only; builds nothing."""
+    import shutil
+
+    if not any(shutil.which(name) for name in ("c++", "g++", "clang++")):
+        return "no C++ compiler found"
+    from torch.utils.cpp_extension import is_ninja_available
+
+    if not is_ninja_available():
+        return "ninja is not installed (pip install ninja)"
+    try:
+        _nvcc_home()
+        _cuda_paths()
+    except (RuntimeError, ImportError) as exc:
+        return str(exc) if isinstance(exc, RuntimeError) else f"no CUDA toolkit wheel ({exc})"
+    return None
+
+
 def _cuda_paths() -> Tuple[List[str], List[str]]:
     """CUDA headers and cuBLASLt for the build: the toolkit under CUDA_HOME when there is one,
     else the ``nvidia`` pip wheels torch itself loads (``nvidia/cu13/{include,lib}``)."""
