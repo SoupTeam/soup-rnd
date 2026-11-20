@@ -879,6 +879,8 @@ class L2LStep:
         self.window_dequant_stats: Optional[Dict[str, int]] = None
         #: Optional large-layer buffer release telemetry from the last ``run``.
         self.large_pool_release_stats: Optional[Dict[str, Any]] = None
+        #: Optional routing Oracle telemetry from the last ``run``.
+        self.routing_oracle_stats: Optional[Dict[str, Any]] = None
 
     def _layer(self, module: Any, hidden: Any, state: Any, call: LayerCall) -> Any:
         # ``state`` is where accumulation's stream stands before this (micro-batch, layer)
@@ -899,6 +901,11 @@ class L2LStep:
         group_size: int,
         deferred_hooks: Tuple[Any, Any, List[Any]],
         split: Optional[List[Any]] = None,
+        *,
+        layer_idx: Optional[int] = None,
+        mb_indices: Optional[Sequence[int]] = None,
+        routing_oracle: Any = None,
+        oracle_phase: Optional[str] = None,
     ) -> Tuple[List[Any], List[Tuple[Any, Any]], List[List[int]], Dict[str, int]]:
         """Run each layer's attention/router per micro-batch, grouping only routed experts.
 
@@ -933,7 +940,16 @@ class L2LStep:
                 first_record = len(captured)
                 for mb in indices:
                     state = states[mb] if states is not None else None
-                    self._layer(module, hidden[mb], state, calls[mb])
+                    global_mb = mb_indices[mb] if mb_indices is not None else mb
+                    oracle_ctx = (
+                        routing_oracle.visit(layer_idx, int(global_mb), oracle_phase)
+                        if routing_oracle is not None
+                        and layer_idx is not None
+                        and oracle_phase is not None
+                        else nullcontext()
+                    )
+                    with oracle_ctx:
+                        self._layer(module, hidden[mb], state, calls[mb])
                     if getattr(module, "_forward_hooks", None) or getattr(
                         inner, "_forward_hooks", None
                     ):
@@ -1050,6 +1066,7 @@ class L2LStep:
         routing_budget: Optional[Tuple[int, int]],
         phase_stats: Optional[Dict[str, Any]],
         next_backward_hint: Optional[Tuple[Any, List[int]]] = None,
+        routing_oracle: Any = None,
     ) -> Tuple[Dict[str, int], int, float, float, int]:
         """Decoupled 3-phase MBR backward (M1 + M2+): O(sub_w) autograd VRAM across any k.
 
@@ -1112,7 +1129,13 @@ class L2LStep:
                         mb_input = store.get(idx, mb)
                         total_tokens += int(mb_input.shape[0] * mb_input.shape[1])
                         mb_state = states[mb][idx] if states else None
-                        self._layer(layer, mb_input, mb_state, calls[mb])
+                        oracle_ctx = (
+                            routing_oracle.visit(idx, mb, "peek")
+                            if routing_oracle is not None
+                            else nullcontext()
+                        )
+                        with oracle_ctx:
+                            self._layer(layer, mb_input, mb_state, calls[mb])
                         if getattr(layer, "_forward_hooks", None) or getattr(
                             inner, "_forward_hooks", None
                         ):
@@ -1220,7 +1243,13 @@ class L2LStep:
                             mb = indices[pos]
                             mb_input = store.get(idx, mb).requires_grad_(True)
                             mb_state = states[mb][idx] if states else None
-                            self._layer(layer, mb_input, mb_state, calls[mb])
+                            oracle_ctx = (
+                                routing_oracle.visit(idx, mb, "recompute")
+                                if routing_oracle is not None
+                                else nullcontext()
+                            )
+                            with oracle_ctx:
+                                self._layer(layer, mb_input, mb_state, calls[mb])
                             row = r2_capture[-1]
                             out_mb = (
                                 row["residual"] + row["shared_output"]
@@ -1388,6 +1417,7 @@ class L2LStep:
         mbr_window_dequant: bool = False,
         release_large_pool_during_layers: bool = False,
         expert_controller: Any = None,
+        routing_oracle: Any = None,
         collect_phase_stats: bool = False,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
@@ -1474,6 +1504,7 @@ class L2LStep:
         self.route_preserving_mbr_stats = None
         self.window_dequant_stats = None
         self.large_pool_release_stats = None
+        self.routing_oracle_stats = None
         expert_pool = getattr(self.runtime, "expert_pool", None)
         previous_phase_tracking = getattr(expert_pool, "phase_read_tracking", None)
         if collect_phase_stats and previous_phase_tracking is not None:
@@ -1497,6 +1528,7 @@ class L2LStep:
                         mbr_window_dequant=mbr_window_dequant,
                         release_large_pool_during_layers=release_large_pool_during_layers,
                         expert_controller=expert_controller,
+                        routing_oracle=routing_oracle,
                         collect_phase_stats=collect_phase_stats,
                         routing_budget=routing_budget,
                     )
@@ -1519,6 +1551,7 @@ class L2LStep:
                             mbr_window_dequant=mbr_window_dequant,
                             release_large_pool_during_layers=release_large_pool_during_layers,
                             expert_controller=expert_controller,
+                            routing_oracle=routing_oracle,
                             collect_phase_stats=collect_phase_stats,
                         )
         finally:
@@ -1545,6 +1578,7 @@ class L2LStep:
         mbr_window_dequant: bool = False,
         release_large_pool_during_layers: bool = False,
         expert_controller: Any = None,
+        routing_oracle: Any = None,
         collect_phase_stats: bool = False,
         routing_budget: Optional[Tuple[int, int]] = None,
     ) -> List[Any]:
@@ -1580,6 +1614,8 @@ class L2LStep:
             head = sft_head(labels, total)
 
         passes = as_passes(reference)
+        if passes and routing_oracle is not None:
+            raise ValueError("routing_oracle does not support extra ReferencePass forwards")
         if passes and l2l_rng.has_draws(self.call.draws):
             raise ValueError(
                 "the L2L reference pass does not support dropout: the reference forward "
@@ -1649,6 +1685,7 @@ class L2LStep:
 
         self._prime(self.owner, ())
         pass_hidden: List[List[Any]] = []
+        oracle_completed = False
         try:
             with torch.no_grad():
                 hidden = []
@@ -1656,6 +1693,8 @@ class L2LStep:
                     if train_embedding:
                         embedding_states.append(l2l_rng.snapshot())
                     hidden.append(self.owner.embed_tokens(ids))
+                if routing_oracle is not None and hasattr(routing_oracle, "begin_step"):
+                    routing_oracle.begin_step([tuple(int(d) for d in h.shape) for h in hidden])
                 for spec, ids in zip(passes, pass_ids):
                     with self._pass_adapters(spec):
                         pass_hidden.append([self.owner.embed_tokens(x) for x in ids])
@@ -1689,6 +1728,10 @@ class L2LStep:
                                         calls,
                                         group_size,
                                         deferred_hooks,
+                                        layer_idx=idx,
+                                        mb_indices=range(k),
+                                        routing_oracle=routing_oracle,
+                                        oracle_phase="forward",
                                     )
                                 )
                             for mb in range(k):
@@ -1736,7 +1779,16 @@ class L2LStep:
                                 route_context = (
                                     guard.record(idx, mb) if guard is not None else nullcontext()
                                 )
-                                with route_context, pair[0] if pair else nullcontext():
+                                oracle_context = (
+                                    routing_oracle.visit(idx, mb, "forward")
+                                    if routing_oracle is not None
+                                    else nullcontext()
+                                )
+                                with (
+                                    route_context,
+                                    oracle_context,
+                                    pair[0] if pair else nullcontext(),
+                                ):
                                     hidden[mb] = self._layer(
                                         layer,
                                         hidden[mb],
@@ -1866,6 +1918,7 @@ class L2LStep:
                                     routing_budget,
                                     phase_stats,
                                     next_backward_hint=next_hint,
+                                    routing_oracle=routing_oracle,
                                 )
                                 if phase_stats is not None:
                                     after_layer = self._expert_read_snapshot()
@@ -1949,6 +2002,10 @@ class L2LStep:
                                                 len(indices),
                                                 deferred_hooks,
                                                 split=group_split,
+                                                layer_idx=idx,
+                                                mb_indices=indices,
+                                                routing_oracle=routing_oracle,
+                                                oracle_phase="recompute",
                                             )
                                         dispatch_calls += group_dispatch[
                                             "grouped_expert_dispatch_calls"
@@ -2080,9 +2137,15 @@ class L2LStep:
                                 route_context = (
                                     guard.check(idx, mb) if guard is not None else nullcontext()
                                 )
+                                oracle_context = (
+                                    routing_oracle.visit(idx, mb, "recompute")
+                                    if routing_oracle is not None
+                                    else nullcontext()
+                                )
                                 with (
                                     torch.enable_grad(),
                                     route_context,
+                                    oracle_context,
                                     pair[1] if pair else nullcontext(),
                                 ):
                                     mb_state = states[mb][idx] if states else None
@@ -2124,6 +2187,13 @@ class L2LStep:
                 raise RuntimeError(
                     "route-preserving MBR did not consume every forward route record"
                 )
+            if routing_oracle is not None:
+                routing_oracle.require_complete()
+                if hasattr(routing_oracle, "report"):
+                    self.routing_oracle_stats = routing_oracle.report()
+                if hasattr(routing_oracle, "end_step"):
+                    routing_oracle.end_step()
+                oracle_completed = True
             if train_embedding:
                 if release_large and orig_bwd_tail_prefetch is not None:
                     orig_bwd_tail_prefetch()
@@ -2145,6 +2215,12 @@ class L2LStep:
                         torch.autograd.backward(embedded, grad_tensors=grads[mb])
                     grads[mb] = None
         finally:
+            if (
+                routing_oracle is not None
+                and not oracle_completed
+                and hasattr(routing_oracle, "abort_step")
+            ):
+                routing_oracle.abort_step()
             for moe, prev_ctrl in saved_controllers:
                 moe._expert_controller = prev_ctrl
             if expert_controller is not None and hasattr(expert_controller, "clear_next_hint"):

@@ -85,6 +85,53 @@ ARM_SPECS: Dict[str, Dict[str, Any]] = {
         release_large_pool_during_layers=True,
         use_controller=True,
         head_impl=None,  # uses --head-loss (default: chunked)
+        activation_codec="bf16",
+        fp8_group_size=None,
+        use_oracle=False,
+    ),
+    "l2l_ref_fp8_oracle": dict(
+        route_preserving_mbr=False,
+        mbr_decoupled_subwindow=False,
+        mbr_window_dequant=False,
+        release_large_pool_during_layers=False,
+        use_controller=False,
+        head_impl="full",
+        activation_codec="fp8_e4m3",
+        fp8_group_size=64,
+        use_oracle=True,
+    ),
+    "unified_go_fp8_oracle": dict(
+        route_preserving_mbr=True,
+        mbr_decoupled_subwindow=True,
+        mbr_window_dequant=True,
+        release_large_pool_during_layers=True,
+        use_controller=True,
+        head_impl=None,
+        activation_codec="fp8_e4m3",
+        fp8_group_size=64,
+        use_oracle=True,
+    ),
+    "unified_go_fp8_perrow_oracle": dict(
+        route_preserving_mbr=True,
+        mbr_decoupled_subwindow=True,
+        mbr_window_dequant=True,
+        release_large_pool_during_layers=True,
+        use_controller=True,
+        head_impl=None,
+        activation_codec="fp8_e4m3",
+        fp8_group_size=None,
+        use_oracle=True,
+    ),
+    "unified_go_fp8_no_oracle": dict(
+        route_preserving_mbr=True,
+        mbr_decoupled_subwindow=True,
+        mbr_window_dequant=True,
+        release_large_pool_during_layers=True,
+        use_controller=True,
+        head_impl=None,
+        activation_codec="fp8_e4m3",
+        fp8_group_size=64,
+        use_oracle=False,
     ),
 }
 
@@ -121,30 +168,52 @@ def _tensor_map_sha256(tensors: Dict[str, Any]) -> str:
 
 
 def _compare_maps(ref: Dict[str, Any], cand: Dict[str, Any]) -> Dict[str, Any]:
+    import math
+
     import torch
 
     max_abs = 0.0
     sq_diff = 0.0
     sq_ref = 0.0
+    min_cosine = 1.0
     bit_equal = True
     for name in sorted(ref):
         a, b = ref[name], cand[name]
         if a is None and b is None:
             continue
         if a is None or b is None:
-            return {"bit_equal": False, "max_abs": float("inf"), "relative_l2": float("inf")}
+            return {
+                "bit_equal": False,
+                "max_abs": float("inf"),
+                "relative_l2": float("inf"),
+                "min_cosine": 0.0,
+            }
         if not torch.equal(a, b):
             bit_equal = False
-        af = a.float()
-        bf = b.float()
-        delta = af - bf
+        af = a.detach().double().reshape(-1)
+        bf = b.detach().double().reshape(-1)
+        delta = bf - af
         cur_max = float(delta.abs().max().item()) if delta.numel() else 0.0
         if cur_max > max_abs:
             max_abs = cur_max
-        sq_diff += float((delta * delta).sum().item())
-        sq_ref += float((af * af).sum().item())
+        ref_sq = float(af.dot(af).item())
+        cand_sq = float(bf.dot(bf).item())
+        err_sq = float(delta.dot(delta).item())
+        sq_diff += err_sq
+        sq_ref += ref_sq
+        if ref_sq > 0 and cand_sq > 0:
+            cos = float(af.dot(bf).item()) / math.sqrt(ref_sq * cand_sq)
+        else:
+            cos = 1.0 if ref_sq == cand_sq == 0 else 0.0
+        if cos < min_cosine:
+            min_cosine = cos
     rel_l2 = (sq_diff**0.5) / max(sq_ref**0.5, 1e-30)
-    return {"bit_equal": bit_equal, "max_abs": max_abs, "relative_l2": rel_l2}
+    return {
+        "bit_equal": bit_equal,
+        "max_abs": max_abs,
+        "relative_l2": rel_l2,
+        "min_cosine": min_cosine,
+    }
 
 
 def _rss_gib() -> float:
@@ -170,39 +239,59 @@ def _nvml_used_gib(device_index: int = 0) -> Optional[float]:
 
 
 class _NvmlPeakPoller:
-    """Background 20 ms NVML memory sampler to record true in-step peak GPU usage."""
+    """Background 20 ms NVML + RSS sampler to record true in-step GPU & host peaks."""
 
     def __init__(self, enabled: bool, device_index: int = 0, interval_s: float = 0.02) -> None:
         self.enabled = enabled
         self.device_index = device_index
         self.interval_s = interval_s
         self.peak_gib: Optional[float] = None
+        self.rss_peak_gib: float = 0.0
         self.samples: int = 0
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
     def _run(self) -> None:
+        proc = None
         try:
-            import pynvml
+            import psutil
 
-            pynvml.nvmlInit()
-            handle = pynvml.nvmlDeviceGetHandleByIndex(self.device_index)
+            proc = psutil.Process()
+        except Exception:
+            proc = None
+        nvml_handle = None
+        pynvml = None
+        if self.enabled:
             try:
-                while not self._stop.is_set():
-                    used = float(pynvml.nvmlDeviceGetMemoryInfo(handle).used) / (1024**3)
+                import pynvml as _pynvml
+
+                _pynvml.nvmlInit()
+                nvml_handle = _pynvml.nvmlDeviceGetHandleByIndex(self.device_index)
+                pynvml = _pynvml
+            except Exception:
+                nvml_handle = None
+        try:
+            while not self._stop.is_set():
+                if nvml_handle is not None and pynvml is not None:
+                    used = float(pynvml.nvmlDeviceGetMemoryInfo(nvml_handle).used) / (1024**3)
                     if self.peak_gib is None or used > self.peak_gib:
                         self.peak_gib = used
-                    self.samples += 1
-                    self._stop.wait(self.interval_s)
-            finally:
-                pynvml.nvmlShutdown()
-        except Exception:
-            return
+                if proc is not None:
+                    rss = float(proc.memory_info().rss) / (1024**3)
+                    if rss > self.rss_peak_gib:
+                        self.rss_peak_gib = rss
+                self.samples += 1
+                self._stop.wait(self.interval_s)
+        finally:
+            if pynvml is not None:
+                try:
+                    pynvml.nvmlShutdown()
+                except Exception:
+                    pass
 
     def __enter__(self) -> "_NvmlPeakPoller":
-        if self.enabled:
-            self._thread = threading.Thread(target=self._run, daemon=True)
-            self._thread.start()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
         return self
 
     def __exit__(self, *_exc: Any) -> None:
@@ -334,9 +423,12 @@ def _run_arm(
     from benchmarks.harness.b5_real_moe import _meta_construction
     from soup_cli.utils import l2l_step
     from soup_cli.utils.async_expert_controller import AsyncExpertController, cpu_packed_control
+    from soup_cli.utils.fp8_activations import FP8ActivationStore, fp8_activation_allocation
+    from soup_cli.utils.host_memory_budget import HostMemoryBudget
     from soup_cli.utils.l2l_activations import ActivationStore
     from soup_cli.utils.layer_shard import read_shard_index
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
+    from soup_cli.utils.routing_oracle import DeepseekRoutingOracle
     from soup_cli.utils.stream_chunked_ce import l2l_sft_head
 
     if arm not in ARM_SPECS:
@@ -416,15 +508,51 @@ def _run_arm(
         stepper = l2l_step.L2LStep(
             model, runtime, l2l_step.capture_layer_call(model, step_batches[0][0])
         )
-        store = ActivationStore(
-            n_layers=cfg.num_hidden_layers,
-            k=k,
-            chunk_shape=(1, seq_len, cfg.hidden_size),
-            dtype=getattr(torch, dtype),
-            device=device,
-            pin=is_cuda,
-        )
+        act_codec = spec.get("activation_codec", "bf16")
+        fp8_group_size = spec.get("fp8_group_size", None)
+        use_oracle = bool(spec.get("use_oracle", False))
+        mb_shapes = [(1, seq_len, int(cfg.hidden_size))] * k
+        host_budget: Optional[HostMemoryBudget] = None
+        if act_codec == "fp8_e4m3":
+            alloc = fp8_activation_allocation(
+                n_layers=int(cfg.num_hidden_layers),
+                mb_shapes=mb_shapes,
+                pin=is_cuda,
+                compute_dtype=dtype,
+                device_type="cuda" if is_cuda else "cpu",
+                group_size=fp8_group_size,
+            )
+            # Headroom for Oracle host slabs (compact int16 ids + fp32 scores/norms).
+            oracle_headroom = 512 * 1024**2
+            host_budget = HostMemoryBudget(alloc.host_bytes + oracle_headroom)
+            store: Any = FP8ActivationStore(
+                host_budget=host_budget,
+                n_layers=int(cfg.num_hidden_layers),
+                k=k,
+                chunk_shape=(1, seq_len, int(cfg.hidden_size)),
+                dtype=getattr(torch, dtype),
+                device=device,
+                pin=is_cuda,
+                group_size=fp8_group_size,
+            )
+            store_host_bytes = store.host_bytes()["owned_host_storage_bytes"]
+        else:
+            store = ActivationStore(
+                n_layers=int(cfg.num_hidden_layers),
+                k=k,
+                chunk_shape=(1, seq_len, int(cfg.hidden_size)),
+                dtype=getattr(torch, dtype),
+                device=device,
+                pin=is_cuda,
+            )
+            store_host_bytes = (
+                int(cfg.num_hidden_layers) * k * seq_len * int(cfg.hidden_size)
+                * (2 if dtype == "bfloat16" else 4)
+            )
+        oracle: Optional[DeepseekRoutingOracle] = None
         try:
+            if use_oracle:
+                oracle = DeepseekRoutingOracle(model, host_budget=host_budget, pin=is_cuda)
             opt = torch.optim.AdamW(trainables.values(), lr=lr)
             if is_cuda:
                 torch.cuda.synchronize(device)
@@ -458,6 +586,7 @@ def _run_arm(
                         mbr_window_dequant=spec["mbr_window_dequant"],
                         release_large_pool_during_layers=spec["release_large_pool_during_layers"],
                         expert_controller=controller,
+                        routing_oracle=oracle,
                         collect_phase_stats=True,
                     )
                     if spec["route_preserving_mbr"]:
@@ -493,9 +622,29 @@ def _run_arm(
 
             adapter_snap = fixture.snapshot(model, gradients=False)
             total_tokens = int(sum(b.numel() for sb in step_batches_cpu for b in sb))
+            oracle_host_bytes = (
+                oracle.host_bytes()["owned_host_storage_bytes"] if oracle is not None else 0
+            )
+            oracle_report = oracle.report() if oracle is not None else None
+            max_gate_weight_rel_l2 = 0.0
+            if stepper.route_preserving_mbr_stats:
+                vals = [
+                    float(row.get("gate_weight_rel_l2", 0.0))
+                    for row in stepper.route_preserving_mbr_stats["layers"].values()
+                ]
+                if vals:
+                    max_gate_weight_rel_l2 = max(vals)
 
             metrics = {
                 "arm": arm,
+                "activation_codec": act_codec,
+                "fp8_group_size": fp8_group_size,
+                "routing_oracle": use_oracle,
+                "max_gate_weight_rel_l2": max_gate_weight_rel_l2,
+                "store_host_bytes": int(store_host_bytes),
+                "store_host_mib": round(store_host_bytes / (1024**2), 3),
+                "oracle_host_bytes": int(oracle_host_bytes),
+                "oracle_host_mib": round(oracle_host_bytes / (1024**2), 3),
                 "steps": len(step_batches),
                 "step_walls_s": step_walls,
                 "head_loss": effective_head,
@@ -520,6 +669,7 @@ def _run_arm(
                 ),
                 "nvml_poll_samples": poller.samples,
                 "nvml_used_gib": _nvml_used_gib() if is_cuda else None,
+                "rss_peak_gib": round(poller.rss_peak_gib, 4),
                 "rss_gib": round(_rss_gib(), 4),
                 "saved_storage_peak_bytes": ledger.peak_bytes if ledger is not None else None,
                 "saved_storage_peak_mib": (
@@ -530,6 +680,7 @@ def _run_arm(
                 "expert_fetches_backward": bwd_fetches,
                 "window_dequant_stats": stepper.window_dequant_stats,
                 "large_pool_release_stats": stepper.large_pool_release_stats,
+                "routing_oracle_stats": oracle_report,
                 "native_telemetry": controller.native_telemetry() if controller else None,
                 "cache_stats": controller.cache_stats() if controller else None,
                 "losses_sha256": _tensor_map_sha256(loss_map),
@@ -538,6 +689,8 @@ def _run_arm(
             }
             return metrics, initial_lora, loss_map, grads_snap, adapter_snap
         finally:
+            if oracle is not None:
+                oracle.close()
             store.close()
     finally:
         if controller is not None:
@@ -581,6 +734,8 @@ def main() -> None:
         default=["std_mbr", "unified_go", "unified_go", "std_mbr"],
     )
     parser.add_argument("--track-saved-ledger", action="store_true")
+    parser.add_argument("--save-ref", type=str, default="")
+    parser.add_argument("--compare-ref", type=str, default="")
     parser.add_argument("--output", type=str, default="")
     args = parser.parse_args()
 
@@ -613,6 +768,12 @@ def main() -> None:
     ref_losses: Optional[Dict[str, Any]] = None
     ref_grads: Optional[Dict[str, Any]] = None
     ref_adapter: Optional[Dict[str, Any]] = None
+    if args.compare_ref:
+        ref_blob = torch.load(args.compare_ref, map_location="cpu", weights_only=False)
+        initial_lora = ref_blob["initial_lora"]
+        ref_losses = ref_blob["losses"]
+        ref_grads = ref_blob["gradients"]
+        ref_adapter = ref_blob["adapter"]
     runs: List[Dict[str, Any]] = []
 
     console = Console()
@@ -643,29 +804,52 @@ def main() -> None:
                 track_saved_ledger=args.track_saved_ledger,
             )
         except RuntimeError as exc:
-            if "out of memory" not in str(exc).lower():
-                raise
-            if args.device.startswith("cuda"):
-                torch.cuda.empty_cache()
-            oom_row = {
-                "run_index": run_idx,
-                "arm": arm,
-                "status": "oom",
-                "error": str(exc)[:300],
-                "cuda_allocated_peak_gib": (
-                    round(torch.cuda.max_memory_allocated(args.device) / (1024**3), 4)
-                    if args.device.startswith("cuda")
-                    else 0.0
-                ),
-                "nvml_used_gib": _nvml_used_gib() if args.device.startswith("cuda") else None,
-            }
-            runs.append(oom_row)
-            console.print(f"[{run_idx}] arm={arm} [red]OOM[/red]: {oom_row['error']}")
-            continue
-        if initial_lora is None:
+            msg = str(exc)
+            if "out of memory" in msg.lower():
+                if args.device.startswith("cuda"):
+                    torch.cuda.empty_cache()
+                err_row = {
+                    "run_index": run_idx,
+                    "arm": arm,
+                    "status": "oom",
+                    "error": msg[:300],
+                    "cuda_allocated_peak_gib": (
+                        round(torch.cuda.max_memory_allocated(args.device) / (1024**3), 4)
+                        if args.device.startswith("cuda")
+                        else 0.0
+                    ),
+                    "nvml_used_gib": _nvml_used_gib() if args.device.startswith("cuda") else None,
+                }
+                runs.append(err_row)
+                console.print(f"[{run_idx}] arm={arm} [red]OOM[/red]: {err_row['error']}")
+                continue
+            if "route slots" in msg.lower() or "routing" in msg.lower():
+                err_row = {
+                    "run_index": run_idx,
+                    "arm": arm,
+                    "status": "refused",
+                    "error": msg[:300],
+                }
+                runs.append(err_row)
+                console.print(f"[{run_idx}] arm={arm} [yellow]REFUSED[/yellow]: {err_row['error']}")
+                continue
+            raise
+        if ref_grads is None:
             initial_lora = lora_snap
             ref_losses, ref_grads, ref_adapter = loss_map, grads_snap, adapter_snap
             metrics["vs_first_arm"] = {"reference": True}
+            if args.save_ref:
+                ref_path = Path(args.save_ref)
+                ref_path.parent.mkdir(parents=True, exist_ok=True)
+                torch.save(
+                    {
+                        "initial_lora": initial_lora,
+                        "losses": ref_losses,
+                        "gradients": ref_grads,
+                        "adapter": ref_adapter,
+                    },
+                    str(ref_path),
+                )
         else:
             metrics["vs_first_arm"] = {
                 "losses": _compare_maps(ref_losses, loss_map),
@@ -675,16 +859,19 @@ def main() -> None:
         metrics["run_index"] = run_idx
         metrics["status"] = "ok"
         runs.append(metrics)
-        grad_rel = metrics["vs_first_arm"].get("gradients", {}).get("relative_l2", 0.0)
+        grad_cmp = metrics["vs_first_arm"].get("gradients", {})
+        grad_rel = grad_cmp.get("relative_l2", 0.0)
+        grad_cos = grad_cmp.get("min_cosine", 1.0)
         console.print(
-            f"[{run_idx}] arm={arm} steps={metrics['steps']} head={metrics['head_loss']} "
-            f"loader={metrics['expert_loader']} wall={metrics['wall_s']:.3f}s "
-            f"tok/s={metrics['tokens_per_s']:.2f} "
+            f"[{run_idx}] arm={arm} codec={metrics['activation_codec']} "
+            f"oracle={metrics['routing_oracle']} steps={metrics['steps']} "
+            f"wall={metrics['wall_s']:.3f}s tok/s={metrics['tokens_per_s']:.2f} "
+            f"store={metrics['store_host_mib']:.1f}MiB "
+            f"oracle_mem={metrics['oracle_host_mib']:.1f}MiB "
+            f"rss_pk={metrics['rss_peak_gib']:.2f}GiB "
             f"alloc={metrics['cuda_allocated_peak_gib']:.3f}GiB "
-            f"resv={metrics['cuda_reserved_peak_gib']:.3f}GiB "
             f"nvml_pk={metrics['nvml_peak_gib']}GiB "
-            f"recomp={metrics['expert_fetches_recompute']} "
-            f"grad_rel_l2={grad_rel:.2e}"
+            f"grad_rel={grad_rel:.4f} min_cos={grad_cos:.5f}"
         )
 
     payload = {
