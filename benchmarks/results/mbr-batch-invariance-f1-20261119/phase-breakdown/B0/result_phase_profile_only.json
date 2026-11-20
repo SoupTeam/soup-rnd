@@ -1,0 +1,263 @@
+{
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "soup_revision": null,
+  "measured_uninstrumented": [
+    {
+      "kind": "mbr",
+      "loss": 5.667778968811035,
+      "seconds": 6.112535586114973,
+      "wall_seconds_including_artifact_capture": 6.130986282019876,
+      "model_step_seconds": 6.10229913610965,
+      "optimizer_seconds": 0.010236450005322695,
+      "artifact_capture_seconds_excluded": 0.01844836096279323,
+      "tokens_per_second": 83.76229353380644,
+      "peak_allocated_GiB": 0.9107894897460938,
+      "peak_allocated_delta_GiB": 0.12471866607666016,
+      "process_read_bytes_delta": 869650432,
+      "runtime_total": {
+        "expert_fetches": 3146,
+        "expert_bytes_read": 0
+      },
+      "expert_pool_stats_after_run": {
+        "slot_count": 1,
+        "weight_budget_bytes": 55722496,
+        "plan": {
+          "dense_bytes": 17301504,
+          "packed_and_stats_bytes": 4866048,
+          "code_bytes": 64,
+          "scratch_bytes": 0,
+          "padding_bytes": 448,
+          "weight_bytes": 22168064,
+          "host_staging_bytes": 4886528,
+          "packed_region_bytes": 4866048,
+          "host_pinned_bytes": 4866048
+        },
+        "cuda_allocation_delta": 23068672,
+        "fetches": 6292,
+        "logical_bytes_read": 7654293504,
+        "transfer": "packed",
+        "h2d_copies": 6292,
+        "prefetch": {
+          "enabled": true,
+          "hits": 1547,
+          "discards": 0
+        },
+        "host_cache": {
+          "budget_bytes": 12884901888,
+          "payload_bytes": 7654293504,
+          "entries": 1573,
+          "hits": 4719,
+          "misses": 1573,
+          "rejected": 0
+        },
+        "closed": false,
+        "cpu_nf4_temporaries": false
+      },
+      "expert_host_cache_counter_delta": {
+        "hits": 3146,
+        "misses": 0,
+        "rejected": 0
+      },
+      "phase_counters": null,
+      "mbr_window_counter_audit": null,
+      "route_recompute_parity": null,
+      "phase_profile": null,
+      "grad_norm": 0.775628493861775,
+      "grad_zero_fraction": 0.4046692607003891,
+      "missing_gradient_names": [],
+      "initial_adapter_sha256": "bb83391693bf534d4c9b085960b13070484b03809a0f8fd4d4d38516e896597e",
+      "updated_adapter_sha256": "8a5af20aea10f9358d5d224e0b5563aa971f4965a101f8fa0d44b274ee7eaa93"
+    }
+  ],
+  "grad_sha256": [
+    "23a4369d47734e0d3d83fb9a06f569f1ee843861b6fd05d4beba4f8c85ab1248"
+  ],
+  "arm": {
+    "expert_transfer": "packed",
+    "expert_host_cache_mib": 12288,
+    "expert_prefetch": true
+  },
+  "phase_profile": {
+    "mbr": {
+      "kind": "mbr",
+      "baseline_seconds": [
+        6.10229913610965
+      ],
+      "baseline_median": 6.10229913610965,
+      "background_seconds": {},
+      "instrumented_wall_median": 7.228517437935807,
+      "instrumentation_ratio": 1.1845563904204384,
+      "phases": {
+        "bwd/activation_store": {
+          "seconds": 0.013441840186715126,
+          "calls": 216,
+          "share": 0.0018595569979773905
+        },
+        "bwd/attn_router_shared_other": {
+          "seconds": 0.8324999923352152,
+          "calls": 216,
+          "share": 0.11516884333240897
+        },
+        "bwd/autograd_backward": {
+          "seconds": 1.320132650085725,
+          "calls": 34,
+          "share": 0.18262841051715098
+        },
+        "bwd/expert_dispatch_overhead": {
+          "seconds": 0.1758236129535362,
+          "calls": 26,
+          "share": 0.024323606391374333
+        },
+        "bwd/mbr_join_split_glue": {
+          "seconds": 0.016853806329891086,
+          "calls": 26,
+          "share": 0.00233157165000959
+        },
+        "expert_dequant_nf4": {
+          "seconds": 0.4988160606008023,
+          "calls": 6292,
+          "share": 0.06900668980654011
+        },
+        "expert_gemm_bwd_vjp": {
+          "seconds": 0.8325361775932834,
+          "calls": 1573,
+          "share": 0.11517384923553901
+        },
+        "expert_gemm_fwd": {
+          "seconds": 0.3233044638764113,
+          "calls": 1573,
+          "share": 0.04472624803803959
+        },
+        "expert_lease_sync": {
+          "seconds": 0.055079629993997514,
+          "calls": 3146,
+          "share": 0.007619768571759327
+        },
+        "expert_load_h2d_and_misc": {
+          "seconds": 1.5961403824621812,
+          "calls": 3146,
+          "share": 0.2208115835877376
+        },
+        "fwd/activation_store": {
+          "seconds": 0.00878020457457751,
+          "calls": 216,
+          "share": 0.0012146618791425102
+        },
+        "fwd/attn_router_shared_other": {
+          "seconds": 0.6995371085358784,
+          "calls": 216,
+          "share": 0.09677463111102903
+        },
+        "fwd/autograd_backward": {
+          "seconds": 0.025346228037960827,
+          "calls": 8,
+          "share": 0.0035064213727896546
+        },
+        "fwd/expert_dispatch_overhead": {
+          "seconds": 0.2922975522233173,
+          "calls": 26,
+          "share": 0.040436722292363524
+        },
+        "fwd/mbr_join_split_glue": {
+          "seconds": 0.01617604261264205,
+          "calls": 26,
+          "share": 0.002237809170625909
+        },
+        "layer_weight_load": {
+          "seconds": 0.4268027428770438,
+          "calls": 54,
+          "share": 0.05904429871568832
+        },
+        "unattributed_run_glue": {
+          "seconds": 0.09498753573279828,
+          "calls": 1,
+          "share": 0.013140666332807955
+        }
+      },
+      "gap": 5.339002983786333e-06,
+      "unattributed": 0.013140666332807955,
+      "parity": {
+        "instrumented_equals_baseline": true
+      },
+      "gemm_by_bucket": {
+        "expert_gemm_fwd|M<=32": {
+          "leases": 546,
+          "seconds": 0.09814948192797601,
+          "rows": 11084,
+          "leases_per_step": 546.0,
+          "seconds_per_step": 0.09814948192797601,
+          "share_of_step": 0.013578092986658661,
+          "mean_rows": 20.3003663003663
+        },
+        "expert_gemm_fwd|M<=128": {
+          "leases": 585,
+          "seconds": 0.11511452263221145,
+          "rows": 33870,
+          "leases_per_step": 585.0,
+          "seconds_per_step": 0.11511452263221145,
+          "share_of_step": 0.01592505290615773,
+          "mean_rows": 57.8974358974359
+        },
+        "expert_gemm_fwd|M<=8": {
+          "leases": 302,
+          "seconds": 0.056243124534375966,
+          "rows": 1220,
+          "leases_per_step": 302.0,
+          "seconds_per_step": 0.056243124534375966,
+          "share_of_step": 0.007780727516711489,
+          "mean_rows": 4.039735099337748
+        },
+        "expert_gemm_fwd|M<=512": {
+          "leases": 140,
+          "seconds": 0.053797334781847894,
+          "rows": 33698,
+          "leases_per_step": 140.0,
+          "seconds_per_step": 0.053797334781847894,
+          "share_of_step": 0.007442374628511707,
+          "mean_rows": 240.7
+        },
+        "expert_gemm_bwd_vjp|M<=32": {
+          "leases": 546,
+          "seconds": 0.27220544032752514,
+          "rows": 11084,
+          "leases_per_step": 546.0,
+          "seconds_per_step": 0.27220544032752514,
+          "share_of_step": 0.0376571603602933,
+          "mean_rows": 20.3003663003663
+        },
+        "expert_gemm_bwd_vjp|M<=128": {
+          "leases": 585,
+          "seconds": 0.29445009655319154,
+          "rows": 33870,
+          "leases_per_step": 585.0,
+          "seconds_per_step": 0.29445009655319154,
+          "share_of_step": 0.040734507328971103,
+          "mean_rows": 57.8974358974359
+        },
+        "expert_gemm_bwd_vjp|M<=8": {
+          "leases": 302,
+          "seconds": 0.15344117360655218,
+          "rows": 1220,
+          "leases_per_step": 302.0,
+          "seconds_per_step": 0.15344117360655218,
+          "share_of_step": 0.021227198374217274,
+          "mean_rows": 4.039735099337748
+        },
+        "expert_gemm_bwd_vjp|M<=512": {
+          "leases": 140,
+          "seconds": 0.11243946710601449,
+          "rows": 33698,
+          "leases_per_step": 140.0,
+          "seconds_per_step": 0.11243946710601449,
+          "share_of_step": 0.015554983172057337,
+          "mean_rows": 240.7
+        }
+      },
+      "gates": {
+        "gap_ok": true,
+        "coverage_ok": true,
+        "parity_ok": true
+      }
+    }
+  }
+}

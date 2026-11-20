@@ -1,0 +1,60 @@
+== utah bwd: ticks inside LtExtensionBackend.expert_backward: 11664
+    94.1%  (anonymous namespace)::expert_backward_kernels
+    35.3%  (anonymous namespace)::lt_raw
+    25.4%  cublasLtMatmul
+    23.2%  cuLaunchKernel
+    13.4%  cudaLaunchKernel
+    12.4%  at::sum_out
+    12.4%  at::_ops::sum_IntList_out::call
+    10.5%  at::native::structured_sum_out::impl
+     8.1%  __cudaLaunchKernel_helper
+     6.3%  launch_copy_segments
+     6.0%  __device_stub__ZN55_GLOBAL__N__e8422874_22_a0_exact_lt_kernels_cu_1ab0660f20copy
+     5.2%  std::vector<long, std::allocator<long> >::push_back
+     3.8%  at::empty
+     2.9%  at::_ops::empty_memory_format::call
+== utah fwd: ticks inside LtExtensionBackend.expert_forward: 11749
+    90.0%  (anonymous namespace)::expert_forward_kernels
+    40.5%  (anonymous namespace)::lt_raw
+    28.5%  cublasLtMatmul
+    24.0%  cuLaunchKernel
+    11.1%  __cudaLaunchKernel_helper
+    11.0%  cudaLaunchKernel
+     7.5%  launch_copy_segments
+     7.1%  __device_stub__ZN55_GLOBAL__N__e8422874_22_a0_exact_lt_kernels_cu_1ab0660f20copy
+     6.4%  std::vector<long, std::allocator<long> >::push_back
+     4.4%  at::empty
+     3.5%  at::_ops::empty_memory_format::call
+     3.2%  at::_ops::empty_memory_format::redispatch
+     2.1%  __device_stub__ZN55_GLOBAL__N__e8422874_22_a0_exact_lt_kernels_cu_1ab0660f17swig
+     2.0%  __device_stub__ZN55_GLOBAL__N__e8422874_22_a0_exact_lt_kernels_cu_1ab0660f16scal
+== norway bwd: ticks inside LtExtensionBackend.expert_backward: 8449
+    95.2%  (anonymous namespace)::expert_backward_kernels
+    34.5%  (anonymous namespace)::lt_raw
+    24.9%  cublasLtMatmul
+    20.9%  cuLaunchKernel
+    13.3%  at::sum_out
+    13.2%  at::_ops::sum_IntList_out::call
+    12.9%  cudaLaunchKernel
+    11.0%  at::native::structured_sum_out::impl
+     7.8%  __cudaLaunchKernel_helper
+     6.2%  launch_copy_segments
+     5.7%  __device_stub__ZN55_GLOBAL__N__e8422874_22_a0_exact_lt_kernels_cu_1ab0660f20copy
+     4.9%  at::empty
+     4.7%  std::vector<long, std::allocator<long> >::push_back
+     3.8%  at::_ops::empty_memory_format::call
+== norway fwd: ticks inside LtExtensionBackend.expert_forward: 8674
+    87.9%  (anonymous namespace)::expert_forward_kernels
+    41.8%  (anonymous namespace)::lt_raw
+    30.9%  cublasLtMatmul
+    21.6%  cuLaunchKernel
+    10.4%  __cudaLaunchKernel_helper
+    10.3%  cudaLaunchKernel
+     7.1%  launch_copy_segments
+     6.6%  __device_stub__ZN55_GLOBAL__N__e8422874_22_a0_exact_lt_kernels_cu_1ab0660f20copy
+     5.5%  at::empty
+     4.7%  std::vector<long, std::allocator<long> >::push_back
+     4.2%  at::_ops::empty_memory_format::call
+     3.7%  at::_ops::empty_memory_format::redispatch
+     2.4%  __device_stub__ZN55_GLOBAL__N__e8422874_22_a0_exact_lt_kernels_cu_1ab0660f16scal
+     1.8%  c10::cuda::CUDACachingAllocator::Native::NativeCachingAllocator::malloc
