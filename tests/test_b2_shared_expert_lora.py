@@ -1,8 +1,11 @@
 """B2 ticket 15: LoRA on the shared experts of DeepSeek-V3 attaches to the shared experts.
 
-peft 0.21.2 rewrites ``gate_proj`` / ``up_proj`` / ``down_proj`` targets on a
+peft up to 0.21.x rewrites ``gate_proj`` / ``up_proj`` / ``down_proj`` targets on a
 ``deepseek_v3`` model into ``target_parameters`` on the fused routed experts, so a
-config that names the shared experts trains the routed ones without an error.
+config that names the shared experts trains the routed ones without an error. peft 0.22.0
+fixed that: the shared experts get their adapters, next to the routed ones. The control
+tests below are tripwires for that change; each runs against the peft that has the behaviour
+it states (``PEFT_REWRITES_SHARED_TARGETS``).
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ import torch
 from tests.test_b2_deepseek_v3_stream import (
     _DEVICES,
     _EXPERT_IMPLEMENTATIONS,
+    PEFT_REWRITES_SHARED_TARGETS,
     _moe_layers,
     _run_parity,
     _tiny_deepseek_v3_config,
@@ -59,8 +63,11 @@ def _config(targets: Any, **kwargs: Any) -> Any:
     )
 
 
+@pytest.mark.skipif(
+    not PEFT_REWRITES_SHARED_TARGETS, reason="peft 0.22.0 attaches the shared experts correctly"
+)
 def test_plain_peft_moves_shared_expert_targets_onto_the_routed_experts() -> None:
-    """The defect this ticket works around. If peft fixes it, this test says so."""
+    """The defect this ticket works around (peft before 0.22.0)."""
     from peft import get_peft_model
 
     model = _tiny_model()
@@ -70,6 +77,20 @@ def test_plain_peft_moves_shared_expert_targets_onto_the_routed_experts() -> Non
     assert _adapter_modules(peft_model) == {
         f"model.layers.{idx}.mlp.experts" for idx in _moe_layers(model.config)
     }
+
+
+@pytest.mark.skipif(
+    PEFT_REWRITES_SHARED_TARGETS, reason="before peft 0.22.0 plain peft moves them to the routed"
+)
+def test_plain_peft_attaches_shared_expert_targets_to_the_shared_experts_since_peft_0_22() -> None:
+    """The fix upstream: with peft 0.22.0 a plain ``get_peft_model`` carries the shared experts."""
+    from peft import get_peft_model
+
+    model = _tiny_model()
+
+    peft_model = get_peft_model(model, _config(_SHARED_TARGETS))
+
+    assert _expected_shared_modules(model.config) <= _adapter_modules(peft_model)
 
 
 def test_shared_expert_targets_attach_to_exactly_the_shared_experts() -> None:

@@ -10,6 +10,7 @@ import torch
 
 from tests.test_b2_shared_expert_lora import (
     _SHARED_TARGETS,
+    PEFT_REWRITES_SHARED_TARGETS,
     _adapter_modules,
     _config,
     _expected_shared_modules,
@@ -144,6 +145,9 @@ def test_consumer_loads_a_routed_expert_adapter_the_way_peft_does(
     assert torch.equal(_logits(model), _logits(theirs))
 
 
+@pytest.mark.skipif(
+    not PEFT_REWRITES_SHARED_TARGETS, reason="peft 0.22.0 reloads the shared experts correctly"
+)
 def test_control_plain_peft_differs_from_the_helper_reload(tmp_path: Any) -> None:
     from peft import PeftModel
 
@@ -156,6 +160,23 @@ def test_control_plain_peft_differs_from_the_helper_reload(tmp_path: Any) -> Non
     helper = _logits(load_adapter(_tiny_model(), path))
 
     assert not torch.equal(plain, helper)
+
+
+@pytest.mark.skipif(
+    PEFT_REWRITES_SHARED_TARGETS, reason="before peft 0.22.0 plain peft reloads it onto the routed"
+)
+def test_plain_peft_reload_equals_the_helper_reload_since_peft_0_22(tmp_path: Any) -> None:
+    from peft import PeftModel
+
+    from soup_cli.utils.peft_wiring import load_adapter
+
+    _save(tmp_path, _SHARED_TARGETS)
+    path = _saved_adapter_dir(tmp_path)
+
+    plain = _logits(PeftModel.from_pretrained(_tiny_model(), path))
+    helper = _logits(load_adapter(_tiny_model(), path))
+
+    assert torch.equal(plain, helper)
 
 
 def test_mole_serve_and_training_load_every_task_adapter_onto_the_shared_experts(

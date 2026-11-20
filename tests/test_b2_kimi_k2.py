@@ -26,6 +26,7 @@ from tests.test_b2_deepseek_v3_stream import (
     _EXPERT_IMPLEMENTATIONS,
     _REQUIRES_TRAINING_FLOOR,
     _SHARED_EXPERT_LINEARS,
+    PEFT_REWRITES_SHARED_TARGETS,
     _assert_parity,
     _moe_lora_config,
     _run_parity,
@@ -740,7 +741,10 @@ def test_peft_rewrites_expert_targets_onto_the_fused_experts_only_once_registere
     register_kimi_k2_conversion()
     after = converted()
     assert set(after.target_parameters) == {"gate_up_proj", "down_proj"}
-    assert "gate_proj" not in after.target_modules
+    if PEFT_REWRITES_SHARED_TARGETS:
+        assert "gate_proj" not in after.target_modules
+    else:  # peft 0.22.0 keeps the module targets, so the shared experts still get adapters
+        assert {"q_a_proj", "gate_proj", "up_proj", "down_proj"} <= set(after.target_modules)
 
 
 @_REQUIRES_TRAINING_FLOOR
