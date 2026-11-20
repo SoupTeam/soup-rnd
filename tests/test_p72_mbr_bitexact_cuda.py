@@ -67,10 +67,6 @@ def run_cuda_window(
 
 @pytest.fixture()
 def cuda_window(make_rig: Callable[..., Rig]) -> Any:
-    import torch
-
-    if not torch.cuda.is_available():
-        pytest.skip("needs a CUDA device")
     rig = make_rig(
         k=WINDOW,
         rows=1,
@@ -125,8 +121,6 @@ def test_cuda_route_weight_gradient_depends_on_rows_natively_not_rowwise() -> No
 
     from tests.test_p72_mbr_bitexact import _expert_node_function
 
-    if not torch.cuda.is_available():
-        pytest.skip("needs a CUDA device")
     torch.manual_seed(0)
     hidden, go = (torch.randn(64, 2048, device="cuda", dtype=torch.bfloat16) for _ in range(2))
     node = _expert_node_function("backward")
