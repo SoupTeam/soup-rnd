@@ -773,7 +773,19 @@ gradient checkpointing are untouched; with one row per batch a cached step is bi
 uncached one (tests on tiny Llama and Qwen3.5, with and without checkpointing, and through the HF
 Trainer). It helps only when rows repeat (several epochs). Evaluation runs the full model. Each
 new freeze rebuilds the cache at the new cut; hits, misses and kept bytes go to
-`lora_layers.json` (`prefix_cache`). Not yet with layer streaming, `l2l` or packing.
+`lora_layers.json` (`prefix_cache`).
+
+With `stream_layers` a hit also starts the step's weight loads at the cut, so the frozen layers
+are not read at all, and the backward no longer prefetches the frozen layer under the cut. With
+`l2l` a window whose micro-batches are all kept starts at the cut; a window with one new row
+computes the bottom for all of them (each layer is loaded once per window) and keeps the new
+row. Both are bit-identical to the uncached step (tiny Qwen3.5 tests). Not with packing or
+`l2l_split_gpus > 1`.
+
+Measured (Kaggle 2x T4, Qwen3.5-2B fp32, resident, 600 rows x 3 epochs, one seed): cached and
+uncached losses identical at every step; the epoch that reads the cache was 1.12-1.17x faster
+with the freeze below layer 6 and 1.36x below layer 12; the rule froze to its cap (12) in epoch
+1 and the run was 1.40x faster than full LoRA with test quality equal or better.
 
 ## Loss Watchdog
 

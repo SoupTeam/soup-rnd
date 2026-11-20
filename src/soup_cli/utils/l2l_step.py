@@ -538,6 +538,23 @@ class L2LStep:
         self.split_devices = tuple(split_devices)
         self._replicas: Optional[List[Any]] = None
 
+    def _prefix_cache(self, micro_batches: Sequence[Any], passes: Sequence[Any],
+                      cut: int) -> Tuple[Any, Optional[List[str]], Optional[List[Any]]]:
+        """The installed frozen-prefix cache, the window's keys and its kept bottom outputs.
+
+        ``(None, None, None)`` without a cache, with extra passes (they would need the
+        bottom), or when the cache's cutoff is above the lowest trainable layer.
+        """
+        from soup_cli.utils.prefix_cache import OWNER_ATTR
+
+        cache = getattr(self.owner, OWNER_ATTR, None)
+        if cache is None or passes or cache.cutoff > cut:
+            return None, None, None
+        keys = cache.l2l_keys(micro_batches)
+        if keys is None:
+            return None, None, None
+        return cache, keys, cache.l2l_lookup(keys, micro_batches[0].device)
+
     def _lowest_trainable(self) -> int:
         """The lowest decoder layer with a trainable parameter (``len(layers)`` when none).
 
@@ -708,18 +725,37 @@ class L2LStep:
                 for mb in range(k):
                     contexts[idx, mb] = context_fn()
 
-        self._prime(self.owner, ())
+        # Frozen-prefix cache (training.lora_layers.prefix_cache): when every micro-batch's
+        # output of the frozen bottom is kept, the window starts at the cache's cutoff and the
+        # bottom is neither loaded nor computed; otherwise it runs and is kept.
+        prefix, prefix_keys, kept = self._prefix_cache(micro_batches, passes, cut)
+        start = prefix.cutoff if kept is not None else 0
+        prefetcher = getattr(self.runtime, "prefetcher", None)
+        if start and prefetcher is not None:
+            prefetcher.prime_start = start
+        try:
+            self._prime(self.owner, ())
+        finally:
+            if start and prefetcher is not None:
+                prefetcher.prime_start = 0
         pass_hidden: List[List[Any]] = []
         with torch.no_grad():
             hidden = []
-            for ids in micro_batches:
-                if train_embedding:
-                    embedding_states.append(l2l_rng.snapshot())
-                hidden.append(self.owner.embed_tokens(ids))
+            if kept is not None:
+                hidden = kept
+            else:
+                for ids in micro_batches:
+                    if train_embedding:
+                        embedding_states.append(l2l_rng.snapshot())
+                    hidden.append(self.owner.embed_tokens(ids))
             for spec, ids in zip(passes, pass_ids):
                 with self._pass_adapters(spec):
                     pass_hidden.append([self.owner.embed_tokens(x) for x in ids])
             for idx, layer in enumerate(self.layers):
+                if idx < start:
+                    continue
+                if prefix_keys is not None and kept is None and idx == prefix.cutoff:
+                    prefix.l2l_store(prefix_keys, hidden)
                 for mb in range(k):
                     if idx >= cut:
                         store.put(idx, mb, hidden[mb])

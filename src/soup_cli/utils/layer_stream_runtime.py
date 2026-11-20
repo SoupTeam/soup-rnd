@@ -1516,6 +1516,14 @@ class StreamPrefetcher:
         self.prev: Optional[int] = None
         self.direction = 1
         self.primes = 0
+        # The layer a forward starts loading from. 0 except while a frozen-prefix cache
+        # (utils/prefix_cache.py) serves a step from layer ``cutoff``: then the layers below
+        # are neither read nor computed, and their walk begins at ``prime_start``.
+        self.prime_start = 0
+        # The lowest layer a backward walk reaches. A frozen-prefix cache sets it to its
+        # cutoff: nothing below trains, so the walk stops there and must not prefetch the
+        # frozen layer under it.
+        self.backward_floor = 0
         self.tail_prefetch = tail_prefetch
         self.tail_prefetched = False
         # #1174 part 2 — which decoder layer's forward issues `tail_prefetch`, the
@@ -1557,13 +1565,13 @@ class StreamPrefetcher:
         self._head_prefetch_layer = value
 
     def prime(self) -> None:
-        """Start of a forward pass: layer 0, walking upward."""
+        """Start of a forward pass: layer ``prime_start`` (0 unless a prefix cache hit), upward."""
         self.prev = None
         self.direction = 1
         self.primes += 1
         self.backward_tail_prefetched = False
         self.tail_prefetched = False
-        self.pool.load_async(0, self.source, self.stream)
+        self.pool.load_async(self.prime_start, self.source, self.stream)
 
     def advance(self, idx: int) -> None:
         # Direction is explicit state, not re-derived per call. It only ever
@@ -1576,14 +1584,16 @@ class StreamPrefetcher:
             self.direction = -1
         self.prev = idx
         nxt = idx + self.direction
-        if 0 <= nxt < self.n_layers and self.pool.owner[self.pool.slot_for(nxt)] != nxt:
+        floor = self.backward_floor if self.direction == -1 else 0
+        if floor <= nxt < self.n_layers and self.pool.owner[self.pool.slot_for(nxt)] != nxt:
             self.pool.load_async(nxt, self.source, self.stream)
         head_layer = self.head_prefetch_layer
         if head_layer is None:
             head_layer = self.n_layers - 1
         if (
             self.direction == 1
-            and idx == head_layer
+            # `>=`: a forward that starts above ``head_layer`` (prime_start) still issues it.
+            and idx >= head_layer
             and not self.tail_prefetched
             and self.tail_prefetch is not None
         ):

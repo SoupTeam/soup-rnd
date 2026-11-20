@@ -1165,7 +1165,8 @@ class LoraLayersConfig(BaseModel):
         description=(
             "Keep the output of the frozen layers below the lowest trainable layer per row "
             "in host RAM and reuse it when the row comes back (later epochs skip their "
-            "forward). Needs lora.dropout 0; not with lisa, layer streaming, L2L or packing."
+            "forward; with stream_layers and l2l their weights are not loaded either). "
+            "Needs lora.dropout 0; not with lisa, packing or l2l_split_gpus > 1."
         ),
     )
     prefix_cache_gb: float = Field(default=8.0, gt=0.0, le=4096.0)
@@ -6482,16 +6483,15 @@ class SoupConfig(BaseModel):
         if tcfg.lora_layers.prefix_cache:
             blocked = [
                 name for name, on in (
-                    ("stream_layers", tcfg.stream_layers),
-                    ("l2l", tcfg.l2l),
                     ("packing", tcfg.packing),
                     ("multipack", tcfg.multipack),
+                    ("l2l_split_gpus > 1", tcfg.l2l_split_gpus > 1),
                 ) if on
             ]
             if blocked:
                 raise ValueError(
-                    "training.lora_layers.prefix_cache works on the resident model with one "
-                    "row per sequence; not with " + ", ".join(blocked)
+                    "training.lora_layers.prefix_cache keys one row per sequence on one "
+                    "device; not with " + ", ".join(blocked)
                 )
             if tcfg.lora.dropout:
                 raise ValueError(

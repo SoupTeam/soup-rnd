@@ -321,13 +321,17 @@ def test_schema_refuses_bad_progressive_blocks(block, match):
         _cfg(lora={"r": 4, "target_modules": ["q_proj"], "dropout": 0.0}, lora_layers=block)
 
 
-def test_schema_cache_needs_no_dropout_and_no_streaming():
+def test_schema_cache_needs_no_dropout_and_one_row_per_sequence():
+    lora = {"r": 4, "target_modules": ["q_proj"], "dropout": 0.0}
     with pytest.raises(Exception, match="dropout"):
         _cfg(lora={"r": 4, "target_modules": ["q_proj"], "dropout": 0.05},
              lora_layers={"method": "progressive", "prefix_cache": True})
-    with pytest.raises(Exception, match="stream_layers"):
-        _cfg(lora={"r": 4, "target_modules": ["q_proj"], "dropout": 0.0}, stream_layers=True,
+    with pytest.raises(Exception, match="packing"):
+        _cfg(lora=lora, packing=True,
              lora_layers={"method": "progressive", "prefix_cache": True})
+    cfg = _cfg(lora=lora, stream_layers=True, l2l=True, batch_size=1,
+               lora_layers={"method": "progressive", "prefix_cache": True})
+    assert cfg.training.lora_layers.prefix_cache and cfg.training.l2l
 
 
 def test_inputs_embeds_from_a_wrapper_still_keys_by_the_embedded_ids():
