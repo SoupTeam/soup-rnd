@@ -17,6 +17,7 @@ from benchmarks.harness import b13_moe_fixture as fixture
 from benchmarks.harness import p3_route_preserving_mbr_soup_bridge as bridge
 from benchmarks.harness.p72_invariant_expert_gemm import (
     EXPERT_GEMM_CHOICES,
+    alternating_switch,
     expert_gemm_context,
     segment_rows,
     segmented_expert_gemm,
@@ -238,3 +239,70 @@ def test_segmented_group_calls_the_experts_with_the_l2l_shapes(
         lambda: run_window(rig, ids, calls, mbr=True, group_size=3, dtype=dtype)
     )
     assert native_rows != l2l_rows
+
+
+# --- one-pass planned routes --------------------------------------------------------------
+
+
+def _reference_planned_routes(expert_mask, boundaries):
+    """The old two-step walk: grouped routes, then segment_rows and one gather per expert."""
+    from soup_cli.utils import expert_stream
+
+    items = list(expert_stream._grouped_expert_routes(expert_mask))
+    layout = segment_rows([tokens for _, _, tokens in items], boundaries)
+    out = []
+    for (expert, slots, tokens), (perm, counts) in zip(items, layout):
+        if perm is not None:
+            slots, tokens = slots[perm], tokens[perm]
+        out.append((expert, slots.tolist(), tokens.tolist(), counts))
+    return out
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2, 3])
+def test_planned_routes_equal_the_grouped_walk_plus_segment_rows(seed: int) -> None:
+    import torch
+    import torch.nn.functional as functional
+
+    from benchmarks.harness.p72_invariant_expert_gemm import planned_grouped_routes
+
+    torch.manual_seed(seed)
+    experts, top_k, tokens = 9, 3, 23
+    top_k_index = torch.stack([torch.randperm(experts)[:top_k] for _ in range(tokens)])
+    mask = functional.one_hot(top_k_index, num_classes=experts).permute(2, 1, 0)
+    boundaries = torch.tensor([5, 6, 14, 20])  # micro-batches of 5, 1, 8, 6, 3 tokens
+    want = _reference_planned_routes(mask, boundaries)
+    got = [
+        (expert, slots.tolist(), toks.tolist(), counts)
+        for expert, slots, toks, counts in planned_grouped_routes(mask, boundaries)
+    ]
+    assert got == want
+    assert any(len(counts) > 1 for *_, counts in want), "the case must cut some expert"
+
+
+def test_planned_routes_read_the_host_once() -> None:
+    import torch
+    import torch.nn.functional as functional
+
+    from benchmarks.harness.p72_invariant_expert_gemm import planned_grouped_routes
+
+    mask = functional.one_hot(torch.tensor([[0, 1], [1, 2], [2, 0]]), num_classes=3)
+    mask = mask.permute(2, 1, 0)
+    reads = []
+    original = torch.Tensor.tolist
+
+    def counting(self):
+        reads.append(tuple(self.shape))
+        return original(self)
+
+    torch.Tensor.tolist = counting
+    try:
+        list(planned_grouped_routes(mask, torch.tensor([1, 2])))
+    finally:
+        torch.Tensor.tolist = original
+    assert len(reads) == 1, f"expected one host read, got {reads}"
+
+
+def test_alternating_switch_turns_an_option_on_for_every_second_step_only_when_asked() -> None:
+    on = [alternating_switch(i, True) for i in range(6)]
+    assert on == [False, True, False, True, False, True]
+    assert [alternating_switch(i, False) for i in range(4)] == [False] * 4

@@ -149,3 +149,78 @@ def test_every_run_record_is_handed_out_as_soon_as_the_run_ends():
     drive(on_record=lambda record: seen.append((record["run"], record["arm_record"]["outcome"])))
     assert [run for run, _ in seen] == list(range(1, 4 * PILOT_BLOCKS + 1))
     assert {outcome for _, outcome in seen} == {"ok"}
+
+
+def test_b0_against_the_direct_backward_arms_add_the_flag_to_b_only():
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", "12288"]
+    flags = f1.arm_flags("b0-b0sd", host_cache_mib=12288)
+    assert flags["A"] == complete
+    assert flags["B"] == complete + ["--expert-gemm", "segmented", "--expert-direct-backward"]
+    flags = f1.arm_flags("b0-ltd", host_cache_mib=12288)
+    assert flags["A"] == complete
+    assert flags["B"] == complete + ["--expert-gemm", "lt-merged", "--expert-direct-backward"]
+
+
+
+def test_b0_against_b0_with_the_two_phase_backward_only_adds_the_split_flag():
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", "12288"]
+    flags = f1.arm_flags("b0-split", host_cache_mib=12288)
+    assert flags["A"] == complete
+    assert flags["B"] == complete + ["--mbr-split-backward"]
+
+
+def test_ordered_backward_arm_is_lt_fused_with_the_ordered_flag_instead_of_the_split():
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", "12288"]
+    flags = f1.arm_flags("b0-ltfo", host_cache_mib=12288)
+    assert flags["A"] == complete
+    assert flags["B"] == complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward"]
+
+
+def test_best_exact_arm_adds_the_fast_row_gather_to_the_ordered_lt_fused_arm_only_on_b():
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", "12288"]
+    flags = f1.arm_flags("b0-ltfog", host_cache_mib=12288)
+    assert flags["A"] == complete                      # stock B0 stays the reference
+    assert flags["B"] == complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward",
+                                     "--expert-fast-gather"]
+
+
+def test_final_exact_arm_adds_fast_gather_and_async_lease_only_on_b():
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", "12288"]
+    flags = f1.arm_flags("b0-ltfoga", host_cache_mib=12288)
+    assert flags["A"] == complete                      # stock B0 stays frozen
+    assert flags["B"] == complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward",
+                                     "--expert-fast-gather", "--expert-async-lease"]
+
+
+def test_a0_against_the_ordered_lt_fused_arm_pairs_l2l_with_the_exact_mbr():
+    flags = f1.arm_flags("a0-ltfo", host_cache_mib=12288)
+    assert flags["A"] == ["--profile-kinds", "l2l", "--expert-transfer", "packed",
+                          "--expert-host-cache-mib", "12288"]
+    assert flags["B"] == ["--expert-transfer", "packed", "--expert-prefetch",
+                          "--expert-host-cache-mib", "12288", "--expert-gemm", "lt-fused",
+                          "--mbr-ordered-backward"]
+
+
+def test_stream_arms_add_two_streams_to_the_exact_arm_only():
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", "12288"]
+    exact = complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward"]
+    flags = f1.arm_flags("ltfo-ltfs", host_cache_mib=12288)
+    assert flags["A"] == exact and flags["B"] == exact + ["--expert-streams", "2"]
+    assert f1.arm_flags("b0-ltfs", host_cache_mib=12288)["B"] == exact + ["--expert-streams", "2"]
+
+
+def test_three_stream_arms_pair_the_exact_mbr_with_and_without_streams_and_with_b0():
+    complete = ["--expert-transfer", "packed", "--expert-prefetch",
+                "--expert-host-cache-mib", "12288"]
+    exact = complete + ["--expert-gemm", "lt-fused", "--mbr-ordered-backward"]
+    three = exact + ["--expert-streams", "3"]
+    flags = f1.arm_flags("ltfo-ltfs3", host_cache_mib=12288)
+    assert flags["A"] == exact and flags["B"] == three
+    flags = f1.arm_flags("b0-ltfs3", host_cache_mib=12288)
+    assert flags["A"] == complete and flags["B"] == three
