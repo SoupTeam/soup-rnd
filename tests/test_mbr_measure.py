@@ -108,3 +108,51 @@ def test_block_median_of_three_after_warmup() -> None:
     assert mm.median_after_warmup([9.0, 2.0, 1.0, 3.0]) == 2.0
     with pytest.raises(ValueError):
         mm.median_after_warmup([1.0])
+
+
+def test_arm_options_are_a0_plain_l2l_b0_route_preserving_c_ordered() -> None:
+    assert mm.arm_options("A0", k=8) == {}
+    assert mm.arm_options("B0", k=8) == {"route_preserving_mbr": True, "mbr_group_size": 8}
+    assert mm.arm_options("C", k=64) == {"route_preserving_mbr": True, "mbr_group_size": 64,
+                                         "mbr_ordered_backward": True}
+    with pytest.raises(ValueError):
+        mm.arm_options("A0", k=64)
+    with pytest.raises(ValueError):
+        mm.arm_options("Z", k=8)
+
+
+def test_speed_plan_is_a_b_c_c_b_a_blocks_over_the_arms_of_each_window() -> None:
+    plan = mm.speed_plan(blocks=2)
+    first = [p for p in plan if (p["k"], p["seq"]) == (8, 64)]
+    assert [p["arm"] for p in first[:6]] == ["A0", "B0", "C", "C", "B0", "A0"]
+    assert len(first) == 12
+    big = [p for p in plan if p["k"] == 64 and p["seq"] == 64]
+    assert [p["arm"] for p in big[:4]] == ["B0", "C", "C", "B0"] and len(big) == 8
+    assert all(p["kind"] == "speed" and p["deterministic"] is False for p in plan)
+
+
+def test_bit_plan_is_the_ladder_against_a0_in_deterministic_mode() -> None:
+    plan = mm.bit_plan(seq=64)
+    assert [(p["k"], p["arm"]) for p in plan] == [
+        (k, arm) for k in mm.BIT_LADDER for arm in ("A0", "B0", "C")]
+    assert all(p["kind"] == "bits" and p["deterministic"] is True for p in plan)
+
+
+def test_grad_digest_changes_with_any_bit_and_ignores_dict_order() -> None:
+    a = {"x": [1.0, 2.0], "y": [3.0]}
+    assert mm.grad_digest(a) == mm.grad_digest({"y": [3.0], "x": [1.0, 2.0]})
+    assert mm.grad_digest(a) != mm.grad_digest({"x": [1.0, 2.0000001], "y": [3.0]})
+
+
+def test_ladder_verdict_compares_each_arm_digest_to_a0_and_skips_missing_a0() -> None:
+    rows = [{"k": 1, "arm": "A0", "grad_sha256": "a", "loss": 1.0, "status": "ok"},
+            {"k": 1, "arm": "B0", "grad_sha256": "a", "loss": 1.0, "status": "ok"},
+            {"k": 1, "arm": "C", "grad_sha256": "b", "loss": 1.0, "status": "ok"},
+            {"k": 16, "arm": "C", "grad_sha256": "c", "loss": 1.0, "status": "ok"}]
+    out = mm.ladder_verdict(rows)
+    assert out[(1, "B0")] == "equal" and out[(1, "C")] == "differs"
+    assert out[(16, "C")] == "no A0"
+
+
+def test_nvml_peak_parses_the_largest_used_memory_sample() -> None:
+    assert mm.parse_nvml_used(["512 MiB", "7011 MiB", "6900 MiB"]) == 7011 * 2**20
