@@ -1,4 +1,5 @@
-"""Kaggle entry for the mbr_measure driver: CPU smoke on a tiny synthetic DeepSeek-V3 MoE.
+"""Kaggle entry for the mbr_measure driver: smoke on a tiny synthetic DeepSeek-V3 MoE
+(CPU, or one GPU when there is one).
 
 Checks the plumbing (MBPP-train text and hash, every arm, bit ladder verdicts, OOM-free rows,
 report) with no Kanana download. It says nothing about CUDA, NF4, sm_89 or speed. Needs the repo
@@ -16,10 +17,11 @@ import sys
 import traceback
 from pathlib import Path
 
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")  # the runs need exactly one device
 OUT = Path(os.environ.get("MBR_OUT", "/kaggle/working"))
 WORK = Path(os.environ.get("MBR_WORK", "/tmp/mbr"))
 PIP = ["transformers==5.20.2", "peft==0.21.2", "huggingface_hub", "safetensors", "rich",
-       "pydantic", "pyyaml", "typer", "psutil", "datasets"]
+       "pydantic", "bitsandbytes", "pyyaml", "typer", "psutil", "datasets"]
 
 
 def sh(command: list[str]) -> str:
@@ -33,6 +35,13 @@ def main() -> int:
         print(sh([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"])[-200:], flush=True)
 
 
+    try:
+        import bitsandbytes
+        import transformers.utils as tu
+        print("bitsandbytes", bitsandbytes.__version__, "available:",
+              tu.is_bitsandbytes_available(), flush=True)
+    except Exception:  # noqa: BLE001 - diagnostic only
+        print("bitsandbytes import failed:", traceback.format_exc()[-1500:], flush=True)
     roots = glob.glob(f"{os.environ.get('MBR_SRC', '/kaggle/input')}/**/src/soup_cli",
                       recursive=True)
     root = Path(roots[0]).parent.parent
@@ -46,7 +55,11 @@ def main() -> int:
     weights = fixture.moe_weights_dir(WORK / "tiny", fixture.moe_config(
         vocab_size=vocab, max_position_embeddings=256))
     from argparse import Namespace
-    oc_arm_run.prepare(Namespace(source=str(weights), cache=str(WORK / "cache"), device="cpu",
+
+    import torch
+    device = "cuda" if torch.cuda.is_available() and not os.environ.get("MBR_CPU") else "cpu"
+    print("device", device, torch.cuda.get_device_name(0) if device == "cuda" else "", flush=True)
+    oc_arm_run.prepare(Namespace(source=str(weights), cache=str(WORK / "cache"), device=device,
                                  double_quant=False))
     env = dict(os.environ, PYTHONPATH=os.pathsep.join(
         str(root / s) for s in ("src", ".", "benchmarks/harness")))
@@ -56,7 +69,8 @@ def main() -> int:
         done = subprocess.run(
             [sys.executable, str(root / "benchmarks/harness/mbr_measure.py"), name,
              "--source", str(weights), "--cache", str(WORK / "cache"), "--out", str(out),
-             "--tokenizer", "gpt2", "--device", "cpu", "--steps", "2", *extra],
+             "--tokenizer", "gpt2", "--device", "cpu" if device == "cpu" else "auto",
+             "--steps", "2", *extra],
             capture_output=True, text=True, env=env)
         result[name] = {"returncode": done.returncode, "stdout": done.stdout[-2000:],
                         "stderr": done.stderr[-2000:]}
