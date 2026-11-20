@@ -497,8 +497,10 @@ class _LayerSelectBody:  # noqa: N801
             if self.console is not None and self.selection.cache:
                 last = self.selection.cache[-1]
                 self.console.print(
-                    f"[green]Prefix cache:[/] below layer {last['cutoff']}: {last['hits']} hits, "
-                    f"{last['misses']} misses, {last['bytes_stored'] / 2**30:.2f} GiB kept"
+                    f"[green]Prefix cache:[/] below layer {last['cutoff']}: "
+                    f"{last['hits'] + last.get('l2l_hits', 0)} hits, "
+                    f"{last['misses'] + last.get('l2l_misses', 0)} misses, "
+                    f"{last['bytes_stored'] / 2**30:.2f} GiB kept"
                 )
         return control
 
