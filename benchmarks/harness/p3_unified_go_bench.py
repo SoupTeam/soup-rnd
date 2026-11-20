@@ -22,8 +22,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -167,6 +169,48 @@ def _nvml_used_gib(device_index: int = 0) -> Optional[float]:
         return None
 
 
+class _NvmlPeakPoller:
+    """Background 20 ms NVML memory sampler to record true in-step peak GPU usage."""
+
+    def __init__(self, enabled: bool, device_index: int = 0, interval_s: float = 0.02) -> None:
+        self.enabled = enabled
+        self.device_index = device_index
+        self.interval_s = interval_s
+        self.peak_gib: Optional[float] = None
+        self.samples: int = 0
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    def _run(self) -> None:
+        try:
+            import pynvml
+
+            pynvml.nvmlInit()
+            handle = pynvml.nvmlDeviceGetHandleByIndex(self.device_index)
+            try:
+                while not self._stop.is_set():
+                    used = float(pynvml.nvmlDeviceGetMemoryInfo(handle).used) / (1024**3)
+                    if self.peak_gib is None or used > self.peak_gib:
+                        self.peak_gib = used
+                    self.samples += 1
+                    self._stop.wait(self.interval_s)
+            finally:
+                pynvml.nvmlShutdown()
+        except Exception:
+            return
+
+    def __enter__(self) -> "_NvmlPeakPoller":
+        if self.enabled:
+            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread.start()
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        if self._thread is not None:
+            self._stop.set()
+            self._thread.join(timeout=2.0)
+
+
 def _prepare_shards(
     work: Path,
     *,
@@ -279,7 +323,7 @@ def _run_arm(
     ce_chunk: int,
     host_cache_gib: float,
     lora_state: Optional[Dict[str, Any]],
-    batches_cpu: Sequence[Any],
+    step_batches_cpu: Sequence[Sequence[Any]],
     track_saved_ledger: bool,
     lr: float = 1e-4,
 ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
@@ -367,10 +411,10 @@ def _run_arm(
             fixture.randomize_adapters(model, seed=67)
         initial_lora = fixture.snapshot(model, gradients=False)
 
-        batches = [b.to(device) for b in batches_cpu]
+        step_batches = [[b.to(device) for b in sb] for sb in step_batches_cpu]
         cfg = model.config
         stepper = l2l_step.L2LStep(
-            model, runtime, l2l_step.capture_layer_call(model, batches[0])
+            model, runtime, l2l_step.capture_layer_call(model, step_batches[0][0])
         )
         store = ActivationStore(
             n_layers=cfg.num_hidden_layers,
@@ -382,7 +426,6 @@ def _run_arm(
         )
         try:
             opt = torch.optim.AdamW(trainables.values(), lr=lr)
-            opt.zero_grad(set_to_none=True)
             if is_cuda:
                 torch.cuda.synchronize(device)
                 torch.cuda.reset_peak_memory_stats(device)
@@ -394,56 +437,67 @@ def _run_arm(
                 ledger = SavedStorageLedger()
 
             effective_head = spec["head_impl"] or head_loss
-            n_items = l2l_step.label_tokens(batches)
-            head = l2l_sft_head(batches, n_items, impl=effective_head, chunk=ce_chunk)
-
-            run_kwargs: Dict[str, Any] = dict(
-                head=head,
-                route_preserving_mbr=spec["route_preserving_mbr"],
-                mbr_window_dequant=spec["mbr_window_dequant"],
-                release_large_pool_during_layers=spec["release_large_pool_during_layers"],
-                expert_controller=controller,
-                collect_phase_stats=True,
-            )
-            if spec["route_preserving_mbr"]:
-                run_kwargs["mbr_group_size"] = group_size
-                run_kwargs["mbr_decoupled_subwindow"] = spec["mbr_decoupled_subwindow"]
-                if spec["mbr_decoupled_subwindow"]:
-                    run_kwargs["mbr_recompute_subwindow"] = subwindow
-
-            torch.manual_seed(101)
-            t0 = time.perf_counter()
-            if ledger is not None:
-                with ledger.track():
-                    losses = stepper.run(batches, store, **run_kwargs)
-            else:
-                losses = stepper.run(batches, store, **run_kwargs)
-            grads_snap = fixture.snapshot(model, gradients=True)
-            opt.step()
-            if is_cuda:
-                torch.cuda.synchronize(device)
-            wall_s = time.perf_counter() - t0
-
-            adapter_snap = fixture.snapshot(model, gradients=False)
-            loss_map = {f"mb_{i}": v.detach().cpu() for i, v in enumerate(losses)}
-            total_tokens = int(sum(b.numel() for b in batches_cpu))
+            loss_map: Dict[str, Any] = {}
+            grads_snap: Dict[str, Any] = {}
+            step_walls: List[float] = []
             recompute_fetches = 0
             forward_fetches = 0
             bwd_fetches = 0
-            if stepper.expert_phase_stats:
-                for layer_row in stepper.expert_phase_stats["layers"].values():
-                    recompute_fetches += int(
-                        layer_row.get("recompute_forward", {}).get("expert_fetches", 0)
+
+            torch.manual_seed(101)
+            poller = _NvmlPeakPoller(enabled=is_cuda)
+            with poller:
+                t_all = time.perf_counter()
+                for step_i, batches in enumerate(step_batches):
+                    opt.zero_grad(set_to_none=True)
+                    n_items = l2l_step.label_tokens(batches)
+                    head = l2l_sft_head(batches, n_items, impl=effective_head, chunk=ce_chunk)
+                    run_kwargs: Dict[str, Any] = dict(
+                        head=head,
+                        route_preserving_mbr=spec["route_preserving_mbr"],
+                        mbr_window_dequant=spec["mbr_window_dequant"],
+                        release_large_pool_during_layers=spec["release_large_pool_during_layers"],
+                        expert_controller=controller,
+                        collect_phase_stats=True,
                     )
-                    forward_fetches += int(
-                        layer_row.get("init_forward", {}).get("expert_fetches", 0)
-                    )
-                    bwd_fetches += int(
-                        layer_row.get("backward_dX", {}).get("expert_fetches", 0)
-                    )
+                    if spec["route_preserving_mbr"]:
+                        run_kwargs["mbr_group_size"] = group_size
+                        run_kwargs["mbr_decoupled_subwindow"] = spec["mbr_decoupled_subwindow"]
+                        if spec["mbr_decoupled_subwindow"]:
+                            run_kwargs["mbr_recompute_subwindow"] = subwindow
+                    ts = time.perf_counter()
+                    if ledger is not None:
+                        with ledger.track():
+                            losses = stepper.run(batches, store, **run_kwargs)
+                    else:
+                        losses = stepper.run(batches, store, **run_kwargs)
+                    grads_snap = fixture.snapshot(model, gradients=True)
+                    opt.step()
+                    if is_cuda:
+                        torch.cuda.synchronize(device)
+                    step_walls.append(round(time.perf_counter() - ts, 4))
+                    for mb_i, val in enumerate(losses):
+                        loss_map[f"s{step_i}_mb{mb_i}"] = val.detach().cpu()
+                    if stepper.expert_phase_stats:
+                        for layer_row in stepper.expert_phase_stats["layers"].values():
+                            recompute_fetches += int(
+                                layer_row.get("recompute_forward", {}).get("expert_fetches", 0)
+                            )
+                            forward_fetches += int(
+                                layer_row.get("init_forward", {}).get("expert_fetches", 0)
+                            )
+                            bwd_fetches += int(
+                                layer_row.get("backward_dX", {}).get("expert_fetches", 0)
+                            )
+                wall_s = time.perf_counter() - t_all
+
+            adapter_snap = fixture.snapshot(model, gradients=False)
+            total_tokens = int(sum(b.numel() for sb in step_batches_cpu for b in sb))
 
             metrics = {
                 "arm": arm,
+                "steps": len(step_batches),
+                "step_walls_s": step_walls,
                 "head_loss": effective_head,
                 "expert_loader": expert_loader if spec["use_controller"] else "python_sync",
                 "k": k,
@@ -461,6 +515,10 @@ def _run_arm(
                     if is_cuda
                     else 0.0
                 ),
+                "nvml_peak_gib": (
+                    round(poller.peak_gib, 4) if poller.peak_gib is not None else None
+                ),
+                "nvml_poll_samples": poller.samples,
                 "nvml_used_gib": _nvml_used_gib() if is_cuda else None,
                 "rss_gib": round(_rss_gib(), 4),
                 "saved_storage_peak_bytes": ledger.peak_bytes if ledger is not None else None,
@@ -499,9 +557,11 @@ def main() -> None:
     parser.add_argument("--dtype", choices=["bfloat16", "float32"], default="bfloat16")
     parser.add_argument("--storage", choices=["nf4", "dense"], default="nf4")
     parser.add_argument("--k", type=int, default=8)
+    parser.add_argument("--steps", type=int, default=1)
     parser.add_argument("--seq-len", type=int, default=32)
     parser.add_argument("--group-size", type=int, default=0)
     parser.add_argument("--subwindow", type=int, default=1)
+    parser.add_argument("--git-sha", type=str, default="")
     parser.add_argument("--expert-gemm", choices=["native", "batch_invariant"], default="native")
     parser.add_argument(
         "--expert-loader",
@@ -540,9 +600,12 @@ def main() -> None:
     )
     cfg = AutoConfig.from_pretrained(str(weights))
     gen = torch.Generator().manual_seed(2026)
-    batches_cpu = [
-        torch.randint(0, int(cfg.vocab_size), (1, args.seq_len), generator=gen)
-        for _ in range(args.k)
+    step_batches_cpu = [
+        [
+            torch.randint(0, int(cfg.vocab_size), (1, args.seq_len), generator=gen)
+            for _ in range(args.k)
+        ]
+        for _ in range(max(1, args.steps))
     ]
     group_size = args.k if args.group_size <= 0 else args.group_size
 
@@ -576,7 +639,7 @@ def main() -> None:
                 ce_chunk=args.ce_chunk,
                 host_cache_gib=args.host_cache_gib,
                 lora_state=initial_lora,
-                batches_cpu=batches_cpu,
+                step_batches_cpu=step_batches_cpu,
                 track_saved_ledger=args.track_saved_ledger,
             )
         except RuntimeError as exc:
@@ -614,17 +677,19 @@ def main() -> None:
         runs.append(metrics)
         grad_rel = metrics["vs_first_arm"].get("gradients", {}).get("relative_l2", 0.0)
         console.print(
-            f"[{run_idx}] arm={arm} head={metrics['head_loss']} loader={metrics['expert_loader']} "
-            f"wall={metrics['wall_s']:.3f}s tok/s={metrics['tokens_per_s']:.2f} "
-            f"cuda_alloc={metrics['cuda_allocated_peak_gib']:.3f}GiB "
-            f"nvml={metrics['nvml_used_gib']}GiB "
-            f"saved_peak={metrics['saved_storage_peak_mib']}MiB "
-            f"recomp_reads={metrics['expert_fetches_recompute']} "
+            f"[{run_idx}] arm={arm} steps={metrics['steps']} head={metrics['head_loss']} "
+            f"loader={metrics['expert_loader']} wall={metrics['wall_s']:.3f}s "
+            f"tok/s={metrics['tokens_per_s']:.2f} "
+            f"alloc={metrics['cuda_allocated_peak_gib']:.3f}GiB "
+            f"resv={metrics['cuda_reserved_peak_gib']:.3f}GiB "
+            f"nvml_pk={metrics['nvml_peak_gib']}GiB "
+            f"recomp={metrics['expert_fetches_recompute']} "
             f"grad_rel_l2={grad_rel:.2e}"
         )
 
     payload = {
-        "git_sha": _git_sha(),
+        "git_sha": args.git_sha or _git_sha(),
+        "pytorch_cuda_alloc_conf": os.environ.get("PYTORCH_CUDA_ALLOC_CONF", ""),
         "python": platform.python_version(),
         "torch": torch.__version__,
         "device": args.device,

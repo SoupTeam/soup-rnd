@@ -735,6 +735,38 @@ def _default_expert_routes(expert_mask: Any, expert_hit: Any) -> Iterator[Tuple[
         yield expert, top_k_pos, token_idx
 
 
+def _grouped_expert_routes_from_indices(
+    top_k_index: Any, num_experts: int
+) -> Iterator[Tuple[int, Any, Any]]:
+    """Build exact ``(expert, top_k_pos, token_idx)`` routes in O(N*top_k) memory.
+
+    Produces the exact same order as ``_grouped_expert_routes(one_hot(...).permute(2, 1, 0))``
+    (``expert ASC, top_k_pos ASC, token_idx ASC``) without materializing the 3-D
+    ``[N, top_k, num_experts]`` int64 one-hot mask and Thrust ``nonzero`` scratch buffers
+    (which cost ~1.2 GiB on Kanana and ~2.5 GiB on DeepSeek-V3 671B at k=64, S=512).
+    """
+    import torch
+
+    num_tokens, top_k = int(top_k_index.shape[0]), int(top_k_index.shape[1])
+    if num_tokens == 0 or top_k == 0:
+        return
+    flat_experts = top_k_index.transpose(0, 1).reshape(-1)
+    order = torch.argsort(flat_experts, stable=True)
+    counts = torch.bincount(flat_experts, minlength=num_experts).tolist()
+    top_k_pos_all = torch.div(order, num_tokens, rounding_mode="floor")
+    token_idx_all = order - top_k_pos_all * num_tokens
+    offset = 0
+    for expert, count in enumerate(counts):
+        if count == 0:
+            continue
+        yield (
+            expert,
+            top_k_pos_all.narrow(0, offset, count),
+            token_idx_all.narrow(0, offset, count),
+        )
+        offset += count
+
+
 def _grouped_expert_routes(expert_mask: Any) -> Iterator[Tuple[int, Any, Any]]:
     """Hit experts with their (top-k slot, token) rows from one nonzero and one count read.
 
@@ -966,11 +998,11 @@ def _build_streamed_experts_class() -> Any:
                 ):
                     raise ValueError("routing contains an expert outside the reader")
                 final_hidden_states = torch.zeros_like(hidden_states)
-                expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
-                expert_mask = expert_mask.permute(2, 1, 0)
                 if self.grouped_expert_routes:
-                    routes = _grouped_expert_routes(expert_mask)
+                    routes = _grouped_expert_routes_from_indices(top_k_index, self.num_experts)
                 else:
+                    expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
+                    expert_mask = expert_mask.permute(2, 1, 0)
                     expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
                     routes = _default_expert_routes(expert_mask, expert_hit)
                 # Inside a two-read checkpoint recompute no expert is read.
@@ -1100,14 +1132,16 @@ def _build_streamed_experts_class() -> Any:
                     ):
                         raise ValueError("routing contains an expert outside the reader")
 
-                    expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
-                    expert_mask = expert_mask.permute(2, 1, 0)
                     if self.grouped_expert_routes:
-                        routes = list(_grouped_expert_routes(expert_mask))
+                        routes = list(
+                            _grouped_expert_routes_from_indices(top_k_index, self.num_experts)
+                        )
                     else:
+                        expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
+                        expert_mask = expert_mask.permute(2, 1, 0)
                         expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
                         routes = list(_default_expert_routes(expert_mask, expert_hit))
-                    del expert_mask
+                        del expert_mask
 
                     grad_hidden = torch.zeros_like(hidden_states) if need_hidden else None
                     grad_weights = torch.zeros_like(top_k_weights) if need_weights else None
