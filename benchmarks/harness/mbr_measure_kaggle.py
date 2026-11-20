@@ -47,8 +47,13 @@ def main() -> int:
     root = Path(roots[0]).parent.parent
     for sub in ("src", "benchmarks/harness", "."):
         sys.path.insert(0, str(root / sub))
+    import hashlib
+
     import b13_moe_fixture as fixture
     import oc_arm_run
+    for name in ("mbr_measure.py", "mbr_measure_kaggle.py"):
+        digest = hashlib.sha256((root / "benchmarks/harness" / name).read_bytes()).hexdigest()
+        print("source", name, digest[:12], flush=True)
     from transformers import AutoTokenizer
 
     vocab = len(AutoTokenizer.from_pretrained("gpt2"))
