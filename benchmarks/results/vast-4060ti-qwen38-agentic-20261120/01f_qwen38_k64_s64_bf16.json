@@ -1,0 +1,82 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "qwen38_27b",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "native",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": false,
+  "cuda_nf4_decode": false,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 64,
+  "seq_len": 64,
+  "group_size": 64,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "unified_go",
+      "activation_codec": "bf16",
+      "fp8_group_size": null,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 2684354560,
+      "store_host_mib": 2560.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        79.2872
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 64,
+      "seq_len": 64,
+      "tokens": 4096,
+      "wall_s": 79.288,
+      "tokens_per_s": 51.6598,
+      "cuda_allocated_peak_gib": 3.1897,
+      "cuda_reserved_peak_gib": 3.2441,
+      "nvml_peak_gib": 3.8525,
+      "nvml_poll_samples": 3922,
+      "nvml_used_gib": 1.89739990234375,
+      "rss_peak_gib": 14.6906,
+      "rss_gib": 14.7716,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 0,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 0,
+      "window_dequant_stats": {
+        "dequant_calls": 256,
+        "cache_reuses": 16128,
+        "custom_4bit_calls": 47104
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 2542796800,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "665044836eb11bb602ec4b03ed9c694a5ae255de0ead9efff4a935a0dcdc6e14",
+      "gradients_sha256": "badc5a9d05d57054374a461520325bee2828e220e8369cd476503eef6680807e",
+      "adapter_sha256": "072d57f362996e6f26f4b34e58036c9e440ab848b6903bc28a4ac600c5dd14bb",
+      "vs_first_arm": {
+        "reference": true
+      },
+      "run_index": 0,
+      "status": "ok"
+    }
+  ]
+}

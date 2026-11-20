@@ -82,6 +82,7 @@ def fp8_activation_allocation(
     pin: bool,
     compute_dtype: str = "bfloat16",
     device_type: str = "cuda",
+    group_size: int | None = None,
 ) -> FP8ActivationAllocation:
     """Pure allocation contract used unchanged by the planner and the store."""
     from soup_cli.utils.layer_stream_runtime import _next_power_of_two
@@ -94,21 +95,31 @@ def fp8_activation_allocation(
         raise ValueError("FP8 compute dtype must be bfloat16, float16, or float32")
     if device_type not in ("cpu", "cuda"):
         raise ValueError("FP8 activation storage supports cpu or cuda devices")
+    if group_size is not None and (type(group_size) is not int or group_size < 1):
+        raise ValueError("group_size must be a positive integer or None")
     shapes = _shapes(mb_shapes)
-    payload_requests = [math.prod(shape) for shape in shapes]
+    hidden = shapes[0][-1]
     rows = [activation_codec.rows_of(shape) for shape in shapes]
+    if group_size is None:
+        groups = 1
+        padded_hidden = hidden
+    else:
+        groups = (hidden + group_size - 1) // group_size
+        padded_hidden = groups * group_size
+    payload_requests = [count * padded_hidden for count in rows]
+    output_requests = [count * hidden for count in rows]
     payload_bytes = n_layers * sum(payload_requests)
-    scale_bytes = n_layers * sum(rows) * activation_codec.SCALE_BYTES
+    scale_bytes = n_layers * sum(rows) * groups * activation_codec.SCALE_BYTES
     allocated = payload_bytes + scale_bytes
     if pin:
         allocated = n_layers * sum(_next_power_of_two(size) for size in payload_requests)
         allocated += _next_power_of_two(scale_bytes)
     pinned_overhead = allocated - payload_bytes - scale_bytes
     tile_rows = min(max(rows), _CODEC_TILE_ROWS)
-    tile_elements = tile_rows * shapes[0][-1]
-    output_bytes = max(payload_requests) * _COMPUTE_BYTES[compute_dtype]
-    codec_scratch = 8 * 4 * tile_elements + 8 * 4 * tile_rows + output_bytes + 1
-    host_scratch = codec_scratch if device_type == "cpu" else tile_rows + 1
+    tile_elements = tile_rows * padded_hidden
+    output_bytes = max(output_requests) * _COMPUTE_BYTES[compute_dtype]
+    codec_scratch = 8 * 4 * tile_elements + 8 * 4 * tile_rows * groups + output_bytes + 1
+    host_scratch = codec_scratch if device_type == "cpu" else tile_rows * groups + 1
     return FP8ActivationAllocation(
         host_bytes=allocated + host_scratch,
         payload_bytes=payload_bytes,
@@ -146,6 +157,7 @@ class FP8ActivationStore:
         mb_shapes: Sequence[tuple[int, ...]] | None = None,
         spill_layers: int = 0,
         ring: int = 1,
+        group_size: int | None = None,
     ) -> None:
         import torch
 
@@ -157,6 +169,8 @@ class FP8ActivationStore:
             raise ValueError(
                 "compressed FP8 activation spill is not supported; spill_layers must be 0"
             )
+        if group_size is not None and (type(group_size) is not int or group_size < 1):
+            raise ValueError("group_size must be a positive integer or None")
         shape = _shape(chunk_shape)
         shapes = _shapes([shape] * k if mb_shapes is None else mb_shapes)
         if len(shapes) != k:
@@ -173,20 +187,26 @@ class FP8ActivationStore:
         self.dtype = dtype
         self.device = torch.device(device)
         self.is_cuda = self.device.type == "cuda"
+        self.group_size = group_size
         self.allocation = fp8_activation_allocation(
             n_layers=n_layers, mb_shapes=shapes, pin=pin,
             compute_dtype=dtype_names[dtype], device_type=self.device.type,
+            group_size=group_size,
         )
         self.n_layers = n_layers
         self.k = k
         self.shape = shape
         self.mb_shapes = shapes
         self.hidden = shape[-1]
+        self.groups = 1 if group_size is None else (self.hidden + group_size - 1) // group_size
+        self.padded_hidden = self.hidden if group_size is None else self.groups * group_size
         self.capacity = math.prod(shape)
         self.spill_layers = 0
         self.spill_path = None
-        self.payload_chunk_bytes = self.capacity
-        self.scale_chunk_bytes = activation_codec.rows_of(shape) * activation_codec.SCALE_BYTES
+        self.payload_chunk_bytes = activation_codec.rows_of(shape) * self.padded_hidden
+        self.scale_chunk_bytes = (
+            activation_codec.rows_of(shape) * self.groups * activation_codec.SCALE_BYTES
+        )
         self.chunk_bytes = self.payload_chunk_bytes + self.scale_chunk_bytes
         self._pin = pin
         self._closed = False
@@ -213,12 +233,18 @@ class FP8ActivationStore:
         try:
             for layer in range(n_layers):
                 for mb, capacity_shape in enumerate(shapes):
+                    cap_rows = activation_codec.rows_of(capacity_shape)
                     self._payload[(layer, mb)] = torch.empty(
-                        math.prod(capacity_shape), dtype=torch.float8_e4m3fn,
+                        cap_rows * self.padded_hidden, dtype=torch.float8_e4m3fn,
                         device="cpu", pin_memory=pin,
                     )
+            scale_shape = (
+                (n_layers * self._rows_per_layer,)
+                if group_size is None
+                else (n_layers * self._rows_per_layer, self.groups)
+            )
             self._scales = torch.empty(
-                n_layers * self._rows_per_layer, dtype=torch.float32,
+                scale_shape, dtype=torch.float32,
                 device="cpu", pin_memory=pin,
             )
         except BaseException as error:
@@ -352,12 +378,15 @@ class FP8ActivationStore:
         tiles = None
         try:
             with torch.no_grad():
-                host_payload = self._payload[key].view(-1, self.hidden)
+                host_payload = self._payload[key].view(-1, self.padded_hidden)
                 host_scale = self._scale_view(key, rows)
                 tiles = self._row_tiles(tensor, rows)
                 for start, values in tiles:
                     payload, scale = activation_codec.encode(
-                        values, activation_codec.FP8, check_finite=False,
+                        values,
+                        activation_codec.FP8,
+                        check_finite=False,
+                        group_size=self.group_size,
                     )
                     count = values.shape[0]
                     host_payload[start : start + count].copy_(
@@ -397,7 +426,7 @@ class FP8ActivationStore:
             with torch.no_grad():
                 out = torch.empty(shape, dtype=self.dtype, device=self.device)
                 flat_out = out.view(rows, self.hidden)
-                host_payload = self._payload[key].view(-1, self.hidden)
+                host_payload = self._payload[key].view(-1, self.padded_hidden)
                 host_scale = self._scale_view(key, rows)
                 for start in range(0, rows, _CODEC_TILE_ROWS):
                     stop = min(rows, start + _CODEC_TILE_ROWS)
@@ -408,7 +437,12 @@ class FP8ActivationStore:
                         self.device, non_blocking=self.is_cuda and self._pin, copy=True,
                     )
                     restored = activation_codec.decode(
-                        payload, scale, activation_codec.FP8, self.dtype, self.hidden,
+                        payload,
+                        scale,
+                        activation_codec.FP8,
+                        self.dtype,
+                        self.hidden,
+                        group_size=self.group_size,
                     )
                     flat_out[start:stop].copy_(restored)
                     payload = scale = restored = None

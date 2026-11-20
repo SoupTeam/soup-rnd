@@ -1,0 +1,153 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "qwen38_27b",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "native",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": false,
+  "cuda_nf4_decode": false,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 1,
+  "seq_len": 64,
+  "group_size": 1,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "l2l_ref",
+      "activation_codec": "bf16",
+      "fp8_group_size": null,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 41943040,
+      "store_host_mib": 40.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        34.7573
+      ],
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 1,
+      "seq_len": 64,
+      "tokens": 64,
+      "wall_s": 34.7577,
+      "tokens_per_s": 1.8413,
+      "cuda_allocated_peak_gib": 3.2431,
+      "cuda_reserved_peak_gib": 3.3711,
+      "nvml_peak_gib": 4.2314,
+      "nvml_poll_samples": 1307,
+      "nvml_used_gib": 4.23138427734375,
+      "rss_peak_gib": 10.8914,
+      "rss_gib": 10.9427,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 0,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 0,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 2542796800,
+        "forward_body_allocated_bytes": 2542796800,
+        "backward_body_allocated_bytes": 2542796800,
+        "releases": 0,
+        "allocations": 0
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "38d36ccc6c2fbda0a63d55f801808d3d9a25d1b8dc60062b8fb7c6eaaa996173",
+      "gradients_sha256": "d6ff0e76be7371d463375b10d27309c8a561e987ec38675fd261470f652338cf",
+      "adapter_sha256": "a04b7c6fb4695666742813b89a02b2fc62b07d2080c12546eae5c4be072813ff",
+      "vs_first_arm": {
+        "reference": true
+      },
+      "run_index": 0,
+      "status": "ok"
+    },
+    {
+      "arm": "unified_go",
+      "activation_codec": "bf16",
+      "fp8_group_size": null,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 41943040,
+      "store_host_mib": 40.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        8.4285
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 1,
+      "seq_len": 64,
+      "tokens": 64,
+      "wall_s": 8.4287,
+      "tokens_per_s": 7.5931,
+      "cuda_allocated_peak_gib": 3.1511,
+      "cuda_reserved_peak_gib": 3.3711,
+      "nvml_peak_gib": 4.2314,
+      "nvml_poll_samples": 414,
+      "nvml_used_gib": 1.80950927734375,
+      "rss_peak_gib": 11.0394,
+      "rss_gib": 11.0726,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 0,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 0,
+      "window_dequant_stats": {
+        "dequant_calls": 256,
+        "cache_reuses": 0,
+        "custom_4bit_calls": 736
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 2542796800,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "38d36ccc6c2fbda0a63d55f801808d3d9a25d1b8dc60062b8fb7c6eaaa996173",
+      "gradients_sha256": "d6ff0e76be7371d463375b10d27309c8a561e987ec38675fd261470f652338cf",
+      "adapter_sha256": "a04b7c6fb4695666742813b89a02b2fc62b07d2080c12546eae5c4be072813ff",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "adapter": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        }
+      },
+      "run_index": 1,
+      "status": "ok"
+    }
+  ]
+}

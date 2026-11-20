@@ -1,0 +1,473 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "tiny",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "batch_invariant",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": true,
+  "cuda_nf4_decode": true,
+  "head_loss": "chunked",
+  "ce_chunk": 16,
+  "k": 4,
+  "seq_len": 32,
+  "group_size": 4,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "l2l_ref_fp8_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": 64,
+      "routing_oracle": true,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 52224,
+      "store_host_mib": 0.05,
+      "oracle_host_bytes": 4096,
+      "oracle_host_mib": 0.004,
+      "steps": 1,
+      "step_walls_s": [
+        0.2619
+      ],
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 4,
+      "seq_len": 32,
+      "tokens": 128,
+      "wall_s": 0.2621,
+      "tokens_per_s": 488.3468,
+      "cuda_allocated_peak_gib": 0.0632,
+      "cuda_reserved_peak_gib": 0.0801,
+      "nvml_peak_gib": 0.663,
+      "nvml_poll_samples": 13,
+      "nvml_used_gib": 0.66302490234375,
+      "rss_peak_gib": 1.7191,
+      "rss_gib": 1.7709,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 50,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 50,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 65536,
+        "backward_body_allocated_bytes": 65536,
+        "releases": 0,
+        "allocations": 0
+      },
+      "routing_oracle_stats": {
+        "complete": true,
+        "expected_pairs": 8,
+        "steps_completed": 1,
+        "step_counts": {
+          "native_forward": 8,
+          "oracle_peek": 0,
+          "oracle_recompute": 8,
+          "oracle_vjp": 8
+        },
+        "total_counts": {
+          "native_forward": 8,
+          "oracle_peek": 0,
+          "oracle_recompute": 8,
+          "oracle_vjp": 8
+        },
+        "id_dtype": "torch.int16",
+        "moe_layers": 2,
+        "owned_host_storage_bytes": 4096,
+        "host_reserved_bytes": 4096,
+        "pinned": true,
+        "closed": false,
+        "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward"
+      },
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "9ee44ce4e4913ac533dbcf2f52b0fa2ffce3fbb02bc55c994aac7e51e069049e",
+      "gradients_sha256": "bee59139e0d852ac8b77de058bceafd2114fffcc633d251d136c64c6435a169a",
+      "adapter_sha256": "b7b5a39e537b1610a62a235693f7cc181a8a3a58a99fecf74d85e597e7518d64",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": false,
+          "max_abs": 1.1920928955078125e-07,
+          "relative_l2": 6.038105979483702e-08,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.003792538307607174,
+          "relative_l2": 0.04316937785507964,
+          "min_cosine": 0.9978027783747474
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.00020000338554382324,
+          "relative_l2": 0.00036921145545271475,
+          "min_cosine": 0.9999998352375994
+        }
+      },
+      "run_index": 0,
+      "status": "ok"
+    },
+    {
+      "arm": "unified_go_fp8_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": 64,
+      "routing_oracle": true,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 52224,
+      "store_host_mib": 0.05,
+      "oracle_host_bytes": 4096,
+      "oracle_host_mib": 0.004,
+      "steps": 1,
+      "step_walls_s": [
+        0.1414
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 4,
+      "seq_len": 32,
+      "tokens": 128,
+      "wall_s": 0.1415,
+      "tokens_per_s": 904.7844,
+      "cuda_allocated_peak_gib": 0.0633,
+      "cuda_reserved_peak_gib": 0.0801,
+      "nvml_peak_gib": 0.663,
+      "nvml_poll_samples": 7,
+      "nvml_used_gib": 0.66302490234375,
+      "rss_peak_gib": 1.7767,
+      "rss_gib": 1.7767,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 14,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 14,
+      "window_dequant_stats": {
+        "dequant_calls": 28,
+        "cache_reuses": 108,
+        "custom_4bit_calls": 96
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": {
+        "complete": true,
+        "expected_pairs": 8,
+        "steps_completed": 1,
+        "step_counts": {
+          "native_forward": 8,
+          "oracle_peek": 8,
+          "oracle_recompute": 8,
+          "oracle_vjp": 8
+        },
+        "total_counts": {
+          "native_forward": 8,
+          "oracle_peek": 8,
+          "oracle_recompute": 8,
+          "oracle_vjp": 8
+        },
+        "id_dtype": "torch.int16",
+        "moe_layers": 2,
+        "owned_host_storage_bytes": 4096,
+        "host_reserved_bytes": 4096,
+        "pinned": true,
+        "closed": false,
+        "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward"
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 156,
+        "requested_range_bytes": 1175104,
+        "worker_read_ns": 16664738,
+        "worker_pack_ns": 80162,
+        "worker_admit_ns": 0,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 1718410,
+        "main_pinned_copy_ns": 18935,
+        "ring_immediate_ready": 25,
+        "cross_layer_prefetched": 7,
+        "cross_layer_promotions": 1,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 39,
+        "sampled_nf4_decodes": 7,
+        "sampled_nf4_decode_ms": 0.053183999843895435,
+        "sampled_h2d_pairs": 6,
+        "sampled_h2d_ms": 0.0845120009034872,
+        "sampled_h2d_overlap_fraction": 0.0
+      },
+      "cache_stats": {
+        "budget_bytes": 0,
+        "payload_bytes": 0,
+        "entries": 0,
+        "hits": 0,
+        "misses": 39,
+        "rejected": 0
+      },
+      "losses_sha256": "77b531e511841178def1f778d581e55335a93285f230b456bdf2bca30bfaf76b",
+      "gradients_sha256": "bee59139e0d852ac8b77de058bceafd2114fffcc633d251d136c64c6435a169a",
+      "adapter_sha256": "b7b5a39e537b1610a62a235693f7cc181a8a3a58a99fecf74d85e597e7518d64",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.003792538307607174,
+          "relative_l2": 0.04316937785507964,
+          "min_cosine": 0.9978027783747474
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.00020000338554382324,
+          "relative_l2": 0.00036921145545271475,
+          "min_cosine": 0.9999998352375994
+        }
+      },
+      "run_index": 1,
+      "status": "ok"
+    },
+    {
+      "arm": "unified_go_fp8_no_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": 64,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.026250120252370834,
+      "store_host_bytes": 52224,
+      "store_host_mib": 0.05,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        0.1475
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 4,
+      "seq_len": 32,
+      "tokens": 128,
+      "wall_s": 0.1476,
+      "tokens_per_s": 867.304,
+      "cuda_allocated_peak_gib": 0.0634,
+      "cuda_reserved_peak_gib": 0.0801,
+      "nvml_peak_gib": 0.663,
+      "nvml_poll_samples": 8,
+      "nvml_used_gib": 0.66302490234375,
+      "rss_peak_gib": 1.7777,
+      "rss_gib": 1.7777,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 14,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 14,
+      "window_dequant_stats": {
+        "dequant_calls": 28,
+        "cache_reuses": 108,
+        "custom_4bit_calls": 96
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 156,
+        "requested_range_bytes": 1175104,
+        "worker_read_ns": 17657425,
+        "worker_pack_ns": 139763,
+        "worker_admit_ns": 0,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 2336206,
+        "main_pinned_copy_ns": 21598,
+        "ring_immediate_ready": 25,
+        "cross_layer_prefetched": 7,
+        "cross_layer_promotions": 1,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 39,
+        "sampled_nf4_decodes": 7,
+        "sampled_nf4_decode_ms": 0.0462720007635653,
+        "sampled_h2d_pairs": 6,
+        "sampled_h2d_ms": 0.06809600070118904,
+        "sampled_h2d_overlap_fraction": 0.0
+      },
+      "cache_stats": {
+        "budget_bytes": 0,
+        "payload_bytes": 0,
+        "entries": 0,
+        "hits": 0,
+        "misses": 39,
+        "rejected": 0
+      },
+      "losses_sha256": "77b531e511841178def1f778d581e55335a93285f230b456bdf2bca30bfaf76b",
+      "gradients_sha256": "4109d2b8b1c722885e5a5273bb00f7431e30440c732072ebcadb95e528e79dbc",
+      "adapter_sha256": "f2a4d5fc4a998a6b900acbf8478f2df745b7a6ee42d3a163412cd179baad00ac",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.009792856872081757,
+          "relative_l2": 0.0834281994584598,
+          "min_cosine": 0.9959496002231435
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.00020000338554382324,
+          "relative_l2": 0.00046288490505277263,
+          "min_cosine": 0.9999997319528825
+        }
+      },
+      "run_index": 2,
+      "status": "ok"
+    },
+    {
+      "arm": "unified_go_fp8_perrow_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": null,
+      "routing_oracle": true,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 50688,
+      "store_host_mib": 0.048,
+      "oracle_host_bytes": 4096,
+      "oracle_host_mib": 0.004,
+      "steps": 1,
+      "step_walls_s": [
+        0.1386
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 4,
+      "seq_len": 32,
+      "tokens": 128,
+      "wall_s": 0.1387,
+      "tokens_per_s": 923.0803,
+      "cuda_allocated_peak_gib": 0.0636,
+      "cuda_reserved_peak_gib": 0.0801,
+      "nvml_peak_gib": 0.663,
+      "nvml_poll_samples": 7,
+      "nvml_used_gib": 0.66302490234375,
+      "rss_peak_gib": 1.7781,
+      "rss_gib": 1.7781,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 14,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 14,
+      "window_dequant_stats": {
+        "dequant_calls": 28,
+        "cache_reuses": 108,
+        "custom_4bit_calls": 96
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": {
+        "complete": true,
+        "expected_pairs": 8,
+        "steps_completed": 1,
+        "step_counts": {
+          "native_forward": 8,
+          "oracle_peek": 8,
+          "oracle_recompute": 8,
+          "oracle_vjp": 8
+        },
+        "total_counts": {
+          "native_forward": 8,
+          "oracle_peek": 8,
+          "oracle_recompute": 8,
+          "oracle_vjp": 8
+        },
+        "id_dtype": "torch.int16",
+        "moe_layers": 2,
+        "owned_host_storage_bytes": 4096,
+        "host_reserved_bytes": 4096,
+        "pinned": true,
+        "closed": false,
+        "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward"
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 156,
+        "requested_range_bytes": 1175104,
+        "worker_read_ns": 16126127,
+        "worker_pack_ns": 76925,
+        "worker_admit_ns": 0,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 1824258,
+        "main_pinned_copy_ns": 23519,
+        "ring_immediate_ready": 25,
+        "cross_layer_prefetched": 7,
+        "cross_layer_promotions": 1,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 39,
+        "sampled_nf4_decodes": 7,
+        "sampled_nf4_decode_ms": 0.04748799977824092,
+        "sampled_h2d_pairs": 6,
+        "sampled_h2d_ms": 0.08214399963617325,
+        "sampled_h2d_overlap_fraction": 0.0
+      },
+      "cache_stats": {
+        "budget_bytes": 0,
+        "payload_bytes": 0,
+        "entries": 0,
+        "hits": 0,
+        "misses": 39,
+        "rejected": 0
+      },
+      "losses_sha256": "77b531e511841178def1f778d581e55335a93285f230b456bdf2bca30bfaf76b",
+      "gradients_sha256": "f035c770cc1a5652f2887ed0900d1153163532c52d8c21861528388c4207dd90",
+      "adapter_sha256": "6addc5a29c73a4a63b8d661259203cd92408222512c951ef0e48b5005d3c2994",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.004981249570846558,
+          "relative_l2": 0.04407446366742711,
+          "min_cosine": 0.9980024092178621
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.00020000338554382324,
+          "relative_l2": 0.0003824233050979467,
+          "min_cosine": 0.9999998035978497
+        }
+      },
+      "run_index": 3,
+      "status": "ok"
+    }
+  ]
+}

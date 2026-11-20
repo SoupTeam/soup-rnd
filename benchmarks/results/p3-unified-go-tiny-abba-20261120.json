@@ -1,0 +1,267 @@
+{
+  "git_sha": "25336300ef279a9080f0d451acfad60c8f206e58",
+  "python": "3.10.0",
+  "torch": "2.13.0+cpu",
+  "device": "cpu",
+  "case": "tiny",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "native",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": true,
+  "cuda_nf4_decode": false,
+  "head_loss": "chunked",
+  "ce_chunk": 8,
+  "k": 8,
+  "seq_len": 32,
+  "group_size": 8,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "std_mbr",
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 8,
+      "seq_len": 32,
+      "tokens": 256,
+      "wall_s": 0.4515,
+      "tokens_per_s": 566.9624,
+      "cuda_allocated_peak_gib": 0.0,
+      "cuda_reserved_peak_gib": 0.0,
+      "nvml_used_gib": null,
+      "rss_gib": 0.5,
+      "saved_storage_peak_bytes": 2384242,
+      "saved_storage_peak_mib": 2.274,
+      "expert_fetches_forward": 15,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 15,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 65536,
+        "backward_body_allocated_bytes": 65536,
+        "releases": 0,
+        "allocations": 0
+      },
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "756997f0f1f686fe483c8c048ae658563babb1e5df6039c75e13d9f104625f48",
+      "gradients_sha256": "08c63bab5ec76976559072abd54acfe77794a15cb16e015ccfe206edd02f91ec",
+      "adapter_sha256": "9e339e50e8085a20e36b32240f282b95ec5a1084ff5674b60a0fcd73554f4126",
+      "vs_first_arm": {
+        "reference": true
+      },
+      "run_index": 0
+    },
+    {
+      "arm": "unified_go",
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 8,
+      "seq_len": 32,
+      "tokens": 256,
+      "wall_s": 0.4212,
+      "tokens_per_s": 607.7273,
+      "cuda_allocated_peak_gib": 0.0,
+      "cuda_reserved_peak_gib": 0.0,
+      "nvml_used_gib": null,
+      "rss_gib": 0.503,
+      "saved_storage_peak_bytes": 484800,
+      "saved_storage_peak_mib": 0.462,
+      "expert_fetches_forward": 15,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 15,
+      "window_dequant_stats": {
+        "dequant_calls": 48,
+        "cache_reuses": 416,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 164,
+        "requested_range_bytes": 1232448,
+        "worker_read_ns": 5161100,
+        "worker_pack_ns": 66500,
+        "worker_admit_ns": 0,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 238900,
+        "main_pinned_copy_ns": 44500,
+        "ring_immediate_ready": 27,
+        "cross_layer_prefetched": 8,
+        "cross_layer_promotions": 1,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 0
+      },
+      "cache_stats": {
+        "budget_bytes": 0,
+        "payload_bytes": 0,
+        "entries": 0,
+        "hits": 0,
+        "misses": 41,
+        "rejected": 0
+      },
+      "losses_sha256": "a8a9c670ddd209935f051d6ef79366bb92ed33cc745faec3bf0ac7401f624b72",
+      "gradients_sha256": "677b0a58717476dcb3cd5bb5e1959a37904b7214135e296ad0f3bbec1eef2fea",
+      "adapter_sha256": "68ee64d1b763daf678c0b3ca5abbdee572f4e6d3bd435bd4d92b2823aa410e08",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": false,
+          "max_abs": 1.1920928955078125e-07,
+          "relative_l2": 7.397407141232987e-08
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 7.450580596923828e-09,
+          "relative_l2": 4.662404730589745e-08
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 1.4901161193847656e-08,
+          "relative_l2": 3.5390882329806322e-09
+        }
+      },
+      "run_index": 1
+    },
+    {
+      "arm": "unified_go",
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 8,
+      "seq_len": 32,
+      "tokens": 256,
+      "wall_s": 0.4068,
+      "tokens_per_s": 629.2978,
+      "cuda_allocated_peak_gib": 0.0,
+      "cuda_reserved_peak_gib": 0.0,
+      "nvml_used_gib": null,
+      "rss_gib": 0.5032,
+      "saved_storage_peak_bytes": 479680,
+      "saved_storage_peak_mib": 0.457,
+      "expert_fetches_forward": 15,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 15,
+      "window_dequant_stats": {
+        "dequant_calls": 48,
+        "cache_reuses": 416,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 164,
+        "requested_range_bytes": 1232448,
+        "worker_read_ns": 5875300,
+        "worker_pack_ns": 55800,
+        "worker_admit_ns": 0,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 277300,
+        "main_pinned_copy_ns": 58300,
+        "ring_immediate_ready": 27,
+        "cross_layer_prefetched": 8,
+        "cross_layer_promotions": 1,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 0
+      },
+      "cache_stats": {
+        "budget_bytes": 0,
+        "payload_bytes": 0,
+        "entries": 0,
+        "hits": 0,
+        "misses": 41,
+        "rejected": 0
+      },
+      "losses_sha256": "a8a9c670ddd209935f051d6ef79366bb92ed33cc745faec3bf0ac7401f624b72",
+      "gradients_sha256": "677b0a58717476dcb3cd5bb5e1959a37904b7214135e296ad0f3bbec1eef2fea",
+      "adapter_sha256": "68ee64d1b763daf678c0b3ca5abbdee572f4e6d3bd435bd4d92b2823aa410e08",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": false,
+          "max_abs": 1.1920928955078125e-07,
+          "relative_l2": 7.397407141232987e-08
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 7.450580596923828e-09,
+          "relative_l2": 4.662404730589745e-08
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 1.4901161193847656e-08,
+          "relative_l2": 3.5390882329806322e-09
+        }
+      },
+      "run_index": 2
+    },
+    {
+      "arm": "std_mbr",
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 8,
+      "seq_len": 32,
+      "tokens": 256,
+      "wall_s": 0.3722,
+      "tokens_per_s": 687.8072,
+      "cuda_allocated_peak_gib": 0.0,
+      "cuda_reserved_peak_gib": 0.0,
+      "nvml_used_gib": null,
+      "rss_gib": 0.506,
+      "saved_storage_peak_bytes": 2382194,
+      "saved_storage_peak_mib": 2.272,
+      "expert_fetches_forward": 15,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 15,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 65536,
+        "forward_body_allocated_bytes": 65536,
+        "backward_body_allocated_bytes": 65536,
+        "releases": 0,
+        "allocations": 0
+      },
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "756997f0f1f686fe483c8c048ae658563babb1e5df6039c75e13d9f104625f48",
+      "gradients_sha256": "08c63bab5ec76976559072abd54acfe77794a15cb16e015ccfe206edd02f91ec",
+      "adapter_sha256": "9e339e50e8085a20e36b32240f282b95ec5a1084ff5674b60a0fcd73554f4126",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "gradients": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "adapter": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      "run_index": 3
+    }
+  ]
+}

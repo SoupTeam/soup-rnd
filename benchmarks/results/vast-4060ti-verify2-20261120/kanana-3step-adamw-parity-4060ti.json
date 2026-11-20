@@ -1,0 +1,162 @@
+{
+  "git_sha": "30861b84",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda:0",
+  "case": "kanana",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "batch_invariant",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": true,
+  "cuda_nf4_decode": true,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 4,
+  "seq_len": 64,
+  "group_size": 4,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "l2l_ref",
+      "steps": 3,
+      "step_walls_s": [
+        42.1617,
+        43.0594,
+        41.6154
+      ],
+      "head_loss": "full",
+      "expert_loader": "python_sync",
+      "k": 4,
+      "seq_len": 64,
+      "tokens": 768,
+      "wall_s": 126.8375,
+      "tokens_per_s": 6.055,
+      "cuda_allocated_peak_gib": 0.7674,
+      "cuda_reserved_peak_gib": 0.8105,
+      "nvml_peak_gib": 1.3974,
+      "nvml_poll_samples": 6285,
+      "nvml_used_gib": 1.39739990234375,
+      "rss_gib": 7.4069,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 46058,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 46058,
+      "window_dequant_stats": null,
+      "large_pool_release_stats": {
+        "enabled": false,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 525336576,
+        "backward_body_allocated_bytes": 525336576,
+        "releases": 0,
+        "allocations": 0
+      },
+      "native_telemetry": null,
+      "cache_stats": null,
+      "losses_sha256": "8135170af3642c4d3165c78dd333817f18b46f1517f6cb3d0cd527fecc6dd932",
+      "gradients_sha256": "7d04d09e37e649d9169f401dca1da946aba12edaa43848c8a67e91db56e711f9",
+      "adapter_sha256": "26d1a7d8ba8ad651162b573c69ef436219bf1eb6448513d5870d7bc7fba55ca5",
+      "vs_first_arm": {
+        "reference": true
+      },
+      "run_index": 0,
+      "status": "ok"
+    },
+    {
+      "arm": "unified_go",
+      "steps": 3,
+      "step_walls_s": [
+        9.8347,
+        9.793,
+        9.475
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 4,
+      "seq_len": 64,
+      "tokens": 768,
+      "wall_s": 29.1036,
+      "tokens_per_s": 26.3885,
+      "cuda_allocated_peak_gib": 0.7807,
+      "cuda_reserved_peak_gib": 0.8203,
+      "nvml_peak_gib": 1.4072,
+      "nvml_poll_samples": 1444,
+      "nvml_used_gib": 0.89154052734375,
+      "rss_gib": 7.5151,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 15510,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 15510,
+      "window_dequant_stats": {
+        "dequant_calls": 474,
+        "cache_reuses": 1798,
+        "custom_4bit_calls": 1168
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 2
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 105972,
+        "requested_range_bytes": 70751657136,
+        "worker_read_ns": 35578633310,
+        "worker_pack_ns": 5962667180,
+        "worker_admit_ns": 321074838,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 1287826803,
+        "main_pinned_copy_ns": 3739863317,
+        "ring_immediate_ready": 27059,
+        "cross_layer_prefetched": 2294,
+        "cross_layer_promotions": 138,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 34841,
+        "sampled_nf4_decodes": 2028,
+        "sampled_nf4_decode_ms": 24.4723199326545,
+        "sampled_h2d_pairs": 2010,
+        "sampled_h2d_ms": 466.19961623847485,
+        "sampled_h2d_overlap_fraction": 0.0
+      },
+      "cache_stats": {
+        "budget_bytes": 3758096384,
+        "payload_bytes": 3755704320,
+        "entries": 1415,
+        "hits": 8348,
+        "misses": 26493,
+        "rejected": 25078
+      },
+      "losses_sha256": "8135170af3642c4d3165c78dd333817f18b46f1517f6cb3d0cd527fecc6dd932",
+      "gradients_sha256": "7d04d09e37e649d9169f401dca1da946aba12edaa43848c8a67e91db56e711f9",
+      "adapter_sha256": "26d1a7d8ba8ad651162b573c69ef436219bf1eb6448513d5870d7bc7fba55ca5",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "gradients": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        },
+        "adapter": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      "run_index": 1,
+      "status": "ok"
+    }
+  ]
+}

@@ -103,18 +103,52 @@ def tokens_at_budget(budget_bytes: int, *, n_layers: int, hidden: int, codec: st
     return int(budget_bytes) // (int(n_layers) * bytes_per_token_per_layer(hidden, codec))
 
 
-def encode(x: Any, codec: str, *, check_finite: bool = True) -> Tuple[Any, Optional[Any]]:
-    """Return device-local payload and float32 row absmax scales.
+def encode(
+    x: Any,
+    codec: str,
+    *,
+    check_finite: bool = True,
+    group_size: Optional[int] = None,
+) -> Tuple[Any, Optional[Any]]:
+    """Return device-local payload and float32 absmax scales.
 
     The identity returns ``x`` and None. A lossy codec rejects non-finite rows
     with a host synchronization unless its caller opts into a deferred check.
+    ``group_size`` (valid for ``fp8_e4m3`` only) computes one float32 absmax per
+    contiguous block of ``group_size`` channels, zero-padding any tail block.
     """
     import torch
 
     spec = codec_of(codec)
+    if group_size is not None:
+        if spec.name != FP8:
+            raise ValueError(f"group_size is only supported for {FP8!r}, got {codec!r}")
+        if type(group_size) is not int or group_size < 1:
+            raise ValueError("group_size must be a positive integer or None")
     if spec.identity:
         return x, None
     with torch.no_grad():
+        if group_size is not None:
+            hidden = int(x.shape[-1])
+            groups = (hidden + group_size - 1) // group_size
+            padded = groups * group_size
+            prefix = tuple(int(dim) for dim in x.shape[:-1])
+            if padded == hidden:
+                staged = x.to(dtype=torch.float32, copy=True)
+            else:
+                staged = torch.zeros(prefix + (padded,), dtype=torch.float32, device=x.device)
+                staged[..., :hidden].copy_(x)
+            grouped = staged.view(*prefix, groups, group_size)
+            absmax = grouped.abs().amax(dim=-1)
+            if check_finite and not bool(torch.isfinite(absmax).all()):
+                bad = int((~torch.isfinite(absmax)).sum())
+                raise NonFiniteActivationError(
+                    f"{codec}: {bad} of {absmax.numel()} blocks hold a NaN or an Inf; a block "
+                    "absmax codec cannot encode them"
+                )
+            safe = torch.where(absmax > 0, absmax, torch.ones_like(absmax))
+            grouped.div_(safe.unsqueeze(-1)).mul_(spec.levels).clamp_(-spec.levels, spec.levels)
+            return staged.to(torch.float8_e4m3fn), absmax
         values = x.float()
         absmax = values.abs().amax(dim=-1, keepdim=True)
         if check_finite and not bool(torch.isfinite(absmax).all()):
@@ -137,14 +171,34 @@ def encode(x: Any, codec: str, *, check_finite: bool = True) -> Tuple[Any, Optio
         return payload, absmax.squeeze(-1)
 
 
-def decode(payload: Any, scale: Optional[Any], codec: str, dtype: Any, hidden: int) -> Any:
-    """Restore in ``dtype`` on the payload device, retaining G4's operation order."""
+def decode(
+    payload: Any,
+    scale: Optional[Any],
+    codec: str,
+    dtype: Any,
+    hidden: int,
+    *,
+    group_size: Optional[int] = None,
+) -> Any:
+    """Restore in ``dtype`` on the payload device, retaining G4/block64 operation order."""
     import torch
 
     spec = codec_of(codec)
+    if group_size is not None:
+        if spec.name != FP8:
+            raise ValueError(f"group_size is only supported for {FP8!r}, got {codec!r}")
+        if type(group_size) is not int or group_size < 1:
+            raise ValueError("group_size must be a positive integer or None")
     if spec.identity:
         return payload
     with torch.no_grad():
+        if group_size is not None:
+            groups = (int(hidden) + group_size - 1) // group_size
+            prefix = tuple(int(dim) for dim in payload.shape[:-1])
+            values = payload.float().view(*prefix, groups, group_size)
+            values.div_(spec.levels).mul_(scale.unsqueeze(-1))
+            logical = values.view(*prefix, groups * group_size)[..., :hidden]
+            return logical.to(dtype)
         if spec.packed:
             levels = _unpack_nibbles(payload, hidden)
         else:

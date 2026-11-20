@@ -1,0 +1,127 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "kanana",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "batch_invariant",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": true,
+  "cuda_nf4_decode": true,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 64,
+  "seq_len": 64,
+  "group_size": 64,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "unified_go_fp8_no_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": 64,
+      "routing_oracle": false,
+      "max_gate_weight_rel_l2": 0.011118615977466106,
+      "store_host_bytes": 427819008,
+      "store_host_mib": 408.0,
+      "oracle_host_bytes": 0,
+      "oracle_host_mib": 0.0,
+      "steps": 1,
+      "step_walls_s": [
+        38.045
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 64,
+      "seq_len": 64,
+      "tokens": 4096,
+      "wall_s": 38.0458,
+      "tokens_per_s": 107.6596,
+      "cuda_allocated_peak_gib": 0.8225,
+      "cuda_reserved_peak_gib": 0.8828,
+      "nvml_peak_gib": 1.4677,
+      "nvml_poll_samples": 1883,
+      "nvml_used_gib": 1.16107177734375,
+      "rss_peak_gib": 7.8233,
+      "rss_gib": 7.8818,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 5945,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 5945,
+      "window_dequant_stats": {
+        "dequant_calls": 474,
+        "cache_reuses": 35878,
+        "custom_4bit_calls": 18688
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": null,
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 51524,
+        "requested_range_bytes": 34399720752,
+        "worker_read_ns": 18960489307,
+        "worker_pack_ns": 2885727399,
+        "worker_admit_ns": 996383914,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 946309547,
+        "main_pinned_copy_ns": 1431354247,
+        "ring_immediate_ready": 10314,
+        "cross_layer_prefetched": 703,
+        "cross_layer_promotions": 46,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 15711,
+        "sampled_nf4_decodes": 760,
+        "sampled_nf4_decode_ms": 12.641408029012382,
+        "sampled_h2d_pairs": 754,
+        "sampled_h2d_ms": 176.79920004308224,
+        "sampled_h2d_overlap_fraction": 0.0696061363409804
+      },
+      "cache_stats": {
+        "budget_bytes": 3758096384,
+        "payload_bytes": 3755704320,
+        "entries": 1415,
+        "hits": 2830,
+        "misses": 12881,
+        "rejected": 11466
+      },
+      "losses_sha256": "30c6a6bf7b80baa197f96b91abd364d05dd4f02c17df210166014ec6d74893f5",
+      "gradients_sha256": "34af909a7c748519c7c020419b47869b072f8d0984a0161f36554a2cf13aab64",
+      "adapter_sha256": "d73b5c58e35e912dec07ee492ae274ec6460f003e8db626de7475ac5c9294ee0",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.0006265067495405674,
+          "relative_l2": 0.021242875330897488,
+          "min_cosine": 0.9925470765608946
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.00019998475909233093,
+          "relative_l2": 0.0004934834955763715,
+          "min_cosine": 0.9999919684233
+        }
+      },
+      "run_index": 0,
+      "status": "ok"
+    }
+  ]
+}

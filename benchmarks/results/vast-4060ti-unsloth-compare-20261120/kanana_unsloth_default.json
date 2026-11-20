@@ -1,0 +1,23 @@
+{
+  "arm": "unsloth_default",
+  "case": "kanana",
+  "model_path": "/workspace/models/kanana",
+  "k": 16,
+  "seq_len": 256,
+  "lora_r": 16,
+  "torch_version": "2.14.1+cu130",
+  "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+  "gpu_total_gib": 7.651,
+  "status": "error",
+  "transformers_version": "5.17.0",
+  "unsloth_version": "2026.11.7",
+  "error_type": "ValueError",
+  "error_message": "Unsloth: /workspace/models/kanana does not fit in GPU memory (cuda:0 has 7.46 GB free), so transformers placed part of it on the CPU, which bitsandbytes cannot quantize. Pass `offload_layers = \"auto\"` to from_pretrained to keep the decoder layers the GPU cannot hold in host RAM and stream them in during training (slower, and it needs that much free system RAM), load a smaller model, or free GPU memory held by other programs.",
+  "traceback_tail": "    model, tokenizer = FastBaseModel.from_pretrained(\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth_zoo/temporary_patches/moe_grouped_modulelist.py\", line 1144, in wrapper\n    result = func(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth/models/loader_utils.py\", line 5357, in _wrapper\n    return finish(fn(*args, **kwargs))\n                  ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth/models/vision.py\", line 5184, in from_pretrained\n    raise_if_bnb_cpu_spill(\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth/models/loader_utils.py\", line 520, in raise_if_bnb_cpu_spill\n    raise ValueError(\nValueError: Unsloth: /workspace/models/kanana does not fit in GPU memory (cuda:0 has 7.46 GB free), so transformers placed part of it on the CPU, which bitsandbytes cannot quantize. Pass `offload_layers = \"auto\"` to from_pretrained to keep the decoder layers the GPU cannot hold in host RAM and stream them in during training (slower, and it needs that much free system RAM), load a smaller model, or free GPU memory held by other programs.\n",
+  "total_wall_s": 8.167,
+  "cuda_allocated_peak_gib": 0.0079,
+  "cuda_reserved_peak_gib": 0.0215,
+  "nvml_peak_gib": 0.5341,
+  "rss_peak_gib": 1.8833,
+  "poll_samples": 97
+}

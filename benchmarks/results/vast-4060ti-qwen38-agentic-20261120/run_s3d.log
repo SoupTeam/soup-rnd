@@ -1,0 +1,37 @@
+=== [Stage 3D] Kanana-2-30B-A3B Agentic Tool-Calling SFT (16 steps, lr=8e-4, head_lr=1e-2, Head LoRA, FP8 block64 + Oracle) ===
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files: 100%|██████████| 2/2 [00:00<00:00, 734.55it/s]
+Tokenized 416/416 unique tasks fitting S=256
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+===  Evaluating BEFORE SFT ===
+[transformers] Ignoring clean_up_tokenization_spaces=True for BPE tokenizer TokenizersBackend. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.
+BEFORE SFT: NLL=2.0836 PPL=8.03 TokAcc=77.60% | GenValidJSON=0.0% 
+ToolNameAcc=0.0% ArgKeyF1=0.0% ExactAction=0.0%
+===  Running 16 SFT steps (k=16, S=256, FP8 block64, oracle=True) ===
+  step 01/16: loss=2.0701 wall=12.99s tok/s=315.3
+  step 06/16: loss=0.8993 wall=12.83s tok/s=319.3
+  step 09/16: loss=0.0801 wall=12.83s tok/s=319.1
+  step 11/16: loss=0.0285 wall=12.93s tok/s=316.8
+  step 16/16: loss=0.0015 wall=13.04s tok/s=314.1
+===  Evaluating AFTER SFT ===
+AFTER SFT:  NLL=0.0014 PPL=1.00 TokAcc=100.00% | GenValidJSON=81.2% 
+ToolNameAcc=75.0% ArgKeyF1=81.2% ExactAction=62.5%
+Saved Agentic SFT & Eval results to 
+/workspace/res_qwen38_agentic/03d_kanana_30b_agentic_sft_16steps_headlr_eval.jso
+n
+=== ALL_DONE_STAGE_3D ===
+total 108K
+-rw-r--r-- 1 root root 4.4K Nov 20 09:08 01a_qwen38_k1_s64_base.json
+-rw-r--r-- 1 root root 4.5K Nov 20 09:08 01b_qwen38_k1_s512_base.json
+-rw-r--r-- 1 root root 2.2K Nov 20 09:09 01c_qwen38_k16_s64_l2l_ref.json
+-rw-r--r-- 1 root root 2.8K Nov 20 09:10 01d_qwen38_k16_s64_unified_bf16.json
+-rw-r--r-- 1 root root 2.9K Nov 20 09:11 01e_qwen38_k16_s64_unified_fp8.json
+-rw-r--r-- 1 root root 2.3K Nov 20 09:12 01f_qwen38_k64_s64_bf16.json
+-rw-r--r-- 1 root root 2.9K Nov 20 09:14 01g_qwen38_k64_s64_fp8.json
+-rw-r--r-- 1 root root 2.3K Nov 20 09:17 01h_qwen38_k64_s512_bf16.json
+-rw-r--r-- 1 root root 2.9K Nov 20 09:20 01i_qwen38_k64_s512_fp8.json
+-rw-r--r-- 1 root root 7.8K Nov 20 10:00 02_qwen38_27b_agentic_sft_eval.json
+-rw-r--r-- 1 root root 9.2K Nov 20 10:14 03_kanana_30b_agentic_sft_eval.json
+-rw-r--r-- 1 root root 9.4K Nov 20 10:24 03b_kanana_30b_agentic_sft_head_lora_eval.json
+-rw-r--r-- 1 root root 9.7K Nov 20 10:34 03c_kanana_30b_agentic_sft_30steps_eval.json
+-rw-r--r-- 1 root root 9.3K Nov 20 10:47 03d_kanana_30b_agentic_sft_16steps_headlr_eval.json
+-rw-r--r-- 1 root root 7.5K Nov 20 09:03 run.log

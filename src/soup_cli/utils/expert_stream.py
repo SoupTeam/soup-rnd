@@ -735,6 +735,38 @@ def _default_expert_routes(expert_mask: Any, expert_hit: Any) -> Iterator[Tuple[
         yield expert, top_k_pos, token_idx
 
 
+def _grouped_expert_routes_from_indices(
+    top_k_index: Any, num_experts: int
+) -> Iterator[Tuple[int, Any, Any]]:
+    """Build exact ``(expert, top_k_pos, token_idx)`` routes in O(N*top_k) memory.
+
+    Produces the exact same order as ``_grouped_expert_routes(one_hot(...).permute(2, 1, 0))``
+    (``expert ASC, top_k_pos ASC, token_idx ASC``) without materializing the 3-D
+    ``[N, top_k, num_experts]`` int64 one-hot mask and Thrust ``nonzero`` scratch buffers
+    (which cost ~1.2 GiB on Kanana and ~2.5 GiB on DeepSeek-V3 671B at k=64, S=512).
+    """
+    import torch
+
+    num_tokens, top_k = int(top_k_index.shape[0]), int(top_k_index.shape[1])
+    if num_tokens == 0 or top_k == 0:
+        return
+    flat_experts = top_k_index.transpose(0, 1).reshape(-1)
+    order = torch.argsort(flat_experts, stable=True)
+    counts = torch.bincount(flat_experts, minlength=num_experts).tolist()
+    top_k_pos_all = torch.div(order, num_tokens, rounding_mode="floor")
+    token_idx_all = order - top_k_pos_all * num_tokens
+    offset = 0
+    for expert, count in enumerate(counts):
+        if count == 0:
+            continue
+        yield (
+            expert,
+            top_k_pos_all.narrow(0, offset, count),
+            token_idx_all.narrow(0, offset, count),
+        )
+        offset += count
+
+
 def _grouped_expert_routes(expert_mask: Any) -> Iterator[Tuple[int, Any, Any]]:
     """Hit experts with their (top-k slot, token) rows from one nonzero and one count read.
 
@@ -944,6 +976,8 @@ def _build_streamed_experts_class() -> Any:
             self._forward_lock = threading.Lock()
             # MBR may need a real recompute output for a deferred decoder hook.
             self._mbr_materialize_recompute = False
+            # Optional AsyncExpertController (C++17 multi-worker NVMe + 2-slot async DMA).
+            self._expert_controller: Any = None
 
         def forward(self, hidden_states: Any, top_k_index: Any, top_k_weights: Any) -> Any:
             if not self._forward_lock.acquire(blocking=False):
@@ -964,11 +998,11 @@ def _build_streamed_experts_class() -> Any:
                 ):
                     raise ValueError("routing contains an expert outside the reader")
                 final_hidden_states = torch.zeros_like(hidden_states)
-                expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
-                expert_mask = expert_mask.permute(2, 1, 0)
                 if self.grouped_expert_routes:
-                    routes = _grouped_expert_routes(expert_mask)
+                    routes = _grouped_expert_routes_from_indices(top_k_index, self.num_experts)
                 else:
+                    expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
+                    expert_mask = expert_mask.permute(2, 1, 0)
                     expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
                     routes = _default_expert_routes(expert_mask, expert_hit)
                 # Inside a two-read checkpoint recompute no expert is read.
@@ -976,6 +1010,50 @@ def _build_streamed_experts_class() -> Any:
                 replay = (
                     scope is not None and scope.replay and not self._mbr_materialize_recompute
                 )
+                controller = self._expert_controller
+                if controller is not None and not replay and not differentiable:
+                    route_list = list(routes)
+                    if route_list:
+                        route_map = {
+                            expert: (top_k_pos, token_idx)
+                            for expert, top_k_pos, token_idx in route_list
+                        }
+                        expert_ids = [expert for expert, _, _ in route_list]
+                        for expert, gate_up, down in controller.iter_experts(
+                            self.reader,
+                            expert_ids,
+                            phase="init_forward",
+                            layer_idx=self.layer_idx,
+                        ):
+                            top_k_pos, token_idx = route_map[expert]
+                            row = {
+                                "layer": self.layer_idx,
+                                "expert": expert,
+                                "token_routes": token_idx.numel(),
+                                "logical_bytes_read": 0,
+                                "status": "loading",
+                            }
+                            self.last_trace.append(row)
+                            before = self.reader.bytes_read
+                            try:
+                                current_state = hidden_states[token_idx]
+                                weights = top_k_weights[token_idx, top_k_pos, None]
+                                current = self.scale(
+                                    expert_mlp(
+                                        current_state, gate_up, down, self.act_fn, self.linear
+                                    ),
+                                    weights,
+                                )
+                                row["status"] = "ok"
+                            except BaseException:
+                                row["status"] = "error"
+                                raise
+                            finally:
+                                row["logical_bytes_read"] = self.reader.bytes_read - before
+                            final_hidden_states.index_add_(
+                                0, token_idx, current.to(final_hidden_states.dtype)
+                            )
+                    return final_hidden_states
                 for expert, top_k_pos, token_idx in routes:
                     row = {
                         "layer": self.layer_idx, "expert": expert,
@@ -1007,6 +1085,179 @@ def _build_streamed_experts_class() -> Any:
                         0, token_idx, current.to(final_hidden_states.dtype)
                     )
                 return final_hidden_states
+            finally:
+                self._forward_lock.release()
+
+        def backward_from_inputs(
+            self,
+            hidden_states: Any,
+            top_k_index: Any,
+            top_k_weights: Any,
+            grad_output: Any,
+            *,
+            autocast_cfg: Mapping[str, Any],
+            need_hidden: bool = True,
+            need_weights: bool = True,
+        ) -> Tuple[Optional[Any], Optional[Any]]:
+            """Streaming per-expert backward directly from detached window leaves (M2+).
+
+            Eliminates the ``top_k``-fold gathered ``current_state`` copies saved across all
+            hit ``WeightedFrozenExpert`` nodes (e.g. 448 MiB at k=64 S=64 and 3.50 GiB at
+            k=64 S=512 on DeepSeek-V3 671B) and avoids materialising full-window ``h_sorted``,
+            ``dy_sorted`` or ``dh_chunks`` buffers. Visits hit experts in reverse order to
+            match autograd's reverse topological order bit-for-bit, using the exact same
+            ``self.linear`` and ``self.scale`` operators (native or PR #73 batch_invariant).
+            """
+            if grad_output.requires_grad:
+                raise RuntimeError("expert streaming does not support higher-order gradients")
+            if not (need_hidden or need_weights):
+                return None, None
+            if not self._forward_lock.acquire(blocking=False):
+                raise RuntimeError("expert forward is already active")
+            try:
+                with torch.no_grad():
+                    self.last_trace = []
+                    self.pool.validate_reader(self.reader)
+                    _validate_routing(hidden_states, top_k_index, top_k_weights, self.pool)
+                    _validate_training_activation(self.act_fn)
+                    if grad_output.shape != hidden_states.shape:
+                        raise ValueError(
+                            "expert backward grad_output shape must match hidden_states"
+                        )
+                    if top_k_index.shape[1] > self.num_experts:
+                        raise ValueError("routing top-k exceeds the expert count")
+                    if top_k_index.numel() and (
+                        top_k_index.min().item() < 0
+                        or top_k_index.max().item() >= self.num_experts
+                    ):
+                        raise ValueError("routing contains an expert outside the reader")
+
+                    if self.grouped_expert_routes:
+                        routes = list(
+                            _grouped_expert_routes_from_indices(top_k_index, self.num_experts)
+                        )
+                    else:
+                        expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
+                        expert_mask = expert_mask.permute(2, 1, 0)
+                        expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
+                        routes = list(_default_expert_routes(expert_mask, expert_hit))
+                        del expert_mask
+
+                    grad_hidden = torch.zeros_like(hidden_states) if need_hidden else None
+                    grad_weights = torch.zeros_like(top_k_weights) if need_weights else None
+                    device_type = hidden_states.device.type
+                    autocast_args = {
+                        "enabled": bool(autocast_cfg.get("enabled", False)),
+                        "dtype": autocast_cfg.get("dtype"),
+                        "cache_enabled": bool(autocast_cfg.get("cache_enabled", True)),
+                    }
+
+                    # Populate trace entries in ascending order (for unique_experts telemetry)
+                    # while executing backward leases in reverse order to match autograd.
+                    for expert, _top_k_pos, token_idx in routes:
+                        self.last_trace.append(
+                            {
+                                "layer": self.layer_idx,
+                                "expert": expert,
+                                "token_routes": token_idx.numel(),
+                                "logical_bytes_read": 0,
+                                "status": "replay",
+                            }
+                        )
+
+                    controller = self._expert_controller
+                    rev_routes = list(reversed(routes))
+                    if controller is not None and rev_routes:
+                        rev_map = {
+                            expert: (top_k_pos, token_idx)
+                            for expert, top_k_pos, token_idx in rev_routes
+                        }
+                        rev_ids = [expert for expert, _, _ in rev_routes]
+                        for expert, gate_up, down in controller.iter_experts(
+                            self.reader,
+                            rev_ids,
+                            phase="backward_dX",
+                            layer_idx=self.layer_idx,
+                        ):
+                            top_k_pos, token_idx = rev_map[expert]
+                            local_hidden = (
+                                hidden_states[token_idx].detach().requires_grad_(need_hidden)
+                            )
+                            local_weights = (
+                                top_k_weights[token_idx, top_k_pos, None]
+                                .detach()
+                                .requires_grad_(need_weights)
+                            )
+                            with torch.enable_grad(), torch.autocast(
+                                device_type, **autocast_args
+                            ):
+                                result = self.scale(
+                                    expert_mlp(
+                                        local_hidden, gate_up, down, self.act_fn, self.linear
+                                    ),
+                                    local_weights,
+                                )
+                            wanted = [
+                                tensor
+                                for tensor in (local_hidden, local_weights)
+                                if tensor.requires_grad
+                            ]
+                            upstream = grad_output[token_idx].to(result.dtype)
+                            grads = list(torch.autograd.grad(result, wanted, upstream))
+                            gh = grads.pop(0) if need_hidden else None
+                            gw = grads.pop(0) if need_weights else None
+                            if grad_hidden is not None and gh is not None:
+                                grad_hidden.index_add_(0, token_idx, gh.to(grad_hidden.dtype))
+                            if grad_weights is not None and gw is not None:
+                                grad_weights[token_idx, top_k_pos] = gw.squeeze(-1).to(
+                                    grad_weights.dtype
+                                )
+                            del local_hidden, local_weights, result, upstream, grads, gh, gw
+                        return grad_hidden, grad_weights
+
+                    prefetch_fn = getattr(self.pool, "prefetch", None)
+                    prefetch_on = bool(getattr(self.pool, "prefetch_enabled", False))
+                    for pos, (expert, top_k_pos, token_idx) in enumerate(rev_routes):
+                        if prefetch_on and callable(prefetch_fn) and pos + 1 < len(rev_routes):
+                            prefetch_fn(self.reader, rev_routes[pos + 1][0])
+                        local_hidden = (
+                            hidden_states[token_idx].detach().requires_grad_(need_hidden)
+                        )
+                        local_weights = (
+                            top_k_weights[token_idx, top_k_pos, None]
+                            .detach()
+                            .requires_grad_(need_weights)
+                        )
+                        with self.pool.lease(
+                            self.reader,
+                            expert,
+                            phase="backward_dX",
+                            layer_idx=self.layer_idx,
+                        ) as (gate_up, down):
+                            with torch.enable_grad(), torch.autocast(device_type, **autocast_args):
+                                result = self.scale(
+                                    expert_mlp(
+                                        local_hidden, gate_up, down, self.act_fn, self.linear
+                                    ),
+                                    local_weights,
+                                )
+                            wanted = [
+                                tensor
+                                for tensor in (local_hidden, local_weights)
+                                if tensor.requires_grad
+                            ]
+                            upstream = grad_output[token_idx].to(result.dtype)
+                            grads = list(torch.autograd.grad(result, wanted, upstream))
+                        gh = grads.pop(0) if need_hidden else None
+                        gw = grads.pop(0) if need_weights else None
+                        if grad_hidden is not None and gh is not None:
+                            grad_hidden.index_add_(0, token_idx, gh.to(grad_hidden.dtype))
+                        if grad_weights is not None and gw is not None:
+                            grad_weights[token_idx, top_k_pos] = gw.squeeze(-1).to(
+                                grad_weights.dtype
+                            )
+                        del local_hidden, local_weights, result, upstream, grads, gh, gw
+                    return grad_hidden, grad_weights
             finally:
                 self._forward_lock.release()
 

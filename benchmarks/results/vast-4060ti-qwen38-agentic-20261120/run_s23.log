@@ -1,0 +1,41 @@
+=== [Stage 2] Qwen/Qwen3.8-27B Agentic Tool-Calling SFT + Before/After Eval ===
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 786.70it/s]
+Tokenized 416/416 unique tasks fitting S=256
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+===  Evaluating BEFORE SFT ===
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+BEFORE SFT: NLL=0.3725 PPL=1.45 TokAcc=93.36% | GenValidJSON=50.0% 
+ToolNameAcc=50.0% ArgKeyF1=50.0% ExactAction=50.0%
+===  Running 16 SFT steps (k=16, S=256, FP8 block64, oracle=False) ===
+  step 01/16: loss=0.3724 wall=31.23s tok/s=131.2
+  step 06/16: loss=0.0039 wall=25.33s tok/s=161.7
+  step 09/16: loss=0.0005 wall=25.33s tok/s=161.7
+  step 11/16: loss=0.0002 wall=25.33s tok/s=161.7
+  step 16/16: loss=0.0000 wall=25.33s tok/s=161.7
+===  Evaluating AFTER SFT ===
+AFTER SFT:  NLL=0.0000 PPL=1.00 TokAcc=100.00% | GenValidJSON=100.0% 
+ToolNameAcc=100.0% ArgKeyF1=100.0% ExactAction=100.0%
+Saved Agentic SFT & Eval results to 
+/workspace/res_qwen38_agentic/02_qwen38_27b_agentic_sft_eval.json
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         170G  4.4G  166G   3% /
+=== [Stage 3] Kanana-2-30B-A3B Agentic Tool-Calling SFT + Before/After Eval (FP8 block64 + Oracle) ===
+Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]Fetching 15 files:  13%|█▎        | 2/15 [02:30<16:19, 75.31s/it]Fetching 15 files:  20%|██        | 3/15 [02:30<08:49, 44.08s/it]Fetching 15 files:  27%|██▋       | 4/15 [02:33<05:14, 28.63s/it]Fetching 15 files:  33%|███▎      | 5/15 [02:38<03:23, 20.31s/it]Fetching 15 files:  40%|████      | 6/15 [04:56<08:54, 59.41s/it]Fetching 15 files:  47%|████▋     | 7/15 [05:01<05:34, 41.85s/it]Fetching 15 files:  53%|█████▎    | 8/15 [05:04<03:27, 29.71s/it]Fetching 15 files:  60%|██████    | 9/15 [05:06<02:05, 20.95s/it]Fetching 15 files:  67%|██████▋   | 10/15 [07:32<04:56, 59.38s/it]Fetching 15 files:  73%|███████▎  | 11/15 [07:32<02:45, 41.32s/it]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 15 files:  80%|████████  | 12/15 [07:32<01:26, 28.82s/it]Fetching 15 files:  87%|████████▋ | 13/15 [07:32<00:40, 20.25s/it]Fetching 15 files:  93%|█████████▎| 14/15 [07:45<00:17, 17.88s/it]Fetching 15 files: 100%|██████████| 15/15 [07:52<00:00, 14.77s/it]Fetching 15 files: 100%|██████████| 15/15 [07:52<00:00, 31.52s/it]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Traceback (most recent call last):
+  File "/workspace/soup/benchmarks/harness/p3_agentic_sft_eval.py", line 1186, in <module>
+    main()
+  File "/workspace/soup/benchmarks/harness/p3_agentic_sft_eval.py", line 781, in main
+    weights, shards = _prepare_shards(
+                      ^^^^^^^^^^^^^^^^
+  File "/workspace/soup/benchmarks/harness/p3_unified_go_bench.py", line 421, in _prepare_shards
+    shard_checkpoint(
+  File "/workspace/soup/src/soup_cli/utils/layer_shard.py", line 1383, in shard_checkpoint
+    resolved_out = _validate_out_dir(out_dir)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup/src/soup_cli/utils/layer_shard.py", line 1002, in _validate_out_dir
+    raise ValueError(
+ValueError: shard output directory must be under $HOME, $CWD or $TMPDIR; got /workspace/kanana_work/shards

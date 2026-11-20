@@ -1,0 +1,152 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "kanana",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "batch_invariant",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": true,
+  "cuda_nf4_decode": true,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 8,
+  "seq_len": 512,
+  "group_size": 8,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "unified_go_fp8_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": 64,
+      "routing_oracle": true,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 427819008,
+      "store_host_mib": 408.0,
+      "oracle_host_bytes": 7700480,
+      "oracle_host_mib": 7.344,
+      "steps": 3,
+      "step_walls_s": [
+        13.1763,
+        12.9276,
+        13.0173
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 8,
+      "seq_len": 512,
+      "tokens": 12288,
+      "wall_s": 39.1223,
+      "tokens_per_s": 314.0921,
+      "cuda_allocated_peak_gib": 1.1044,
+      "cuda_reserved_peak_gib": 1.3223,
+      "nvml_peak_gib": 1.9091,
+      "nvml_poll_samples": 1934,
+      "nvml_used_gib": 1.23724365234375,
+      "rss_peak_gib": 7.8542,
+      "rss_gib": 7.8578,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 17583,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 17583,
+      "window_dequant_stats": {
+        "dequant_calls": 672,
+        "cache_reuses": 6208,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 2
+      },
+      "routing_oracle_stats": {
+        "complete": true,
+        "expected_pairs": 376,
+        "steps_completed": 3,
+        "step_counts": {
+          "native_forward": 376,
+          "oracle_peek": 376,
+          "oracle_recompute": 376,
+          "oracle_vjp": 376
+        },
+        "total_counts": {
+          "native_forward": 1128,
+          "oracle_peek": 1128,
+          "oracle_recompute": 1128,
+          "oracle_vjp": 1128
+        },
+        "id_dtype": "torch.int16",
+        "moe_layers": 47,
+        "owned_host_storage_bytes": 7700480,
+        "host_reserved_bytes": 7700480,
+        "pinned": true,
+        "closed": false,
+        "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward"
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 128108,
+        "requested_range_bytes": 85530608384,
+        "worker_read_ns": 44297869942,
+        "worker_pack_ns": 7065302749,
+        "worker_admit_ns": 1003943710,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 1531924443,
+        "main_pinned_copy_ns": 4182780680,
+        "ring_immediate_ready": 30353,
+        "cross_layer_prefetched": 4987,
+        "cross_layer_promotions": 138,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 40517,
+        "sampled_nf4_decodes": 2245,
+        "sampled_nf4_decode_ms": 37.653632113710046,
+        "sampled_h2d_pairs": 2227,
+        "sampled_h2d_ms": 520.002976283431,
+        "sampled_h2d_overlap_fraction": 0.07823830032214193
+      },
+      "cache_stats": {
+        "budget_bytes": 3758096384,
+        "payload_bytes": 3755704320,
+        "entries": 1415,
+        "hits": 8490,
+        "misses": 32027,
+        "rejected": 30612
+      },
+      "losses_sha256": "d83a99bfe1bb204c0776111b9519b26d9ed79a8a947578145a1945a3a4ef07d0",
+      "gradients_sha256": "586bbc0b7f7208af84d92d0dfe2ddd14ec15a4a4c650a411bbc4d4bc37e311d7",
+      "adapter_sha256": "6ff4aab5962fa9f3c9d0ede580d8593599b76b66781f0fd2a7e40738f7893917",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": false,
+          "max_abs": 0.0010379552841186523,
+          "relative_l2": 0.0002409832618979529,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.0014299959875643253,
+          "relative_l2": 0.03464620219530676,
+          "min_cosine": 0.9706579495862323
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.0006002448499202728,
+          "relative_l2": 0.0006700400823085354,
+          "min_cosine": 0.9999778905010577
+        }
+      },
+      "run_index": 0,
+      "status": "ok"
+    }
+  ]
+}

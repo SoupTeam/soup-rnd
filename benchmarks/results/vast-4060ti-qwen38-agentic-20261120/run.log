@@ -1,0 +1,174 @@
+=== [0] Hardware & Environment ===
+name, memory.total [MiB], driver_version
+NVIDIA GeForce RTX 4060 Ti, 8188 MiB, 610.57.04
+               total        used        free      shared  buff/cache   available
+Mem:            62Gi       1.5Gi       3.9Gi       0.0Ki        57Gi        60Gi
+Swap:          1.4Gi       305Mi       1.1Gi
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         170G   73G   98G  43% /
+=== [1] Check native extension & environment ===
+native_ext OK, GPU: NVIDIA GeForce RTX 4060 Ti
+=== [3] Stage 1: Qwen/Qwen3.8-27B (NF4 BF16) + Baseline k=1 ===
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=l2l_ref codec=bf16 oracle=False steps=1 wall=34.758s tok/s=1.84 
+store=40.0MiB oracle_mem=0.0MiB rss_pk=10.89GiB alloc=3.243GiB nvml_pk=4.2314GiB
+grad_rel=0.0000 min_cos=1.00000
+[1] arm=unified_go codec=bf16 oracle=False steps=1 wall=8.429s tok/s=7.59 
+store=40.0MiB oracle_mem=0.0MiB rss_pk=11.04GiB alloc=3.151GiB nvml_pk=4.2314GiB
+grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01a_qwen38_k1_s64_base.json
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         170G   25G  146G  15% /
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=l2l_ref codec=bf16 oracle=False steps=1 wall=14.310s tok/s=35.78 
+store=320.0MiB oracle_mem=0.0MiB rss_pk=11.20GiB alloc=4.375GiB 
+nvml_pk=5.6943GiB grad_rel=0.0000 min_cos=1.00000
+[1] arm=unified_go codec=bf16 oracle=False steps=1 wall=8.431s tok/s=60.73 
+store=320.0MiB oracle_mem=0.0MiB rss_pk=11.34GiB alloc=6.643GiB 
+nvml_pk=7.6357GiB grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01b_qwen38_k1_s512_base.json
+=== [4] Stage 1B: Qwen/Qwen3.8-27B k=16, S=64 (l2l_ref vs unified_go BF16 vs FP8 block64) ===
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=l2l_ref codec=bf16 oracle=False steps=1 wall=24.954s tok/s=41.03 
+store=640.0MiB oracle_mem=0.0MiB rss_pk=11.72GiB alloc=3.252GiB 
+nvml_pk=4.2353GiB grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01c_qwen38_k16_s64_l2l_ref.json
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=unified_go codec=bf16 oracle=False steps=1 wall=25.099s tok/s=40.80 
+store=640.0MiB oracle_mem=0.0MiB rss_pk=11.79GiB alloc=3.160GiB 
+nvml_pk=3.8154GiB grad_rel=0.0037 min_cos=0.99957
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01d_qwen38_k16_s64_unified_bf16.json
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=False steps=1 wall=25.272s 
+tok/s=40.52 store=340.0MiB oracle_mem=0.0MiB rss_pk=11.36GiB alloc=3.160GiB 
+nvml_pk=3.8134GiB grad_rel=0.0196 min_cos=0.99720
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01e_qwen38_k16_s64_unified_fp8.json
+=== [5] Stage 1C: Qwen/Qwen3.8-27B k=64, S=64 (4096 tok) & k=64, S=512 (32768 tok) BF16 vs FP8 block64 ===
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=unified_go codec=bf16 oracle=False steps=1 wall=79.288s tok/s=51.66 
+store=2560.0MiB oracle_mem=0.0MiB rss_pk=14.69GiB alloc=3.190GiB 
+nvml_pk=3.8525GiB grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01f_qwen38_k64_s64_bf16.json
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=False steps=1 wall=79.448s 
+tok/s=51.56 store=1360.0MiB oracle_mem=0.0MiB rss_pk=12.95GiB alloc=3.190GiB 
+nvml_pk=3.8486GiB grad_rel=0.0090 min_cos=0.99840
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01g_qwen38_k64_s64_fp8.json
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=unified_go codec=bf16 oracle=False steps=1 wall=164.112s tok/s=199.67 
+store=20480.0MiB oracle_mem=0.0MiB rss_pk=42.74GiB alloc=4.014GiB 
+nvml_pk=4.9775GiB grad_rel=0.0000 min_cos=1.00000
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01h_qwen38_k64_s512_bf16.json
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[0] arm=unified_go_fp8_oracle codec=fp8_e4m3 oracle=False steps=1 wall=164.060s 
+tok/s=199.73 store=10880.0MiB oracle_mem=0.0MiB rss_pk=27.86GiB alloc=4.014GiB 
+nvml_pk=4.9482GiB grad_rel=0.0058 min_cos=0.99783
+Saved unified A-B-B-A benchmark to 
+/workspace/res_qwen38_agentic/01i_qwen38_k64_s512_fp8.json
+=== [6] Stage 2: Qwen/Qwen3.8-27B Agentic Tool-Calling SFT + Before/After Eval ===
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 4 files:  25%|██▌       | 1/4 [00:00<00:00,  7.17it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.46it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.58it/s]
+Current Triton version 3.2.0 is below the recommended 3.3.0 version. Errors may occur and these issues will not be fixed. Please consider upgrading Triton.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+===  Evaluating BEFORE SFT ===
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+BEFORE SFT: NLL=4.4376 PPL=84.57 TokAcc=38.46% | GenValidJSON=31.2% 
+ToolNameAcc=31.2% ArgKeyF1=0.0% ExactAction=31.2%
+===  Running 16 SFT steps (k=16, S=256, FP8 block64, oracle=False) ===
+  step 01/16: loss=4.4376 wall=31.30s tok/s=130.9
+  step 06/16: loss=0.0032 wall=25.33s tok/s=161.7
+  step 09/16: loss=0.0002 wall=25.33s tok/s=161.7
+  step 11/16: loss=0.0003 wall=25.33s tok/s=161.7
+  step 16/16: loss=0.0000 wall=25.33s tok/s=161.7
+===  Evaluating AFTER SFT ===
+Traceback (most recent call last):
+  File "/workspace/soup/benchmarks/harness/p3_agentic_sft_eval.py", line 1206, in <module>
+    main()
+  File "/workspace/soup/benchmarks/harness/p3_agentic_sft_eval.py", line 1079, in main
+    after_gen = _evaluate_batched_generation(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup/benchmarks/harness/p3_agentic_sft_eval.py", line 693, in _evaluate_batched_generation
+    out = model(
+          ^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/peft/peft_model.py", line 2425, in forward
+    return self.base_model(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/peft/tuners/tuners_utils.py", line 370, in forward
+    return self.model(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/utils/generic.py", line 943, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1710, in forward
+    logits = self.lm_head(hidden_states)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup/src/soup_cli/utils/layer_stream_runtime.py", line 2757, in forward
+    return functional_call(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/_functorch/functional_call.py", line 148, in functional_call
+    return nn.utils.stateless._functional_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/utils/stateless.py", line 300, in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.30 GiB. GPU 0 has a total capacity of 7.65 GiB of which 1.05 GiB is free. Including non-PyTorch memory, this process has 6.57 GiB memory in use. Of the allocated memory 5.91 GiB is allocated by PyTorch, and 171.46 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

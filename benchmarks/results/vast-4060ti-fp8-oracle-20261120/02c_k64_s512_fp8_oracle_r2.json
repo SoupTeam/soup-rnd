@@ -1,0 +1,150 @@
+{
+  "git_sha": "unknown",
+  "pytorch_cuda_alloc_conf": "expandable_segments:True",
+  "python": "3.11.11",
+  "torch": "2.6.0+cu124",
+  "device": "cuda",
+  "case": "kanana",
+  "dtype": "bfloat16",
+  "storage": "nf4",
+  "expert_gemm": "batch_invariant",
+  "expert_loader": "cpp_async_2slot",
+  "io_workers": 4,
+  "ring_slots": 8,
+  "cross_layer_prefetch": true,
+  "cuda_nf4_decode": true,
+  "head_loss": "chunked",
+  "ce_chunk": 256,
+  "k": 64,
+  "seq_len": 512,
+  "group_size": 64,
+  "subwindow": 1,
+  "runs": [
+    {
+      "arm": "unified_go_fp8_oracle",
+      "activation_codec": "fp8_e4m3",
+      "fp8_group_size": 64,
+      "routing_oracle": true,
+      "max_gate_weight_rel_l2": 0.0,
+      "store_host_bytes": 3422552064,
+      "store_host_mib": 3264.0,
+      "oracle_host_bytes": 61603840,
+      "oracle_host_mib": 58.75,
+      "steps": 1,
+      "step_walls_s": [
+        52.0063
+      ],
+      "head_loss": "chunked",
+      "expert_loader": "cpp_async_2slot",
+      "k": 64,
+      "seq_len": 512,
+      "tokens": 32768,
+      "wall_s": 52.0071,
+      "tokens_per_s": 630.0673,
+      "cuda_allocated_peak_gib": 2.5048,
+      "cuda_reserved_peak_gib": 2.9746,
+      "nvml_peak_gib": 3.5673,
+      "nvml_poll_samples": 2573,
+      "nvml_used_gib": 3.56732177734375,
+      "rss_peak_gib": 10.8834,
+      "rss_gib": 10.8843,
+      "saved_storage_peak_bytes": null,
+      "saved_storage_peak_mib": null,
+      "expert_fetches_forward": 5994,
+      "expert_fetches_recompute": 0,
+      "expert_fetches_backward": 5994,
+      "window_dequant_stats": {
+        "dequant_calls": 672,
+        "cache_reuses": 54368,
+        "custom_4bit_calls": 0
+      },
+      "large_pool_release_stats": {
+        "enabled": true,
+        "slot_nbytes": 525336576,
+        "forward_body_allocated_bytes": 0,
+        "backward_body_allocated_bytes": 0,
+        "releases": 2,
+        "allocations": 1
+      },
+      "routing_oracle_stats": {
+        "complete": true,
+        "expected_pairs": 3008,
+        "steps_completed": 1,
+        "step_counts": {
+          "native_forward": 3008,
+          "oracle_peek": 3008,
+          "oracle_recompute": 3008,
+          "oracle_vjp": 3008
+        },
+        "total_counts": {
+          "native_forward": 3008,
+          "oracle_peek": 3008,
+          "oracle_recompute": 3008,
+          "oracle_vjp": 3008
+        },
+        "id_dtype": "torch.int16",
+        "moe_layers": 47,
+        "owned_host_storage_bytes": 61603840,
+        "host_reserved_bytes": 61603840,
+        "pinned": true,
+        "closed": false,
+        "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward"
+      },
+      "native_telemetry": {
+        "io_workers": 4,
+        "ring_slots": 8,
+        "range_reads": 58036,
+        "requested_range_bytes": 38747413248,
+        "worker_read_ns": 18478415154,
+        "worker_pack_ns": 3210673000,
+        "worker_admit_ns": 1013609825,
+        "sync_hit_copy_ns": 0,
+        "main_wait_worker_ns": 487378770,
+        "main_pinned_copy_ns": 1467459717,
+        "ring_immediate_ready": 11695,
+        "cross_layer_prefetched": 1663,
+        "cross_layer_promotions": 46,
+        "cross_layer_discards": 0,
+        "cuda_nf4_launches": 17339,
+        "sampled_nf4_decodes": 763,
+        "sampled_nf4_decode_ms": 21.67465613503009,
+        "sampled_h2d_pairs": 757,
+        "sampled_h2d_ms": 174.84105601906776,
+        "sampled_h2d_overlap_fraction": 0.7544936040258426
+      },
+      "cache_stats": {
+        "budget_bytes": 3758096384,
+        "payload_bytes": 3755704320,
+        "entries": 1415,
+        "hits": 2830,
+        "misses": 14509,
+        "rejected": 13094
+      },
+      "losses_sha256": "342f7a8b12aff5ae3bf7e8902fd4edaa8af404e45f1a12212f76384198f9b050",
+      "gradients_sha256": "bf1ef4661025c12a631630b2977f16aecb1203eec7a298f3fdb6394963b2c855",
+      "adapter_sha256": "3bd4f6ba7f7fe41016124440893692e19132061bbaed61aa80a9381facf18a95",
+      "vs_first_arm": {
+        "losses": {
+          "bit_equal": true,
+          "max_abs": 0.0,
+          "relative_l2": 0.0,
+          "min_cosine": 1.0
+        },
+        "gradients": {
+          "bit_equal": false,
+          "max_abs": 0.0005315132439136505,
+          "relative_l2": 0.01393289086804361,
+          "min_cosine": 0.9947077793796391
+        },
+        "adapter": {
+          "bit_equal": false,
+          "max_abs": 0.00019998103380203247,
+          "relative_l2": 0.0003759626097892153,
+          "min_cosine": 0.9999938641015144
+        }
+      },
+      "run_index": 0,
+      "status": "ok"
+    }
+  ]
+}

@@ -488,6 +488,84 @@ def _can_use_checkpoint_visible_nf4_gemm(x: Any, quant_state: Any) -> bool:
     return bool(use_custom_fn(x.device.index, x.dtype, m, n, k))
 
 
+_WINDOW_DEQUANT_STATE = threading.local()
+
+
+@dataclass
+class _WindowDequantVisit:
+    """Scoped dense NF4 dequantisation cache for one decoder layer window visit."""
+
+    layer_idx: int
+    pool: Any
+    slot: int
+    generation: int
+    cache: Dict[Tuple[Any, ...], Any]
+    stats: Optional[Dict[str, int]] = None
+
+    def verify_slot(self) -> None:
+        if self.pool.owner[self.slot] != self.layer_idx:
+            raise RuntimeError(
+                f"streamed NF4 slot owner changed during window visit: slot {self.slot} holds "
+                f"{self.pool.owner[self.slot]}, expected {self.layer_idx}"
+            )
+        if self.pool.generation[self.slot] != self.generation:
+            raise RuntimeError(
+                f"streamed NF4 slot generation changed during window visit on layer "
+                f"{self.layer_idx}: {self.pool.generation[self.slot]} != {self.generation}"
+            )
+
+
+def _current_window_dequant_visit() -> Optional[_WindowDequantVisit]:
+    stack = getattr(_WINDOW_DEQUANT_STATE, "stack", None)
+    return stack[-1] if stack else None
+
+
+@contextmanager
+def window_dequant_visit(
+    layer: Any,
+    *,
+    enabled: bool = True,
+    stats: Optional[Dict[str, int]] = None,
+) -> Iterator[None]:
+    """Reuse one dense BF16 dequant per frozen Linear4bit projection across a layer visit.
+
+    Eliminates k-times duplicate NF4 dequantisations and k-times duplicate dense BF16 weight
+    retentions in autograd when bitsandbytes takes the dequantise + ``F.linear`` path across
+    a multi-microbatch MBR window. Verifies ``(pool.owner, pool.generation)`` on every access
+    and clears all cached dense weights on exit so no cross-layer retention can occur.
+    """
+    if not enabled:
+        yield
+        return
+    pool = getattr(layer, "pool", None)
+    layer_idx = getattr(layer, "idx", None)
+    if pool is None or layer_idx is None:
+        yield
+        return
+    if not hasattr(pool, "generation"):
+        pool.generation = [0] * len(pool.buffers)
+    pool.wait(layer_idx)
+    slot = pool.slot_for(layer_idx)
+    visit = _WindowDequantVisit(
+        layer_idx=layer_idx,
+        pool=pool,
+        slot=slot,
+        generation=pool.generation[slot],
+        cache={},
+        stats=stats,
+    )
+    stack = getattr(_WINDOW_DEQUANT_STATE, "stack", None)
+    if stack is None:
+        stack = _WINDOW_DEQUANT_STATE.stack = []
+    stack.append(visit)
+    try:
+        yield
+        visit.verify_slot()
+    finally:
+        visit.cache.clear()
+        stack.pop()
+
+
 def install_dequant_forward(module: Any) -> int:
     """#331 — keep a STREAMED NF4 weight out of ``bitsandbytes``' ``MatMul4Bit``.
 
@@ -555,6 +633,9 @@ def install_dequant_forward(module: Any) -> int:
         # Soup's Function; on bnb's dequant+linear arm the old path below has
         # identical arithmetic and avoids an extra backward dequantisation.
         if _can_use_checkpoint_visible_nf4_gemm(x, quant_state):
+            visit = _current_window_dequant_visit()
+            if visit is not None and visit.stats is not None:
+                visit.stats["custom_4bit_calls"] = visit.stats.get("custom_4bit_calls", 0) + 1
             return checkpoint_visible_nf4_linear(
                 x, self.weight, quant_state, bias
             ).to(inp_dtype)
@@ -564,7 +645,33 @@ def install_dequant_forward(module: Any) -> int:
             return packed_dequant_nf4_linear(x, self.weight, quant_state, bias).to(inp_dtype)
 
         # Compatibility path: dequantise inside the checkpointed region and let
-        # F.linear save the dense weight properly.
+        # F.linear save the dense weight properly. When a window_dequant_visit is active
+        # for a frozen projection, share one dense copy across the micro-batches of this
+        # layer visit instead of saving k identical BF16 matrices.
+        visit = _current_window_dequant_visit()
+        if (
+            visit is not None
+            and not self.weight.requires_grad
+            and (bias is None or not bias.requires_grad)
+        ):
+            visit.verify_slot()
+            key = (
+                id(self),
+                int(self.weight.data_ptr()),
+                int(quant_state.absmax.data_ptr()),
+                x.device,
+                x.dtype,
+            )
+            weight = visit.cache.get(key)
+            if weight is None:
+                weight = dequantize_4bit(self.weight, quant_state).to(x.dtype)
+                visit.cache[key] = weight
+                if visit.stats is not None:
+                    visit.stats["dequant_calls"] = visit.stats.get("dequant_calls", 0) + 1
+            elif visit.stats is not None:
+                visit.stats["cache_reuses"] = visit.stats.get("cache_reuses", 0) + 1
+            return functional.linear(x, weight, bias).to(inp_dtype)
+
         weight = dequantize_4bit(self.weight, quant_state).to(x.dtype)
         return functional.linear(x, weight, bias).to(inp_dtype)
 
@@ -1450,13 +1557,60 @@ class LargeLayerBufferPool:
             )
         self.dtype = next(iter(dtypes), "float32")
         largest = max((math.prod(shape) for shape, _dtype in self.specs.values()), default=0)
+        self._largest = int(largest)
         self.buffer = torch.empty(largest, dtype=_torch_dtype(self.dtype), device=device)
         self.event = torch.cuda.Event() if self.is_cuda and largest else None
         self.owner: Optional[str] = None
         self.loads = 0
+        self.releases = 0
+        self.allocations = 1 if largest else 0
         self.nbytes = self.buffer.numel() * self.buffer.element_size()
 
+    @property
+    def allocated_bytes(self) -> int:
+        """Current live bytes held by the shared large-layer device buffer."""
+        if self.buffer is None:
+            return 0
+        return self.buffer.numel() * self.buffer.element_size()
+
+    def ensure_allocated(self) -> None:
+        """Materialise the shared device buffer if it was released between boundaries."""
+        import torch
+
+        if self.buffer is not None:
+            return
+        self.buffer = torch.empty(self._largest, dtype=_torch_dtype(self.dtype), device=self.device)
+        if self.is_cuda and self._largest and self.event is None:
+            self.event = torch.cuda.Event()
+        if self._largest:
+            self.allocations += 1
+
+    def release(self) -> None:
+        """Free the shared device buffer while neither embedding nor head is active.
+
+        Synchronises pending compute and copy work on CUDA before dropping the backing
+        storage so no in-flight lookup, head GEMM, or async H2D copy can observe freed
+        memory. The next ``load_async`` reallocates the slot transparently.
+        """
+        import torch
+
+        if self.buffer is None:
+            return
+        if self.is_cuda:
+            torch.cuda.current_stream(self.device).synchronize()
+            if self.event is not None:
+                self.event.synchronize()
+        self.buffer = None
+        self.owner = None
+        self.releases += 1
+        if self.is_cuda:
+            torch.cuda.empty_cache()
+
     def _view(self, key: str) -> Any:
+        if self.buffer is None:
+            raise RuntimeError(
+                f"large-layer buffer is released; load {key!r} before accessing its view"
+            )
         shape, dtype = self.specs[key]
         if dtype != self.dtype:
             raise RuntimeError(f"large-layer dtype changed for {key!r}")
@@ -1465,10 +1619,11 @@ class LargeLayerBufferPool:
     def load_async(self, key: str, source: Any, stream: Any = None) -> None:
         import torch
 
-        if self.owner == key:
+        if self.buffer is not None and self.owner == key:
             return
         if key not in self.specs or key not in self.source_indices:
             raise ValueError(f"large-layer source is missing {key!r}")
+        self.ensure_allocated()
         dst = self._view(key)
         source_idx = self.source_indices[key]
         if self.is_cuda and stream is not None:
@@ -1486,6 +1641,10 @@ class LargeLayerBufferPool:
     def wait(self, key: str) -> Any:
         import torch
 
+        if self.buffer is None:
+            raise RuntimeError(
+                f"large-layer scheduler bug: slot is released, but {key!r} was requested"
+            )
         if self.owner != key:
             raise RuntimeError(
                 f"large-layer scheduler bug: slot holds {self.owner!r}, but {key!r} was requested"
@@ -4708,8 +4867,9 @@ def build_streamed_model(
     expert_host_cache_bytes: int = 0,
     expert_gemm: str = "native",
 ) -> Tuple[Any, StreamRuntime]:
-    """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
+    """Meta skeleton -> extras -> optional LoRA -> streaming. No resident base load.
 
+    Pass ``lora_config=None`` for a frozen streamed base with no PEFT adapters.
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice. ``two_read_experts`` is
     ``install_streaming``'s: an API switch, no config field. ``expert_gemm`` is also
@@ -4749,9 +4909,10 @@ def build_streamed_model(
         from soup_cli.utils.peft_wiring import apply_pre_lora_patches, attach_adapter
 
         apply_pre_lora_patches(model, model_id)
-        model = attach_adapter(model, lora_config)
-        materialize_meta_adapters(model, seed=seed, device=device)
-        assert_trainable_adapters_materialized(model)
+        if lora_config is not None:
+            model = attach_adapter(model, lora_config)
+            materialize_meta_adapters(model, seed=seed, device=device)
+            assert_trainable_adapters_materialized(model)
         runtime = install_streaming(
             model,
             shard_dir=shard_dir,

@@ -1,0 +1,23 @@
+{
+  "arm": "hf_bnb_cpu_offload",
+  "case": "kanana",
+  "model_path": "/workspace/models/kanana",
+  "k": 16,
+  "seq_len": 256,
+  "lora_r": 16,
+  "torch_version": "2.14.1+cu130",
+  "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+  "gpu_total_gib": 7.651,
+  "status": "error",
+  "transformers_version": "5.17.0",
+  "unsloth_version": "2026.11.7",
+  "error_type": "RuntimeError",
+  "error_message": "We encountered some issues during automatic conversion of the weights. For details look at the `CONVERSION` entries of the above report!",
+  "traceback_tail": "   model = AutoModelForCausalLM.from_pretrained(\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py\", line 402, in from_pretrained\n    return model_class.from_pretrained(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth/models/loader.py\", line 1121, in wrapped\n    output = original(cls, *args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/transformers/modeling_utils.py\", line 4314, in from_pretrained\n    loading_info = cls._finalize_model_loading(model, load_config, loading_info)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/transformers/modeling_utils.py\", line 4498, in _finalize_model_loading\n    log_state_dict_report(\n  File \"/opt/conda/lib/python3.11/site-packages/transformers/utils/loading_report.py\", line 311, in log_state_dict_report\n    raise RuntimeError(\nRuntimeError: We encountered some issues during automatic conversion of the weights. For details look at the `CONVERSION` entries of the above report!\n",
+  "total_wall_s": 87.242,
+  "cuda_allocated_peak_gib": 7.1711,
+  "cuda_reserved_peak_gib": 7.3594,
+  "nvml_peak_gib": 7.8173,
+  "rss_peak_gib": 40.3702,
+  "poll_samples": 3986
+}
