@@ -221,9 +221,6 @@ def test_norms_are_recorded_per_window(tmp_path):
                       model=model)
     _drive(cb, model, lambda idx, step: float(idx + 1), 4)
     cb.on_train_end(SimpleNamespace(device="cpu"), SimpleNamespace(global_step=4), None)
-    from soup_cli.utils.layer_select import write_record
-
-    write_record(cb.selection, str(tmp_path))
     record = json.loads((tmp_path / "lora_layers.json").read_text())
     assert [w["step"] for w in record["norms"]] == [2, 4]
     assert record["norms"][0]["layers"]["5"] == pytest.approx(2 * 6.0)

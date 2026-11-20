@@ -544,6 +544,8 @@ class _LayerSelectBody:  # noqa: N801
         self.cache = None
 
     def on_train_end(self, args: Any, state: Any, control: Any = None, **kwargs: Any) -> Any:
+        if self.selection is not None and self.selection.norms:
+            write_record(self.selection, self.output_dir)  # the windows' norms since the last
         if self.selection is not None and self.__dict__.get("cache") is not None:
             self._remove_cache()
             write_record(self.selection, self.output_dir)
