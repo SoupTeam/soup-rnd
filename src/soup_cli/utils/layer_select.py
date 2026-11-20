@@ -21,6 +21,25 @@ Methods (``LayerSelectPolicy.method``):
   ``interval_steps`` optimizer steps, the optimizer state of adapters that go inactive
   cleared. Unlike ``training.lisa_enabled`` (full fine-tuning) it trains only adapters, so
   it works on a quantized base.
+* ``progressive``: every layer trains at first and the bottom is frozen during the run, so
+  the cut is found on the data and the bottom adapters keep what they learned (ZERO-2 stage 4
+  and E2 both found that training only the top from the start costs quality, while training
+  everything and then freezing the bottom does not). Two forms:
+
+  - a schedule (``freeze_step`` and ``freeze_below``): after optimizer step ``freeze_step``
+    the adapters of layers ``0 .. freeze_below-1`` freeze (E2's hybrid);
+  - a rule (neither given): every ``interval_steps`` steps, each trainable layer's summed
+    adapter gradient norm over the window is compared with the previous window; from the
+    lowest trainable layer upward, a layer freezes while its norm changed by less than
+    ``freeze_threshold`` (relative), never above ``max_freeze_below`` (default: half the
+    layers).
+
+  Frozen adapters drop their optimizer state.
+
+With ``prefix_cache`` (any method but ``lisa``), once the layers below the lowest trainable
+layer are frozen, their output is kept per row in host RAM and reused when the row comes
+back, so later epochs skip the bottom's forward too (``utils/prefix_cache.py``). Each new
+freeze rebuilds the cache at the new cut.
 
 The probe runs on its own sequential loader over the training set with the RNG state
 saved and restored, so the training run's data order and random draws are unchanged.
@@ -39,7 +58,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
-METHODS = ("fixed", "random", "grad", "angular", "lisa")
+METHODS = ("fixed", "random", "grad", "angular", "lisa", "progressive")
 #: A decoder layer's index in a parameter name (``model.layers.3.``,
 #: ``model.language_model.layers.3.``, GPT-2's ``h.3.``).
 _LAYER_RE = re.compile(r"(?:^|\.)(?:layers|h)\.(\d+)\.")
@@ -57,6 +76,12 @@ class LayerSelectPolicy:
     probe_rows: int = 64
     interval_steps: int = 20
     seed: int = 0
+    freeze_step: Optional[int] = None
+    freeze_below: Optional[int] = None
+    freeze_threshold: float = 0.10
+    max_freeze_below: Optional[int] = None
+    prefix_cache: bool = False
+    prefix_cache_bytes: int = 8 << 30
 
     def __post_init__(self) -> None:
         if self.method not in METHODS:
@@ -66,8 +91,17 @@ class LayerSelectPolicy:
         if self.method == "fixed":
             if not self.layers:
                 raise ValueError("method 'fixed' needs layers")
+        elif self.method == "progressive":
+            if (self.freeze_step is None) != (self.freeze_below is None):
+                raise ValueError("method 'progressive' takes freeze_step and freeze_below together")
+            if self.freeze_step is not None and (self.freeze_step < 1 or self.freeze_below < 1):
+                raise ValueError("freeze_step and freeze_below must be >= 1")
+            if not 0.0 < self.freeze_threshold < 1.0:
+                raise ValueError("freeze_threshold must be in (0, 1)")
         elif self.k is None or self.k < 1:
             raise ValueError(f"method {self.method!r} needs k >= 1")
+        if self.prefix_cache and self.method == "lisa":
+            raise ValueError("prefix_cache needs a fixed bottom; lisa re-draws the layers")
         if self.probe_rows < 1 or self.interval_steps < 1 or self.seed < 0:
             raise ValueError("probe_rows and interval_steps must be >= 1, seed >= 0")
 
@@ -204,6 +238,7 @@ class Selection:
     scores: Dict[int, float] = field(default_factory=dict)
     history: List[Tuple[int, List[int]]] = field(default_factory=list)
     backward_cut: str = ""
+    cache: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_json(self) -> Dict[str, Any]:
         return {
@@ -212,6 +247,7 @@ class Selection:
             "backward_cut": self.backward_cut,
             "scores": {str(k): v for k, v in sorted(self.scores.items())},
             "history": [{"step": s, "layers": ls} for s, ls in self.history],
+            "prefix_cache": self.cache,
         }
 
 
@@ -223,6 +259,8 @@ def choose(policy: LayerSelectPolicy, model: Any, by_layer: Dict[int, List[Tuple
     layers = sorted(by_layer)
     if policy.method == "fixed":
         return Selection("fixed", sorted(set(policy.layers)))
+    if policy.method == "progressive":
+        return Selection("progressive", layers)
     if policy.method in ("random", "lisa"):
         return Selection(policy.method, draw(layers, policy.k, rng))
     if not batches:
@@ -321,6 +359,8 @@ class _LayerSelectBody:  # noqa: N801
         self.rng = random.Random(policy.seed)
         self.by_layer: Optional[Dict[int, List[Tuple[str, Any]]]] = None
         self.selection: Optional[Selection] = None
+        self.model: Any = None
+        self.cache: Any = None
 
     def on_train_begin(self, args: Any, state: Any, control: Any = None, **kwargs: Any) -> Any:
         model = kwargs.get("model")
@@ -336,6 +376,8 @@ class _LayerSelectBody:  # noqa: N801
         trainable = apply_layer_mask(self.by_layer, self.selection.layers)
         self.selection.backward_cut = cut_input_grads(model)
         self.selection.history.append((0, list(self.selection.layers)))
+        self.model = model
+        self._install_cache(0)
         write_record(self.selection, self.output_dir)
         if self.console is not None:
             self.console.print(
@@ -347,9 +389,14 @@ class _LayerSelectBody:  # noqa: N801
         return control
 
     def on_step_end(self, args: Any, state: Any, control: Any = None, **kwargs: Any) -> Any:
-        if self.policy.method != "lisa" or self.selection is None or self.by_layer is None:
+        if self.selection is None or self.by_layer is None:
             return control
         step = int(getattr(state, "global_step", 0) or 0)
+        if self.policy.method == "progressive":
+            self._progressive_step(step, kwargs.get("optimizer"))
+            return control
+        if self.policy.method != "lisa":
+            return control
         if step <= 0 or step % self.policy.interval_steps != 0:
             return control
         before = set(self.selection.layers)
@@ -360,6 +407,99 @@ class _LayerSelectBody:  # noqa: N801
         self.selection.layers = layers
         self.selection.history.append((step, list(layers)))
         write_record(self.selection, self.output_dir)
+        return control
+
+    # ---------------------------------------------------------------- progressive
+
+    def on_pre_optimizer_step(self, args: Any, state: Any, control: Any = None,
+                              **kwargs: Any) -> Any:
+        if (self.policy.method != "progressive" or self.policy.freeze_step is not None
+                or self.selection is None or self.by_layer is None):
+            return control
+        window = self.__dict__.setdefault("_window", {})
+        for idx in self.selection.layers:
+            total = 0.0
+            for _n, p in self.by_layer[idx]:
+                if p.grad is not None:
+                    total += float(p.grad.detach().float().norm())
+            window[idx] = window.get(idx, 0.0) + total
+        return control
+
+    def _progressive_step(self, step: int, optimizer: Any) -> None:
+        policy = self.policy
+        layers = self.selection.layers
+        if policy.freeze_step is not None:
+            if step == policy.freeze_step:
+                self.freeze_below(policy.freeze_below, step, optimizer)
+            return
+        if step % policy.interval_steps != 0:
+            return
+        window = self.__dict__.pop("_window", {})
+        previous = self.__dict__.get("_previous")
+        self._previous = window
+        if not previous or not layers:
+            return
+        cap = policy.max_freeze_below
+        if cap is None:
+            cap = (max(self.by_layer) + 1) // 2
+        cut = min(layers)
+        for idx in layers:
+            if idx >= cap:
+                break
+            before, now = previous.get(idx), window.get(idx)
+            if not before or now is None or abs(now - before) / before >= policy.freeze_threshold:
+                break
+            cut = idx + 1
+        if cut > min(layers):
+            self.freeze_below(cut, step, optimizer)
+
+    def freeze_below(self, cut: int, step: int, optimizer: Any) -> None:
+        """Freeze the adapters of every layer below ``cut`` (rebuilds the prefix cache)."""
+        keep = [idx for idx in self.selection.layers if idx >= cut]
+        if not keep:
+            raise ValueError(f"training.lora_layers: freezing below {cut} leaves no layer")
+        gone = [p for idx in self.selection.layers if idx < cut for _n, p in self.by_layer[idx]]
+        apply_layer_mask(self.by_layer, keep)
+        clear_optimizer_state(optimizer, gone)
+        self.selection.layers = keep
+        self.selection.history.append((step, list(keep)))
+        if self.console is not None:
+            self.console.print(f"[green]LoRA layers (progressive):[/] step {step}: layers below "
+                               f"{cut} frozen, training {len(keep)} of {len(self.by_layer)}")
+        self._install_cache(step)
+        write_record(self.selection, self.output_dir)
+
+    def _install_cache(self, step: int) -> None:
+        if not self.policy.prefix_cache or self.model is None:
+            return
+        self._remove_cache()
+        cutoff = min(self.selection.layers)
+        if cutoff <= 0:
+            return
+        from soup_cli.utils.prefix_cache import PrefixCache
+
+        self.cache = PrefixCache(self.model, cutoff, self.policy.prefix_cache_bytes).install()
+        self._cache_from = step
+
+    def _remove_cache(self) -> None:
+        cache = self.__dict__.get("cache")
+        if cache is None:
+            return
+        record = {"from_step": self.__dict__.get("_cache_from", 0), **cache.stats.to_json()}
+        self.selection.cache.append(record)
+        cache.remove()
+        self.cache = None
+
+    def on_train_end(self, args: Any, state: Any, control: Any = None, **kwargs: Any) -> Any:
+        if self.selection is not None and self.__dict__.get("cache") is not None:
+            self._remove_cache()
+            write_record(self.selection, self.output_dir)
+            if self.console is not None and self.selection.cache:
+                last = self.selection.cache[-1]
+                self.console.print(
+                    f"[green]Prefix cache:[/] below layer {last['cutoff']}: {last['hits']} hits, "
+                    f"{last['misses']} misses, {last['bytes_stored'] / 2**30:.2f} GiB kept"
+                )
         return control
 
 
@@ -389,6 +529,12 @@ def attach_layer_select_callback(trainer: Any, tcfg: Any, output_dir: Optional[s
         probe_rows=int(cfg.probe_rows),
         interval_steps=int(cfg.interval_steps),
         seed=int(cfg.seed),
+        freeze_step=getattr(cfg, "freeze_step", None),
+        freeze_below=getattr(cfg, "freeze_below", None),
+        freeze_threshold=float(getattr(cfg, "freeze_threshold", 0.10)),
+        max_freeze_below=getattr(cfg, "max_freeze_below", None),
+        prefix_cache=bool(getattr(cfg, "prefix_cache", False)),
+        prefix_cache_bytes=int(float(getattr(cfg, "prefix_cache_gb", 8.0)) * (1 << 30)),
     )
     args = getattr(trainer, "args", None)
     trainer.add_callback(layer_select.LayerSelectCallback(

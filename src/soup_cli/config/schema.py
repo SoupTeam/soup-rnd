@@ -1138,13 +1138,17 @@ class LoraLayersConfig(BaseModel):
     """ZERO-2: which decoder layers' LoRA adapters train (``utils/layer_select.py``)."""
 
     model_config = {"extra": "forbid"}
-    method: Literal["fixed", "random", "grad", "angular", "lisa"] = Field(
+    method: Literal["fixed", "random", "grad", "angular", "lisa", "progressive"] = Field(
         description=(
             "fixed: the listed layers. random: k layers drawn once. grad: before training, "
             "probe_rows training rows run forward and backward and the k layers whose "
             "adapters get the largest mean squared gradient train. angular: the k layers "
             "that change the residual stream most on those rows (forward only). lisa: k "
-            "random layers re-drawn every interval_steps optimizer steps (LISA over LoRA)."
+            "random layers re-drawn every interval_steps optimizer steps (LISA over LoRA). "
+            "progressive: every layer trains, then the bottom freezes during the run, at "
+            "freeze_step below freeze_below, or by a rule every interval_steps (a layer "
+            "freezes, from the bottom up, while its adapter gradient norm changes by less "
+            "than freeze_threshold between windows, up to max_freeze_below)."
         ),
     )
     k: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
@@ -1152,9 +1156,48 @@ class LoraLayersConfig(BaseModel):
     probe_rows: int = Field(default=64, ge=1, le=100_000, strict=True)
     interval_steps: int = Field(default=20, ge=1, le=1_000_000, strict=True)
     seed: int = Field(default=0, ge=0, strict=True)
+    freeze_step: Optional[int] = Field(default=None, ge=1, strict=True)
+    freeze_below: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
+    freeze_threshold: float = Field(default=0.10, gt=0.0, lt=1.0)
+    max_freeze_below: Optional[int] = Field(default=None, ge=1, le=1024, strict=True)
+    prefix_cache: bool = Field(
+        default=False,
+        description=(
+            "Keep the output of the frozen layers below the lowest trainable layer per row "
+            "in host RAM and reuse it when the row comes back (later epochs skip their "
+            "forward). Needs lora.dropout 0; not with lisa, layer streaming, L2L or packing."
+        ),
+    )
+    prefix_cache_gb: float = Field(default=8.0, gt=0.0, le=4096.0)
 
     @model_validator(mode="after")
     def _check_method_fields(self) -> "LoraLayersConfig":
+        progressive_only = {
+            "freeze_step": self.freeze_step, "freeze_below": self.freeze_below,
+            "max_freeze_below": self.max_freeze_below,
+        }
+        if self.method != "progressive":
+            given = [name for name, value in progressive_only.items() if value is not None]
+            if given:
+                raise ValueError(
+                    f"training.lora_layers: {', '.join(given)} only apply to method "
+                    "'progressive'"
+                )
+        if self.prefix_cache and self.method == "lisa":
+            raise ValueError(
+                "training.lora_layers.prefix_cache needs a fixed frozen bottom; lisa re-draws "
+                "the trained layers"
+            )
+        if self.method == "progressive":
+            if self.k is not None or self.layers is not None:
+                raise ValueError(
+                    "training.lora_layers.method='progressive' takes neither k nor layers"
+                )
+            if (self.freeze_step is None) != (self.freeze_below is None):
+                raise ValueError(
+                    "training.lora_layers: freeze_step and freeze_below go together"
+                )
+            return self
         if self.method == "fixed":
             if not self.layers or self.k is not None:
                 raise ValueError("training.lora_layers.method='fixed' takes layers, not k")
@@ -6315,6 +6358,25 @@ class SoupConfig(BaseModel):
                 "training.lora_layers chooses which layers train; it does not combine with "
                 + ", ".join(conflicts)
             )
+        if tcfg.lora_layers.prefix_cache:
+            blocked = [
+                name for name, on in (
+                    ("stream_layers", tcfg.stream_layers),
+                    ("l2l", tcfg.l2l),
+                    ("packing", tcfg.packing),
+                    ("multipack", tcfg.multipack),
+                ) if on
+            ]
+            if blocked:
+                raise ValueError(
+                    "training.lora_layers.prefix_cache works on the resident model with one "
+                    "row per sequence; not with " + ", ".join(blocked)
+                )
+            if tcfg.lora.dropout:
+                raise ValueError(
+                    "training.lora_layers.prefix_cache needs lora.dropout 0 (dropout in the "
+                    "frozen bottom makes its output random)"
+                )
         return self
 
     @model_validator(mode="after")

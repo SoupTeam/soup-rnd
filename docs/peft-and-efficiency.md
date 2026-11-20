@@ -667,6 +667,41 @@ stops there by itself; with `l2l` the step now stores no activation below it and
 backward only down to it, so on the streamed path those layers are read once per step instead of
 twice. Choosing upper layers is therefore faster than choosing the same number of lower ones.
 
+### Progressive freezing and the prefix cache
+
+On Qwen3.5-9B, training only the top layers from the start cost quality on reasoning data
+(GSM8K, ARC), while E2 on Mistral found that training every layer first and then freezing the
+bottom kept it. `method: progressive` does the latter:
+
+```yaml
+training:
+  lora:
+    dropout: 0.0          # required by prefix_cache
+  lora_layers:
+    method: progressive
+    # schedule: after step 200 the adapters of layers 0..7 freeze
+    freeze_step: 200
+    freeze_below: 8
+    # or a rule (leave freeze_step / freeze_below out): every interval_steps, from the
+    # lowest trainable layer up, a layer freezes while its summed adapter gradient norm
+    # changed by less than freeze_threshold since the previous window
+    # interval_steps: 20
+    # freeze_threshold: 0.10
+    # max_freeze_below: 16  # default: half the layers
+    prefix_cache: true
+    prefix_cache_gb: 8
+```
+
+`prefix_cache` (every method but `lisa`) keeps, per training row, the hidden state leaving the
+last frozen layer in host RAM once everything below the lowest trainable layer is frozen; when the
+row comes back in a later epoch the bottom layers return it instead of computing. It replaces only
+the bottom layers' `forward`, so the decoder's own masks (both of Qwen3.5's layer types) and
+gradient checkpointing are untouched; with one row per batch a cached step is bit-identical to an
+uncached one (tests on tiny Llama and Qwen3.5, with and without checkpointing, and through the HF
+Trainer). It helps only when rows repeat (several epochs). Evaluation runs the full model. Each
+new freeze rebuilds the cache at the new cut; hits, misses and kept bytes go to
+`lora_layers.json` (`prefix_cache`). Not yet with layer streaming, `l2l` or packing.
+
 ## Loss Watchdog
 
 Auto-stop training when loss spikes above a threshold (like Axolotl's `loss_watchdog_threshold`):
