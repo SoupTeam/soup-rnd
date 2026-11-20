@@ -34,6 +34,10 @@ KANANA_REPO = "kakaocorp/kanana-2-30b-a3b-base-2601"
 KANANA_REV = "0d31365acf656e5f9a593cacc4913e9c0d36cb1c"
 KANANA_TARGETS = ("q_b_proj", "kv_b_proj", "o_proj")
 
+QWEN38_27B_REPO = "Qwen/Qwen3.8-27B"
+QWEN38_27B_REV = "37561816e66b5b9153b1b64c10968c18c1e6f4a0"
+QWEN38_27B_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj", "in_proj_qkv", "out_proj")
+
 ARM_SPECS: Dict[str, Dict[str, Any]] = {
     "l2l_ref": dict(
         route_preserving_mbr=False,
@@ -312,7 +316,9 @@ def _prepare_shards(
 ) -> Tuple[Path, Path]:
     from benchmarks.harness.b5_real_moe import _meta_construction
     from benchmarks.harness.b13_moe_fixture import moe_config, moe_weights_dir
+    from soup_cli.utils.kimi_k2 import load_stream_config
     from soup_cli.utils.layer_shard import shard_checkpoint
+    from soup_cli.utils.layer_stream import stream_arch_of
     from soup_cli.utils.layer_stream_runtime import (
         build_meta_skeleton,
         quantised_layer_suffixes,
@@ -346,16 +352,50 @@ def _prepare_shards(
                 num_key_value_heads=4,
             )
             moe_weights_dir(work, cfg)
-    elif case == "kanana":
+    elif case == "tiny_qwen38":
+        weights = work / "weights"
+        if not (weights / "config.json").exists():
+            import torch
+            from transformers.models.qwen3_5.configuration_qwen3_5 import Qwen3_5TextConfig
+            from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5ForCausalLM
+
+            weights.mkdir(parents=True, exist_ok=True)
+            qcfg = Qwen3_5TextConfig(
+                vocab_size=512,
+                hidden_size=128,
+                intermediate_size=256,
+                num_hidden_layers=4,
+                num_attention_heads=4,
+                num_key_value_heads=2,
+                head_dim=32,
+                linear_num_key_heads=2,
+                linear_num_value_heads=4,
+                linear_key_head_dim=32,
+                linear_value_head_dim=32,
+                layer_types=[
+                    "linear_attention",
+                    "linear_attention",
+                    "linear_attention",
+                    "full_attention",
+                ],
+                tie_word_embeddings=False,
+                pad_token_id=0,
+                use_cache=False,
+            )
+            torch.manual_seed(42)
+            Qwen3_5ForCausalLM(qcfg).to(torch.bfloat16).save_pretrained(weights)
+    elif case in ("kanana", "qwen38_27b"):
         weights = work / "weights"
         if not (weights / "config.json").exists():
             if prepared:
                 raise FileNotFoundError(f"--prepared set, but {weights}/config.json is missing")
             from huggingface_hub import snapshot_download
 
+            repo_id = KANANA_REPO if case == "kanana" else QWEN38_27B_REPO
+            rev_id = KANANA_REV if case == "kanana" else QWEN38_27B_REV
             snapshot_download(
-                KANANA_REPO,
-                revision=KANANA_REV,
+                repo_id,
+                revision=rev_id,
                 local_dir=weights,
                 token=False,
                 allow_patterns=["config.json", "*.safetensors", "*.safetensors.index.json"],
@@ -367,6 +407,9 @@ def _prepare_shards(
     if not (shards / "index.json").exists():
         if prepared:
             raise FileNotFoundError(f"--prepared set, but {shards}/index.json is missing")
+        stream_cfg = load_stream_config(str(weights), False)
+        stream_arch = stream_arch_of(stream_cfg)
+        is_moe = stream_arch == "deepseek_v3"
         quant = "nf4" if storage == "nf4" else None
         with _meta_construction():
             skeleton = build_meta_skeleton(
@@ -379,11 +422,11 @@ def _prepare_shards(
             str(weights),
             str(shards),
             dtype=dtype,
-            arch="deepseek_v3",
+            arch=stream_arch,
             quant=quant,
             double_quant=False,
             quant_device=device,
-            expert_layout="per_expert",
+            expert_layout="per_expert" if is_moe else "",
             layout=layout,
             quant_suffixes=suffixes,
         )
@@ -443,17 +486,19 @@ def _run_arm(
         torch.backends.cudnn.allow_tf32 = False
     torch.manual_seed(71)
 
+    index = read_shard_index(str(shards))
+    is_moe = index.arch == "deepseek_v3"
+    targets = list(KANANA_TARGETS) if is_moe else list(QWEN38_27B_TARGETS)
     lora_cfg = LoraConfig(
         r=4,
         lora_alpha=8,
         lora_dropout=0.0,
         bias="none",
         task_type=TaskType.CAUSAL_LM,
-        target_modules=list(KANANA_TARGETS),
+        target_modules=targets,
     )
-    use_packed = is_cuda and storage == "nf4"
+    use_packed = is_cuda and storage == "nf4" and is_moe
     cache_bytes = int(host_cache_gib * (1024**3)) if use_packed else 0
-    index = read_shard_index(str(shards))
     with _meta_construction():
         model, runtime = build_streamed_model(
             model_id=str(weights),
@@ -466,15 +511,15 @@ def _run_arm(
             double_quant=False,
             tier="disk" if is_cuda else "ram",
             pin=is_cuda,
-            two_read_experts=True,
-            grouped_expert_routes=True,
+            two_read_experts=is_moe,
+            grouped_expert_routes=is_moe,
             expert_transfer="packed" if use_packed else "sync",
             expert_host_cache_bytes=cache_bytes,
-            expert_gemm=expert_gemm if is_cuda else "native",
+            expert_gemm=(expert_gemm if (is_cuda and is_moe) else "native"),
         )
     controller: Optional[AsyncExpertController] = None
     try:
-        if spec["use_controller"] and expert_loader != "python_sync":
+        if is_moe and spec["use_controller"] and expert_loader != "python_sync":
             if not is_cuda and storage == "nf4":
                 cpu_packed_control(
                     runtime.expert_pool,
@@ -510,7 +555,8 @@ def _run_arm(
         )
         act_codec = spec.get("activation_codec", "bf16")
         fp8_group_size = spec.get("fp8_group_size", None)
-        use_oracle = bool(spec.get("use_oracle", False))
+        use_oracle = bool(spec.get("use_oracle", False)) and is_moe
+        use_mbr = bool(spec["route_preserving_mbr"]) and is_moe
         mb_shapes = [(1, seq_len, int(cfg.hidden_size))] * k
         host_budget: Optional[HostMemoryBudget] = None
         if act_codec == "fp8_e4m3":
@@ -582,14 +628,14 @@ def _run_arm(
                     head = l2l_sft_head(batches, n_items, impl=effective_head, chunk=ce_chunk)
                     run_kwargs: Dict[str, Any] = dict(
                         head=head,
-                        route_preserving_mbr=spec["route_preserving_mbr"],
+                        route_preserving_mbr=use_mbr,
                         mbr_window_dequant=spec["mbr_window_dequant"],
                         release_large_pool_during_layers=spec["release_large_pool_during_layers"],
                         expert_controller=controller,
                         routing_oracle=oracle,
-                        collect_phase_stats=True,
+                        collect_phase_stats=is_moe,
                     )
-                    if spec["route_preserving_mbr"]:
+                    if use_mbr:
                         run_kwargs["mbr_group_size"] = group_size
                         run_kwargs["mbr_decoupled_subwindow"] = spec["mbr_decoupled_subwindow"]
                         if spec["mbr_decoupled_subwindow"]:
@@ -702,7 +748,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Unified A-B-B-A benchmark for DeepSeek P3 GO stack (Tracks 1 + 2 + 3)."
     )
-    parser.add_argument("--case", choices=["tiny", "kanana", "custom"], default="tiny")
+    parser.add_argument(
+        "--case",
+        choices=["tiny", "tiny_qwen38", "kanana", "qwen38_27b", "custom"],
+        default="tiny",
+    )
     parser.add_argument("--model-dir", type=str, default=None)
     parser.add_argument("--work", type=str, required=True)
     parser.add_argument("--prepared", action="store_true")
@@ -741,7 +791,8 @@ def main() -> None:
 
     import torch
     from rich.console import Console
-    from transformers import AutoConfig
+
+    from soup_cli.utils.kimi_k2 import load_stream_config
 
     work = Path(args.work)
     weights, shards = _prepare_shards(
@@ -753,7 +804,7 @@ def main() -> None:
         device=args.device,
         prepared=args.prepared,
     )
-    cfg = AutoConfig.from_pretrained(str(weights))
+    cfg = load_stream_config(str(weights), False)
     gen = torch.Generator().manual_seed(2026)
     step_batches_cpu = [
         [

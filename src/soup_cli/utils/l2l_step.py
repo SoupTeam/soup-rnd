@@ -59,7 +59,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 
 #: Architectures whose top-level forward this step re-implements. ``training.l2l`` admits them
 #: at launch under the rules in ``trainer.l2l_trainer.refuse_unsupported_l2l``.
-SUPPORTED_ARCHS = ("llama", "mistral", "deepseek_v3")
+SUPPORTED_ARCHS = ("llama", "mistral", "deepseek_v3", "qwen2", "qwen3", "qwen3_5_text")
 
 
 @dataclass(frozen=True)
@@ -233,6 +233,15 @@ def capture_layer_call(model: Any, input_ids: Any, *, draws: bool = True) -> Lay
     # The capture forward runs in training mode, so NEFTune would draw noise from it.
     cuda = [input_ids.device] if input_ids.device.type == "cuda" else []
     plan: List[List[Any]] = []
+    saved_cache_flags: List[Tuple[Any, Any]] = []
+    for cfg_obj in (
+        getattr(model, "config", None),
+        getattr(causal, "config", None),
+        getattr(owner, "config", None),
+    ):
+        if cfg_obj is not None and hasattr(cfg_obj, "use_cache"):
+            saved_cache_flags.append((cfg_obj, cfg_obj.use_cache))
+            cfg_obj.use_cache = False
     try:
         with torch.no_grad(), torch.random.fork_rng(devices=cuda):
             if draws:
@@ -245,10 +254,16 @@ def capture_layer_call(model: Any, input_ids: Any, *, draws: bool = True) -> Lay
                     pass
     finally:
         handle.remove()
+        for cfg_obj, old_val in saved_cache_flags:
+            cfg_obj.use_cache = old_val
     if "call" not in seen:
         raise RuntimeError("decoder layer 0 was never called by the forward")
     args, kwargs = seen["call"]
     kwargs.pop("num_items_in_batch", None)
+    if "use_cache" in kwargs:
+        kwargs["use_cache"] = False
+    if "past_key_values" in kwargs:
+        kwargs["past_key_values"] = None
     return LayerCall(
         args=args,
         kwargs=kwargs,
