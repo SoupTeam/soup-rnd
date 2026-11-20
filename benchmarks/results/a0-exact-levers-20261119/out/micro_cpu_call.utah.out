@@ -1,0 +1,42 @@
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+shape moonlight window normal: tiny kernel launch (add_) 5.9 us CPU
+
+expert_forward: CPU enqueue 132 us per call = 22 tiny launches; 13.9 GPU operations per call
+  GPU operations per call: elementwise/other 5.3, gemm 7.6, gpu_memset 1.0
+  CUDA runtime calls per call (count, us under profiler):
+    cudaDeviceSynchronize                 0.0     85.9
+    cudaLaunchKernel                     12.2     53.3
+    cudaMemsetAsync                       1.8      4.5
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor    1.4      1.1
+    cudaDeviceGetAttribute                0.8      0.4
+
+expert_backward: CPU enqueue 404 us per call = 69 tiny launches; 33.1 GPU operations per call
+  GPU operations per call: elementwise/other 16.2, gemm 15.0, gpu_memset 1.9
+  CUDA runtime calls per call (count, us under profiler):
+    cudaLaunchKernel                     27.4    118.3
+    cudaDeviceSynchronize                 0.0     74.4
+    cudaMemsetAsync                       2.7      8.5
+    cudaLaunchKernelExC                   2.0      8.1
+    cudaPointerGetAttributes             13.1      6.5
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor    4.4      2.8
+
+expert_forward: CPU enqueue 165 us per call = 27 tiny launches; 17.6 GPU operations per call
+  GPU operations per call: elementwise/other 5.1, gemm 10.3, gpu_memset 2.3
+  CUDA runtime calls per call (count, us under profiler):
+    cudaDeviceSynchronize                 0.0    383.7
+    cudaLaunchKernel                     12.4     54.5
+    cudaMemsetAsync                       3.2      9.0
+    cudaLaunchKernelExC                   0.6      2.2
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor    2.1      1.4
+    cudaDeviceGetAttribute                2.4      0.9
+
+expert_backward: CPU enqueue 484 us per call = 79 tiny launches; 41.4 GPU operations per call
+  GPU operations per call: elementwise/other 15.8, gemm 21.2, gpu_memset 4.5
+  CUDA runtime calls per call (count, us under profiler):
+    cudaDeviceSynchronize                 0.0    530.5
+    cudaLaunchKernel                     29.1    243.8
+    cudaMemsetAsync                       5.4     33.3
+    cudaLaunchKernelExC                   3.5     27.5
+    cudaPointerGetAttributes             12.9      6.4
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor    6.1      3.8

@@ -3822,6 +3822,7 @@ def _prepare_expert_streaming(
     layers: Any, shard_dir: str, index: Any, *, device: str, codes: Optional[Mapping[str, Any]],
     two_reads: bool = False, grouped_expert_routes: bool = False,
     expert_transfer: str = "sync", expert_host_cache_bytes: int = 0,
+    expert_prefetch: bool = False,
 ) -> Tuple[Any, Tuple[Any, ...]]:
     """Prepare the bounded expert slot and validate the replacement modules.
 
@@ -3859,6 +3860,7 @@ def _prepare_expert_streaming(
             weight_budget_bytes=expert_allocation_budget(plan, device=device), codes=codes,
             **({"transfer": expert_transfer} if expert_transfer != "sync" else {}),
             **({"host_cache_bytes": expert_host_cache_bytes} if expert_host_cache_bytes else {}),
+            **({"prefetch": True} if expert_prefetch else {}),
         )
         install_streamed_experts(
             layers, readers, pool, two_reads=two_reads, grouped_expert_routes=grouped_expert_routes
@@ -3951,6 +3953,7 @@ def install_streaming(
     grouped_expert_routes: bool = False,
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
+    expert_prefetch: bool = False,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3965,6 +3968,10 @@ def install_streaming(
     stages each expert's stored components in one pinned block and copies it to the arena once.
     ``expert_host_cache_bytes`` (packed only) additionally keeps whole packed blocks in RAM up
     to that many bytes; a hit reads nothing from the experts file. See ``ExpertBufferPool``.
+
+    ``expert_prefetch`` (same caches, off by default) reads the next hit expert of a layer on
+    a worker thread while the current one computes, in the forward and the backward. The bytes,
+    the order and the numbers are unchanged. API switch, no config field.
 
     ``refill_before_backward`` says the loss runs a second forward before each
     step's backward; an untied output head then hands autograd a private copy
@@ -4059,6 +4066,7 @@ def install_streaming(
                 two_reads=two_read_experts, grouped_expert_routes=grouped_expert_routes,
                 expert_transfer=expert_transfer,
                 expert_host_cache_bytes=expert_host_cache_bytes,
+                expert_prefetch=expert_prefetch,
             )
         else:
             for lever, enabled in (
@@ -4066,6 +4074,7 @@ def install_streaming(
                 ("grouped_expert_routes", grouped_expert_routes),
                 ("expert_transfer", expert_transfer != "sync"),
                 ("expert_host_cache_bytes", bool(expert_host_cache_bytes)),
+                ("expert_prefetch", expert_prefetch),
             ):
                 if enabled:
                     raise ValueError(
@@ -4699,6 +4708,7 @@ def build_streamed_model(
     grouped_expert_routes: bool = False,
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
+    expert_prefetch: bool = False,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -4767,6 +4777,7 @@ def build_streamed_model(
                 {"expert_host_cache_bytes": expert_host_cache_bytes}
                 if expert_host_cache_bytes else {}
             ),
+            **({"expert_prefetch": True} if expert_prefetch else {}),
         )
     except BaseException:
         for external in external_sources:

@@ -152,9 +152,22 @@ class ExpertBufferPool:
     Returned weights are valid only inside ``lease``; they alias the reusable
     arena, never the host staging. Concurrent/reentrant leases fail explicitly,
     including a backward lease requested while another lease is active.
-    CUDA work is synchronized before releasing a lease or recycling staging.
+    CUDA work is synchronized before releasing a lease or recycling staging, unless
+    ``async_lease`` narrows that for the packed transfer (see below).
     Readers belong to the caller; close them separately (including on success).
     """
+
+    #: opt-in (class default, or set on an instance). Off: every lease ends with
+    #: ``torch.cuda.synchronize``, so the host waits for all queued work before the next visit.
+    #: On, packed transfer on CUDA only: a lease ends without a device-wide wait, and the only
+    #: host wait left is for the H2D copy that reads the pinned staging region, before that
+    #: region is written again. Weights, dequantisation and GEMMs stay ordered on their stream,
+    #: so no bit changes; the host can prepare the next expert while the card computes. The one
+    #: writer of the pinned staging region is ``_load_packed`` (after ``_wait_staging_free``); the
+    #: prefetch worker writes its own staging buffer, never this region.
+    async_lease = False
+    _h2d_event: Any = None
+    _resolved_paths: Dict[str, str]
 
     def __init__(
         self,
@@ -166,8 +179,14 @@ class ExpertBufferPool:
         codes: Optional[Mapping[str, Any]] = None,
         transfer: str = "sync",
         host_cache_bytes: int = 0,
+        prefetch: bool = False,
     ) -> None:
-        """``transfer="packed"`` (CUDA, NF4 in both matrices) stages each expert's stored
+        """``prefetch`` (off by default) adds a second host staging buffer and one worker
+        thread. ``prefetch(reader, expert)`` then reads the named expert in the background
+        while the current one computes; a ``lease`` for that expert uses the bytes, any other
+        lease discards them and reads synchronously. One read is in flight at a time.
+
+        ``transfer="packed"`` (CUDA, NF4 in both matrices) stages each expert's stored
         components in one pinned block and copies it to the arena once instead of once per
         component; the dequantised weights are the same. ``host_cache_bytes`` (packed only)
         also keeps whole packed blocks in pageable RAM up to that many bytes, first come first
@@ -193,6 +212,8 @@ class ExpertBufferPool:
             raise ValueError("host_cache_bytes must be a non-negative integer")
         if host_cache_bytes and transfer != "packed":
             raise ValueError("host_cache_bytes needs transfer='packed'")
+        if type(prefetch) is not bool:
+            raise ValueError("prefetch must be a bool")
         self.plan, layout = _buffer_layout(reader, dtype, transfer)
         if self.plan.weight_bytes > weight_budget_bytes:
             raise ValueError(
@@ -234,10 +255,22 @@ class ExpertBufferPool:
         self.phase_read_tracking = False
         self._phase_read_counters: Dict[int, Dict[str, Dict[str, int]]] = {}
         self.h2d_copies = 0
+        self._resolved_paths = {}
         self._arena = None
         self._buffers: dict = {}
         self._staging_owner = self._staging = None
         self._pinned = None
+        #: Prefetch state. ``prefetch_enabled`` may be switched at run time; it has an effect
+        #: only on a pool built with ``prefetch=True`` (the staging and the worker exist).
+        self.prefetch_enabled = prefetch
+        self._prefetch_staging_owner = self._prefetch_staging = None
+        self._prefetch_executor: Any = None
+        self._prefetch_lock = threading.Lock()
+        self._pending: Optional[Tuple[Any, int, Any]] = None
+        self.prefetch_hits = 0
+        self.prefetch_discards = 0
+        #: Stored bytes the latest lease took from its reader (0 for a host-cache hit).
+        self.last_lease_bytes = 0
         self._packed_rows: list = []
         self._host_cache = None
         if transfer == "packed":
@@ -258,6 +291,10 @@ class ExpertBufferPool:
             for name, value in tables.items():
                 self._buffers[name].copy_(value, non_blocking=False)
             self._staging_owner, self._staging = aligned_staging(reader.max_span)
+            if prefetch:
+                self._prefetch_staging_owner, self._prefetch_staging = aligned_staging(
+                    reader.max_span
+                )
             if transfer == "packed":
                 self._pinned = torch.empty(self._packed_bytes, dtype=torch.uint8, pin_memory=True)
             self._synchronize()
@@ -274,6 +311,7 @@ class ExpertBufferPool:
         except BaseException:
             self._buffers.clear()
             self._arena = self._staging_owner = self._staging = self._pinned = None
+            self._prefetch_staging_owner = self._prefetch_staging = None
             self._closed = True
             raise
 
@@ -295,6 +333,43 @@ class ExpertBufferPool:
 
             torch.cuda.synchronize(self.device)
 
+    def _host_key(self, reader: ExpertShardReader, expert: int) -> Tuple[str, int]:
+        """The host-cache key of ``expert``: the resolved path of its reader and the index.
+
+        ``os.path.realpath`` is a chain of system calls that every load and every prefetch hint
+        used to repeat. Under ``async_lease`` a path is resolved once per pool; by default it is
+        resolved on every call, as before."""
+        import os
+
+        if not self.async_lease:
+            return (os.path.realpath(reader.path), expert)
+        resolved = self._resolved_paths.get(reader.path)
+        if resolved is None:
+            resolved = self._resolved_paths[reader.path] = os.path.realpath(reader.path)
+        return (resolved, expert)
+
+    def _lease_end(self) -> None:
+        """The wait a finished lease owes: the whole device, or none under ``async_lease``."""
+        if self.async_lease and self.transfer == "packed" and self.device.type == "cuda":
+            return
+        self._synchronize()
+
+    def _wait_staging_free(self) -> None:
+        """Wait for the last H2D copy that reads the pinned staging region (``async_lease``)."""
+        event = self._h2d_event
+        if event is not None:
+            event.synchronize()
+            self._h2d_event = None
+
+    def _mark_staging_busy(self) -> None:
+        """Record that an H2D copy now reads the pinned staging region (``async_lease``)."""
+        if self.async_lease and self.device.type == "cuda":
+            import torch
+
+            event = torch.cuda.Event()
+            event.record()
+            self._h2d_event = event
+
     def _load(
         self,
         reader: ExpertShardReader,
@@ -306,13 +381,13 @@ class ExpertBufferPool:
         from soup_cli.utils.expert_shard import expert_key
         from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
 
-        before = reader.bytes_read
         fetch_succeeded = False
+        self.last_lease_bytes = 0
         try:
             if self.transfer == "packed":
                 self._load_packed(reader, expert)
             else:
-                host = reader.read_host(expert, self._staging)
+                host = self._read_host(reader, expert)
                 for part in EXPERT_PARTS:
                     key = expert_key(expert, part)
                     spec = self._specs.get(part)
@@ -325,7 +400,7 @@ class ExpertBufferPool:
             self.fetches += 1
             fetch_succeeded = True
         finally:
-            bytes_read = reader.bytes_read - before
+            bytes_read = self.last_lease_bytes
             self.logical_bytes_read += bytes_read
             if self.phase_read_tracking and phase is not None and layer_idx is not None:
                 with self._phase_lock:
@@ -338,19 +413,18 @@ class ExpertBufferPool:
 
     def _load_packed(self, reader: ExpertShardReader, expert: int) -> None:
         """Fill the packed region with one H2D copy (from the host cache on a hit), then decode."""
-        import os
-
         from soup_cli.utils.expert_shard import expert_key
         from soup_cli.utils.expert_transfer import pack_into
         from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
 
+        self._wait_staging_free()
         region = self._pinned[: self._packed_bytes]
-        key = (os.path.realpath(reader.path), expert)
+        key = self._host_key(reader, expert)
         block = self._host_cache.get(key) if self._host_cache is not None else None
         if block is not None:
             region.copy_(block)
         else:
-            host = reader.read_host(expert, self._staging)
+            host = self._read_host(reader, expert)
             stored = {}
             for part in EXPERT_PARTS:
                 names = quant_sidecar_keys(expert_key(expert, part), self._specs[part])
@@ -361,9 +435,84 @@ class ExpertBufferPool:
                 self._host_cache.put(key, region)
         # One copy for every stored component; the arena's dequantised part is rebuilt below.
         self._arena[: self._packed_bytes].copy_(region, non_blocking=True)
+        self._mark_staging_busy()
         self.h2d_copies += 1
         for part in EXPERT_PARTS:
             self._dequantize(part, self._specs[part])
+
+    # ------------------------------------------------------------------ prefetch
+    def _cached(self, reader: ExpertShardReader, expert: int) -> bool:
+        return self._host_cache is not None and self._host_cache.holds(
+            self._host_key(reader, expert)
+        )
+
+    def _read_background(self, reader: ExpertShardReader, expert: int) -> Tuple[Any, int]:
+        before = reader.bytes_read
+        host = reader.read_host(expert, self._prefetch_staging)
+        return host, reader.bytes_read - before
+
+    def _discard_pending(self) -> None:
+        """Wait for the read in flight (it owns the reader and the staging) and drop it."""
+        with self._prefetch_lock:
+            pending, self._pending = self._pending, None
+        if pending is not None:
+            self.prefetch_discards += 1
+            try:
+                pending[2].result()
+            except BaseException:  # noqa: BLE001 - nobody asked for these bytes
+                pass
+
+    def prefetch(self, reader: ExpertShardReader, expert: int) -> None:
+        """Start reading ``expert`` in the background; a hint, never required.
+
+        Does nothing when prefetch is off, the pool is closed, the expert is already in the
+        host cache, or the same read is already pending. A pending read of another expert is
+        waited for and dropped first, so at most one read is ever in flight.
+        """
+        if (
+            not self.prefetch_enabled
+            or self._prefetch_staging is None
+            or self._closed
+            or expert is None
+            or self._cached(reader, expert)
+        ):
+            return
+        with self._prefetch_lock:
+            pending = self._pending
+            if pending is not None and pending[0] is reader and pending[1] == expert:
+                return
+        self._discard_pending()
+        if self._prefetch_executor is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            self._prefetch_executor = ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="expert-prefetch"
+            )
+        future = self._prefetch_executor.submit(self._read_background, reader, expert)
+        with self._prefetch_lock:
+            self._pending = (reader, expert, future)
+
+    def _read_host(self, reader: ExpertShardReader, expert: int) -> Dict[str, Any]:
+        """The expert's stored tensors on the host: the prefetched bytes, or a direct read.
+
+        The views stay valid until the next read into the same staging. Both callers copy
+        them out before the lease yields, which is also before the next hint can be given.
+        ``last_lease_bytes`` is set to what the reader read for this lease.
+        """
+        with self._prefetch_lock:
+            pending, self._pending = self._pending, None
+        if pending is not None:
+            if pending[0] is reader and pending[1] == expert:
+                host, nbytes = pending[2].result()  # raises the background read's error here
+                self.prefetch_hits += 1
+                self.last_lease_bytes = nbytes
+                return host
+            self._pending = pending
+            self._discard_pending()
+        before = reader.bytes_read
+        host = reader.read_host(expert, self._staging)
+        self.last_lease_bytes = reader.bytes_read - before
+        return host
 
     def _dequantize(self, part: str, spec: Any) -> None:
         from bitsandbytes.functional import QuantState, dequantize_4bit, dequantize_blockwise
@@ -424,14 +573,20 @@ class ExpertBufferPool:
             raise RuntimeError("expert buffer pool already has an active lease")
         try:
             self.validate_reader(reader)
+            failed = False
             try:
                 self._load(reader, expert, phase=phase, layer_idx=layer_idx)
                 yield self._buffers[GATE_UP], self._buffers[DOWN]
             except BaseException:
+                failed = True
+                self._discard_pending()  # the worker may be reading through this handle
                 reader.close()
                 raise
             finally:
-                self._synchronize()
+                if failed:
+                    self._synchronize()      # an error keeps the full wait
+                else:
+                    self._lease_end()
         finally:
             self._lock.release()
 
@@ -453,6 +608,11 @@ class ExpertBufferPool:
             "logical_bytes_read": self.logical_bytes_read,
             "transfer": self.transfer,
             "h2d_copies": self.h2d_copies,
+            "prefetch": {
+                "enabled": bool(self.prefetch_enabled and self._prefetch_staging is not None),
+                "hits": self.prefetch_hits,
+                "discards": self.prefetch_discards,
+            },
             "host_cache": self._host_cache.stats() if self._host_cache is not None else None,
             "closed": self._closed,
             "cpu_nf4_temporaries": self.device.type == "cpu" and bool(self._specs),
@@ -466,6 +626,11 @@ class ExpertBufferPool:
             try:
                 self._synchronize()
             finally:
+                self._discard_pending()
+                if self._prefetch_executor is not None:
+                    self._prefetch_executor.shutdown(wait=True)
+                    self._prefetch_executor = None
+                self._prefetch_staging_owner = self._prefetch_staging = None
                 self._buffers.clear()
                 self._arena = self._staging_owner = self._staging = self._pinned = None
                 self._host_cache = None
@@ -782,10 +947,13 @@ def _build_streamed_experts_class() -> Any:
         """
 
         @staticmethod
-        def forward(ctx: Any, hidden: Any, owner: Any, expert: int) -> Any:
+        def forward(
+            ctx: Any, hidden: Any, owner: Any, expert: int, nxt: Any = None, prv: Any = None
+        ) -> Any:
             ctx.owner = owner
             ctx.act_fn = owner.act_fn
             ctx.expert = expert
+            ctx.hint_prev = prv  # the backward visits experts in the reverse order
             ctx.device_type = hidden.device.type
             ctx.autocast = {
                 "enabled": torch.is_autocast_enabled(ctx.device_type),
@@ -794,17 +962,19 @@ def _build_streamed_experts_class() -> Any:
             }
             ctx.save_for_backward(hidden)
             with owner.pool.lease(owner.reader, expert) as (gate_up, down):
+                owner.pool.prefetch(owner.reader, nxt)
                 return expert_mlp(hidden, gate_up, down, owner.act_fn)
 
         @staticmethod
-        def backward(ctx: Any, grad_out: Any) -> Tuple[Any, None, None]:
+        def backward(ctx: Any, grad_out: Any) -> Tuple[Any, None, None, None, None]:
             if torch.is_grad_enabled():
                 raise RuntimeError("expert streaming does not support higher-order gradients")
             if not ctx.needs_input_grad[0]:
-                return None, None, None
+                return None, None, None, None, None
             _validate_training_activation(ctx.act_fn)
             (hidden,) = ctx.saved_tensors
             with ctx.owner.pool.lease(ctx.owner.reader, ctx.expert) as (gate_up, down):
+                ctx.owner.pool.prefetch(ctx.owner.reader, ctx.hint_prev)
                 local = hidden.detach().requires_grad_(True)
                 # Only the recompute replays the forward's autocast state. The VJP itself runs
                 # in the caller's backward state, as eager autograd does, so a backward inside
@@ -812,7 +982,7 @@ def _build_streamed_experts_class() -> Any:
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
                     result = expert_mlp(local, gate_up, down, ctx.act_fn)
                 (grad_hidden,) = torch.autograd.grad(result, local, grad_out)
-            return grad_hidden, None, None
+            return grad_hidden, None, None, None, None
 
     class WeightedFrozenExpert(torch.autograd.Function):
         """``expert_mlp(hidden) * weights`` as one node, for two reads.
@@ -828,11 +998,13 @@ def _build_streamed_experts_class() -> Any:
 
         @staticmethod
         def forward(
-            ctx: Any, hidden: Any, weights: Any, owner: Any, expert: int, replay: bool
+            ctx: Any, hidden: Any, weights: Any, owner: Any, expert: int, replay: bool,
+            nxt: Any = None, prv: Any = None,
         ) -> Any:
             ctx.owner = owner
             ctx.act_fn = owner.act_fn
             ctx.expert = expert
+            ctx.hint_prev = prv  # the backward visits experts in the reverse order
             ctx.device_type = hidden.device.type
             ctx.autocast = {
                 "enabled": torch.is_autocast_enabled(ctx.device_type),
@@ -852,15 +1024,18 @@ def _build_streamed_experts_class() -> Any:
                 phase=phase,
                 layer_idx=owner.layer_idx,
             ) as (gate_up, down):
+                owner.pool.prefetch(owner.reader, nxt)
                 return expert_mlp(hidden, gate_up, down, owner.act_fn) * weights
 
         @staticmethod
-        def backward(ctx: Any, grad_out: Any) -> Tuple[Any, Any, None, None, None]:
+        def backward(
+            ctx: Any, grad_out: Any
+        ) -> Tuple[Any, Any, None, None, None, None, None]:
             if torch.is_grad_enabled():
                 raise RuntimeError("expert streaming does not support higher-order gradients")
             need_hidden, need_weights = ctx.needs_input_grad[0], ctx.needs_input_grad[1]
             if not (need_hidden or need_weights):
-                return None, None, None, None, None
+                return None, None, None, None, None, None, None
             _validate_training_activation(ctx.act_fn)
             hidden, weights = ctx.saved_tensors
             with ctx.owner.pool.lease(
@@ -869,6 +1044,7 @@ def _build_streamed_experts_class() -> Any:
                 phase="backward_dX",
                 layer_idx=ctx.owner.layer_idx,
             ) as (gate_up, down):
+                ctx.owner.pool.prefetch(ctx.owner.reader, ctx.hint_prev)
                 local_hidden = hidden.detach().requires_grad_(need_hidden)
                 local_weights = weights.detach().requires_grad_(need_weights)
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
@@ -879,7 +1055,7 @@ def _build_streamed_experts_class() -> Any:
                 grads = list(torch.autograd.grad(result, wanted, grad_out))
             grad_hidden = grads.pop(0) if need_hidden else None
             grad_weights = grads.pop(0) if need_weights else None
-            return grad_hidden, grad_weights, None, None, None
+            return grad_hidden, grad_weights, None, None, None, None, None
 
     class StreamedExperts(nn.Module):
         """Eager expert loop over one-slot streamed weights, differentiable in its inputs.
@@ -898,6 +1074,10 @@ def _build_streamed_experts_class() -> Any:
         it. Backward leases never append rows: they are counted only by ``reader.fetches``,
         ``reader.bytes_read``, ``pool.fetches`` and ``pool.logical_bytes_read``.
         """
+
+        #: opt-in (class default, or set on an instance): light gathers for a visit's rows and
+        #: route weights, see :func:`fast_gather_functions`
+        fast_row_gather = False
 
         def __init__(
             self, reader: ExpertShardReader, pool: ExpertBufferPool, act_fn: Any, layer_idx: int,
@@ -956,7 +1136,15 @@ def _build_streamed_experts_class() -> Any:
                 replay = (
                     scope is not None and scope.replay and not self._mbr_materialize_recompute
                 )
-                for expert, top_k_pos, token_idx in routes:
+                # A hint names the next expert of this visit order (and the previous one for the
+                # backward). Hints never cross a layer: the next layer's routes are unknown.
+                hinting = bool(self.pool.prefetch_enabled)
+                visit = list(routes) if hinting else None
+                for position, (expert, top_k_pos, token_idx) in enumerate(
+                    visit if hinting else routes
+                ):
+                    nxt = visit[position + 1][0] if hinting and position + 1 < len(visit) else None
+                    prv = visit[position - 1][0] if hinting and position > 0 else None
                     row = {
                         "layer": self.layer_idx, "expert": expert,
                         "token_routes": token_idx.numel(),
@@ -964,22 +1152,34 @@ def _build_streamed_experts_class() -> Any:
                     }
                     self.last_trace.append(row)
                     before = self.reader.bytes_read
+                    fetches = self.pool.fetches
                     try:
-                        current_state = hidden_states[token_idx]
-                        weights = top_k_weights[token_idx, top_k_pos, None]
+                        if self.fast_row_gather:
+                            gather_rows, gather_weights = fast_gather_functions()
+                            current_state = gather_rows.apply(hidden_states, token_idx)
+                            weights = gather_weights.apply(top_k_weights, token_idx, top_k_pos)
+                        else:
+                            current_state = hidden_states[token_idx]
+                            weights = top_k_weights[token_idx, top_k_pos, None]
                         if self.two_reads:
                             current = WeightedFrozenExpert.apply(
-                                current_state, weights, self, expert, replay
+                                current_state, weights, self, expert, replay, nxt, prv
                             )
                         else:
-                            current = FrozenExpert.apply(current_state, self, expert)
+                            current = FrozenExpert.apply(current_state, self, expert, nxt, prv)
                             current = current * weights
                         row["status"] = "replay" if replay else "ok"
                     except BaseException:
                         row["status"] = "error"
                         raise
                     finally:
-                        row["logical_bytes_read"] = self.reader.bytes_read - before
+                        if hinting:
+                            # The reader's counter also moves for the expert read ahead.
+                            row["logical_bytes_read"] = (
+                                self.pool.last_lease_bytes if self.pool.fetches != fetches else 0
+                            )
+                        else:
+                            row["logical_bytes_read"] = self.reader.bytes_read - before
                     # Outside the load status on purpose: the lease is over, and a non-reentrant
                     # checkpoint recompute may stop here (it raises once every saved tensor has
                     # been recomputed), which is not an expert load failure.
@@ -991,6 +1191,60 @@ def _build_streamed_experts_class() -> Any:
                 self._forward_lock.release()
 
     return StreamedExperts
+
+
+_FAST_GATHER_FUNCTIONS = None
+
+
+def fast_gather_functions() -> Any:
+    """``(GatherRows, GatherRouteWeights)``: the expert loop's gathers under ``fast_row_gather``.
+
+    ``hidden_states[token_idx]`` and ``top_k_weights[token_idx, top_k_pos, None]`` backpropagate
+    through ``index_put_(accumulate=True)``, which sorts and launches about a dozen kernels. Each
+    token reaches an expert once, so those indices are unique and the backward is a scatter into
+    zeros, one ``index_add_``: ``0 + g`` gives the same bits as the accumulate (the sign of a zero
+    included), and nothing is summed. The indices must be unique; duplicates would be summed in
+    an undefined order by the atomics.
+    """
+    global _FAST_GATHER_FUNCTIONS
+    if _FAST_GATHER_FUNCTIONS is not None:
+        return _FAST_GATHER_FUNCTIONS
+    import torch
+
+    class GatherRows(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx: Any, source: Any, index: Any) -> Any:
+            ctx.save_for_backward(index)
+            ctx.source_shape = source.shape
+            return source.index_select(0, index)
+
+        @staticmethod
+        def backward(ctx: Any, grad: Any) -> Any:
+            if not ctx.needs_input_grad[0]:
+                return None, None
+            (index,) = ctx.saved_tensors
+            out = grad.new_zeros(ctx.source_shape)
+            return out.index_add_(0, index, grad), None
+
+    class GatherRouteWeights(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx: Any, weights: Any, token_idx: Any, top_k_pos: Any) -> Any:
+            ctx.save_for_backward(token_idx, top_k_pos)
+            ctx.weights_shape = weights.shape
+            return weights[token_idx, top_k_pos, None]
+
+        @staticmethod
+        def backward(ctx: Any, grad: Any) -> Any:
+            if not ctx.needs_input_grad[0]:
+                return None, None, None
+            token_idx, top_k_pos = ctx.saved_tensors
+            out = grad.new_zeros(ctx.weights_shape)
+            flat = token_idx * ctx.weights_shape[1] + top_k_pos
+            out.view(-1).index_add_(0, flat, grad.reshape(-1))
+            return out, None, None
+
+    _FAST_GATHER_FUNCTIONS = (GatherRows, GatherRouteWeights)
+    return _FAST_GATHER_FUNCTIONS
 
 
 _STREAMED_EXPERTS_CLASS = None

@@ -1,0 +1,126 @@
+{
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "soup_revision": null,
+  "measured_uninstrumented": [
+    {
+      "kind": "mbr",
+      "loss": 5.671227931976318,
+      "seconds": 29.991087220958434,
+      "wall_seconds_including_artifact_capture": 30.015275690937415,
+      "model_step_seconds": 29.982146471971646,
+      "optimizer_seconds": 0.008940748986788094,
+      "artifact_capture_seconds_excluded": 0.024186115013435483,
+      "tokens_per_second": 17.07173855445304,
+      "peak_allocated_GiB": 0.9185676574707031,
+      "peak_allocated_delta_GiB": 0.13249683380126953,
+      "process_read_bytes_delta": 16200486912,
+      "runtime_total": {
+        "expert_fetches": 3140,
+        "expert_bytes_read": 15279390720
+      },
+      "expert_pool_stats_after_run": {
+        "slot_count": 1,
+        "weight_budget_bytes": 55722496,
+        "plan": {
+          "dense_bytes": 17301504,
+          "packed_and_stats_bytes": 4866048,
+          "code_bytes": 64,
+          "scratch_bytes": 0,
+          "padding_bytes": 448,
+          "weight_bytes": 22168064,
+          "host_staging_bytes": 4886528,
+          "packed_region_bytes": 0,
+          "host_pinned_bytes": 0
+        },
+        "cuda_allocation_delta": 23068672,
+        "fetches": 6280,
+        "logical_bytes_read": 30558781440,
+        "transfer": "sync",
+        "h2d_copies": 0,
+        "prefetch": {
+          "enabled": false,
+          "hits": 0,
+          "discards": 0
+        },
+        "host_cache": null,
+        "closed": false,
+        "cpu_nf4_temporaries": false
+      },
+      "expert_host_cache_counter_delta": null,
+      "phase_counters": null,
+      "mbr_window_counter_audit": null,
+      "route_recompute_parity": null,
+      "phase_profile": null,
+      "grad_norm": 0.787304940906201,
+      "grad_zero_fraction": 0.4046692607003891,
+      "missing_gradient_names": [],
+      "initial_adapter_sha256": "bb83391693bf534d4c9b085960b13070484b03809a0f8fd4d4d38516e896597e",
+      "updated_adapter_sha256": "cc4c5263c50e6f0dee105c349f26f5297fb6dbf0b5b8d8fcb9f98889b12f967d"
+    },
+    {
+      "kind": "mbr",
+      "loss": 5.671227931976318,
+      "seconds": 29.928010280942544,
+      "wall_seconds_including_artifact_capture": 29.944871794898063,
+      "model_step_seconds": 29.916826501954347,
+      "optimizer_seconds": 0.011183778988197446,
+      "artifact_capture_seconds_excluded": 0.016859921044670045,
+      "tokens_per_second": 17.10771933027668,
+      "peak_allocated_GiB": 0.9185676574707031,
+      "peak_allocated_delta_GiB": 0.13249683380126953,
+      "process_read_bytes_delta": 16200486912,
+      "runtime_total": {
+        "expert_fetches": 3140,
+        "expert_bytes_read": 15279390720
+      },
+      "expert_pool_stats_after_run": {
+        "slot_count": 1,
+        "weight_budget_bytes": 55722496,
+        "plan": {
+          "dense_bytes": 17301504,
+          "packed_and_stats_bytes": 4866048,
+          "code_bytes": 64,
+          "scratch_bytes": 0,
+          "padding_bytes": 448,
+          "weight_bytes": 22168064,
+          "host_staging_bytes": 4886528,
+          "packed_region_bytes": 0,
+          "host_pinned_bytes": 0
+        },
+        "cuda_allocation_delta": 23068672,
+        "fetches": 9420,
+        "logical_bytes_read": 45838172160,
+        "transfer": "sync",
+        "h2d_copies": 0,
+        "prefetch": {
+          "enabled": false,
+          "hits": 0,
+          "discards": 0
+        },
+        "host_cache": null,
+        "closed": false,
+        "cpu_nf4_temporaries": false
+      },
+      "expert_host_cache_counter_delta": null,
+      "phase_counters": null,
+      "mbr_window_counter_audit": null,
+      "route_recompute_parity": null,
+      "phase_profile": null,
+      "grad_norm": 0.787304940906201,
+      "grad_zero_fraction": 0.4046692607003891,
+      "missing_gradient_names": [],
+      "initial_adapter_sha256": "bb83391693bf534d4c9b085960b13070484b03809a0f8fd4d4d38516e896597e",
+      "updated_adapter_sha256": "cc4c5263c50e6f0dee105c349f26f5297fb6dbf0b5b8d8fcb9f98889b12f967d"
+    }
+  ],
+  "grad_sha256": [
+    "4b78e5193233a0b1ec1724d094b2024890ad68fd3659304d4d9eb51dfb110737",
+    "4b78e5193233a0b1ec1724d094b2024890ad68fd3659304d4d9eb51dfb110737"
+  ],
+  "arm": {
+    "expert_transfer": "sync",
+    "expert_host_cache_mib": 0,
+    "expert_prefetch": false
+  },
+  "phase_profile": null
+}

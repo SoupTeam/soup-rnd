@@ -70,6 +70,13 @@ def tensor_digest(tensors: Dict[str, Any]) -> str:
     return h.hexdigest()
 
 
+def save_gradients(path: Any, tensors: Dict[str, Any]) -> None:
+    """Write the LoRA gradients (name -> CPU tensor, dtype kept) for a per-parameter comparison."""
+    import torch
+
+    torch.save({n: t.detach().cpu().contiguous() for n, t in tensors.items()}, path)
+
+
 def _read_int(path: Path) -> Optional[int]:
     try:
         value = path.read_text(encoding="utf-8").strip()
@@ -430,19 +437,8 @@ def compare_tensors(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, fl
     }
 
 
-def main() -> None:
-    import torch
-    from b5_cold import process_read_bytes
-    from b5_real_moe import _meta_construction
-    from peft import LoraConfig, TaskType
-    from transformers import AutoConfig
-
-    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
-    from soup_cli.utils.kimi_k2 import load_stream_tokenizer
-    from soup_cli.utils.l2l_step import capture_layer_call, label_tokens, model_parts, sft_head
-    from soup_cli.utils.layer_shard import read_shard_index
-    from soup_cli.utils.layer_stream_runtime import build_streamed_model
-
+def build_parser() -> argparse.ArgumentParser:
+    """The bridge command line, split out of ``main`` so it can be checked without a GPU."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default="/workspace/p3-baseline")
     parser.add_argument("--source", default=None)
@@ -469,14 +465,198 @@ def main() -> None:
         help="static packed-expert host hotset budget in MiB (requires --expert-transfer packed)",
     )
     parser.add_argument(
+        "--expert-prefetch",
+        action="store_true",
+        help="read the next hit expert on a worker thread while the current one computes",
+    )
+    parser.add_argument(
         "--read-ahead",
         type=int,
         choices=tuple(range(1, 9)),
         default=1,
         help="async disk-tier staging depth (1 stages no layer ahead; 2 stages one)",
     )
+    parser.add_argument(
+        "--expert-gemm",
+        choices=("native", "invariant", "segmented", "padded", "lt-merged", "lt-fused"),
+        default="native",
+        help="routed-expert GEMM: native cuBLAS; invariant (one row per call, plus the "
+        "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2); or "
+        "segmented (native cuBLAS per micro-batch segment, so every call has the L2L shape, "
+        "plus the two-phase MBR backward); or padded (native cuBLAS, every call padded to "
+        "--expert-pad-rows rows, plus the two-phase MBR backward; plan D1); or lt-merged "
+        "(segmented, with segments cuBLAS serves with one kernel merged into one cuBLASLt call "
+        "forced onto that kernel, A0 bits kept, plus the two-phase MBR backward); or lt-fused "
+        "(lt-merged with each expert visit as one C++ call, forward and direct backward)",
+    )
+    parser.add_argument(
+        "--expert-streams",
+        type=int,
+        default=1,
+        choices=tuple(range(1, 9)),
+        help="with --expert-gemm lt-fused: CUDA streams the independent GEMM groups of one "
+        "expert call are spread over (1: one stream)",
+    )
+    parser.add_argument(
+        "--mbr-ordered-backward",
+        action="store_true",
+        help="MBR groups are built last micro-batch first so one backward per group adds LoRA "
+        "gradients in micro-batch order, replacing the two-phase backward of the exact modes",
+    )
+    parser.add_argument(
+        "--mbr-split-backward",
+        action="store_true",
+        help="run each MBR group's backward in two phases with the native expert GEMM too "
+        "(measures the cost of the two-phase backward on its own; the exact modes turn it on)",
+    )
+    parser.add_argument(
+        "--expert-fast-gather",
+        action="store_true",
+        help="gather each expert visit's rows and route weights with a light autograd function "
+        "(index_select, then one index_add_ backward instead of the sorted index_put_); same bits",
+    )
+    parser.add_argument(
+        "--alternate-fast-gather",
+        action="store_true",
+        help="turn --expert-fast-gather on for every second step (off for even steps, on for odd "
+        "ones) inside one process; each measured step records which it was",
+    )
+    parser.add_argument(
+        "--expert-async-lease",
+        action="store_true",
+        help="an expert lease ends without a device-wide cuda synchronize (packed transfer only): "
+        "the host prepares the next expert while the card computes; same bits",
+    )
+    parser.add_argument(
+        "--alternate-async-lease",
+        action="store_true",
+        help="--expert-async-lease on for odd steps only, off for even ones (in one process)",
+    )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="torch.use_deterministic_algorithms(True) (set CUBLAS_WORKSPACE_CONFIG=:4096:8 too): "
+        "the backward of attention and index ops adds in a fixed order, so two processes agree",
+    )
+    parser.add_argument(
+        "--train-data",
+        default="",
+        help="training mode: a file from p72_prepare_train_data.py; trains on its windows with one "
+        "AdamW, records a digest of the adapter after every step, and exits",
+    )
+    parser.add_argument(
+        "--train-dump-grads", default="",
+        help="write the LoRA gradients of the first training step (before the optimizer) here")
+    parser.add_argument("--train-epochs", type=int, default=2)
+    parser.add_argument(
+        "--train-seq", type=int, default=0,
+        help="padded length of a training window (0: the longest example of the data file)")
+    parser.add_argument("--train-steps", type=int, default=0, help="0: every step of the epochs")
+    parser.add_argument("--train-lr", type=float, default=1e-4)
+    parser.add_argument(
+        "--train-eval",
+        action="store_true",
+        help="after training, the NLL of every held-out example of the data file",
+    )
+    parser.add_argument(
+        "--causal-delay",
+        default="",
+        help="causal profiling: name=microseconds pairs (expert_fwd, expert_bwd, gather_bwd, "
+        "layer) spun before every call of that point (GIL released); see causal_probe.py",
+    )
+    parser.add_argument(
+        "--alternate-causal",
+        action="store_true",
+        help="with --causal-delay: the delays are on for odd steps only, off for even ones",
+    )
+    parser.add_argument(
+        "--expert-direct-backward",
+        action="store_true",
+        help="with --expert-gemm segmented or lt-merged: compute the expert node's backward "
+        "directly (same ops and bits as autograd, no graph per segment; DeepSeek P3 idea H3)",
+    )
+    parser.add_argument(
+        "--expert-pad-rows",
+        type=int,
+        default=512,
+        help="with --expert-gemm padded: rows every expert call is padded to (at least the "
+        "largest expert call of the window)",
+    )
+    parser.add_argument(
+        "--dump-grads",
+        default=None,
+        help="with --phase-profile-only: save the first measured step's LoRA gradients to this "
+        "file (torch.save), for a per-parameter comparison between runs",
+    )
     parser.add_argument("--require-p3-ram", action="store_true")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--phase-profile",
+        action="store_true",
+        help="after the A-B-B-A samples, run CUDA-synchronised phase-profiled steps (P72)",
+    )
+    parser.add_argument("--phase-profile-blocks", type=int, default=3)
+    parser.add_argument(
+        "--profile-kinds",
+        default="l2l,mbr",
+        help="with --phase-profile-only: l2l,mbr (A-B-B-A) or a single kind (A-A)",
+    )
+    parser.add_argument(
+        "--timed-steps",
+        type=int,
+        default=2,
+        help="with --phase-profile-only and one kind: uninstrumented timed steps (default 2)",
+    )
+    parser.add_argument(
+        "--phase-profile-only",
+        action="store_true",
+        help="phase profile without the route audit (PR #72 refuses expert hooks); implies "
+        "--phase-profile and skips the diagnostic gate and the route comparison",
+    )
+    return parser
+
+
+def step_run_options(
+    kind: str, *, group_size: int, expert_gemm: str, diagnostics: bool,
+    split_backward: bool = False, ordered_backward: bool = False,
+) -> Dict[str, Any]:
+    """Keyword arguments of ``L2LStep.run`` for one bridge run of ``kind`` (``l2l`` or ``mbr``)."""
+    if expert_gemm not in ("native", "invariant", "segmented", "padded", "lt-merged",
+                           "lt-fused"):
+        raise ValueError(
+            "expert gemm must be native, invariant, segmented, padded or lt-merged, "
+            f"got {expert_gemm!r}"
+        )
+    mbr = kind == "mbr"
+    options: Dict[str, Any] = {
+        "route_preserving_mbr": mbr,
+        "mbr_group_size": group_size if mbr else None,
+        "collect_phase_stats": diagnostics,
+    }
+    exact = ("invariant", "segmented", "padded", "lt-merged", "lt-fused")
+    if mbr and ordered_backward:
+        # one engine call per group, gradients added in micro-batch order (no two-phase split)
+        options["mbr_ordered_backward"] = True
+    elif mbr and (expert_gemm in exact or split_backward):
+        options["mbr_split_backward"] = True
+    return options
+
+
+def main() -> None:
+    import torch
+    from b5_cold import process_read_bytes
+    from b5_real_moe import _meta_construction
+    from peft import LoraConfig, TaskType
+    from transformers import AutoConfig
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils.kimi_k2 import load_stream_tokenizer
+    from soup_cli.utils.l2l_step import capture_layer_call, label_tokens, model_parts, sft_head
+    from soup_cli.utils.layer_shard import read_shard_index
+    from soup_cli.utils.layer_stream_runtime import build_streamed_model
+
+    args = build_parser().parse_args()
+    if args.phase_profile_only:
+        args.phase_profile = True
     if K % args.mbr_group_size:
         raise RuntimeError(f"STOP: mbr group size {args.mbr_group_size} must divide window K={K}")
     if args.expert_host_cache_mib < 0:
@@ -497,6 +677,8 @@ def main() -> None:
     OUT = (
         Path(args.output).resolve() if args.output else ROOT / "results/route_preserving_mbr_bridge"
     )
+    if args.deterministic:
+        torch.use_deterministic_algorithms(True)
     if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
         raise RuntimeError("STOP: bridge requires exactly one visible CUDA device")
     if not torch.cuda.is_bf16_supported():
@@ -570,6 +752,7 @@ def main() -> None:
             grouped_expert_routes=True,
             expert_transfer=args.expert_transfer,
             expert_host_cache_bytes=expert_host_cache_bytes,
+            **({"expert_prefetch": True} if args.expert_prefetch else {}),
         )
     model.train()
     causal, owner = model_parts(model)
@@ -601,9 +784,14 @@ def main() -> None:
     call = capture_layer_call(model, micro_batches[0], draws=False)
     calls = [call] * K
     audit = PhaseAudit()
-    audit.attach(list(owner.layers))
+    if not args.phase_profile_only:
+        audit.attach(list(owner.layers))
     state = L2LState(runtime=runtime, dtype=torch.bfloat16, output_dir=str(OUT))
-    l2l = InstrumentedL2LStep(model, runtime, call, audit)
+    l2l = (
+        L2LStep(model, runtime, call)
+        if args.phase_profile_only
+        else InstrumentedL2LStep(model, runtime, call, audit)
+    )
     state.stepper = l2l
     store = _store_for(state, l2l, micro_batches, torch.device("cuda"))
     params = {name: p for name, p in sorted(model.named_parameters()) if p.requires_grad}
@@ -619,7 +807,32 @@ def main() -> None:
                 param.copy_(initial[name].to(device=param.device, dtype=param.dtype))
         model.zero_grad(set_to_none=True)
 
-    def one_run(kind: str, *, keep_artifacts: bool, collect_diagnostics: bool) -> Dict[str, Any]:
+    step_counter = [0]  # runs so far, for the alternating options
+    causal = None
+    causal_spec = {}
+    if args.causal_delay:
+        from causal_probe import CausalProbe, parse_causal_spec
+
+        causal_spec = parse_causal_spec(args.causal_delay)
+        import a0_exact_lt
+
+        causal = CausalProbe(spin=a0_exact_lt.load_extension().module.spin_us)
+        for point in causal_spec:
+            if point in ("expert_fwd", "expert_bwd"):
+                causal.wrap(point, a0_exact_lt.LtExtensionBackend,
+                            "expert_forward" if point == "expert_fwd" else "expert_backward")
+            elif point == "gather_bwd":
+                from soup_cli.utils.expert_stream import fast_gather_functions
+
+                causal.wrap(point, fast_gather_functions()[0], "backward")
+            elif point == "layer":
+                causal.wrap(point, L2LStep, "_layer")
+            else:
+                raise ValueError(f"unknown causal point {point!r}")
+
+    def one_run(
+        kind: str, *, keep_artifacts: bool, collect_diagnostics: bool, phase_clock: Any = None
+    ) -> Dict[str, Any]:
         stepper = l2l
         state.stepper = l2l
         audit.clear(capture_enabled=collect_diagnostics)
@@ -633,15 +846,64 @@ def main() -> None:
         base_alloc = torch.cuda.memory_allocated()
         read_before = process_read_bytes()
         started = time.perf_counter()
-        losses = stepper.run(
-            micro_batches,
-            store,
-            calls=calls,
-            head=sft_head(labels, label_tokens(micro_batches)),
-            route_preserving_mbr=(kind == "mbr"),
-            mbr_group_size=(args.mbr_group_size if kind == "mbr" else None),
-            collect_phase_stats=collect_diagnostics,
-        )
+        profiled_wall = None
+        with contextlib.ExitStack() as profiling:
+            if phase_clock is not None:  # P72 diagnostic: timing wrappers only
+                from p72_phase_profiler import install as install_phase_clock
+
+                profiling.enter_context(install_phase_clock(phase_clock))
+                profiling.enter_context(phase_clock.run())
+                torch.cuda.synchronize()
+                profiled_started = time.perf_counter()
+            # Entered after the phase clock: it wraps F.linear too, and the swap must be outermost.
+            from p72_invariant_expert_gemm import expert_gemm_context
+
+            profiling.enter_context(
+                expert_gemm_context(
+                    args.expert_gemm,
+                    args.expert_pad_rows,
+                    direct_backward=args.expert_direct_backward,
+                    streams=args.expert_streams,
+                )
+            )
+            from p72_invariant_expert_gemm import (
+                alternating_switch,
+                async_lease_context,
+                fast_row_gather_context,
+            )
+
+            step_no = step_counter[0]
+            step_counter[0] += 1
+            gather_on = args.expert_fast_gather or alternating_switch(
+                step_no, args.alternate_fast_gather)
+            profiling.enter_context(fast_row_gather_context(gather_on))
+            lease_on = args.expert_async_lease or alternating_switch(
+                step_no, args.alternate_async_lease)
+            profiling.enter_context(async_lease_context(lease_on))
+            causal_on = bool(causal_spec) and (
+                alternating_switch(step_no, True) if args.alternate_causal else True)
+            if causal is not None:
+                profiling.enter_context(causal.delays(causal_spec if causal_on else {}))
+            from diag_gpu_profile import maybe_profile
+
+            profiling.enter_context(maybe_profile())  # only with SOUP_GPU_PROFILE_JSON set
+            losses = stepper.run(
+                micro_batches,
+                store,
+                calls=calls,
+                head=sft_head(labels, label_tokens(micro_batches)),
+                **step_run_options(
+                    kind,
+                    group_size=args.mbr_group_size,
+                    expert_gemm=args.expert_gemm,
+                    diagnostics=collect_diagnostics,
+                    split_backward=args.mbr_split_backward,
+                    ordered_backward=args.mbr_ordered_backward,
+                ),
+            )
+            if phase_clock is not None:
+                torch.cuda.synchronize()
+                profiled_wall = time.perf_counter() - profiled_started
         torch.cuda.synchronize()
         model_step_seconds = time.perf_counter() - started
         capture_started = time.perf_counter()
@@ -681,6 +943,10 @@ def main() -> None:
             "seconds": seconds,
             "wall_seconds_including_artifact_capture": wall_seconds_including_capture,
             "model_step_seconds": model_step_seconds,
+            "fast_gather": bool(gather_on),
+            "async_lease": bool(lease_on),
+            "causal_on": bool(causal_on),
+            "causal_counts": causal.counts() if causal is not None else {},
             "optimizer_seconds": optimizer_seconds,
             "artifact_capture_seconds_excluded": artifact_capture_seconds,
             "tokens_per_second": (K * SEQ) / seconds,
@@ -706,6 +972,17 @@ def main() -> None:
                 else None
             ),
             "route_recompute_parity": routes_parity,
+            "phase_profile": (
+                {
+                    "wall": profiled_wall,
+                    "totals": dict(phase_clock.totals),
+                    "counts": dict(phase_clock.counts),
+                    "background": dict(phase_clock.background),
+                    "gemm_rows": list(phase_clock.gemm_rows),
+                }
+                if phase_clock is not None
+                else None
+            ),
             "grad_norm": grads["norm"],
             "grad_zero_fraction": grads["zero_fraction"],
             "missing_gradient_names": grads["missing_gradient_names"],
@@ -731,7 +1008,205 @@ def main() -> None:
         model.zero_grad(set_to_none=True)
         return result
 
+    def train_run() -> None:
+        """40-step style training on the windows of ``--train-data``: one AdamW for the whole run,
+        a digest of every LoRA tensor after each step (equal digests of two arms mean equal
+        adapters), the expert fetches and logical bytes of each step, and optionally the NLL of the
+        held-out examples. Written to ``train_steps.json`` and ``final_adapter.pt``."""
+        import torch.nn.functional as functional
+        from p72_invariant_expert_gemm import (
+            async_lease_context,
+            expert_gemm_context,
+            fast_row_gather_context,
+        )
+        from p72_train_compare import nll_summary, target_tokens
+        from p72_train_data import steps_for_epochs, window_arrays
+        from rich.console import Console
+
+        console = Console()
+        saved = torch.load(args.train_data, map_location="cpu", weights_only=True)
+        steps = steps_for_epochs(saved["train_steps"], args.train_epochs)
+        if args.train_steps:
+            steps = steps[: args.train_steps]
+        kind = args.profile_kinds.split(",")[0]
+        pad_id = int(tokenizer.eos_token_id if tokenizer.eos_token_id is not None else 0)
+        seq = args.train_seq or max(len(r["input_ids"]) for w in steps for r in w)
+        first_ids = [torch.tensor([r], dtype=torch.long).cuda()
+                     for r in window_arrays(steps[0], seq, pad_id)[0]]
+        if len(first_ids) != K:
+            raise RuntimeError(f"STOP: a training window must hold {K} examples")
+        # the layer call and the activation store depend on the window's shape, not on its tokens
+        train_calls = [capture_layer_call(model, first_ids[0], draws=False)] * K
+        train_store = _store_for(state, l2l, first_ids, torch.device("cuda"))
+        reset_parameters()
+        optimizer = torch.optim.AdamW(list(params.values()), lr=args.train_lr, weight_decay=0.01)
+        optimizer.zero_grad(set_to_none=True)
+        pool = getattr(runtime, "expert_pool", None)
+        rows: List[Dict[str, Any]] = []
+        started_all = time.perf_counter()
+        for index, window in enumerate(steps):
+            ids, label_rows = window_arrays(window, seq, pad_id)
+            window_ids = [torch.tensor([r], dtype=torch.long).cuda() for r in ids]
+            window_labels = [torch.tensor([r], dtype=torch.long).cuda() for r in label_rows]
+            fetches_before = pool.stats()["fetches"] if pool is not None else 0
+            torch.cuda.synchronize()
+            started = time.perf_counter()
+            with contextlib.ExitStack() as contexts:
+                contexts.enter_context(expert_gemm_context(
+                    args.expert_gemm, args.expert_pad_rows,
+                    direct_backward=args.expert_direct_backward,
+                    streams=args.expert_streams,
+                ))
+                contexts.enter_context(fast_row_gather_context(args.expert_fast_gather))
+                contexts.enter_context(async_lease_context(args.expert_async_lease))
+                losses = l2l.run(
+                    window_ids, train_store, calls=train_calls,
+                    head=sft_head(window_labels, target_tokens(label_rows)),
+                    **step_run_options(
+                        kind, group_size=args.mbr_group_size, expert_gemm=args.expert_gemm,
+                        diagnostics=False, split_backward=args.mbr_split_backward,
+                        ordered_backward=args.mbr_ordered_backward),
+                )
+            torch.cuda.synchronize()
+            step_seconds = time.perf_counter() - started
+            if args.train_dump_grads and index == 0:
+                torch.save({n: (p.grad.detach().cpu() if p.grad is not None else None)
+                            for n, p in params.items()}, args.train_dump_grads)
+            torch.nn.utils.clip_grad_norm_(list(params.values()), 1.0)
+            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
+            torch.cuda.synchronize()
+            fetches = (pool.stats()["fetches"] if pool is not None else 0) - fetches_before
+            packed = pool.stats()["plan"]["packed_region_bytes"] if pool is not None else 0
+            rows.append({
+                "step": index + 1,
+                "loss": float(torch.stack([x.float() for x in losses]).sum().detach().cpu()),
+                "step_seconds": step_seconds,
+                "fetches": fetches,
+                "logical_bytes": fetches * packed,
+                "adapter_sha256": tensor_digest({n: p.detach() for n, p in params.items()}),
+            })
+            console.out(
+                f"TRAIN step {index + 1}/{len(steps)} loss {rows[-1]['loss']:.6f} "
+                f"{step_seconds:.2f}s fetches {fetches} {rows[-1]['adapter_sha256'][:12]}")
+        training_seconds = time.perf_counter() - started_all
+        torch.save({n: p.detach().cpu() for n, p in params.items()}, OUT / "final_adapter.pt")
+        result: Dict[str, Any] = {
+            "kind": kind, "steps": rows, "training_seconds": training_seconds,
+            "total_fetches": sum(r["fetches"] for r in rows),
+            "total_logical_bytes": sum(r["logical_bytes"] for r in rows),
+            "arm": {"expert_gemm": args.expert_gemm, "fast_gather": args.expert_fast_gather,
+                    "async_lease": args.expert_async_lease,
+                    "ordered_backward": args.mbr_ordered_backward},
+            "data_sha256": hashlib.sha256(Path(args.train_data).read_bytes()).hexdigest(),
+            "deterministic": bool(torch.are_deterministic_algorithms_enabled()),
+        }
+        if args.train_eval:
+            model.eval()
+            per_example = []
+            with torch.no_grad(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                for example in saved["heldout_examples"]:
+                    ids = torch.tensor([example["input_ids"]], dtype=torch.long).cuda()
+                    targets = torch.tensor([example["labels"]], dtype=torch.long).cuda()
+                    output = model(input_ids=ids, use_cache=False, return_dict=True)
+                    logits = output.logits[:, :-1, :].float().reshape(-1, output.logits.shape[-1])
+                    nll = float(functional.cross_entropy(
+                        logits, targets[:, 1:].reshape(-1), ignore_index=-100,
+                        reduction="sum").item())
+                    count = int((targets[:, 1:] != -100).sum().item())
+                    per_example.append({"group_sha256": example["group_sha256"],
+                                        "type": example["type"], "nll_sum": nll,
+                                        "target_tokens": count, "nll_token_mean": nll / count})
+            result["heldout"] = {"per_example": per_example, **nll_summary(per_example)}
+            summary_only = {k: v for k, v in result["heldout"].items() if k != "per_example"}
+            console.out("HELDOUT " + json.dumps(summary_only))
+        (OUT / "train_steps.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        console.out(f"TRAINED {args.train_data} {training_seconds:.1f}s")
+
+    def run_phase_profile(measured: List[Dict[str, Any]]) -> Dict[str, Any]:
+        kinds = list(dict.fromkeys(row["kind"] for row in measured))
+        order = [row["kind"] for row in measured]
+        from p72_mbr_phase_profile import summarize_runs
+        from p72_phase_profiler import PhaseClock
+
+        clock = PhaseClock("cuda")
+        by_kind: Dict[str, List[Dict[str, Any]]] = {kind: [] for kind in kinds}
+        exact: Dict[str, bool] = {kind: True for kind in kinds}
+        reference = {kind: next(r for r in measured if r["kind"] == kind) for kind in kinds}
+        # A-B-B-A blocks outside the reported timing samples; serialised by CUDA syncs.
+        for _ in range(args.phase_profile_blocks):
+            for kind in order:
+                row = one_run(
+                    kind, keep_artifacts=True, collect_diagnostics=False, phase_clock=clock
+                )
+                by_kind[kind].append(row["phase_profile"])
+                ref = reference[kind]
+                exact[kind] &= row["loss"] == ref["loss"] and all(
+                    torch.equal(row["grad_artifacts"][name], ref["grad_artifacts"][name])
+                    for name in ref["grad_artifacts"]
+                )
+        phase_profile = {
+            kind: summarize_runs(
+                kind,
+                by_kind[kind],
+                uninstrumented_seconds=[
+                    r["model_step_seconds"] for r in measured if r["kind"] == kind
+                ],
+                parity_ok=exact[kind],
+            )
+            for kind in kinds
+        }
+        (OUT / "phase_profile.json").write_text(
+            json.dumps(phase_profile, indent=2) + "\n", encoding="utf-8"
+        )
+        print(json.dumps(phase_profile, indent=2), flush=True)
+        return phase_profile
+
     try:
+        if args.train_data:
+            train_run()
+            return
+        if args.phase_profile_only:
+            wanted = args.profile_kinds.split(",")
+            if not set(wanted) <= {"l2l", "mbr"}:
+                raise ValueError("--profile-kinds takes l2l and/or mbr")
+            order_only = (
+                ["l2l", "mbr", "mbr", "l2l"] if len(wanted) == 2 else wanted * args.timed_steps
+            )
+            for kind in dict.fromkeys(wanted):
+                one_run(kind, keep_artifacts=False, collect_diagnostics=False)
+            measured_only = [
+                one_run(kind, keep_artifacts=True, collect_diagnostics=False)
+                for kind in order_only
+            ]
+            if args.dump_grads:
+                save_gradients(args.dump_grads, measured_only[0]["grad_artifacts"])
+            # --phase-profile-blocks 0 is a timing-only run (the F1 blocks use it).
+            profile = run_phase_profile(measured_only) if args.phase_profile_blocks else None
+            (OUT / "result_phase_profile_only.json").write_text(
+                json.dumps(
+                    {
+                        "gpu": torch.cuda.get_device_name(0),
+                        "soup_revision": source_revision(),
+                        "measured_uninstrumented": [
+                            strip_artifacts(r) for r in measured_only
+                        ],
+                        "grad_sha256": [
+                            tensor_digest(r["grad_artifacts"]) for r in measured_only
+                        ],
+                        "arm": {
+                            "expert_transfer": args.expert_transfer,
+                            "expert_host_cache_mib": args.expert_host_cache_mib,
+                            "expert_prefetch": bool(args.expert_prefetch),
+                        },
+                        "phase_profile": profile,
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            return
         warm_l2l = one_run("l2l", keep_artifacts=True, collect_diagnostics=True)
         warm_mbr = one_run("mbr", keep_artifacts=True, collect_diagnostics=True)
         route_summary = compare_route_artifacts(
@@ -812,6 +1287,7 @@ def main() -> None:
             one_run("mbr", keep_artifacts=True, collect_diagnostics=False),
             one_run("l2l", keep_artifacts=True, collect_diagnostics=False),
         ]
+        phase_profile = run_phase_profile(measured) if args.phase_profile else None
         diag_a, diag_b = warm_l2l, warm_mbr
         first_a, first_b = measured[0], measured[1]
         # Route capture/phase counting are separate; raw gradients are copied after each timer.
@@ -908,6 +1384,7 @@ def main() -> None:
                 "mbr_BB": bb_gradient_repeatability,
             },
             "route_artifact": str(OUT / "routes.pt"),
+            "phase_profile": phase_profile,
             "physical_io_claim": False,
             "notes": [
                 (

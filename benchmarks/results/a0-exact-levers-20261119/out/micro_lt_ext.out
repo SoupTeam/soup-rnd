@@ -1,0 +1,32 @@
+torch 2.14.1+cu130 gpu NVIDIA GeForce RTX 3060
+extension built/loaded in 0.1 s
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+
+== autograd grad_x == torch.mm(g, W): mismatches 0 []
+
+== A0-exact Lt algo per M
+[fwd_gate_up] missing M: []; distinct algos for M 2..64: 5
+[fwd_down] missing M: []; distinct algos for M 2..64: 4
+[bwd_down] missing M: []; distinct algos for M 2..64: 4
+[bwd_gate_up] missing M: []; distinct algos for M 2..64: 4
+
+== one expert fwd+bwd, 60 groups, mean segments 6.38, mean rows per segment 7.0
+merged == segmented (out, grad_hidden) for all groups: True; table {'discovered': 256, 'no_algo': 0, 'merged_calls': 355, 'merge_refused': 2}
+segmented (B0s)  3.286 ms per group (events), 3.286 ms wall
+lt-merged        3.851 ms per group (events), 3.852 ms wall
+B0 one call      1.048 ms per group (events), 1.049 ms wall
+
+== H3 direct backward
+segmented direct bits == autograd segmented: True; 1.435 ms per group (events), 1.436 ms wall
+lt-merged direct bits == autograd segmented: True; 1.680 ms per group (events), 1.680 ms wall
+
+== GPU kernel time per group (profiler), no CPU overhead
+segmented autograd   0.971 ms
+lt-merged autograd   0.510 ms
+B0 autograd          0.199 ms
+segmented direct     0.996 ms
+lt-merged direct     0.510 ms
+B0 direct            0.198 ms
+segmented direct     wall 1.480 ms per group
+lt-merged direct     wall 1.865 ms per group
+B0 direct            wall 0.359 ms per group
