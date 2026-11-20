@@ -115,6 +115,7 @@ def run_window(
     group_size: Optional[int],
     dtype: str,
     split_backward: bool = False,
+    ordered_backward: bool = False,
 ) -> Result:
     _zero_grads(rig.model)
     kwargs: Dict[str, Any] = {"route_preserving_mbr": mbr}
@@ -122,6 +123,8 @@ def run_window(
         kwargs.update(mbr_group_size=group_size, collect_phase_stats=True)
     if split_backward:
         kwargs["mbr_split_backward"] = True
+    if ordered_backward:
+        kwargs["mbr_ordered_backward"] = True
     with _autocast(dtype):
         losses = rig.stepper.run(ids, rig.store, calls=calls, **kwargs)
     collected = _collect(rig.model)

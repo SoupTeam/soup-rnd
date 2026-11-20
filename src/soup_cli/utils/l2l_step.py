@@ -862,6 +862,7 @@ class L2LStep:
         group_size: int,
         deferred_hooks: Tuple[Any, Any, List[Any]],
         split_records: Optional[List[Dict[str, Any]]] = None,
+        reverse_graph_order: bool = False,
     ) -> Tuple[List[Any], List[Tuple[Any, Any]], List[List[int]], Dict[str, int]]:
         """Run each layer's attention/router per micro-batch, grouping only routed experts.
 
@@ -869,6 +870,10 @@ class L2LStep:
         its inputs and the residual path become fresh leaves and one record per group lists the
         per-micro-batch tensors behind them, so the caller can run the block's backward once
         and the rest of each micro-batch's backward on its own (see ``_split_group_backward``).
+        ``reverse_graph_order`` builds each group's micro-batches from the last to the first, in
+        the forward pass and the recompute alike (two-read replays router decisions in the order
+        the forward took them), so one backward over the group adds gradients in micro-batch
+        order (see ``mbr_ordered_backward``); rows, outputs and routes keep micro-batch order.
         """
         import torch
 
@@ -893,7 +898,8 @@ class L2LStep:
             for start in range(0, len(hidden), group_size):
                 indices = list(range(start, min(start + group_size, len(hidden))))
                 first_record = len(captured)
-                for mb in indices:
+                build_order = list(reversed(indices)) if reverse_graph_order else list(indices)
+                for mb in build_order:
                     state = states[mb] if states is not None else None
                     self._layer(module, hidden[mb], state, calls[mb])
                     if getattr(module, "_forward_hooks", None) or getattr(
@@ -904,6 +910,8 @@ class L2LStep:
                             "hooks during a grouped layer call"
                         )
                 rows = captured[first_record:]
+                if reverse_graph_order:
+                    rows = rows[::-1]
                 if len(rows) != len(indices):
                     raise RuntimeError(
                         "route-preserving MBR expected one routed-expert call per micro-batch; "
@@ -948,10 +956,14 @@ class L2LStep:
                     shared = [row["shared_output"] for row in rows]
                 previous_materialize = experts._mbr_materialize_recompute
                 experts._mbr_materialize_recompute = bool(wrapper_hooks or inner_hooks)
+                # Row counts of the joined micro-batches in micro-batch order, for hooks that
+                # split the joined call (the call order of the micro-batches may be reversed).
+                experts._mbr_group_sizes = list(sizes)
                 try:
                     joined_output = experts(joined_hidden, joined_ids, joined_weights)
                 finally:
                     experts._mbr_materialize_recompute = previous_materialize
+                    experts._mbr_group_sizes = None
                 unique_experts_by_group.append(len(experts.last_trace))
                 if joined_output.shape != joined_hidden.shape:
                     raise RuntimeError(
@@ -969,7 +981,9 @@ class L2LStep:
                         result = _apply_deferred_forward_hooks(
                             inner, inner_hooks, row["hook_args"], row["hook_kwargs"], result
                         )
-                    wrapper_args, wrapper_kwargs = wrapper_inputs[mb]
+                    wrapper_args, wrapper_kwargs = wrapper_inputs[
+                        first_record + build_order.index(mb)
+                    ]
                     outputs[mb] = _apply_deferred_forward_hooks(
                         module, wrapper_hooks, wrapper_args, wrapper_kwargs, result
                     )
@@ -1097,6 +1111,7 @@ class L2LStep:
         mbr_group_size: Optional[int] = None,
         collect_phase_stats: bool = False,
         mbr_split_backward: bool = False,
+        mbr_ordered_backward: bool = False,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
@@ -1116,6 +1131,10 @@ class L2LStep:
         experts and grouped route dispatch. ``mbr_group_size`` defaults to the full window.
         ``mbr_split_backward`` runs each group's backward in two phases (grouped experts once,
         then the rest per micro-batch), so LoRA gradients add up in the order of group size 1.
+        ``mbr_ordered_backward`` gets the same order in one engine call per group: the backward
+        recompute builds each group's micro-batches from the last to the first, so the engine
+        (highest sequence number first) meets micro-batch 0's nodes first and adds every
+        weight's contributions in micro-batch order. It excludes ``mbr_split_backward``.
         """
         if type(route_preserving_mbr) is not bool:
             raise ValueError("route_preserving_mbr must be a bool")
@@ -1123,8 +1142,14 @@ class L2LStep:
             raise ValueError("collect_phase_stats must be a bool")
         if type(mbr_split_backward) is not bool:
             raise ValueError("mbr_split_backward must be a bool")
+        if type(mbr_ordered_backward) is not bool:
+            raise ValueError("mbr_ordered_backward must be a bool")
         if mbr_split_backward and not route_preserving_mbr:
             raise ValueError("mbr_split_backward is only valid with route_preserving_mbr=True")
+        if mbr_ordered_backward and not route_preserving_mbr:
+            raise ValueError("mbr_ordered_backward is only valid with route_preserving_mbr=True")
+        if mbr_ordered_backward and mbr_split_backward:
+            raise ValueError("mbr_ordered_backward and mbr_split_backward exclude each other")
         if routing_budget is not None and (
             len(routing_budget) != 2
             or any(type(value) is not int or value < 0 for value in routing_budget)
@@ -1164,6 +1189,7 @@ class L2LStep:
                         collect_phase_stats=collect_phase_stats,
                         routing_budget=routing_budget,
                         mbr_split_backward=mbr_split_backward,
+                        mbr_ordered_backward=mbr_ordered_backward,
                     )
                 else:
                     guard = (
@@ -1205,6 +1231,7 @@ class L2LStep:
         collect_phase_stats: bool = False,
         routing_budget: Optional[Tuple[int, int]] = None,
         mbr_split_backward: bool = False,
+        mbr_ordered_backward: bool = False,
     ) -> List[Any]:
         import torch
 
@@ -1304,6 +1331,7 @@ class L2LStep:
                                 calls,
                                 group_size,
                                 deferred_hooks,
+                                reverse_graph_order=mbr_ordered_backward,
                             )
                         )
                     for mb in range(k):
@@ -1422,6 +1450,7 @@ class L2LStep:
                                 group_size,
                                 deferred_hooks,
                                 split_records,
+                                reverse_graph_order=mbr_ordered_backward,
                             )
                         )
                     after_recompute = (

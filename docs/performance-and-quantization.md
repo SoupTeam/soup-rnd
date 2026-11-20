@@ -1481,6 +1481,17 @@ using `always_call`, general backward hooks and MoE/global module hooks remain u
 With a deferred hook, recomputation reads experts to provide the real output, so the layer may
 need a third expert read; without hooks, the two-read path is unchanged.
 
+`L2LStep.run(..., route_preserving_mbr=True, mbr_ordered_backward=True)` (an API option, no config
+field and no CLI flag, off by default) makes the group's gradients add up in the order of group
+size 1 without the two-phase split: the forward and the recompute build each group's micro-batches
+from the last to the first, so the autograd engine, which runs the node with the highest sequence
+number first, meets micro-batch 0's nodes first and adds every weight's contributions in
+micro-batch order, in one engine call per group instead of one plus one per micro-batch. It is
+only valid with `route_preserving_mbr=True` and excludes `mbr_split_backward`. Rows, outputs and
+routes keep micro-batch order. Two more off-by-default switches of the expert pool and the expert
+loop (`ExpertBufferPool.async_lease`, `StreamedExperts.fast_row_gather`) are described in
+[`expert-forward.md`](expert-forward.md#host-side-levers-async_lease-and-fast_row_gather-experimental-off-by-default).
+
 The 2026-11-17 Moonlight-16B-A3B Soup bridge measured group sizes 1/2/4/8 on one fixed
 512-token window. Group 8 reduced logical expert reads by 84.1% and took 18.37 s versus
 98.27 s for the matched two-read L2L control, with 9.95% relative raw-gradient difference and
