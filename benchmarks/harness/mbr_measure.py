@@ -226,10 +226,10 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     options = arm_options(args.arm, k=args.k)
     if args.deterministic:
         torch.use_deterministic_algorithms(True, warn_only=True)
-    tokenizer = AutoTokenizer.from_pretrained(args.source)
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer or args.source)
     rows = list(load_dataset("google-research-datasets/mbpp", "full", split="train"))
     data = mbpp_records(rows, tokenizer, seq=args.seq)
-    cuda = torch.cuda.is_available()
+    cuda = torch.cuda.is_available() and args.device != "cpu"
     device = "cuda" if cuda else "cpu"
     dtype = torch.bfloat16 if cuda else torch.float32
     b5_real_moe._reset_peak_rss()
@@ -316,7 +316,10 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
     for item in plan:
         command = [sys.executable, __file__, "run", "--arm", item["arm"], "--k", str(item["k"]),
                    "--seq", str(item["seq"]), "--kind", item["kind"], "--source", args.source,
-                   "--cache", args.cache, "--steps", str(args.steps), "--out", str(out)]
+                   "--cache", args.cache, "--steps", str(args.steps), "--out", str(out),
+                   "--device", args.device]
+        if args.tokenizer:
+            command += ["--tokenizer", args.tokenizer]
         if item["deterministic"]:
             command.append("--deterministic")
         proc = subprocess.run(command, capture_output=True, text=True)
@@ -344,6 +347,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         p.add_argument("--out", required=True)
         p.add_argument("--steps", type=int, default=4, help="first step is warm-up")
         p.add_argument("--lora-r", type=int, default=16)
+        p.add_argument("--tokenizer", default=None, help="default: the --source folder")
+        p.add_argument("--device", choices=("auto", "cpu"), default="auto")
         if name == "run":
             p.add_argument("--arm", required=True)
             p.add_argument("--k", type=int, required=True)
