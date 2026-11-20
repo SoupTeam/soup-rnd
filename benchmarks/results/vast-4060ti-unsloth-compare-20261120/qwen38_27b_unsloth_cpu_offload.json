@@ -1,0 +1,23 @@
+{
+  "arm": "unsloth_cpu_offload",
+  "case": "qwen38_27b",
+  "model_path": "/workspace/models/qwen38_27b",
+  "k": 16,
+  "seq_len": 256,
+  "lora_r": 16,
+  "torch_version": "2.14.1+cu130",
+  "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+  "gpu_total_gib": 7.651,
+  "status": "error",
+  "transformers_version": "5.17.0",
+  "unsloth_version": "2026.11.7",
+  "error_type": "TypeError",
+  "error_message": "Qwen3_5ForConditionalGeneration.__init__() got an unexpected keyword argument 'llm_int8_enable_fp32_cpu_offload'",
+  "traceback_tail": "modulelist.py\", line 1144, in wrapper\n    result = func(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth/models/loader_utils.py\", line 5357, in _wrapper\n    return finish(fn(*args, **kwargs))\n                  ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth/models/vision.py\", line 4938, in from_pretrained\n    model = auto_model.from_pretrained(\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py\", line 402, in from_pretrained\n    return model_class.from_pretrained(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/unsloth/models/loader.py\", line 1121, in wrapped\n    output = original(cls, *args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/transformers/modeling_utils.py\", line 4267, in from_pretrained\n    model = cls(config, *model_args, **model_kwargs)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: Qwen3_5ForConditionalGeneration.__init__() got an unexpected keyword argument 'llm_int8_enable_fp32_cpu_offload'\n",
+  "total_wall_s": 5.842,
+  "cuda_allocated_peak_gib": 0.0079,
+  "cuda_reserved_peak_gib": 0.0215,
+  "nvml_peak_gib": 0.5341,
+  "rss_peak_gib": 1.8868,
+  "poll_samples": 54
+}
