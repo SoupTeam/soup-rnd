@@ -587,32 +587,88 @@ def child_run_args(args: Any, item: Dict[str, Any]) -> List[str]:
     return argv
 
 
+ABBA_ARMS = {"A": "A0", "B": "C"}
+DEFAULT_LABEL = "RTX 3050 Laptop, real"
+ARM_CHECKS: Tuple[str, ...] = ("suspend", "power", "foreign_reads")
+
+
+def abba_plan(*, blocks: int = 5, start_block: int = 0) -> List[Dict[str, Any]]:
+    """A0 against C in A-B-B-A blocks (``METHOD.md``, the repeats rule), on the windows where
+    A0 runs (k <= ``A0_MAX_K``). Block-major, like ``speed_plan``.
+
+    ``start_block`` resumes a pilot: block numbers and run indexes continue the numbering of
+    the earlier blocks, so the records of both parts sort together."""
+    from benchmarks.harness.arm_validity import block_order
+
+    order = block_order(1)[0]
+    windows = [(k, seq) for k, seq in WINDOWS if k <= A0_MAX_K]
+    per_block = len(windows) * len(order)
+    plan: List[Dict[str, Any]] = []
+    for block in range(start_block, start_block + blocks):
+        position = 0
+        for k, seq in windows:
+            for role in order:
+                plan.append({"arm": ABBA_ARMS[role], "k": k, "seq": seq, "block": block,
+                             "index": block * per_block + position,
+                             "kind": "speed", "deterministic": False})
+                position += 1
+    return plan
+
+
+def arm_watch_kwargs(args: Any, *, arm: str, round_number: int, run: int) -> Dict[str, Any]:
+    """Arguments of one ``ArmWatch`` around one run. All three checks are required, and the
+    model folder is the disk under test, so foreign reads are measured on that disk."""
+    return {"arm": arm, "round": round_number, "run": run, "label": args.label,
+            "required": ARM_CHECKS, "model_path": args.source}
+
+
+def run_number(item: Dict[str, Any], position: int) -> int:
+    """Zero-based index of a plan item: its plan index when it has one (resumed pilots), else its
+    position in the plan."""
+    return item.get("index", position)
+
+
+def append_jsonl(path: Any, obj: Dict[str, Any]) -> None:
+    """Append one JSON object as one line."""
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(obj) + "\n")
+
+
 def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  # pragma: no cover
-    """Run each plan item in a fresh process; append every row to ``<out>/rows.jsonl``."""
+    """Run each plan item in a fresh process inside an ``ArmWatch``. Appends every row to
+    ``<out>/rows.jsonl`` and every arm record, void ones included, to
+    ``<out>/arm_records.jsonl``."""
     import subprocess
     import sys
     import time
     from pathlib import Path
 
+    from benchmarks.harness.arm_validity import ArmWatch
+
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     rows: List[Dict[str, Any]] = []
     deadline = time.time() + args.deadline_hours * 3600 if args.deadline_hours else None
-    for item in plan:
+    for index, item in enumerate(plan):
         if deadline is not None and time.time() > deadline:
             print(f"deadline reached, {len(rows)} of {len(plan)} runs done", flush=True)
             break
         command = [sys.executable, __file__, *child_run_args(args, item)]
-        proc = subprocess.run(command, capture_output=True, text=True)
+        number = run_number(item, index)
+        kwargs = arm_watch_kwargs(args, arm=item["arm"], round_number=number // 2 + 1,
+                                  run=number + 1)
+        with ArmWatch(**kwargs) as watch:
+            proc = subprocess.run(command, capture_output=True, text=True)
         line = next((ln for ln in reversed(proc.stdout.splitlines()) if ln.startswith("{")), None)
         row = json.loads(line) if line else {
             "arm": item["arm"], "k": item["k"], "seq": item["seq"], "kind": item["kind"],
             "mode": "deterministic" if item["deterministic"] else "normal",
             "status": "CRASH", "error": proc.stderr[-300:]}
         row["block"] = item["block"]
+        row["outcome"] = watch.record["outcome"]
         rows.append(row)
-        with open(out / "rows.jsonl", "a", encoding="utf-8") as handle:
-            handle.write(json.dumps(row) + "\n")
+        append_jsonl(out / "rows.jsonl", row)
+        append_jsonl(out / "arm_records.jsonl", watch.record)
     return rows
 
 
@@ -621,7 +677,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
 
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits"):
+    for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -635,6 +691,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="stop launching runs after this many hours (0: no limit)")
         p.add_argument("--tokenizer", default=None, help="default: the --source folder")
         p.add_argument("--device", choices=("auto", "cpu"), default="auto")
+        p.add_argument("--label", default=DEFAULT_LABEL,
+                       help="card and 'real' or 'fake', written into every arm record")
         if name == "run":
             p.add_argument("--arm", required=True)
             p.add_argument("--k", type=int, required=True)
@@ -643,8 +701,11 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--deterministic", action="store_true")
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
-        if name in ("speed", "lever-speed"):
-            p.add_argument("--blocks", type=int, default=5 if name == "speed" else 1)
+        if name in ("speed", "lever-speed", "abba"):
+            p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
+        if name == "abba":
+            p.add_argument("--start-block", type=int, default=0,
+                           help="first block number, to resume a pilot in the same folder")
         if name in ("bits", "lever-bits"):
             p.add_argument("--seq", type=int, default=64)
     args = parser.parse_args(argv)
@@ -652,6 +713,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         print(json.dumps(run_one(args)))
         return 0
     plan = {"speed": lambda: speed_plan(blocks=args.blocks),
+            "abba": lambda: abba_plan(blocks=args.blocks, start_block=args.start_block),
             "bits": lambda: bit_plan(seq=args.seq), "profile": profile_plan,
             "lever-speed": lambda: lever_speed_plan(blocks=args.blocks),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq)}[args.command]()

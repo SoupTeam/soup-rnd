@@ -333,3 +333,57 @@ def test_lora_targets_default_is_the_kanana_list_and_the_flag_overrides_it() -> 
         "q_proj", "kv_a_proj_with_mqa", "o_proj")
     with pytest.raises(argparse.ArgumentTypeError, match="at least one module name"):
         mm.parse_lora_targets(" , ")
+
+
+def test_abba_plan_runs_a0_c_c_a0_per_block_on_the_k8_windows_only() -> None:
+    plan = mm.abba_plan(blocks=2)
+    assert {(p["k"], p["seq"]) for p in plan} == {(8, 64), (8, 512)}
+    first_window_block0 = [p["arm"] for p in plan if p["block"] == 0 and p["seq"] == 64]
+    assert first_window_block0 == ["A0", "C", "C", "A0"]
+    assert len(plan) == 2 * 2 * 4
+    assert all(p["kind"] == "speed" and p["deterministic"] is False for p in plan)
+
+
+def test_arm_watch_checks_every_run_and_watches_the_model_folder() -> None:
+    import argparse
+
+    args = argparse.Namespace(source="/models/moon", label="RTX 3050 Laptop, real")
+    kwargs = mm.arm_watch_kwargs(args, arm="C", round_number=1, run=3)
+    assert kwargs == {"arm": "C", "round": 1, "run": 3, "label": "RTX 3050 Laptop, real",
+                      "required": ("suspend", "power", "foreign_reads"),
+                      "model_path": "/models/moon"}
+
+
+def test_abba_plan_can_resume_at_a_later_block_with_global_run_indexes() -> None:
+    plan = mm.abba_plan(blocks=1, start_block=1)
+    assert {p["block"] for p in plan} == {1}
+    assert [p["index"] for p in plan] == list(range(8, 16))
+    assert [p["arm"] for p in plan[:4]] == ["A0", "C", "C", "A0"]
+
+
+def test_default_label_is_the_one_the_speed_rule_names() -> None:
+    assert mm.DEFAULT_LABEL == "RTX 3050 Laptop, real"
+
+
+def test_run_number_follows_the_plan_index_and_falls_back_to_position() -> None:
+    assert mm.run_number({"index": 9}, position=0) == 9
+    assert mm.run_number({}, position=4) == 4
+
+
+def test_append_jsonl_adds_one_line_per_call(tmp_path) -> None:
+    target = tmp_path / "rows.jsonl"
+    mm.append_jsonl(target, {"arm": "A0"})
+    mm.append_jsonl(target, {"arm": "C"})
+    assert target.read_text().splitlines() == ['{"arm": "A0"}', '{"arm": "C"}']
+
+
+def test_run_fit_refuses_to_run_over_existing_rows(tmp_path) -> None:
+    import subprocess
+
+    script = (mm.__file__.rsplit("benchmarks", 1)[0]
+              + "benchmarks/mbr-moonlight-fit-20261121/run_fit.sh")
+    (tmp_path / "fit.jsonl").write_text("{}\n")
+    env = {"HOME": str(tmp_path), "OUT": str(tmp_path), "PATH": "/usr/bin:/bin"}
+    result = subprocess.run(["bash", script], env=env, capture_output=True, text=True)
+    assert result.returncode == 1
+    assert "refusing to run" in result.stderr
