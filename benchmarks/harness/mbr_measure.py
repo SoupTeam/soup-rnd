@@ -428,6 +428,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 "peak_ram": b5_real_moe._peak_rss()}
 
     runtime_levers = arm_runtime(args.arm)
+    gemm_state: Dict[str, Any] = {}
 
     def work() -> Dict[str, Any]:
         from contextlib import ExitStack
@@ -441,7 +442,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
         with ExitStack() as levers:  # entered before the model is built: the class defaults
             levers.enter_context(fast_row_gather_context(runtime_levers["fast_row_gather"]))
             levers.enter_context(async_lease_context(runtime_levers["async_lease"]))
-            levers.enter_context(expert_gemm_context(runtime_levers["expert_gemm"]))
+            gemm_state["plan"] = levers.enter_context(
+                expert_gemm_context(runtime_levers["expert_gemm"]))
             return build_and_run()
 
     def build_and_run() -> Dict[str, Any]:
@@ -489,6 +491,10 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                     requested=True,
                     actual=all(r.direct for r in getattr(runtime, "expert_readers", ()))),
                 "environment": _environment()}
+            plan = gemm_state.get("plan")
+            if plan is not None:  # lt-fused: visits on the fused path against the Python path
+                out["fused_visits"] = dict(plan.direct_stats)
+                out["algo_table"] = dict(plan.table.stats)
             if args.profile:
                 out["phases"] = _profile_step(stepper, store, ids, options, cuda)
             return out

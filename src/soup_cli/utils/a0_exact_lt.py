@@ -305,7 +305,6 @@ class FusedExpert:
         self.require_cuda = require_cuda
         self.registered: set = set()
         self._known: Dict[Tuple[Any, ...], set] = {}  # weight shapes -> rows done in all forms
-        self._samples: Dict[Tuple[Any, ...], Any] = {}
 
     def usable(self, hidden: Any, gate_up: Any, down: Any) -> bool:
         if not self.require_cuda:
@@ -326,13 +325,16 @@ class FusedExpert:
         if all(c in known for c in counts):
             return True
         for rows in set(int(c) for c in counts):
+            samples: Dict[int, Any] = {}  # one input per K for this row count, dropped after
             for w, transposed in ((gate_up, True), (down, True), (down, False), (gate_up, False)):
                 k = int(w.shape[1] if transposed else w.shape[0])
                 out_cols = int(w.shape[0] if transposed else w.shape[1])
                 key = (out_cols, k, transposed, rows)
                 if key in self.registered:
                     continue
-                algo = self.table.lookup(self._sample(rows, k, w), w, transposed)
+                if k not in samples:
+                    samples[k] = self._sample(rows, k, w)
+                algo = self.table.lookup(samples[k], w, transposed)
                 if algo is None:
                     return False
                 self.backend.register_algo(out_cols, k, transposed, rows,
@@ -341,13 +343,11 @@ class FusedExpert:
             known.add(rows)
         return True
 
-    def _sample(self, rows: int, k: int, like: Any) -> Any:
+    @staticmethod
+    def _sample(rows: int, k: int, like: Any) -> Any:
         import torch
 
-        key = (rows, k, str(like.device), str(like.dtype))
-        if key not in self._samples:
-            self._samples[key] = torch.randn(rows, k, device=like.device).to(like.dtype)
-        return self._samples[key]
+        return torch.randn(rows, k, device=like.device).to(like.dtype)
 
 
 _KERNELS_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -421,7 +421,7 @@ def _nvcc_home() -> str:
 
 
 def _link_wheel_libs(home: str) -> None:
-    """Pip wheels ship ``lib/libcudart.so.13`` only; the linker wants ``lib64`` and the bare name."""
+    """Pip wheels ship ``lib/libcudart.so.13`` only; the linker wants ``lib64`` and ``.so``."""
     import glob
 
     lib = os.path.join(home, "lib")

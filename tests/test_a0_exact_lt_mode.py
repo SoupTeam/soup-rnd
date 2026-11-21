@@ -105,3 +105,29 @@ def test_lt_merged_group_merges_segments_like_the_segmented_plan(
 def test_lt_merged_context_is_reachable_through_expert_gemm_context() -> None:
     with expert_gemm_context("lt-merged", lt_backend=CpuBackend()) as state:
         assert state.table is not None and state.merged_calls == 0
+
+
+def test_fused_expert_does_not_keep_a_sample_tensor_per_row_count() -> None:
+    """Finding the algo of a new row count needs a rows x K input once. Keeping it made the fused
+    arm hold about 1.1 GiB more than the ordered arm on Kanana (S = 512): one tensor per count."""
+    import gc
+
+    import torch
+
+    from soup_cli.utils.a0_exact_lt import FusedExpert
+
+    class Backend(CpuBackend):
+        def register_algo(self, *args: Any) -> None:
+            pass
+
+        def matmul(self, x: Any, w: Any, transposed: bool, algo: Any) -> Any:
+            return native_matmul(x, w, transposed)  # reproduces the native bits by definition
+
+    fused = FusedExpert(Backend(), require_cuda=False)
+    gate_up, down = torch.randn(6, 4), torch.randn(4, 3)
+    assert fused.ensure([11, 13], gate_up, down)
+    gc.collect()
+    held = [o for o in gc.get_objects()
+            if isinstance(o, torch.Tensor) and o.dim() == 2 and o.shape[0] in (11, 13)]
+    assert held == []
+    assert fused.ensure([11, 13], gate_up, down)  # a known count needs no input at all
