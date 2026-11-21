@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import argparse
+
 import pytest
 
 from benchmarks.harness import mbr_measure as mm
@@ -310,3 +312,24 @@ def test_bits_gate_follows_the_ladder_against_a0() -> None:
     broken = ok[:-1] + [bit("E", 8, "y")]
     gate = mm.lever_gate(broken, lever="E", previous="C")
     assert gate["bits"]["pass"] is False and gate["bits"]["differs_at"] == [8]
+
+
+def test_sweep_child_run_forwards_the_model_options_to_every_window() -> None:
+    args = argparse.Namespace(source="SRC", cache="CACHE", steps=4, out="OUT", device="auto",
+                              tokenizer=None, lora_r=8,
+                              lora_targets=("q_proj", "kv_a_proj_with_mqa"))
+    item = {"arm": "C", "k": 8, "seq": 64, "kind": "bits", "deterministic": True,
+            "profile": False}
+    argv = mm.child_run_args(args, item)
+    assert argv[0] == "run"
+    assert argv[argv.index("--lora-targets") + 1] == "q_proj,kv_a_proj_with_mqa"
+    assert argv[argv.index("--lora-r") + 1] == "8"
+    assert "--deterministic" in argv and "--profile" not in argv
+
+
+def test_lora_targets_default_is_the_kanana_list_and_the_flag_overrides_it() -> None:
+    assert mm.parse_lora_targets(None) == ("q_proj", "kv_b_proj", "o_proj")
+    assert mm.parse_lora_targets("q_proj, kv_a_proj_with_mqa ,o_proj") == (
+        "q_proj", "kv_a_proj_with_mqa", "o_proj")
+    with pytest.raises(argparse.ArgumentTypeError, match="at least one module name"):
+        mm.parse_lora_targets(" , ")

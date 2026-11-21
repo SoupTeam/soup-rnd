@@ -8,6 +8,7 @@ driver calls these around ``L2LStep.run``.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import statistics
@@ -17,6 +18,18 @@ WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64), (64, 512))
 BIT_LADDER: Tuple[int, ...] = (1, 2, 4, 8)
 A0_MAX_K = 8
 PEAK_KEYS = ("peak_allocated", "peak_reserved", "peak_nvml", "peak_ram")
+# LoRA targets of the Kanana campaign. Other models pass --lora-targets.
+DEFAULT_LORA_TARGETS: Tuple[str, ...] = ("q_proj", "kv_b_proj", "o_proj")
+
+
+def parse_lora_targets(text: Optional[str]) -> Tuple[str, ...]:
+    """Comma-separated module suffixes from --lora-targets; the Kanana list when absent."""
+    if text is None:
+        return DEFAULT_LORA_TARGETS
+    names = tuple(part.strip() for part in text.split(",") if part.strip())
+    if not names:
+        raise argparse.ArgumentTypeError("--lora-targets needs at least one module name")
+    return names
 
 
 class MixedModeError(RuntimeError):
@@ -449,7 +462,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     def build_and_run() -> Dict[str, Any]:
         index = read_shard_index(args.cache)
         lora = LoraConfig(r=args.lora_r, lora_alpha=2 * args.lora_r, lora_dropout=0.0,
-                          bias="none", target_modules=["q_proj", "kv_b_proj", "o_proj"],
+                          bias="none", target_modules=list(args.lora_targets),
                           task_type=TaskType.CAUSAL_LM)
         with b5_real_moe._meta_construction():
             model, runtime = build_streamed_model(
@@ -558,6 +571,22 @@ class _NullContext:
         return None
 
 
+def child_run_args(args: Any, item: Dict[str, Any]) -> List[str]:
+    """argv of one ``run`` child for a plan item. Every model option of the parent is forwarded,
+    so a sweep measures the model the parent was asked for."""
+    argv = ["run", "--arm", item["arm"], "--k", str(item["k"]), "--seq", str(item["seq"]),
+            "--kind", item["kind"], "--source", args.source, "--cache", args.cache,
+            "--steps", str(args.steps), "--out", str(args.out), "--device", args.device,
+            "--lora-r", str(args.lora_r), "--lora-targets", ",".join(args.lora_targets)]
+    if args.tokenizer:
+        argv += ["--tokenizer", args.tokenizer]
+    if item["deterministic"]:
+        argv.append("--deterministic")
+    if item.get("profile"):
+        argv.append("--profile")
+    return argv
+
+
 def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  # pragma: no cover
     """Run each plan item in a fresh process; append every row to ``<out>/rows.jsonl``."""
     import subprocess
@@ -573,16 +602,7 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
         if deadline is not None and time.time() > deadline:
             print(f"deadline reached, {len(rows)} of {len(plan)} runs done", flush=True)
             break
-        command = [sys.executable, __file__, "run", "--arm", item["arm"], "--k", str(item["k"]),
-                   "--seq", str(item["seq"]), "--kind", item["kind"], "--source", args.source,
-                   "--cache", args.cache, "--steps", str(args.steps), "--out", str(out),
-                   "--device", args.device]
-        if args.tokenizer:
-            command += ["--tokenizer", args.tokenizer]
-        if item["deterministic"]:
-            command.append("--deterministic")
-        if item.get("profile"):
-            command.append("--profile")
+        command = [sys.executable, __file__, *child_run_args(args, item)]
         proc = subprocess.run(command, capture_output=True, text=True)
         line = next((ln for ln in reversed(proc.stdout.splitlines()) if ln.startswith("{")), None)
         row = json.loads(line) if line else {
@@ -597,7 +617,6 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
 
 
 def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
-    import argparse
     from pathlib import Path
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -609,6 +628,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         p.add_argument("--out", required=True)
         p.add_argument("--steps", type=int, default=4, help="first step is warm-up")
         p.add_argument("--lora-r", type=int, default=16)
+        p.add_argument("--lora-targets", type=parse_lora_targets, default=DEFAULT_LORA_TARGETS,
+                       help="comma-separated module names; default: the Kanana list")
         if name != "run":
             p.add_argument("--deadline-hours", type=float, default=0,
                            help="stop launching runs after this many hours (0: no limit)")
