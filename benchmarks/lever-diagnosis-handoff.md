@@ -29,6 +29,21 @@ Pip packages for the build (they must match torch's CUDA major, here 13): `nvidi
 `nvidia-cuda-cccl`, `nvidia-nvvm`, `nvidia-cuda-crt` all `==13.0.*`, and `ninja`. A system CUDA 12
 toolkit beside a cu130 torch links the wrong cuBLASLt and segfaults; `toolchain_error()` now says so.
 
+## Result on RTX 3050 Laptop (sm_86, 3.7 GiB, tiny MoE, 2026-11-21)
+
+Environment: torch 2.14.1+cu130, `toolchain_error` None. The GPU kernel tests
+(`test_a0_exact_lt_kernels_gpu.py`) pass, 35 of 35.
+
+- Bits: arms C, E, F, G are `equal` to A0 at k = 1, 2, 4, 8.
+- Suspect 2 is not seen here. `python_forward` and `python_backward` are 0 for E, F, G at every k
+  up to 64 and S up to 512. The tiny model does not reproduce the slowdown: at k = 64, S = 512 the
+  step is 1.51 s for C and 1.54 s for E. This run neither confirms nor rules out the hypothesis
+  for Kanana.
+- Suspect 1 shows in allocation. E allocates more than C in every window: 121 against 104 MiB
+  (S = 64, k = 8), 335 against 317 MiB (S = 512, k = 8), 364 against 331 MiB (S = 512, k = 64).
+  The gap is 17 to 33 MiB on the tiny model. Re-measure on Kanana.
+- Step times here (0.04 to 1.5 s) come from a tiny model and are not speed verdicts.
+
 ## Open
 
 - `async_lease` (arm F): +4 to +9% speed, but 1 of 4 k = 2 runs differed from A0 (3 repeats equal).
