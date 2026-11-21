@@ -1,0 +1,633 @@
+{
+  "arm": "sleep",
+  "round": 1,
+  "run": 1,
+  "label": "RTX 3050 Laptop, real",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1795283656.6022658,
+    "ram_available_bytes": 11931078656,
+    "commit_charge": {
+      "used_bytes": 14240927744,
+      "limit_bytes": 12209102848
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5695,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1795283813.008126,
+    "ram_available_bytes": 11743780864,
+    "commit_charge": {
+      "used_bytes": 14093410304,
+      "limit_bytes": 12209102848
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5695,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 210 to 1740 MHz over 59 samples; clock event reasons seen: gpu_idle",
+    "samples": 59,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 210,
+      "median": 210,
+      "max": 1740
+    },
+    "reasons_seen": {
+      "gpu_idle": 59
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "void",
+      "reason": "boot-time offset grew 36.292 s (limit 1.0 s); suspend count rose from 1 to 2",
+      "evidence": {
+        "sleep_offset_start_s": 76404.711500517,
+        "sleep_offset_end_s": 76441.003390267,
+        "suspend_count_start": 1,
+        "suspend_count_end": 2
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 62 power samples",
+      "evidence": {
+        "samples": 62,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 566304768 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/home/m1kadoo/moonlight-local",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 944670937600,
+        "disk_read_bytes_end": 945237242368,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 0,
+        "foreign_read_bytes": 566304768,
+        "foreign_read_bytes_min": 566304768,
+        "foreign_read_bytes_max": 566304768,
+        "uninspectable_processes": 324
+      },
+      "readers": [
+        {
+          "pid": 5695,
+          "name": "gnome-shell",
+          "read_bytes": 66883584
+        },
+        {
+          "pid": 343574,
+          "name": "codex",
+          "read_bytes": 66613248
+        },
+        {
+          "pid": 33830,
+          "name": "herdr-app",
+          "read_bytes": 12603392
+        },
+        {
+          "pid": 6115,
+          "name": "warp-taskbar",
+          "read_bytes": 12222464
+        },
+        {
+          "pid": 352904,
+          "name": "gjs",
+          "read_bytes": 10801152
+        },
+        {
+          "pid": 5289,
+          "name": "wireplumber",
+          "read_bytes": 8552448
+        },
+        {
+          "pid": 6113,
+          "name": "gnome-software",
+          "read_bytes": 8495104
+        },
+        {
+          "pid": 7354,
+          "name": "firefox",
+          "read_bytes": 6116352
+        },
+        {
+          "pid": 6000,
+          "name": "ibus-extension-",
+          "read_bytes": 4624384
+        },
+        {
+          "pid": 99680,
+          "name": "claude",
+          "read_bytes": 3780608
+        },
+        {
+          "pid": 266001,
+          "name": "claude",
+          "read_bytes": 3436544
+        },
+        {
+          "pid": 298036,
+          "name": "update-manager",
+          "read_bytes": 3280896
+        },
+        {
+          "pid": 5907,
+          "name": "update-notifier",
+          "read_bytes": 2748416
+        },
+        {
+          "pid": 6060,
+          "name": "gjs",
+          "read_bytes": 2662400
+        },
+        {
+          "pid": 5926,
+          "name": "evolution-alarm",
+          "read_bytes": 2093056
+        },
+        {
+          "pid": 43961,
+          "name": "python3",
+          "read_bytes": 2052096
+        },
+        {
+          "pid": 5811,
+          "name": "gnome-shell-cal",
+          "read_bytes": 1609728
+        },
+        {
+          "pid": 33920,
+          "name": "Xwayland",
+          "read_bytes": 1376256
+        },
+        {
+          "pid": 5822,
+          "name": "evolution-sourc",
+          "read_bytes": 1122304
+        },
+        {
+          "pid": 7410,
+          "name": "snapd-desktop-i",
+          "read_bytes": 929792
+        },
+        {
+          "pid": 6601,
+          "name": "gvfsd-trash",
+          "read_bytes": 794624
+        },
+        {
+          "pid": 33959,
+          "name": "ibus-x11",
+          "read_bytes": 700416
+        },
+        {
+          "pid": 6099,
+          "name": "goa-daemon",
+          "read_bytes": 679936
+        },
+        {
+          "pid": 6142,
+          "name": "evolution-calen",
+          "read_bytes": 663552
+        },
+        {
+          "pid": 5269,
+          "name": "pipewire",
+          "read_bytes": 647168
+        },
+        {
+          "pid": 33935,
+          "name": "mutter-x11-fram",
+          "read_bytes": 626688
+        },
+        {
+          "pid": 350031,
+          "name": "zsh",
+          "read_bytes": 569344
+        },
+        {
+          "pid": 5884,
+          "name": "gsd-sharing",
+          "read_bytes": 528384
+        },
+        {
+          "pid": 33841,
+          "name": "herdr-core",
+          "read_bytes": 466944
+        },
+        {
+          "pid": 43933,
+          "name": "gvfsd-recent",
+          "read_bytes": 438272
+        },
+        {
+          "pid": 5273,
+          "name": "gnome-keyring-d",
+          "read_bytes": 425984
+        },
+        {
+          "pid": 34294,
+          "name": "zsh",
+          "read_bytes": 425984
+        },
+        {
+          "pid": 6337,
+          "name": "gvfsd-metadata",
+          "read_bytes": 417792
+        },
+        {
+          "pid": 5905,
+          "name": "gsd-disk-utilit",
+          "read_bytes": 413696
+        },
+        {
+          "pid": 5998,
+          "name": "ibus-dconf",
+          "read_bytes": 393216
+        },
+        {
+          "pid": 6057,
+          "name": "gsd-printer",
+          "read_bytes": 385024
+        },
+        {
+          "pid": 5916,
+          "name": "gsd-usb-protect",
+          "read_bytes": 372736
+        },
+        {
+          "pid": 6132,
+          "name": "goa-identity-se",
+          "read_bytes": 372736
+        },
+        {
+          "pid": 5858,
+          "name": "gsd-datetime",
+          "read_bytes": 368640
+        },
+        {
+          "pid": 8514,
+          "name": "Isolated Web Co",
+          "read_bytes": 360448
+        },
+        {
+          "pid": 7802,
+          "name": "snap",
+          "read_bytes": 339968
+        },
+        {
+          "pid": 6192,
+          "name": "evolution-addre",
+          "read_bytes": 327680
+        },
+        {
+          "pid": 5678,
+          "name": "gnome-session-s",
+          "read_bytes": 311296
+        },
+        {
+          "pid": 5877,
+          "name": "gsd-print-notif",
+          "read_bytes": 290816
+        },
+        {
+          "pid": 5293,
+          "name": "pipewire-pulse",
+          "read_bytes": 286720
+        },
+        {
+          "pid": 5871,
+          "name": "gsd-power",
+          "read_bytes": 262144
+        },
+        {
+          "pid": 100527,
+          "name": "gvfsd-http",
+          "read_bytes": 258048
+        },
+        {
+          "pid": 5933,
+          "name": "gsd-wwan",
+          "read_bytes": 249856
+        },
+        {
+          "pid": 5268,
+          "name": "dbus-daemon",
+          "read_bytes": 237568
+        },
+        {
+          "pid": 6147,
+          "name": "xdg-desktop-por",
+          "read_bytes": 233472
+        },
+        {
+          "pid": 5878,
+          "name": "gsd-rfkill",
+          "read_bytes": 229376
+        },
+        {
+          "pid": 5656,
+          "name": "gvfsd",
+          "read_bytes": 200704
+        },
+        {
+          "pid": 6188,
+          "name": "gvfs-afc-volume",
+          "read_bytes": 192512
+        },
+        {
+          "pid": 343685,
+          "name": "codex",
+          "read_bytes": 184320
+        },
+        {
+          "pid": 5674,
+          "name": "gvfsd-fuse",
+          "read_bytes": 176128
+        },
+        {
+          "pid": 5886,
+          "name": "gsd-smartcard",
+          "read_bytes": 155648
+        },
+        {
+          "pid": 7961,
+          "name": "WebExtensions",
+          "read_bytes": 151552
+        },
+        {
+          "pid": 8478,
+          "name": "Isolated Web Co",
+          "read_bytes": 151552
+        },
+        {
+          "pid": 5869,
+          "name": "gsd-media-keys",
+          "read_bytes": 143360
+        },
+        {
+          "pid": 6116,
+          "name": "xdg-desktop-por",
+          "read_bytes": 139264
+        },
+        {
+          "pid": 6200,
+          "name": "gvfs-goa-volume",
+          "read_bytes": 139264
+        },
+        {
+          "pid": 5857,
+          "name": "gsd-color",
+          "read_bytes": 122880
+        },
+        {
+          "pid": 7748,
+          "name": "Privileged Cont",
+          "read_bytes": 110592
+        },
+        {
+          "pid": 7717,
+          "name": "Socket Process",
+          "read_bytes": 104448
+        },
+        {
+          "pid": 5790,
+          "name": "at-spi2-registr",
+          "read_bytes": 102400
+        },
+        {
+          "pid": 6178,
+          "name": "gvfs-mtp-volume",
+          "read_bytes": 98304
+        },
+        {
+          "pid": 5853,
+          "name": "ibus-daemon",
+          "read_bytes": 81920
+        },
+        {
+          "pid": 5781,
+          "name": "at-spi-bus-laun",
+          "read_bytes": 69632
+        },
+        {
+          "pid": 5891,
+          "name": "gsd-sound",
+          "read_bytes": 69632
+        },
+        {
+          "pid": 6117,
+          "name": "gvfs-udisks2-vo",
+          "read_bytes": 65536
+        },
+        {
+          "pid": 8281,
+          "name": "Isolated Web Co",
+          "read_bytes": 61440
+        },
+        {
+          "pid": 43935,
+          "name": "gvfsd-network",
+          "read_bytes": 57344
+        },
+        {
+          "pid": 5292,
+          "name": "pipewire",
+          "read_bytes": 53248
+        },
+        {
+          "pid": 6990,
+          "name": "xdg-desktop-por",
+          "read_bytes": 53248
+        },
+        {
+          "pid": 5866,
+          "name": "gsd-housekeepin",
+          "read_bytes": 49152
+        },
+        {
+          "pid": 7035,
+          "name": "crashpad_handle",
+          "read_bytes": 45056
+        },
+        {
+          "pid": 6112,
+          "name": "localsearch-3",
+          "read_bytes": 40960
+        },
+        {
+          "pid": 5288,
+          "name": "mpris-proxy",
+          "read_bytes": 36864
+        },
+        {
+          "pid": 5867,
+          "name": "gsd-keyboard",
+          "read_bytes": 36864
+        },
+        {
+          "pid": 7318,
+          "name": "user-session-he",
+          "read_bytes": 36864
+        },
+        {
+          "pid": 5406,
+          "name": "xdg-document-po",
+          "read_bytes": 32768
+        },
+        {
+          "pid": 5832,
+          "name": "gjs",
+          "read_bytes": 28672
+        },
+        {
+          "pid": 8790,
+          "name": "glycin-image-rs",
+          "read_bytes": 28672
+        },
+        {
+          "pid": 5421,
+          "name": "xdg-permission-",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 5639,
+          "name": "gcr-ssh-agent",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 5640,
+          "name": "gnome-session-c",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 5883,
+          "name": "gsd-screensaver",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 43955,
+          "name": "gvfsd-wsdd",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 100832,
+          "name": "sd_dummy",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 265303,
+          "name": "zsh",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 5813,
+          "name": "dconf-service",
+          "read_bytes": 20480
+        },
+        {
+          "pid": 6016,
+          "name": "ibus-portal",
+          "read_bytes": 20480
+        },
+        {
+          "pid": 34787,
+          "name": "zsh",
+          "read_bytes": 20480
+        },
+        {
+          "pid": 6220,
+          "name": "ibus-engine-sim",
+          "read_bytes": 16384
+        },
+        {
+          "pid": 8788,
+          "name": "bwrap",
+          "read_bytes": 16384
+        },
+        {
+          "pid": 43947,
+          "name": "gvfsd-dnssd",
+          "read_bytes": 16384
+        },
+        {
+          "pid": 33929,
+          "name": "gsd-xsettings",
+          "read_bytes": 12288
+        },
+        {
+          "pid": 7535,
+          "name": "crashhelper",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 7757,
+          "name": "RDD Process",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 8789,
+          "name": "bwrap",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 100798,
+          "name": "speech-dispatch",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 100821,
+          "name": "sd_espeak-ng",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 5855,
+          "name": "gsd-a11y-settin",
+          "read_bytes": 4096
+        }
+      ],
+      "unattributed_bytes": 327861248
+    }
+  }
+}

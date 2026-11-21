@@ -1,0 +1,330 @@
+{
+  "arm": "battery",
+  "round": 1,
+  "run": 1,
+  "label": "RTX 3050 Laptop, real",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1795284002.4281702,
+    "ram_available_bytes": 11296497664,
+    "commit_charge": {
+      "used_bytes": 17586257920,
+      "limit_bytes": 12209102848
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5695,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1795284062.5468743,
+    "ram_available_bytes": 11569090560,
+    "commit_charge": {
+      "used_bytes": 13725888512,
+      "limit_bytes": 12209102848
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5695,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 210 to 210 MHz over 31 samples; clock event reasons seen: gpu_idle, sw_power_cap, sw_thermal_slowdown",
+    "samples": 31,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 210,
+      "median": 210,
+      "max": 210
+    },
+    "reasons_seen": {
+      "gpu_idle": 30,
+      "sw_power_cap": 1,
+      "sw_thermal_slowdown": 1
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 2",
+      "evidence": {
+        "sleep_offset_start_s": 76441.00339023801,
+        "sleep_offset_end_s": 76441.00339027701,
+        "suspend_count_start": 2,
+        "suspend_count_end": 2
+      }
+    },
+    "power": {
+      "outcome": "void",
+      "reason": "16 of 32 power samples off mains",
+      "evidence": {
+        "samples": 32,
+        "off_mains_samples": [
+          {
+            "sample": 2,
+            "at_s": 4.004,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 3,
+            "at_s": 6.005,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 4,
+            "at_s": 8.006,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 5,
+            "at_s": 10.007,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 6,
+            "at_s": 12.009,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 7,
+            "at_s": 14.01,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 8,
+            "at_s": 16.011,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 9,
+            "at_s": 18.013,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 10,
+            "at_s": 20.014,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 11,
+            "at_s": 22.016,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 12,
+            "at_s": 24.018,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 13,
+            "at_s": 26.019,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 14,
+            "at_s": 28.021,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 15,
+            "at_s": 30.023,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 16,
+            "at_s": 32.025,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          },
+          {
+            "sample": 17,
+            "at_s": 34.026,
+            "online": {
+              "ACAD": false,
+              "ucsi-source-psy-USBC000:001": false,
+              "ucsi-source-psy-USBC000:002": false
+            }
+          }
+        ],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 9859072 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/home/m1kadoo/moonlight-local",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 945893335552,
+        "disk_read_bytes_end": 945903194624,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 0,
+        "foreign_read_bytes": 9859072,
+        "foreign_read_bytes_min": 9859072,
+        "foreign_read_bytes_max": 9859072,
+        "uninspectable_processes": 331
+      },
+      "readers": [
+        {
+          "pid": 5695,
+          "name": "gnome-shell",
+          "read_bytes": 2211840
+        },
+        {
+          "pid": 266001,
+          "name": "claude",
+          "read_bytes": 704512
+        },
+        {
+          "pid": 5877,
+          "name": "gsd-print-notif",
+          "read_bytes": 339968
+        },
+        {
+          "pid": 5871,
+          "name": "gsd-power",
+          "read_bytes": 331776
+        },
+        {
+          "pid": 5293,
+          "name": "pipewire-pulse",
+          "read_bytes": 253952
+        },
+        {
+          "pid": 7354,
+          "name": "firefox",
+          "read_bytes": 143360
+        },
+        {
+          "pid": 5269,
+          "name": "pipewire",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 6113,
+          "name": "gnome-software",
+          "read_bytes": 16384
+        },
+        {
+          "pid": 8281,
+          "name": "Isolated Web Co",
+          "read_bytes": 12288
+        },
+        {
+          "pid": 6115,
+          "name": "warp-taskbar",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 8478,
+          "name": "Isolated Web Co",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 5869,
+          "name": "gsd-media-keys",
+          "read_bytes": 4096
+        },
+        {
+          "pid": 7748,
+          "name": "Privileged Cont",
+          "read_bytes": 4096
+        }
+      ],
+      "unattributed_bytes": 5795840
+    }
+  }
+}

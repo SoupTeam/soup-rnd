@@ -1,0 +1,273 @@
+{
+  "arm": "foreign-read",
+  "round": 1,
+  "run": 1,
+  "label": "RTX 3050 Laptop, real",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1795283317.8471344,
+    "ram_available_bytes": 12247265280,
+    "commit_charge": {
+      "used_bytes": 14097592320,
+      "limit_bytes": 12209102848
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5695,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1795283377.9798207,
+    "ram_available_bytes": 12142014464,
+    "commit_charge": {
+      "used_bytes": 14132756480,
+      "limit_bytes": 12209102848
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5695,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 210 to 210 MHz over 31 samples; clock event reasons seen: gpu_idle",
+    "samples": 31,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 210,
+      "median": 210,
+      "max": 210
+    },
+    "reasons_seen": {
+      "gpu_idle": 31
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 1",
+      "evidence": {
+        "sleep_offset_start_s": 76404.711500598,
+        "sleep_offset_end_s": 76404.711500641,
+        "suspend_count_start": 1,
+        "suspend_count_end": 1
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 32 power samples",
+      "evidence": {
+        "samples": 32,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "void",
+      "reason": "at least 2017947648 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/home/m1kadoo/moonlight-local",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 941364964864,
+        "disk_read_bytes_end": 943382912512,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 0,
+        "foreign_read_bytes": 2017947648,
+        "foreign_read_bytes_min": 2017947648,
+        "foreign_read_bytes_max": 2017947648,
+        "uninspectable_processes": 289
+      },
+      "readers": [
+        {
+          "pid": 99680,
+          "name": "claude",
+          "read_bytes": 2167713792
+        },
+        {
+          "pid": 337862,
+          "name": "zsh",
+          "read_bytes": 42549248
+        },
+        {
+          "pid": 7354,
+          "name": "firefox",
+          "read_bytes": 25195520
+        },
+        {
+          "pid": 32504,
+          "name": "Isolated Web Co",
+          "read_bytes": 18613248
+        },
+        {
+          "pid": 33830,
+          "name": "herdr-app",
+          "read_bytes": 12312576
+        },
+        {
+          "pid": 266001,
+          "name": "claude",
+          "read_bytes": 11460608
+        },
+        {
+          "pid": 6112,
+          "name": "localsearch-3",
+          "read_bytes": 7811072
+        },
+        {
+          "pid": 7748,
+          "name": "Privileged Cont",
+          "read_bytes": 4660224
+        },
+        {
+          "pid": 5695,
+          "name": "gnome-shell",
+          "read_bytes": 3620864
+        },
+        {
+          "pid": 6115,
+          "name": "warp-taskbar",
+          "read_bytes": 2482176
+        },
+        {
+          "pid": 33841,
+          "name": "herdr-core",
+          "read_bytes": 1675264
+        },
+        {
+          "pid": 30536,
+          "name": "gjs",
+          "read_bytes": 1216512
+        },
+        {
+          "pid": 336731,
+          "name": "zsh",
+          "read_bytes": 942080
+        },
+        {
+          "pid": 7802,
+          "name": "snap",
+          "read_bytes": 814080
+        },
+        {
+          "pid": 5269,
+          "name": "pipewire",
+          "read_bytes": 659456
+        },
+        {
+          "pid": 8478,
+          "name": "Isolated Web Co",
+          "read_bytes": 346112
+        },
+        {
+          "pid": 5869,
+          "name": "gsd-media-keys",
+          "read_bytes": 344064
+        },
+        {
+          "pid": 5289,
+          "name": "wireplumber",
+          "read_bytes": 258048
+        },
+        {
+          "pid": 5790,
+          "name": "at-spi2-registr",
+          "read_bytes": 188416
+        },
+        {
+          "pid": 5293,
+          "name": "pipewire-pulse",
+          "read_bytes": 135168
+        },
+        {
+          "pid": 5926,
+          "name": "evolution-alarm",
+          "read_bytes": 122880
+        },
+        {
+          "pid": 6220,
+          "name": "ibus-engine-sim",
+          "read_bytes": 81920
+        },
+        {
+          "pid": 8514,
+          "name": "Isolated Web Co",
+          "read_bytes": 81920
+        },
+        {
+          "pid": 33920,
+          "name": "Xwayland",
+          "read_bytes": 73728
+        },
+        {
+          "pid": 6016,
+          "name": "ibus-portal",
+          "read_bytes": 40960
+        },
+        {
+          "pid": 5907,
+          "name": "update-notifier",
+          "read_bytes": 36864
+        },
+        {
+          "pid": 34286,
+          "name": "herdr-core",
+          "read_bytes": 32768
+        },
+        {
+          "pid": 6116,
+          "name": "xdg-desktop-por",
+          "read_bytes": 28672
+        },
+        {
+          "pid": 5273,
+          "name": "gnome-keyring-d",
+          "read_bytes": 24576
+        },
+        {
+          "pid": 106780,
+          "name": "Web Content",
+          "read_bytes": 16384
+        },
+        {
+          "pid": 5866,
+          "name": "gsd-housekeepin",
+          "read_bytes": 12288
+        }
+      ],
+      "unattributed_bytes": 0
+    }
+  }
+}
