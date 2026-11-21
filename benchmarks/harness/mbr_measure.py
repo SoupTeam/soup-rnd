@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import statistics
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64), (64, 512))
@@ -260,20 +261,82 @@ def grad_digest(grads: Dict[str, Sequence[float]]) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
 
-def ladder_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[int, str], str]:
-    """``equal`` / ``differs`` / ``no A0`` for every non-A0 row against the A0 row of its k."""
+def _against_a0(rows: Sequence[Dict[str, Any]],
+                same: Callable[[Dict[str, Any], Dict[str, Any]], bool],
+                ) -> Dict[Tuple[int, str], str]:
+    """``equal`` / ``differs`` per (k, arm) by ``same(a0_row, row)``. A row that did not finish
+    keeps its status (OOM, CRASH); a k without an ok A0 row says ``no A0``."""
     ref = {r["k"]: r for r in rows if r["arm"] == "A0" and r.get("status") == "ok"}
     out: Dict[Tuple[int, str], str] = {}
     for row in rows:
         if row["arm"] == "A0":
             continue
         base = ref.get(row["k"])
-        if base is None or row.get("status") != "ok":
-            out[(row["k"], row["arm"])] = "no A0" if base is None else row.get("status", "?")
+        if base is None:
+            out[(row["k"], row["arm"])] = "no A0"
+        elif row.get("status") != "ok":
+            out[(row["k"], row["arm"])] = row.get("status", "?")
         else:
-            same = base["grad_sha256"] == row["grad_sha256"] and base["loss"] == row["loss"]
-            out[(row["k"], row["arm"])] = "equal" if same else "differs"
+            out[(row["k"], row["arm"])] = "equal" if same(base, row) else "differs"
     return out
+
+
+def ladder_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[int, str], str]:
+    """Verdict per (k, arm) from the gradient digest and the loss, against A0 of the same k."""
+    return _against_a0(rows, lambda base, row: base["grad_sha256"] == row["grad_sha256"]
+                       and base["loss"] == row["loss"])
+
+
+def tensor_file_name(arm: str, k: int, seq: int) -> str:
+    """Name of the saved loss and LoRA grads of one bits run, under ``<out>/tensors``."""
+    return f"{arm}-k{k}-s{seq}.pt"
+
+
+def bit_tensor_dir(out: Any) -> Path:
+    """Folder of the saved bits tensors of a sweep or run written to ``out``."""
+    return Path(out) / "tensors"
+
+
+def save_bit_tensors(path: Path, *, losses: Sequence[Any], grads: Dict[str, Any]) -> None:
+    """Write one bits run's loss (float64, exact) and LoRA grads (as they are) to ``path``."""
+    import torch
+
+    torch.save({"loss": torch.tensor([float(x) for x in losses], dtype=torch.float64),
+                "grads": {name: grad.detach().cpu() for name, grad in grads.items()}}, path)
+
+
+def tensors_equal(ref: Dict[str, Any], other: Dict[str, Any]) -> bool:
+    """``torch.equal`` on the loss and on every LoRA grad; the grad names must match. A NaN
+    counts as different, because ``torch.equal`` never calls NaN equal to NaN."""
+    import torch
+
+    if sorted(ref["grads"]) != sorted(other["grads"]):
+        return False
+    if not torch.equal(ref["loss"], other["loss"]):
+        return False
+    return all(torch.equal(ref["grads"][name], other["grads"][name]) for name in ref["grads"])
+
+
+def tensor_ladder_verdict(rows: Sequence[Dict[str, Any]], *, tensor_dir: Path,
+                          ) -> Dict[Tuple[int, str], str]:
+    """Verdict per (k, arm) by ``torch.equal`` on the saved tensors, against A0 of the same k.
+    The A0 file of each k loads once."""
+    import torch
+
+    folder = Path(tensor_dir)
+    base_cache: Dict[str, Dict[str, Any]] = {}
+
+    def base_tensors(row: Dict[str, Any]) -> Dict[str, Any]:
+        name = row["tensor_file"]
+        if name not in base_cache:
+            base_cache[name] = torch.load(folder / name, weights_only=True)
+        return base_cache[name]
+
+    def other_tensors(row: Dict[str, Any]) -> Dict[str, Any]:
+        return torch.load(folder / row["tensor_file"], weights_only=True)
+
+    return _against_a0(rows, lambda base, row: tensors_equal(base_tensors(base),
+                                                             other_tensors(row)))
 
 
 def parse_nvml_used(samples: Sequence[str]) -> int:
@@ -418,6 +481,10 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     options = arm_options(args.arm, k=args.k)
     if args.deterministic:
         torch.use_deterministic_algorithms(True, warn_only=True)
+    if args.math_attention:  # the math SDPA backend only: the others are not deterministic
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+        torch.backends.cuda.enable_cudnn_sdp(False)
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer or args.source)
     rows = list(load_dataset("google-research-datasets/mbpp", "full", split="train"))
     data = mbpp_records(rows, tokenizer, seq=args.seq)
@@ -494,9 +561,19 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 if cuda:
                     torch.cuda.synchronize()
                 seconds.append(time.perf_counter() - started)
-            grads = {n: p.grad.detach().float().flatten().cpu().tolist()
-                     for n, p in sorted(params.items()) if p.grad is not None}
+            grad_tensors = {name: p.grad for name, p in sorted(params.items())
+                            if p.grad is not None}
+            grads = {name: g.detach().float().flatten().cpu().tolist()
+                     for name, g in grad_tensors.items()}
+            tensor_name = None
+            if args.kind == "bits":  # torch.equal on these, in the parent, by tensor_ladder_verdict
+                tensor_name = tensor_file_name(args.arm, args.k, args.seq)
+                bit_dir = bit_tensor_dir(args.out)
+                bit_dir.mkdir(parents=True, exist_ok=True)
+                save_bit_tensors(bit_dir / tensor_name, losses=losses, grads=grad_tensors)
             out: Dict[str, Any] = {
+                "tensor_file": tensor_name,
+                "attention": "math" if args.math_attention else "default",
                 "step_seconds": median_after_warmup(seconds), "all_step_seconds": seconds,
                 "loss": float(sum(float(x) for x in losses)), "levers": runtime_levers,
                 "grad_sha256": grad_digest(grads), "vram_limit_gib": vram_limit or None,
@@ -584,6 +661,8 @@ def child_run_args(args: Any, item: Dict[str, Any]) -> List[str]:
         argv.append("--deterministic")
     if item.get("profile"):
         argv.append("--profile")
+    if getattr(args, "math_attention", False):
+        argv.append("--math-attention")
     return argv
 
 
@@ -675,6 +754,8 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
 def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     from pathlib import Path
 
+    from rich.console import Console
+
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba"):
@@ -699,6 +780,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--seq", type=int, required=True)
             p.add_argument("--kind", choices=("speed", "bits"), required=True)
             p.add_argument("--deterministic", action="store_true")
+            p.add_argument("--math-attention", action="store_true",
+                           help="SDPA math backend only (diagnostic for attention backward)")
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
         if name in ("speed", "lever-speed", "abba"):
@@ -708,6 +791,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="first block number, to resume a pilot in the same folder")
         if name in ("bits", "lever-bits"):
             p.add_argument("--seq", type=int, default=64)
+            p.add_argument("--math-attention", action="store_true",
+                           help="SDPA math backend only in every child run")
     args = parser.parse_args(argv)
     if args.command == "run":
         print(json.dumps(run_one(args)))
@@ -721,8 +806,14 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     (Path(args.out) / "summary.md").write_text(markdown_table(summarize_rows(rows)),
                                                  encoding="utf-8")
     if args.command in ("bits", "lever-bits"):
-        for (k, arm), verdict in sorted(ladder_verdict(rows).items()):
-            print(f"k={k} {arm}: {verdict}")
+        digests = ladder_verdict(rows)
+        verdicts = tensor_ladder_verdict(rows, tensor_dir=bit_tensor_dir(args.out))
+        console = Console()
+        for (k, arm), verdict in sorted(verdicts.items()):
+            console.print(f"k={k} {arm}: {verdict} (digest {digests.get((k, arm))})")
+        (Path(args.out) / "bits-verdict.json").write_text(
+            json.dumps({f"k{k}-{arm}": v for (k, arm), v in sorted(verdicts.items())}, indent=2),
+            encoding="utf-8")
     if args.command.startswith("lever-"):
         gates = {lever: lever_gate(rows, lever=lever, previous=before)
                  for lever, before in LEVER_PREVIOUS.items()}

@@ -387,3 +387,110 @@ def test_run_fit_refuses_to_run_over_existing_rows(tmp_path) -> None:
     result = subprocess.run(["bash", script], env=env, capture_output=True, text=True)
     assert result.returncode == 1
     assert "refusing to run" in result.stderr
+
+
+
+def test_tensor_file_name_is_arm_k_and_seq() -> None:
+    assert mm.tensor_file_name("E", 8, 512) == "E-k8-s512.pt"
+
+
+def test_bit_tensor_dir_is_the_tensors_folder_under_out(tmp_path) -> None:
+    assert mm.bit_tensor_dir(tmp_path) == tmp_path / "tensors"
+
+
+def test_save_bit_tensors_round_trips_loss_and_grads_exactly(tmp_path) -> None:
+    import torch
+
+    grad = torch.tensor([1.0, -2.0])
+    path = tmp_path / "A0-k1-s64.pt"
+    mm.save_bit_tensors(path, losses=[1.5, 0.25], grads={"w": grad})
+    loaded = torch.load(path, weights_only=True)
+    assert loaded["loss"].dtype == torch.float64
+    assert loaded["loss"].tolist() == [1.5, 0.25]
+    assert torch.equal(loaded["grads"]["w"], grad.detach())
+
+
+def test_tensors_equal_is_true_for_identical_loss_and_grads() -> None:
+    import torch
+
+    first = {"loss": torch.tensor([1.5], dtype=torch.float64),
+             "grads": {"w": torch.tensor([1.0, -2.0])}}
+    second = {"loss": torch.tensor([1.5], dtype=torch.float64),
+              "grads": {"w": torch.tensor([1.0, -2.0])}}
+    assert mm.tensors_equal(first, second)
+
+
+def test_tensors_equal_flags_a_one_ulp_change_in_one_grad() -> None:
+    import torch
+
+    weights = torch.tensor([1.0, -2.0])
+    first = {"loss": torch.tensor([1.5], dtype=torch.float64), "grads": {"w": weights}}
+    nudged = weights.clone()
+    nudged[1] = torch.nextafter(nudged[1], torch.tensor(0.0))
+    second = {"loss": torch.tensor([1.5], dtype=torch.float64), "grads": {"w": nudged}}
+    assert not mm.tensors_equal(first, second)
+
+
+def test_tensors_equal_needs_the_same_grad_names_and_the_same_loss() -> None:
+    import torch
+
+    base = {"loss": torch.tensor([1.5], dtype=torch.float64), "grads": {"w": torch.ones(2)}}
+    missing = {"loss": base["loss"], "grads": {"v": torch.ones(2)}}
+    other_loss = {"loss": torch.tensor([1.5000001], dtype=torch.float64),
+                  "grads": {"w": torch.ones(2)}}
+    assert not mm.tensors_equal(base, missing)
+    assert not mm.tensors_equal(base, other_loss)
+
+
+def test_a_nan_grad_counts_as_different_even_against_itself() -> None:
+    import torch
+
+    nan_run = {"loss": torch.tensor([1.5], dtype=torch.float64),
+               "grads": {"w": torch.tensor([float("nan")])}}
+    assert not mm.tensors_equal(nan_run, nan_run)
+
+
+def test_tensor_ladder_verdict_reads_saved_tensors_and_compares_each_arm_to_a0(tmp_path) -> None:
+    import torch
+
+    def save(arm: str, k: int, grad: list) -> dict:
+        name = mm.tensor_file_name(arm, k, 64)
+        torch.save({"loss": torch.tensor([2.0], dtype=torch.float64),
+                    "grads": {"w": torch.tensor(grad)}}, tmp_path / name)
+        return {"arm": arm, "k": k, "seq": 64, "status": "ok", "tensor_file": name}
+
+    rows = [save("A0", 1, [1.0, 2.0]), save("C", 1, [1.0, 2.0]),
+            save("E", 1, [1.0, 2.0000002]), {"arm": "F", "k": 1, "seq": 64, "status": "OOM"},
+            save("C", 2, [0.5, 0.5])]
+    out = mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path)
+    assert out[(1, "C")] == "equal"
+    assert out[(1, "E")] == "differs"
+    assert out[(1, "F")] == "OOM"
+    assert out[(2, "C")] == "no A0"
+
+
+def test_a_failed_a0_row_leaves_its_k_without_a_reference(tmp_path) -> None:
+    import torch
+
+    name = mm.tensor_file_name("C", 1, 64)
+    torch.save({"loss": torch.tensor([2.0], dtype=torch.float64),
+                "grads": {"w": torch.tensor([1.0])}}, tmp_path / name)
+    rows = [{"arm": "A0", "k": 1, "seq": 64, "status": "OOM"},
+            {"arm": "C", "k": 1, "seq": 64, "status": "ok", "tensor_file": name}]
+    assert mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path)[(1, "C")] == "no A0"
+
+
+def test_digest_ladder_verdict_and_tensor_verdict_share_the_a0_rule() -> None:
+    rows = [{"arm": "A0", "k": 2, "seq": 64, "status": "ok", "grad_sha256": "a", "loss": 1.0},
+            {"arm": "E", "k": 2, "seq": 64, "status": "ok", "grad_sha256": "a", "loss": 1.0},
+            {"arm": "C", "k": 2, "seq": 64, "status": "OOM"}]
+    assert mm.ladder_verdict(rows) == {(2, "E"): "equal", (2, "C"): "OOM"}
+
+
+def test_sweep_child_forwards_math_attention_only_when_asked() -> None:
+    args = argparse.Namespace(source="s", cache="c", steps=3, out="o", device="auto", lora_r=16,
+                              lora_targets=("q_proj",), tokenizer=None, math_attention=True)
+    item = {"arm": "C", "k": 2, "seq": 512, "kind": "bits", "deterministic": True}
+    assert "--math-attention" in mm.child_run_args(args, item)
+    args.math_attention = False
+    assert "--math-attention" not in mm.child_run_args(args, item)
