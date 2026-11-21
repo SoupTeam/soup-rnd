@@ -287,6 +287,14 @@ sm_89, and that the installed PyTorch is the 2.14 series. The bit-equality of a 
 A0 and the speed of `lt-fused` are measured by the benchmark harness, not by the unit tests; see
 [the exact-MBR speed report](../benchmarks/mbr-exact-speed-20261120.md).
 
+Measured on Kanana-2-30B-A3B (RTX 4060 Ti, 8-GiB allocator limit, one block, see
+[the report](../benchmarks/mbr-exact-gemm-levers-20261121.md)): `lt-fused` is bit-equal to A0 at
+k = 1, 2, 4, 8, which route-preserving MBR with the ordered backward is not from k = 2. It is not
+faster than that arm (0%, -2%, -18% in the three windows that fit) and holds more memory (S = 512:
+3.14 against 2.03 GiB allocated), so it is worth taking for the bits only. `async_lease` on top
+gave +4 to +9% but one of four k = 2 runs differed from A0 (three repeats were equal), so treat it
+as not bit-safe; `fast_row_gather` added nothing.
+
 ### Host-side levers: `async_lease` and `fast_row_gather` (experimental, off by default)
 
 Two more switches change when the host waits and what it launches, never a number. They are

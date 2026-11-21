@@ -89,8 +89,11 @@ def main() -> int:
     timed("download", lambda: snapshot_download(REPO, revision=REVISION, local_dir=str(source),
                                                 max_workers=8))
     from argparse import Namespace
-    timed("prepare_nf4", lambda: oc_arm_run.prepare(Namespace(
-        source=str(source), cache=str(cache), device="cuda", double_quant=False)))
+    if any(cache.glob("*")):  # a rental that keeps its disk reuses the NF4 cache
+        log(f"prepare_nf4 skipped: {cache} is already filled")
+    else:
+        timed("prepare_nf4", lambda: oc_arm_run.prepare(Namespace(
+            source=str(source), cache=str(cache), device="cuda", double_quant=False)))
     REPORT["disk_after_prepare"] = shutil.disk_usage("/tmp")._asdict()
     save()
     common = ["--source", str(source), "--cache", str(cache), "--steps", "3"]
