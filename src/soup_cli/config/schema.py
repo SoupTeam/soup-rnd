@@ -3645,6 +3645,15 @@ class TrainingConfig(BaseModel):
             "double quant. The default retains fused layer storage."
         ),
     )
+    stream_expert_loader: Literal["async_lease", "cpp_async_2slot"] = Field(
+        default="async_lease",
+        description=(
+            "Experimental: which loader feeds the per-expert cache. 'async_lease' keeps "
+            "the existing single-slot pool. 'cpp_async_2slot' selects the vendored #77 "
+            "C++ two-slot loader and raises when that extension is not built; the Python "
+            "lease is never substituted. Requires stream_expert_layout='per_expert'."
+        ),
+    )
     stream_ngram_source: Literal["auto", "ram", "disk"] = Field(
         default="auto",
         description=(
@@ -6734,6 +6743,7 @@ class SoupConfig(BaseModel):
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
                 or tcfg.stream_expert_layout != "fused"
+                or tcfg.stream_expert_loader != "async_lease"
                 or tcfg.stream_disk_kind is not None
                 or tcfg.stream_pin is not None
             ):
@@ -6741,7 +6751,8 @@ class SoupConfig(BaseModel):
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
-                    "/ training.stream_expert_layout / training.stream_disk_kind "
+                    "/ training.stream_expert_layout / training.stream_expert_loader "
+                    "/ training.stream_disk_kind "
                     "/ training.stream_pin / training.stream_resident_layers "
                     "/ training.stream_ram_cache_mb / training.stream_cache_profile "
                     "/ training.stream_cache_profile_mode / training.stream_recompute set but "
@@ -6809,6 +6820,11 @@ class SoupConfig(BaseModel):
                 )
             if tcfg.moe_lora or tcfg.lora.target_parameters:
                 raise ValueError("per_expert streaming cannot train routed-expert adapters")
+        elif tcfg.stream_expert_loader != "async_lease":
+            raise ValueError(
+                "training.stream_expert_loader='cpp_async_2slot' requires "
+                "training.stream_expert_layout='per_expert'"
+            )
         if tcfg.l2l_two_read_experts or tcfg.l2l_grouped_expert_routes:
             if tcfg.stream_expert_layout != "per_expert":
                 raise ValueError(

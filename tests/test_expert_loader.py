@@ -173,6 +173,7 @@ def test_the_config_accepts_cpp_async_2slot_with_per_expert_streaming() -> None:
             "stream_source": "disk",
             "stream_expert_layout": "per_expert",
             "stream_expert_loader": "cpp_async_2slot",
+            "batch_size": 1,
         },
     )
     assert config.training.stream_expert_loader == "cpp_async_2slot"
@@ -345,6 +346,7 @@ class PythonPackedStream:
             ):
                 self._active, self._next = self._next, None
                 self.promotions += 1
+                self._start_workers(self._active)
                 self._lock.notify_all()
                 return
             if self._next is not None:
