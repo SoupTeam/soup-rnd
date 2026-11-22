@@ -664,6 +664,13 @@ class StreamingSetupMixin:
                 "training.stream_expert_layout='per_expert' requires quantization='4bit' "
                 "for its disk budget"
             )
+        # The selected loader is resolved before the tokenizer and the store are touched:
+        # cpp_async_2slot must fail here, not fall back to the Python lease after setup.
+        loader = getattr(tcfg, "stream_expert_loader", "async_lease")
+        if loader != "async_lease":
+            from soup_cli.utils.expert_loader import resolve_expert_loader
+
+            resolve_expert_loader(loader)
 
         from soup_cli.utils.layer_shard import (
             QUANT_NF4,
