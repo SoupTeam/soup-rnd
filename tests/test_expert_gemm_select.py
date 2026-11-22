@@ -147,6 +147,21 @@ def test_a_failed_kernels_build_is_an_error_under_strict_and_a_fallback_otherwis
     assert a0_exact_lt.load_extension().module == "aten-only"
 
 
+def test_the_128_row_alignment_limit_names_the_offending_size() -> None:
+    """The fused kernels write 256-byte bf16 rows; a size that is not a multiple of 128 says so."""
+    from soup_cli.utils.a0_exact_lt import FusedExpert, alignment_error
+
+    assert alignment_error(torch.zeros(256, 128), torch.zeros(128, 128)) is None
+    gate_up, down = torch.zeros(256, 96), torch.zeros(128, 96)
+    assert "hidden_size=96" in str(alignment_error(gate_up, down))
+
+    fused = FusedExpert(object())  # the check must not need a backend
+    with pytest.raises(RuntimeError, match="multiples of 128") as failure:
+        fused.ensure([4], gate_up, down)
+    message = str(failure.value)
+    assert "--expert-gemm lt-fused" in message and "hidden_size=96" in message
+
+
 def test_headers_of_another_cuda_major_than_torch_are_reported(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
