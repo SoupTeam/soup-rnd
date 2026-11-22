@@ -17,6 +17,19 @@ from rich.console import Console
 
 
 def run(args: argparse.Namespace) -> None:
+    if args.steps < 1 or args.checkpoint_every < 0:
+        raise ValueError("--steps must be positive and --checkpoint-every must be nonnegative")
+    checkpoint_every = args.checkpoint_every or int(bool(args.resume))
+    if checkpoint_every and (args.evaluation_protocol or args.evaluation_data):
+        raise ValueError("checkpoint and resume options apply to the standalone B6 pilot")
+    resume_path = None
+    if args.resume:
+        from benchmarks.harness.b6_training_checkpoint import find_training_checkpoint
+
+        if args.restart_incomplete_cache:
+            raise ValueError("--resume requires a committed cache, not --restart-incomplete-cache")
+        resume_path = find_training_checkpoint(Path(args.resume))
+
     os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
     import torch
     from peft import LoraConfig, TaskType, load_peft_weights, set_peft_model_state_dict
@@ -92,7 +105,9 @@ def run(args: argparse.Namespace) -> None:
                 or evaluation_protocol["max_length"] != args.max_length or args.steps != 2):
             raise ValueError("model revision or token limit differs from the protocol")
 
-    texts = json.loads(Path(args.data).read_text(encoding="utf-8"))
+    data_bytes = Path(args.data).read_bytes()
+    texts = json.loads(data_bytes.decode("utf-8"))
+    data_sha256 = hashlib.sha256(data_bytes).hexdigest()
     if not texts.get("train") or not texts.get("heldout"):
         raise ValueError("data JSON requires separate train and heldout strings")
     if evaluation_protocol:
@@ -127,9 +142,10 @@ def run(args: argparse.Namespace) -> None:
     existing_partial = (
         args.restart_incomplete_cache and cache.is_dir() and not (cache / "index.json").exists()
     )
-    reuse = args.reuse_cache and (cache / "index.json").is_file()
-    if args.reuse_cache and not reuse:
-        raise ValueError("--reuse-cache requires a committed cache index")
+    reuse_requested = args.reuse_cache or resume_path is not None
+    reuse = reuse_requested and (cache / "index.json").is_file()
+    if reuse_requested and not reuse:
+        raise ValueError("--reuse-cache and --resume require a committed cache index")
     if (cache.exists() and not existing_partial and not reuse) or (free < budget and not reuse):
         raise ValueError(f"new cache requires {budget} free bytes, available {free}")
     emit("environment", gpu=props.name, vram_bytes=props.total_memory, dtype=dtype,
@@ -204,8 +220,29 @@ def run(args: argparse.Namespace) -> None:
         return model, runtime
 
     tokenizer = AutoTokenizer.from_pretrained(str(source), trust_remote_code=False)
-    emit("data", sha256=hashlib.sha256(Path(args.data).read_bytes()).hexdigest(),
-         max_length=args.max_length)
+    emit("data", sha256=data_sha256, max_length=args.max_length)
+
+    checkpoint_identity = {}
+    if checkpoint_every:
+        tokenizer_files = (
+            "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json",
+            "added_tokens.json", "tokenizer.model", "vocab.json", "merges.txt",
+        )
+        checkpoint_identity = {
+            "revision": args.revision,
+            "cache_index_sha256": hashlib.sha256((cache / "index.json").read_bytes()).hexdigest(),
+            "data_sha256": data_sha256,
+            "tokenizer": {
+                name: hashlib.sha256((source / name).read_bytes()).hexdigest()
+                for name in tokenizer_files if (source / name).is_file()
+            },
+            "dtype": dtype,
+            "max_length": args.max_length,
+            "steps": args.steps,
+            "torch": str(torch.__version__),
+            "cuda": str(torch.version.cuda),
+            "gpu": props.name,
+        }
 
     def batch(text):
         ids = tokenizer(text, return_tensors="pt", truncation=True,
@@ -213,7 +250,8 @@ def run(args: argparse.Namespace) -> None:
         return {"input_ids": ids, "labels": ids}
 
     model, runtime = build()
-    parameters = [param for param in model.parameters() if param.requires_grad]
+    trainable = {name: param for name, param in model.named_parameters() if param.requires_grad}
+    parameters = list(trainable.values())
     optimizer = torch.optim.AdamW(parameters, lr=1e-4)
     def adapter_hash(params):
         digest = hashlib.sha256()
@@ -224,11 +262,20 @@ def run(args: argparse.Namespace) -> None:
     validation = batch(texts["heldout"][0])
     torch.cuda.reset_peak_memory_stats()
     try:
-        model.eval()
-        with torch.no_grad():
-            before = float(model(**validation).loss)
-        if not math.isfinite(before):
-            raise RuntimeError("non-finite heldout loss before training")
+        start_step = 0
+        if resume_path is not None:
+            from benchmarks.harness.b6_training_checkpoint import restore_training_checkpoint
+
+            start_step, before = restore_training_checkpoint(
+                resume_path, trainable, optimizer, identity=checkpoint_identity, device="cuda",
+            )
+            emit("resume", checkpoint=str(resume_path), completed_steps=start_step)
+        else:
+            model.eval()
+            with torch.no_grad():
+                before = float(model(**validation).loss)
+            if not math.isfinite(before):
+                raise RuntimeError("non-finite heldout loss before training")
         emit("heldout_before", loss=before)
         evaluation_before = []
         if evaluation_examples:
@@ -242,7 +289,9 @@ def run(args: argparse.Namespace) -> None:
             del zero_b
             evaluation_before = evaluate_examples(model, evaluation_examples, batch, emit, "before")
         emit("training_start")
-        for step in range(args.steps):
+        gradients = []
+        new_hash = adapter_hash(parameters) if start_step == args.steps else ""
+        for step in range(start_step, args.steps):
             model.train()
             inputs = batch(texts["train"][step % len(texts["train"])])
             optimizer.zero_grad(set_to_none=True)
@@ -272,6 +321,15 @@ def run(args: argparse.Namespace) -> None:
                  tokens_per_second=inputs["input_ids"].numel() / seconds,
                  peak_allocated=torch.cuda.max_memory_allocated(),
                  peak_reserved=torch.cuda.max_memory_reserved())
+            completed = step + 1
+            if checkpoint_every and (completed % checkpoint_every == 0 or completed == args.steps):
+                from benchmarks.harness.b6_training_checkpoint import save_training_checkpoint
+
+                checkpoint = save_training_checkpoint(
+                    output / "checkpoints", trainable, optimizer, identity=checkpoint_identity,
+                    completed_steps=completed, heldout_before=before, device="cuda",
+                )
+                emit("checkpoint", path=str(checkpoint), completed_steps=completed)
         model.eval()
         with torch.no_grad():
             result = model(**validation)
@@ -301,7 +359,7 @@ def run(args: argparse.Namespace) -> None:
         emit("expert_io", stats=runtime.expert_pool.stats())
     finally:
         runtime.close()
-    del model, runtime, optimizer, parameters, gradients, result
+    del model, runtime, optimizer, trainable, parameters, gradients, result
     gc.collect()
     torch.cuda.empty_cache()
     emit("reload_start")
@@ -342,6 +400,10 @@ if __name__ == "__main__":
     parser.add_argument("--evaluation-data")
     parser.add_argument("--ram-phase-file")
     parser.add_argument("--source-plan")
+    parser.add_argument("--checkpoint-every", type=int, default=0, metavar="STEPS",
+                        help="Save training state every N optimizer steps and at the final step")
+    parser.add_argument("--resume", metavar="CHECKPOINT_OR_DIR",
+                        help="Resume from a checkpoint file or a previous run's checkpoints dir")
     cache_mode = parser.add_mutually_exclusive_group()
     cache_mode.add_argument("--restart-incomplete-cache", action="store_true")
     cache_mode.add_argument("--reuse-cache", action="store_true")
