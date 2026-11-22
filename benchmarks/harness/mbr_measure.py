@@ -33,6 +33,23 @@ def parse_lora_targets(text: Optional[str]) -> Tuple[str, ...]:
     return names
 
 
+def parse_k_list(text: str) -> Tuple[int, ...]:
+    """Comma-separated k values of a bits ladder, every one positive."""
+    ks = tuple(int(part) for part in text.split(",") if part.strip())
+    if not ks or any(k < 1 for k in ks):
+        raise argparse.ArgumentTypeError("--ladder-ks takes positive comma-separated integers")
+    return ks
+
+
+def parse_arm_list(text: str) -> Tuple[str, ...]:
+    """Comma-separated arm names, each a known arm."""
+    names = tuple(part.strip() for part in text.split(",") if part.strip())
+    known = ("A0", "B0", "C", *LEVER_ARMS)
+    if not names or any(name not in known for name in names):
+        raise argparse.ArgumentTypeError(f"--arms takes names of {', '.join(known)}")
+    return names
+
+
 class MixedModeError(RuntimeError):
     """Raised when a measurement kind is requested in the wrong torch mode."""
 
@@ -51,6 +68,12 @@ def check_mode(kind: str, *, deterministic: bool) -> str:
 def arms_for(*, k: int) -> Tuple[str, ...]:
     """A0 only exists for k <= 8 (its micro-batches no longer fit above that)."""
     return ("A0", "B0", "C") if k <= A0_MAX_K else ("B0", "C")
+
+
+def reference_arm(k: int) -> str:
+    """The arm a bits ladder compares against at ``k``: A0 up to ``A0_MAX_K``, C above it, where
+    A0 does not run (ticket 04)."""
+    return "A0" if k <= A0_MAX_K else "C"
 
 
 def run_guarded(run: Callable[[], Dict[str, Any]], *, peaks: Callable[[], Dict[str, Any]],
@@ -139,6 +162,12 @@ LEVER_T_CRITICAL = 2.78  # two-sided 5% with 4 degrees of freedom (5 blocks)
 VRAM_TOLERANCE_BYTES = 64 * 2**20  # reserved and NVML wobble; allocated is compared exactly
 
 
+def ladder_arms(k: int) -> Tuple[str, ...]:
+    """The bits ladder at ``k``: A0 with C and every lever up to k=8; C and the levers above it,
+    where A0 does not run."""
+    return ("A0", "C", *LEVER_ARMS) if k <= A0_MAX_K else ("C", *LEVER_ARMS)
+
+
 def arm_runtime(arm: str) -> Dict[str, Any]:
     """The levers outside ``L2LStep.run``: expert GEMM mode, async lease, fast row gather."""
     return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
@@ -153,10 +182,11 @@ def lever_speed_plan(*, blocks: int = 1) -> List[Dict[str, Any]]:
             for arm in ("C", "E", "F", "G", "G", "F", "E", "C")]
 
 
-def lever_bit_plan(*, seq: int) -> List[Dict[str, Any]]:
-    """Deterministic ladder k = 1, 2, 4, 8 for A0, C and every lever arm."""
+def lever_bit_plan(*, seq: int, ks: Sequence[int] = BIT_LADDER) -> List[Dict[str, Any]]:
+    """Deterministic ladder over ``ks`` (default k = 1, 2, 4, 8) for the reference arm, C and every
+    lever arm. Above ``A0_MAX_K`` the reference is C, so A0 is not planned there."""
     return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits", "deterministic": True}
-            for k in BIT_LADDER for arm in ("A0", "C", *LEVER_ARMS)]
+            for k in ks for arm in ladder_arms(k)]
 
 
 def _vram_not_worse(lever: Dict[str, Any], previous: Dict[str, Any]) -> Optional[bool]:
@@ -181,13 +211,16 @@ def _paired_t(gains: Sequence[float]) -> Optional[float]:
 
 
 def lever_gate(rows: Sequence[Dict[str, Any]], *, lever: str, previous: str) -> Dict[str, Any]:
-    """The D1 gates of one lever against the arm before it: bits against A0 (ladder, deterministic
-    rows), peak VRAM in every window (an OOM of the previous arm that the lever removes counts as
-    a reason to take it), and speed (at least 3% in at least 3 of 4 windows; with 5 or more blocks
-    the paired t of the per-block gains must exceed 2.78 too)."""
+    """The D1 gates of one lever against the arm before it: bits against the reference arm of each
+    k (A0 at k <= 8, C above it; ladder, deterministic rows), peak VRAM in every window (an OOM of
+    the previous arm that the lever removes counts as a reason to take it), and speed (at least 3%
+    in at least 3 of 4 windows; with 5 or more blocks the paired t of the per-block gains must
+    exceed 2.78 too)."""
     bit_rows = [r for r in rows if r.get("kind") == "bits"]
     verdicts = ladder_verdict(bit_rows)
-    differs = [k for k in BIT_LADDER if verdicts.get((k, lever)) != "equal"]
+    # The ladder of k <= 8 stays the gate it was; a k above it counts when it has bits rows.
+    bit_ks = list(BIT_LADDER) + sorted({r["k"] for r in bit_rows if r["k"] > A0_MAX_K})
+    differs = [k for k in bit_ks if verdicts.get((k, lever)) != "equal"]
     speed_rows = [r for r in rows if r.get("kind") == "speed"]
     table = summarize_rows(speed_rows)
     windows_won, relief, worse, detail = 0, [], [], {}
@@ -249,10 +282,10 @@ def profile_plan() -> List[Dict[str, Any]]:
              "profile": True} for k, seq in WINDOWS for arm in arms_for(k=k)]
 
 
-def bit_plan(*, seq: int) -> List[Dict[str, Any]]:
-    """Deterministic-mode ladder: every arm at k = 1, 2, 4, 8."""
+def bit_plan(*, seq: int, ks: Sequence[int] = BIT_LADDER) -> List[Dict[str, Any]]:
+    """Deterministic-mode ladder over ``ks`` (default k = 1, 2, 4, 8) for the arms of each k."""
     return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits", "deterministic": True}
-            for k in BIT_LADDER for arm in arms_for(k=min(k, A0_MAX_K))]
+            for k in ks for arm in arms_for(k=k)]
 
 
 def grad_digest(grads: Dict[str, Sequence[float]]) -> str:
@@ -261,19 +294,22 @@ def grad_digest(grads: Dict[str, Sequence[float]]) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
 
-def _against_a0(rows: Sequence[Dict[str, Any]],
-                same: Callable[[Dict[str, Any], Dict[str, Any]], bool],
-                ) -> Dict[Tuple[int, str], str]:
-    """``equal`` / ``differs`` per (k, arm) by ``same(a0_row, row)``. A row that did not finish
-    keeps its status (OOM, CRASH); a k without an ok A0 row says ``no A0``."""
-    ref = {r["k"]: r for r in rows if r["arm"] == "A0" and r.get("status") == "ok"}
+def _against_reference(rows: Sequence[Dict[str, Any]],
+                       same: Callable[[Dict[str, Any], Dict[str, Any]], bool],
+                       ) -> Dict[Tuple[int, str], str]:
+    """``equal`` / ``differs`` per (k, arm) by ``same(base_row, row)``, where the base is the
+    reference arm of that k (``reference_arm``). A row that did not finish keeps its status (OOM,
+    CRASH); a k without an ok reference row says ``no A0`` (k <= 8) or ``no C`` (above it)."""
+    ref = {r["k"]: r for r in rows
+           if r["arm"] == reference_arm(r["k"]) and r.get("status") == "ok"}
     out: Dict[Tuple[int, str], str] = {}
     for row in rows:
-        if row["arm"] == "A0":
+        name = reference_arm(row["k"])
+        if row["arm"] == name:
             continue
         base = ref.get(row["k"])
         if base is None:
-            out[(row["k"], row["arm"])] = "no A0"
+            out[(row["k"], row["arm"])] = f"no {name}"
         elif row.get("status") != "ok":
             out[(row["k"], row["arm"])] = row.get("status", "?")
         else:
@@ -282,9 +318,10 @@ def _against_a0(rows: Sequence[Dict[str, Any]],
 
 
 def ladder_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[int, str], str]:
-    """Verdict per (k, arm) from the gradient digest and the loss, against A0 of the same k."""
-    return _against_a0(rows, lambda base, row: base["grad_sha256"] == row["grad_sha256"]
-                       and base["loss"] == row["loss"])
+    """Verdict per (k, arm) from the gradient digest and the loss, against the reference arm of
+    the same k (A0 at k <= 8, C above it)."""
+    return _against_reference(rows, lambda base, row: base["grad_sha256"] == row["grad_sha256"]
+                              and base["loss"] == row["loss"])
 
 
 def tensor_file_name(arm: str, k: int, seq: int) -> str:
@@ -319,8 +356,8 @@ def tensors_equal(ref: Dict[str, Any], other: Dict[str, Any]) -> bool:
 
 def tensor_ladder_verdict(rows: Sequence[Dict[str, Any]], *, tensor_dir: Path,
                           ) -> Dict[Tuple[int, str], str]:
-    """Verdict per (k, arm) by ``torch.equal`` on the saved tensors, against A0 of the same k.
-    The A0 file of each k loads once."""
+    """Verdict per (k, arm) by ``torch.equal`` on the saved tensors, against the reference arm of
+    the same k (A0 at k <= 8, C above it). The reference file of each k loads once."""
     import torch
 
     folder = Path(tensor_dir)
@@ -335,8 +372,8 @@ def tensor_ladder_verdict(rows: Sequence[Dict[str, Any]], *, tensor_dir: Path,
     def other_tensors(row: Dict[str, Any]) -> Dict[str, Any]:
         return torch.load(folder / row["tensor_file"], weights_only=True)
 
-    return _against_a0(rows, lambda base, row: tensors_equal(base_tensors(base),
-                                                             other_tensors(row)))
+    return _against_reference(rows, lambda base, row: tensors_equal(base_tensors(base),
+                                                                    other_tensors(row)))
 
 
 def parse_nvml_used(samples: Sequence[str]) -> int:
@@ -791,6 +828,10 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="first block number, to resume a pilot in the same folder")
         if name in ("bits", "lever-bits"):
             p.add_argument("--seq", type=int, default=64)
+            p.add_argument("--ladder-ks", type=parse_k_list, default=BIT_LADDER,
+                           help="comma-separated k values (default: 1,2,4,8)")
+            p.add_argument("--arms", type=parse_arm_list, default=None,
+                           help="comma-separated arms only (default: every arm of each k)")
             p.add_argument("--math-attention", action="store_true",
                            help="SDPA math backend only in every child run")
     args = parser.parse_args(argv)
@@ -799,9 +840,13 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         return 0
     plan = {"speed": lambda: speed_plan(blocks=args.blocks),
             "abba": lambda: abba_plan(blocks=args.blocks, start_block=args.start_block),
-            "bits": lambda: bit_plan(seq=args.seq), "profile": profile_plan,
+            "bits": lambda: bit_plan(seq=args.seq, ks=args.ladder_ks), "profile": profile_plan,
             "lever-speed": lambda: lever_speed_plan(blocks=args.blocks),
-            "lever-bits": lambda: lever_bit_plan(seq=args.seq)}[args.command]()
+            "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
+    if args.command in ("bits", "lever-bits") and args.arms is not None:
+        plan = [item for item in plan if item["arm"] in args.arms]
+        if not plan:
+            parser.error("--arms selects no arm of this ladder")
     rows = sweep(args, plan)
     (Path(args.out) / "summary.md").write_text(markdown_table(summarize_rows(rows)),
                                                  encoding="utf-8")

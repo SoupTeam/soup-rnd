@@ -34,6 +34,12 @@ def test_a0_is_not_planned_above_k8() -> None:
     assert mm.arms_for(k=64) == ("B0", "C")
 
 
+def test_bits_reference_is_a0_through_k8_and_c_above_it() -> None:
+    assert [mm.reference_arm(k) for k in (1, 2, 4, 8)] == ["A0"] * 4
+    assert mm.reference_arm(64) == "C"
+    assert mm.reference_arm(16) == "C"
+
+
 def test_every_report_row_carries_the_mode() -> None:
     row = mm.make_row(arm="C", k=8, seq=64, kind="speed", deterministic=False,
                       result={"step_seconds": 1.5, "peak_allocated": 1, "peak_reserved": 2,
@@ -150,10 +156,19 @@ def test_ladder_verdict_compares_each_arm_digest_to_a0_and_skips_missing_a0() ->
     rows = [{"k": 1, "arm": "A0", "grad_sha256": "a", "loss": 1.0, "status": "ok"},
             {"k": 1, "arm": "B0", "grad_sha256": "a", "loss": 1.0, "status": "ok"},
             {"k": 1, "arm": "C", "grad_sha256": "b", "loss": 1.0, "status": "ok"},
-            {"k": 16, "arm": "C", "grad_sha256": "c", "loss": 1.0, "status": "ok"}]
+            {"k": 2, "arm": "C", "grad_sha256": "c", "loss": 1.0, "status": "ok"}]
     out = mm.ladder_verdict(rows)
     assert out[(1, "B0")] == "equal" and out[(1, "C")] == "differs"
-    assert out[(16, "C")] == "no A0"
+    assert out[(2, "C")] == "no A0"
+
+
+def test_ladder_verdict_at_k64_compares_the_levers_to_c() -> None:
+    rows = [{"k": 64, "arm": "C", "grad_sha256": "c", "loss": 1.0, "status": "ok"},
+            {"k": 64, "arm": "E", "grad_sha256": "c", "loss": 1.0, "status": "ok"},
+            {"k": 64, "arm": "F", "grad_sha256": "d", "loss": 1.0, "status": "ok"}]
+    assert mm.ladder_verdict(rows) == {(64, "E"): "equal", (64, "F"): "differs"}
+    assert mm.ladder_verdict([rows[1]])[(64, "E")] == "no C"
+    assert mm.ladder_verdict([dict(rows[0], status="OOM"), rows[1]])[(64, "E")] == "no C"
 
 
 def test_nvml_peak_parses_the_largest_used_memory_sample() -> None:
@@ -266,6 +281,27 @@ def test_lever_bit_plan_covers_a0_and_every_lever_in_deterministic_mode() -> Non
     assert all(p["kind"] == "bits" and p["deterministic"] for p in plan)
 
 
+def test_k64_ladder_uses_c_as_reference_and_plans_no_a0() -> None:
+    assert mm.ladder_arms(8) == ("A0", "C", "E", "F", "G")
+    assert mm.ladder_arms(64) == ("C", "E", "F", "G")
+    lever = mm.lever_bit_plan(seq=64, ks=(64,))
+    assert [p["arm"] for p in lever] == ["C", "E", "F", "G"]
+    plain = mm.bit_plan(seq=64, ks=(64,))
+    assert [p["arm"] for p in plain] == ["B0", "C"]
+    assert all(p["k"] == 64 and p["kind"] == "bits" and p["deterministic"]
+               for p in lever + plain)
+
+
+def test_ladder_flags_parse_k_values_and_known_arm_names() -> None:
+    assert mm.parse_k_list("1,2,4,8") == (1, 2, 4, 8)
+    assert mm.parse_k_list("64") == (64,)
+    assert mm.parse_arm_list("C, E") == ("C", "E")
+    with pytest.raises(argparse.ArgumentTypeError):
+        mm.parse_k_list("0")
+    with pytest.raises(argparse.ArgumentTypeError):
+        mm.parse_arm_list("Z")
+
+
 def _speed(arm: str, k: int, seq: int, step: float, nvml: int = 100, block: int = 0) -> dict:
     return {"arm": arm, "k": k, "seq": seq, "kind": "speed", "status": "ok", "block": block,
             "step_seconds": step, "peak_allocated": nvml, "peak_reserved": nvml,
@@ -312,6 +348,20 @@ def test_bits_gate_follows_the_ladder_against_a0() -> None:
     broken = ok[:-1] + [bit("E", 8, "y")]
     gate = mm.lever_gate(broken, lever="E", previous="C")
     assert gate["bits"]["pass"] is False and gate["bits"]["differs_at"] == [8]
+
+
+def test_bits_gate_counts_a_k64_verdict_against_the_c_reference() -> None:
+    def bit(arm: str, k: int, sha: str) -> dict:
+        return {"arm": arm, "k": k, "seq": 64, "kind": "bits", "status": "ok",
+                "grad_sha256": sha, "loss": 1.0}
+
+    rows = [bit("A0", k, "x") for k in mm.BIT_LADDER]
+    rows += [bit("E", k, "x") for k in mm.BIT_LADDER]
+    rows += [bit("C", 64, "y"), bit("E", 64, "y")]
+    assert mm.lever_gate(rows, lever="E", previous="C")["bits"]["pass"] is True
+    rows[-1] = bit("E", 64, "z")
+    gate = mm.lever_gate(rows, lever="E", previous="C")
+    assert gate["bits"]["pass"] is False and gate["bits"]["differs_at"] == [64]
 
 
 def test_sweep_child_run_forwards_the_model_options_to_every_window() -> None:
@@ -478,6 +528,21 @@ def test_a_failed_a0_row_leaves_its_k_without_a_reference(tmp_path) -> None:
     rows = [{"arm": "A0", "k": 1, "seq": 64, "status": "OOM"},
             {"arm": "C", "k": 1, "seq": 64, "status": "ok", "tensor_file": name}]
     assert mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path)[(1, "C")] == "no A0"
+
+
+def test_tensor_ladder_verdict_at_k64_reads_the_saved_c_tensors(tmp_path) -> None:
+    import torch
+
+    def save(arm: str, grad: list) -> dict:
+        name = mm.tensor_file_name(arm, 64, 64)
+        torch.save({"loss": torch.tensor([2.0], dtype=torch.float64),
+                    "grads": {"w": torch.tensor(grad)}}, tmp_path / name)
+        return {"arm": arm, "k": 64, "seq": 64, "status": "ok", "tensor_file": name}
+
+    rows = [save("C", [1.0, 2.0]), save("E", [1.0, 2.0])]
+    assert mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path) == {(64, "E"): "equal"}
+    assert mm.tensor_ladder_verdict(rows[:1] + [
+        dict(rows[1], status="OOM")], tensor_dir=tmp_path)[(64, "E")] == "OOM"
 
 
 def test_digest_ladder_verdict_and_tensor_verdict_share_the_a0_rule() -> None:
