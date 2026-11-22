@@ -83,9 +83,9 @@ k=1, seven runs (the sweep `s512-math/F`, reps 1 and 2, and new reps 3 to 6):
 | outlier | 1 (s512-math/F sweep) | 2.783530 | 3822 | differs in 108 gradients |
 
 The outlier's largest difference is 0.0150202 against a largest gradient of 1.53392. The six-run
-class agrees with A0 in the loss and every gradient, and it also has the same fused-visit count; the
-outlier took 3822 fused forward visits against 3816, so it is a different execution trace, not the
-typical one.
+class agrees with A0 in the loss and every gradient, and all six share the same fused-visit count;
+the outlier took 3822 fused forward visits against 3816, so it is a different execution trace, not
+the typical one.
 
 k=2, five runs (the sweep `s512-math/F` and new reps 1 to 4): one result. All five are equal to each
 other and to A0 in the loss and all 216 gradients. k=2 is stable.
@@ -94,7 +94,6 @@ Verdict for the open item: F has a typical result at both k. At k=1 it is the si
 `equal` to A0; the sweep row is one outlier in seven runs. At k=2 every run is `equal`. The single
 k=1 flip could not be reproduced in six further runs, and its cause is not identified; the async
 lease path shows it rarely, as Kanana did once at k=2.
-
 
 ## Fused visits (counters of the `lt-fused` path)
 
