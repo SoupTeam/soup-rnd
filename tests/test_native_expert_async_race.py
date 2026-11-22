@@ -137,11 +137,12 @@ def test_a_read_failure_raises_frees_the_ring_and_the_stream_recovers(tmp_path: 
     stream, _ = _stream(extension, path, experts, ring_slots=2)
     stat = path.stat()
     try:
-        stream.start_sequence(0, [0, 1])
-        # Change the file identity the extension checked at registration. A truncate would
-        # also shorten the file; moving the mtime is the smallest change that ``check`` sees
-        # and the nanosecond value is restored exactly below.
+        # Change the file identity the extension checked at registration before the sequence
+        # starts, so the first worker read must fail. A truncate would also shorten the file;
+        # moving the mtime is the smallest change that ``check`` sees and the nanosecond value
+        # is restored exactly below.
         os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+        stream.start_sequence(0, [0, 1])
         with pytest.raises(RuntimeError, match="expert shard"):
             _consume(stream, 1)
         stream.finish_sequence()
