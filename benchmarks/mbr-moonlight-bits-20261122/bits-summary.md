@@ -53,7 +53,7 @@ reference that changes between runs cannot judge the other arms, so these verdic
 
 | k | A0 loss | C | E | F | G |
 |---|---|---|---|---|---|
-| 1 | 2.790814 | equal | equal | differs (loss 2.783530) | equal |
+| 1 | 2.790814 | equal | equal | equal (6 of 7 runs; one outlier) | equal |
 | 2 | 2.743729 | differs (loss 2.734687) | equal | equal | equal |
 | 4 | 2.774396 | differs (loss 2.783361) | equal | equal | equal |
 | 8 | 2.846923 | differs (loss 2.851639) | equal | equal | equal |
@@ -61,15 +61,40 @@ reference that changes between runs cannot judge the other arms, so these verdic
 Reproducibility of the reference: three A0 runs at k=1 on the math backend agree in all 216 gradients
 (`repeats/compare-A0-s512-math.txt`).
 
-F at k=1 is the one unstable cell. The sweep's F run differs from A0. Two further F runs at k=1
-agree with each other (all 216 gradients equal), and both differ from the sweep's F run in 108
-gradients (`repeats/compare-F-s512-math.txt`). So F gave two different results in three runs at
-this cell. The Kanana study also saw F flip once (at k=2). Three runs cannot say which result is the
-typical one, and the F verdict at k=1 is recorded as `differs` because that is what the sweep row
-says.
+F at k=1 was the one unstable cell; seven runs now settle it (next section). The sweep's F row is the
+only run that differs from A0, and six further runs agree with A0. The F verdict at k=1 is therefore
+`equal`, with the outlier kept in the table rather than hidden.
 
 The math backend changes the numbers: its A0 losses differ from the default backend's at every k, so
 the default and math S=512 numbers must not be compared.
+
+## F repeats at k=1 and k=2, S=512, math backend (ticket 03 open item)
+
+Model Moonlight-16B-A3B, card RTX 3050 Laptop sm_86 4 GiB, window S=512, arm F (E plus async lease),
+mode bits (deterministic), torch 2.14.1+cu130. Each run is a fresh process; its loss and all 216 LoRA
+gradients are saved. Comparisons: `repeats/compare-F-k1-s512-math-7runs.txt` (7 runs) and
+`repeats/compare-F-k2-s512-math-5runs.txt` (5 runs), `torch.equal` pairwise.
+
+k=1, seven runs (the sweep `s512-math/F`, reps 1 and 2, and new reps 3 to 6):
+
+| result class | runs | loss | fused_forward | against A0 |
+|---|---|---|---|---|
+| typical | 6 (rep1, rep2, rep3, rep4, rep5, rep6) | 2.790814 | 3816 | equal in all 216 gradients |
+| outlier | 1 (s512-math/F sweep) | 2.783530 | 3822 | differs in 108 gradients |
+
+The outlier's largest difference is 0.0150202 against a largest gradient of 1.53392. The six-run
+class agrees with A0 in the loss and every gradient, and it also has the same fused-visit count; the
+outlier took 3822 fused forward visits against 3816, so it is a different execution trace, not the
+typical one.
+
+k=2, five runs (the sweep `s512-math/F` and new reps 1 to 4): one result. All five are equal to each
+other and to A0 in the loss and all 216 gradients. k=2 is stable.
+
+Verdict for the open item: F has a typical result at both k. At k=1 it is the six-run class, which is
+`equal` to A0; the sweep row is one outlier in seven runs. At k=2 every run is `equal`. The single
+k=1 flip could not be reproduced in six further runs, and its cause is not identified; the async
+lease path shows it rarely, as Kanana did once at k=2.
+
 
 ## Fused visits (counters of the `lt-fused` path)
 
@@ -103,19 +128,21 @@ S=512 default-backend sweep reached 3526 MiB at the same cell, so the figure dep
 | A0, S=64, k=1, default | 2 | equal in all 216 gradients |
 | A0, S=512, k=1, default | 3 | pairwise differ in 105 to 108 gradients; the loss is equal |
 | A0, S=512, k=1, math | 3 | pairwise equal in all 216 gradients |
-| F, S=512, k=1, math | 3 | two equal to each other, one differs from both (108 gradients) |
+| F, S=512, k=1, math | 7 | six equal to each other and to A0, the sweep run differs from all six (108 gradients) |
+| F, S=512, k=2, math | 5 | all five equal to each other and to A0 |
 
-Scripts: `repeat_a0.sh SEQ K RUNS [math]` (with `ARM=F` for another arm), and
-`compare_repeats.py TENSOR.pt ...` for the pairwise comparisons.
+Scripts: `repeat_a0.sh SEQ K RUNS [math] [first]` (with `ARM=F` for another arm; `first` starts the
+numbering at a later repeat, and folder names carry k), and `compare_repeats.py TENSOR.pt ...` for the
+pairwise comparisons.
 
 ## Not in this run
 
 - Speed. Bits runs do not measure speed; the step times in the rows are not speed evidence. The speed
   and memory gate of D1 stays on Vast for Kanana.
 - The S=64 ladder on the math backend. S=64 uses the default backend, so its A0 is only checked at k=1.
-- A0 and F repeats at k=2, 4 and 8.
+- A0 repeats at k=2, 4 and 8, and F repeats at k=4 and 8. F at k=1 and k=2 is covered above.
 - The k=64 counter run is a bare `run` call. Its row has no `ArmWatch` record.
-- The k=64 ladder with C as reference (deferred by the user, see `map.md`).
+- The k=64 ladder with C as reference. Ticket 04 covers it in `k64-bits-summary.md`.
 - Cause of the default-backend gap. The PyTorch warning in the log says memory-efficient attention
   backward is not deterministic. The math backend fixes A0 at k=1, which supports this, but no test
   isolates the kernel beyond that.
@@ -127,6 +154,8 @@ Scripts: `repeat_a0.sh SEQ K RUNS [math]` (with `ARM=F` for another arm), and
   Each has `rows.jsonl`, `bits-verdict.json` and `arm_records.jsonl`.
 - `counter-k64/rows.jsonl`: E at k=64, S=64.
 - `repeats/`: repeat rows, logs and comparison outputs. `rep3-s64` was run with an earlier version of
-  `repeat_a0.sh` that named runs differently; the current script names them `rep1` to `repN`.
+  `repeat_a0.sh` that named runs differently; the current script names them `k<k>-rep1` to
+  `k<k>-repN`. `compare-F-k1-s512-math-7runs.txt` and `compare-F-k2-s512-math-5runs.txt` are the
+  seven-run and five-run F checks; `compare-F-s512-math.txt` is the earlier three-run check.
 - `run_bits.sh` (default backend, both windows), `run_bits_math_s512.sh` (math backend, S=512),
   `repeat_a0.sh`, `compare_repeats.py`.
