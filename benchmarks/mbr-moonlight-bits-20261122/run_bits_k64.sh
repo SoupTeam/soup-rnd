@@ -29,6 +29,10 @@ export CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(li
 export PATH="$VENV/bin:$PATH"
 export PYTHONPATH="$REPO/src:$REPO"
 
+# Before the redirect below: a missing $OUT parent would fail both runs while the script
+# still reports success (the same guard as run_bits.sh).
+mkdir -p "$OUT"
+
 for seq in 64 512; do
   echo "== lever-bits k=64 arms=C,E seq=$seq start $(date +%T)"
   "$VENV/bin/python" -u "$HARNESS" lever-bits --seq "$seq" --ladder-ks 64 --arms C,E \
