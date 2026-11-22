@@ -7,12 +7,14 @@ prefetch, and a read failure that must raise, free its slots and leave the strea
 
 Run on a host with the extension built:
 
-    python src/soup_cli/utils/_native_expert_async/build_ext.py --build-lib /tmp/native-ext
+    python src/soup_cli/utils/_native_expert_async/build_ext.py build_ext \
+        --build-lib /tmp/native-ext
     PYTHONPATH=/tmp/native-ext pytest tests/test_native_expert_async_race.py --no-cov -v
 """
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import random
 import types
@@ -28,14 +30,16 @@ SECTOR = 4096
 
 
 def _extension_or_skip() -> Any:
-    try:
-        import _native_expert_stream_async as extension
-    except ImportError:
+    # Skip only when the module does not exist at all. A module that exists but fails to
+    # import (broken .so, ABI mismatch, missing libtorch) must fail the gate, not skip it.
+    if importlib.util.find_spec("_native_expert_stream_async") is None:
         pytest.skip(
             "_native_expert_stream_async is not built; run "
             "python src/soup_cli/utils/_native_expert_async/build_ext.py "
-            "--build-lib /tmp/native-ext"
+            "build_ext --build-lib /tmp/native-ext"
         )
+    import _native_expert_stream_async as extension
+
     return extension
 
 

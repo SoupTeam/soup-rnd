@@ -8,6 +8,7 @@ that names the code byte, scale and output index; a benchmark never replaces thi
 
 from __future__ import annotations
 
+import importlib.util
 from typing import Any, Tuple
 
 import pytest
@@ -17,24 +18,31 @@ torch = pytest.importorskip("torch")
 pytestmark = pytest.mark.gpu
 
 BLOCKSIZE = 64
+BNB_VERSION = "0.50.2"
 
 
 def _extension_or_skip() -> Any:
-    try:
-        import _native_expert_stream_async as extension
-    except ImportError:
+    # Skip only when the module does not exist at all. A module that exists but fails to
+    # import (broken .so, ABI mismatch, missing libtorch) must fail the gate, not skip it.
+    if importlib.util.find_spec("_native_expert_stream_async") is None:
         pytest.skip(
             "_native_expert_stream_async is not built; run "
             "python src/soup_cli/utils/_native_expert_async/build_ext.py "
-            "--build-lib /tmp/native-ext --with-cuda-nf4"
+            "build_ext --build-lib /tmp/native-ext --with-cuda-nf4"
         )
+    import _native_expert_stream_async as extension
+
     if not hasattr(extension, "decode_nf4_bf16_pair"):
-        pytest.skip("the extension was built without --with-cuda-nf4 (no NF4 kernel)")
+        pytest.fail("the extension was built without --with-cuda-nf4 (no NF4 kernel)")
     return extension
 
 
 def _bitsandbytes() -> Tuple[Any, Any]:
     bitsandbytes = pytest.importorskip("bitsandbytes")
+    assert bitsandbytes.__version__ == BNB_VERSION, (
+        f"this gate is defined against bitsandbytes {BNB_VERSION}, "
+        f"got {bitsandbytes.__version__}"
+    )
     from bitsandbytes import functional
 
     return bitsandbytes, functional

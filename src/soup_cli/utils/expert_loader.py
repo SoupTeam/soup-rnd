@@ -79,8 +79,9 @@ def require_cpp_async_2slot(environment: Optional[LoaderEnvironment] = None) -> 
         detail = f": {found.detail}" if found.detail else ""
         raise CppAsyncLoaderUnavailableError(
             f"{flag} needs the C++ extension {EXTENSION_MODULE}; it is not built{detail}. "
-            f"Build it with `python {EXTENSION_BUILD_SCRIPT} --build-lib /tmp/native-ext` and "
-            "put that directory on PYTHONPATH. The Python async_lease path is not substituted."
+            f"Build it with `python {EXTENSION_BUILD_SCRIPT} build_ext --build-lib "
+            "/tmp/native-ext` (add --with-cuda-nf4 for the NF4 decoder) and put that "
+            "directory on PYTHONPATH. The Python async_lease path is not substituted."
         )
     if not found.cuda_available:
         raise CppAsyncLoaderUnavailableError(f"{flag} needs CUDA; none is available")
@@ -131,9 +132,10 @@ class PackedSequenceLoader:
     ``stream`` is the ``PackedStreamAsync`` contract: ``start_sequence(layer, ids)``,
     ``consume_next(dst_ptr) -> expert``, ``finish_sequence()``, ``enqueue_next_sequence``,
     ``cancel_next_sequence()`` and ``close()``. The controller owns the destination buffer and
-    the error path: a failed, cancelled or partially consumed sequence always finishes, so no
-    ring slot stays reserved. A stream that hands back an expert other than the one the
-    sequence asked for is refused instead of feeding the wrong weights to the node.
+    the error path: a failed or cancelled sequence finishes on the error path, and a partially
+    consumed one finishes when its generator is closed or collected, so no ring slot stays
+    reserved. A stream that hands back an expert other than the one the sequence asked for is
+    refused instead of feeding the wrong weights to the node.
     """
 
     def __init__(self, stream: Any, *, packed_bytes: int) -> None:
@@ -165,7 +167,12 @@ class PackedSequenceLoader:
         self.stream.cancel_next_sequence()
 
     def sequence(self, layer: int, experts: Sequence[int]) -> Iterator[Tuple[int, Any]]:
-        """Yield ``(expert, slot)`` in request order; the slot is reused by the next item."""
+        """Yield ``(expert, slot)`` in request order; the slot is reused by the next item.
+
+        An iterator that is neither drained nor closed keeps its sequence active: the next
+        ``sequence()`` call raises until the caller closes the iterator (or drops it for the
+        garbage collector), which finishes the sequence and frees the ring slot.
+        """
         if type(layer) is not int or layer < 0:
             raise ValueError("layer must be a non-negative integer")
         ids = _expert_ids(experts)
