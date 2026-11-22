@@ -341,6 +341,20 @@ Not ported from the same koko commits: the one-expert lookahead (`prefetch`, `pr
 the usage profile and the GPU placement plan. They are not among the four complete levers, and
 they build on an expert fetcher with cache tiers that this code does not have.
 
+### The loader arm: `stream_expert_loader` (experimental)
+
+`training.stream_expert_loader` chooses which loader feeds the per-expert cache. The default
+`async_lease` is the single-slot pool above and changes nothing. `cpp_async_2slot` selects the
+C++ two-slot loader vendored from PR #77 in `utils/_native_expert_async`; it is valid only with
+`stream_expert_layout: per_expert` and `stream_layers: true`. Selection is never replaced by the
+Python lease: without the compiled extension the run stops before the tokenizer is loaded and
+prints the `build_ext.py` command, and with the extension built it still stops until the pool
+swap is wired (ticket 04's GPU part). CPU tests: `tests/test_expert_loader.py` (selection,
+ordered sequences, cancellation, read failure, a wrong expert id, and the same bytes driving
+`FusedCpuBackend`). GPU scaffolds that skip until the extension is built:
+`tests/test_nf4_decoder_bnb.py` (decoder against bitsandbytes 0.50.2 on `uint16`) and
+`tests/test_native_expert_async_race.py` (rings 2/4/8, cancel, read failure).
+
 ## Local checks
 
 ```text
