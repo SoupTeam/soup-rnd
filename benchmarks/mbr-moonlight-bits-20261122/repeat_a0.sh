@@ -3,23 +3,26 @@
 # seq N times,
 # each into its own folder, so every run keeps its saved tensors for compare_repeats.py.
 #
-# Usage: [ARM=F] repeat_a0.sh SEQ K RUNS [math]
-#   math: add --math-attention (SDPA math backend only, in deterministic mode)
+# Usage: [ARM=F] repeat_a0.sh SEQ K RUNS [math] [first]
+#   math:  add --math-attention (SDPA math backend only, in deterministic mode)
+#   first: number of the first repeat (default 1), so later repeats continue the numbering
 #
 # Inputs, overridable from the environment:
 #   VENV, MOONLIGHT_ROOT, OUT  (same defaults as run_bits.sh)
 #
-# Refuses to run when a target folder already exists. No `set -e`: a failed run is recorded.
+# Folder names carry k, so the repeats of two k values no longer collide. Refuses to run when a
+# target folder already exists. No `set -e`: a failed run is recorded.
 set -u
 
 if [ $# -lt 3 ]; then
-  echo "usage: $0 SEQ K RUNS [math]" >&2
+  echo "usage: $0 SEQ K RUNS [math] [first]" >&2
   exit 2
 fi
 SEQ=$1
 K=$2
 RUNS=$3
 ATTENTION=${4:-default}
+FIRST=${5:-1}
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV="${VENV:-$HOME/.venvs/soup-rnd-cuda}"
@@ -36,9 +39,9 @@ if [ "$ATTENTION" = "math" ]; then
   EXTRA=(--math-attention)
 fi
 
-for i in $(seq 1 "$RUNS"); do
-  if [ -e "$OUT/${PREFIX}${TAG}rep$i-s$SEQ" ]; then
-    echo "refusing to run: $OUT/${PREFIX}${TAG}rep$i-s$SEQ exists. Move it away first." >&2
+for i in $(seq "$FIRST" $((FIRST + RUNS - 1))); do
+  if [ -e "$OUT/${PREFIX}${TAG}k${K}-rep$i-s$SEQ" ]; then
+    echo "refusing to run: $OUT/${PREFIX}${TAG}k${K}-rep$i-s$SEQ exists. Move it away first." >&2
     exit 1
   fi
 done
@@ -47,8 +50,8 @@ export CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(li
 export PATH="$VENV/bin:$PATH"
 export PYTHONPATH="$REPO/src:$REPO"
 
-for i in $(seq 1 "$RUNS"); do
-  dir="$OUT/${PREFIX}${TAG}rep$i-s$SEQ"
+for i in $(seq "$FIRST" $((FIRST + RUNS - 1))); do
+  dir="$OUT/${PREFIX}${TAG}k${K}-rep$i-s$SEQ"
   "$VENV/bin/python" -u "$REPO/benchmarks/harness/mbr_measure.py" run --arm "$ARM" --k "$K" --seq "$SEQ" \
     --kind bits --deterministic "${EXTRA[@]}" --steps 3 \
     --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
