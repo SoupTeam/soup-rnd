@@ -19,7 +19,34 @@ import os
 from typing import Any, Callable, Dict, Hashable, List, Optional, Sequence, Tuple
 
 HEURISTIC_LIMIT = 32
+ROW_ALIGNMENT = 128  # bf16 rows of 128 values are 256 bytes, the fused kernels' stride
 _EXTENSION_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "a0_exact_lt_ext.cpp")
+
+_SHAPE_HINT = (
+    "--expert-gemm lt-fused needs hidden_size and the expert intermediate size to be multiples "
+    "of {alignment} (its kernels write {bytes}-byte bf16 rows); got {sizes}. Use the default "
+    "(native) expert GEMM for this model."
+)
+
+
+def alignment_error(gate_up: Any, down: Any) -> Optional[str]:
+    """Why the fused expert GEMM cannot keep its row alignment here (None when it can).
+
+    ``gate_up`` is ``[2 * intermediate, hidden]`` and ``down`` is ``[intermediate, hidden]``.
+    Every GEMM of the expert uses one of these as the inner or outer size, so all of them
+    must be multiples of ``ROW_ALIGNMENT``; otherwise the row starts are not 256-byte aligned.
+    """
+    sizes = (
+        ("hidden_size", int(gate_up.shape[1])),
+        ("gate_up rows", int(gate_up.shape[0])),
+        ("down rows", int(down.shape[0])),
+    )
+    bad = [f"{name}={size}" for name, size in sizes if size % ROW_ALIGNMENT]
+    if not bad:
+        return None
+    return _SHAPE_HINT.format(
+        alignment=ROW_ALIGNMENT, bytes=ROW_ALIGNMENT * 2, sizes=", ".join(bad)
+    )
 
 
 def native_matmul(x: Any, w: Any, transposed: bool) -> Any:
@@ -320,6 +347,10 @@ class FusedExpert:
     def ensure(self, counts: Sequence[int], gate_up: Any, down: Any) -> bool:
         """Register the algo of every new row count in the four GEMM forms; False when one
         has no A0-exact algo (the caller then takes the Python path)."""
+        if self.require_cuda:  # the CPU stand-in does not use the extension's row stride
+            error = alignment_error(gate_up, down)
+            if error is not None:
+                raise RuntimeError(error)
         shapes = (tuple(gate_up.shape), tuple(down.shape))
         known = self._known.setdefault(shapes, set())
         if all(c in known for c in counts):
