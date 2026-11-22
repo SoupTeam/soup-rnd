@@ -45,13 +45,21 @@ def _micro_batches(rig: Rig, count: int) -> List[Any]:
 def _different(left: Any, right: Any) -> List[str]:
     import torch
 
-    bad = [
+    bad: List[str] = []
+    if len(left["losses"]) != len(right["losses"]):
+        bad.append(f"losses: {len(left['losses'])} vs {len(right['losses'])}")
+    bad += [
         f"loss[{index}]"
         for index, (a, b) in enumerate(zip(left["losses"], right["losses"]))
         if not torch.equal(a, b)
     ]
+    only_left = sorted(left["grads"].keys() - right["grads"].keys())
+    only_right = sorted(right["grads"].keys() - left["grads"].keys())
+    if only_left or only_right:
+        bad.append(f"grads keys: a0-only {only_left}, c-only {only_right}")
     bad += [
-        name for name in left["grads"]
+        name
+        for name in left["grads"].keys() & right["grads"].keys()
         if not torch.equal(left["grads"][name], right["grads"][name])
     ]
     return bad
@@ -79,3 +87,17 @@ def test_a0_equals_c_on_cpu_at_group_1_2_and_4(
     assert backend.forward_calls > 0 and backend.backward_calls > 0
     assert backend.registered, "the exact plan registered no algo for a segment"
     assert _different(a0, c) == []
+
+
+def test_different_reports_extra_losses_and_grads() -> None:
+    """Review repro: extra losses or gradient keys on one side are a difference."""
+    import torch
+
+    a0 = {"losses": [torch.tensor(1.0)], "grads": {"a": torch.tensor(2.0)}}
+    c = {
+        "losses": [torch.tensor(1.0), torch.tensor(999.0)],
+        "grads": {"a": torch.tensor(2.0), "extra": torch.tensor(999.0)},
+    }
+    bad = _different(a0, c)
+    assert any(item.startswith("losses:") for item in bad)
+    assert any(item.startswith("grads keys:") for item in bad)
