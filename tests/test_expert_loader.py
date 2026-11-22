@@ -490,6 +490,23 @@ def test_a_sequence_hands_experts_back_in_order_with_their_own_bytes(ring_slots:
         loader.close()
 
 
+def test_a_partially_consumed_sequence_blocks_until_the_iterator_is_closed() -> None:
+    """An abandoned iterator keeps the ring; closing it frees the slot for the next run."""
+    stream = stream_for([0, 1, 2], ring_slots=2)
+    loader = PackedSequenceLoader(stream, packed_bytes=stream.packed_bytes)
+    try:
+        partial = loader.sequence(0, [0, 1, 2])
+        assert next(partial)[0] == 0
+        with pytest.raises(RuntimeError, match="active sequence"):
+            next(iter(loader.sequence(0, [2])))
+        partial.close()
+        assert stream.ring_in_use == 0
+        assert stream.finished == 1
+        assert [expert for expert, _ in loader.sequence(0, [2])] == [2]
+    finally:
+        loader.close()
+
+
 def test_a_read_failure_is_raised_and_frees_every_ring_slot() -> None:
     experts = [0, 1, 2, 3]
 
