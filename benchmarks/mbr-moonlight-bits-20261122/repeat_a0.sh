@@ -40,8 +40,11 @@ if [ "$ATTENTION" = "math" ]; then
 fi
 
 for i in $(seq "$FIRST" $((FIRST + RUNS - 1))); do
-  if [ -e "$OUT/${PREFIX}${TAG}k${K}-rep$i-s$SEQ" ]; then
-    echo "refusing to run: $OUT/${PREFIX}${TAG}k${K}-rep$i-s$SEQ exists. Move it away first." >&2
+  dir="$OUT/${PREFIX}${TAG}k${K}-rep$i-s$SEQ"
+  # An OOM run leaves no tensor folder, only $dir.jsonl and $dir.err. Refuse on any of the
+  # three, or a rerun would append a second row to the old .jsonl.
+  if [ -e "$dir" ] || [ -e "$dir.jsonl" ] || [ -e "$dir.err" ]; then
+    echo "refusing to run: $dir, $dir.jsonl or $dir.err exists. Move it away first." >&2
     exit 1
   fi
 done
