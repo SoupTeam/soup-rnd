@@ -279,12 +279,30 @@ anything it raises `ExactGemmUnavailableError` (a `RuntimeError`) when one of th
 | PyTorch 2.14 | the fused kernels mirror the ATen reduction order of that series; another series may change bits |
 | a C++ compiler, `ninja`, `nvcc` and the cuBLASLt headers (`CUDA_HOME`, `/usr/local/cuda` or the `nvidia-cuda-nvcc` wheel) | the first-use build |
 
+The fused kernels write bf16 rows with a 256-byte stride, so `hidden_size`, the expert
+intermediate size and the doubled gate/up width must all be multiples of 128. A model
+that breaks this gets an explicit `RuntimeError` naming the offending size; it never
+falls back to `native`. Kanana (`hidden_size` 2048, intermediate 768) passes.
+
+Platforms for this streamed-expert/MBR work: **Linux** is the supported target for the
+training paths and the CUDA extension. **macOS** is supported on CPU paths only; the
+CUDA extension does not build or run there, and no MPS bit-equality claim is made.
+**Windows is not supported**: the streaming paths and the exact-GEMM extension are
+untested there, and no Windows build or run is offered; this is the same scope note as
+the mbr-unified PR. The #77 async extension source is vendored under
+`src/soup_cli/utils/_native_expert_async/` for the loader tickets; it uses
+`st_mtimespec` on Apple platforms so its C++ source is at least macOS-clang clean, but
+it is not wired into a loader and its CUDA kernels remain Linux-only.
+
 Checked: CPU (`tests/test_expert_gemm_select.py`) each refusal with the environment probe
 replaced, and that `native` patches nothing; CPU fakes of the extension
 (`tests/test_a0_exact_lt*.py`, `tests/test_direct_expert_backward*.py`); GPU (`pytest -m gpu`,
 `tests/test_a0_exact_lt_kernels_gpu.py`) the kernels against the ATen chains they replace on
-sm_89, and that the installed PyTorch is the 2.14 series. The bit-equality of a full step with
-A0 and the speed of `lt-fused` are measured by the benchmark harness, not by the unit tests; see
+sm_89, and that the installed PyTorch is the 2.14 series. The full-step CPU check
+(`tests/test_p72_mbr_cpu_bits.py`) compares A0 with route-preserving MBR through the
+exact plan on the tiny MoE, `torch.equal` over losses and every trainable gradient at
+group sizes 1, 2 and 4. The speed of `lt-fused` and the bit-equality of a full step on
+Kanana are measured by the benchmark harness, not by the unit tests; see
 [the exact-MBR speed report](../benchmarks/mbr-exact-speed-20261120.md).
 
 Measured on Kanana-2-30B-A3B (RTX 4060 Ti, 8-GiB allocator limit, one block, see
