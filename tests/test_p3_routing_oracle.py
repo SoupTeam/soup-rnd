@@ -150,6 +150,43 @@ def test_oracle_replay_matches_native_gate_forward_and_input_gradient(
         assert weight_agreement["equal"], weight_agreement
 
 
+def test_frozen_router_weight_does_not_hold_the_recompute_hidden(tmp_path: Any) -> None:
+    """A frozen gate weight takes no hidden into ``save_for_backward`` for its backward."""
+    import gc
+    import weakref
+
+    import torch
+
+    resident = _resident(tmp_path, norm_topk_prob=True, scaling=1.0)
+    config = resident.get_base_model().config
+    owner = resident.get_base_model().model
+    layer_idx = config.first_k_dense_replace
+    gate = owner.layers[layer_idx].mlp.gate
+    hidden = torch.randn(5, config.hidden_size)
+    assert gate.weight.requires_grad is False
+
+    with DeepseekRoutingOracle(resident, pin=False) as oracle:
+        oracle.begin_step([(1, 5, config.hidden_size)])
+        with torch.no_grad():
+            with oracle.visit(layer_idx, 0, "forward"):
+                weights = gate(hidden)[1]
+        upstream = torch.randn_like(weights)
+        base = hidden.clone().requires_grad_(True)
+        replay_input = base * 1.0  # a non-leaf, like the recompute's activation
+        hidden_ref = weakref.ref(replay_input)
+        with torch.enable_grad():
+            with oracle.visit(layer_idx, 0, "recompute"):
+                replay = gate(replay_input)
+        del replay_input
+        gc.collect()
+        assert hidden_ref() is None, (
+            "a frozen router weight held the recompute hidden alive until backward"
+        )
+        (gradient,) = torch.autograd.grad(replay[1], base, upstream)
+        assert gradient.abs().sum() > 0
+        oracle.abort_step()
+
+
 def test_oracle_replay_is_bit_equal_in_bfloat16(tmp_path: Any, record_property: Any) -> None:
     """Moonlight's compute dtype: the same VJP in BF16 is bit-equal with normalization on."""
     import torch

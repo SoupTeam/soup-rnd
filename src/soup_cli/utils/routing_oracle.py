@@ -128,7 +128,11 @@ def _oracle_function() -> Any:
             _require(owner is not None and not owner._closed, "probe owner is unavailable")
             ctx.set_materialize_grads(False)
             ctx.state = state
-            ctx.save_for_backward(hidden, weight)
+            # Only a trainable weight can ask for the weight gradient, which is the only reader
+            # of the saved hidden. A frozen gate weight would pin the activation until backward
+            # for nothing; its input gradient comes from the replay state.
+            if weight.requires_grad:
+                ctx.save_for_backward(hidden, weight)
             ids = state.ids.clone()
             if state.settings[5]:
                 normalized = state.scores / state.normalizer
