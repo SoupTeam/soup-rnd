@@ -24,7 +24,6 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 import pytest
-import torch
 
 from benchmarks.harness import b13_moe_fixture as fixture
 from soup_cli.utils import l2l_step
@@ -39,6 +38,8 @@ pytestmark = _REQUIRES_TRAINING_FLOOR
 
 def _agreement(reference: Any, candidate: Any) -> Dict[str, Any]:
     """``torch.equal``, max abs and relative L2 of one gradient pair."""
+    import torch
+
     difference = candidate.double() - reference.double()
     scale = float(reference.double().norm())
     return {
@@ -312,6 +313,8 @@ def test_decoupled_mbr_with_the_oracle_matches_without_it_bitwise(
 
 
 def test_trainer_state_carries_the_oracle_switch() -> None:
+    import torch
+
     from soup_cli.trainer.l2l_trainer import L2LState
 
     state = L2LState(
