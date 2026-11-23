@@ -1488,8 +1488,9 @@ native DeepSeek-V3 model with frozen router weights and autocast off at the rout
 default. On CPU the target BF16 compute is bit-equal to MBR without the Oracle over losses
 and every LoRA gradient at k = 1, 2, 4; dense FP32 with `norm_topk_prob` differs at rounding
 level (2.98e-8 max abs, 7.29e-8 relative L2 on the direct router VJP). The CPU profile
-(`benchmarks/routing-oracle-cpu-20261123.md`) skips 50% of MBR's router executions and
-9-10% of the step time at k = 8 on the tiny fixture; that is not a GPU speed claim.
+(`benchmarks/routing-oracle-cpu-20261123.md`) skips 50% of MBR's router executions on the
+grouped backward and 66.7% on the decoupled one, with an indicative 4.7-12.6% step-time win
+on the shared CPU; that is not a GPU speed claim.
 
 By default MBR refuses decoder forward hooks, decoder backward hooks, MoE module hooks, and global
 module hooks rather than exposing a temporary output. A deterministic, microbatch-independent

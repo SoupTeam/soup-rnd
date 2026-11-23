@@ -40,6 +40,10 @@ def _arguments(argv: List[str] | None = None) -> argparse.Namespace:
         "--dtype", choices=("bfloat16", "float32"), default="bfloat16",
         help="compute dtype (Moonlight is BF16)",
     )
+    parser.add_argument(
+        "--decoupled", action="store_true",
+        help="use the decoupled MBR backward (R1 peek + R2 recompute) instead of grouped reuse",
+    )
     parser.add_argument("--json", type=str, default=None, help="write the report here")
     return parser.parse_args(argv)
 
@@ -132,6 +136,7 @@ def _fixture(work: Path, *, k: int, seq: int, dtype: str) -> Dict[str, Any]:
         "stepper": stepper,
         "store": store,
         "dtype": dtype,
+        "decoupled": False,
         "k": k,
         "seq": seq,
     }
@@ -144,6 +149,11 @@ def _zero_grads(model: Any) -> None:
 
 def _step(rig: Dict[str, Any], oracle: Any = None) -> float:
     _zero_grads(rig["model"])
+    extra = (
+        {"mbr_decoupled_subwindow": True, "mbr_recompute_subwindow": 1}
+        if rig["decoupled"]
+        else {}
+    )
     start = time.perf_counter()
     rig["stepper"].run(
         rig["ids"],
@@ -153,6 +163,7 @@ def _step(rig: Dict[str, Any], oracle: Any = None) -> float:
         mbr_group_size=rig["k"],
         collect_phase_stats=True,
         routing_oracle=oracle,
+        **extra,
     )
     return time.perf_counter() - start
 
@@ -164,17 +175,13 @@ def _counts(rig: Dict[str, Any], oracle: Any) -> Dict[str, int]:
         assert stats is not None
         return {
             "router_calls": stats["step_counts"]["native_forward"],
-            "router_forward": stats["step_counts"]["native_forward"],
-            "router_recomputed": stats["step_counts"]["oracle_recompute"],
+            "oracle_peek": stats["step_counts"]["oracle_peek"],
+            "oracle_recompute": stats["step_counts"]["oracle_recompute"],
             "oracle_vjp": stats["step_counts"]["oracle_vjp"],
         }
     with _count_native_router() as router:
         _step(rig)
-    return {
-        "router_calls": router["calls"],
-        "router_forward": router["calls"] // 2,
-        "router_recomputed": router["calls"] // 2,
-    }
+    return {"router_calls": router["calls"]}
 
 
 def run(args: argparse.Namespace) -> Dict[str, Any]:
@@ -188,9 +195,11 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         "dtype": args.dtype,
         "steps": args.steps,
         "warmup": args.warmup,
+        "backward": "decoupled" if args.decoupled else "grouped",
     }
     with tempfile.TemporaryDirectory(prefix="oracle-cpu-profile-") as tmp:
         rig = _fixture(Path(tmp), k=args.k, seq=args.seq, dtype=args.dtype)
+        rig["decoupled"] = args.decoupled
         try:
             report["torch"] = rig["torch"]
             report["model"] = {
@@ -223,18 +232,15 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
 
     baseline_counts["topk_calls"] = topk["calls"]
     oracle_counts["topk_calls"] = oracle_topk["calls"]
-    # The baseline recompute runs the router but two-read's TopkDecisions mode replays
-    # every topk below it, so those decisions are dispatch entries, not aten executions.
-    # With the Oracle the recompute runs no router at all. The per-router count is
-    # measured in the baseline forward (one router call per forward pair).
-    forward_pairs = baseline_counts["router_forward"]
-    per_router = (
-        int(round(baseline_counts["topk_calls"] / forward_pairs)) if forward_pairs else 0
-    )
-    baseline_counts["topk_dispatches"] = baseline_counts["topk_calls"] + (
-        per_router * baseline_counts["router_recomputed"]
-    )
-    oracle_counts["topk_dispatches"] = oracle_counts["topk_calls"]
+    # Every native router call makes three top-k decisions (group top-k, group scores, token
+    # top-k). With the Oracle every remaining call is a native forward, so its measured
+    # top-k-per-router ratio gives the decisions each baseline router call would make. In the
+    # baseline's recompute phases two-read's ``TopkDecisions`` replays them below aten, so
+    # they are dispatch entries rather than aten executions.
+    router_calls = oracle_counts["router_calls"]
+    per_router = int(round(oracle_counts["topk_calls"] / router_calls)) if router_calls else 0
+    for arm in (baseline_counts, oracle_counts):
+        arm["topk_dispatches"] = per_router * arm["router_calls"]
     report["topk_per_router_forward"] = per_router
     report["counts"] = {"without_oracle": baseline_counts, "with_oracle": oracle_counts}
     report["router_skipped_fraction"] = 1.0 - (
@@ -260,6 +266,7 @@ def _summary(report: Dict[str, Any]) -> str:
     oracle = report["counts"]["with_oracle"]
     lines = [
         f"CPU Oracle profile: k={report['k']} S={report['seq']} {report['dtype']} "
+        f"{report['backward']} backward, "
         f"{report['model']['moe_layers']} MoE layers, top-k {report['model']['top_k']}",
         f"router calls/step: {baseline['router_calls']} -> {oracle['router_calls']} "
         f"({100 * report['router_skipped_fraction']:.1f}% skipped)",

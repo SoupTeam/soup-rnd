@@ -21,6 +21,8 @@ python benchmarks/harness/mbr_oracle_cpu_profile.py --k 8 --seq 16 --steps 7 --w
   --dtype bfloat16 --json /tmp/oracle-cpu.json
 ```
 
+Add `--decoupled` for the decoupled MBR backward (R1 peek, R2 recompute).
+
 ## Counts and step time
 
 The baseline is the lever's own toggle: MBR without the Oracle. "Router calls" are native
@@ -28,22 +30,25 @@ The baseline is the lever's own toggle: MBR without the Oracle. "Router calls" a
 executed or replayed; two-read's `TopkDecisions` already replays the recompute's decisions
 below `aten`, so the Oracle removes the dispatch entries, not the aten executions.
 
-| k | S | router calls/step | top-k dispatches/step | `aten::topk` executions | step median, s | win |
-|---|---|---|---|---|---|---|
-| 4 | 32 | 16 -> 8 (50.0%) | 48 -> 24 (50.0%) | 24 -> 24 | 0.0644 -> 0.0500 | **+22.3%** |
-| 8 | 16 | 32 -> 16 (50.0%) | 96 -> 48 (50.0%) | 48 -> 48 | 0.0904 -> 0.0822 | **+9.1%** |
-| 8 | 16 repeat | 32 -> 16 (50.0%) | 96 -> 48 (50.0%) | 48 -> 48 | 0.0911 -> 0.0829 | **+9.0%** |
-| 8 | 64 | 32 -> 16 (50.0%) | 96 -> 48 (50.0%) | 48 -> 48 | 0.1396 -> 0.1260 | **+9.7%** |
+| k | S | backward | router calls/step | top-k dispatches/step | `aten::topk` executions | step median, s | win |
+|---|---|---|---|---|---|---|---|
+| 4 | 32 | grouped | 16 -> 8 (50.0%) | 48 -> 24 (50.0%) | 24 -> 24 | 0.0549 -> 0.0506 | **+7.8%** |
+| 8 | 16 | grouped | 32 -> 16 (50.0%) | 96 -> 48 (50.0%) | 48 -> 48 | 0.0906 -> 0.0809 | **+10.7%** |
+| 8 | 32 | grouped | 32 -> 16 (50.0%) | 96 -> 48 (50.0%) | 48 -> 48 | 0.1009 -> 0.0909 | **+9.9%** |
+| 8 | 64 | grouped | 32 -> 16 (50.0%) | 96 -> 48 (50.0%) | 48 -> 48 | 0.1169 -> 0.1114 | **+4.7%** |
+| 8 | 16 | decoupled (R1 peek + R2 recompute) | 48 -> 16 (66.7%) | 144 -> 48 (66.7%) | 48 -> 48 | 0.1105 -> 0.0966 | **+12.6%** |
 
 Each step with the Oracle records `native_forward = 2 layers x k`,
-`oracle_recompute = 2 x k`, `oracle_vjp = 2 x k`, `oracle_peek = 0` (this MBR path has no
-decoupled peek phase yet). The recompute therefore runs no router, no top-k selection and no
-`TopkDecisions` dispatch; the forward router stays native.
+`oracle_recompute = 2 x k`, `oracle_vjp = 2 x k`, and `oracle_peek = 0` on the grouped
+backward or `2 x k` on the decoupled backward. The recompute therefore runs no router,
+no top-k selection and no `TopkDecisions` dispatch; the forward router stays native.
 
-The win is small in absolute time (8-13 ms per step on this fixture) and comes from skipping
-the router linear, sigmoid/group selection and the replayed top-k bookkeeping in the backward
-recompute. It does not include the pinned host copies, which cost on CUDA. This table is not a
-GPU speed claim; the A-B-C-C-B-A ladder on the RTX 3050 is part 2.
+The win is small in absolute time (4-14 ms per step on this fixture), and this CPU was
+shared with other test runs, so the 4.7-12.6% range is indicative, not a tight estimate.
+It comes from skipping the router linear, sigmoid/group selection and the replayed top-k
+bookkeeping in the backward recompute. It does not include the pinned host copies, which
+cost on CUDA. This table is not a GPU speed claim; the A-B-C-C-B-A ladder on the RTX 3050
+is part 2.
 
 ## Neutrality on CPU
 
@@ -81,8 +86,9 @@ ladder decides whether it is neutral there.
 
 - `tests/test_p3_routing_oracle.py`: the direct VJP (logits, weights, ids, input gradient, four
   normalize/scaling combinations), the BF16 VJP, the whole tiny-MoE MBR pair at k = 1, 2, 4 in
-  BF16 (bit-equal) and dense FP32 (rounding recorded), the trainer state switch, and the
-  refusal without MBR or with a trainable router.
+  BF16 (bit-equal) and dense FP32 (rounding recorded) for both the grouped and the decoupled
+  backward (peek in R1, recompute in R2), the trainer state switch, and the refusal without MBR
+  or with a trainable router.
 - `tests/test_p3_l2l_recipe.py`: the recipe switch, its MBR requirement and resume refusal.
 - MBR and L2L regression files re-run unchanged: `tests/test_p72_mbr_cpu_bits.py`,
   `tests/test_p3_mbr_route_summary.py`, `tests/test_p3_mbr_window_boundaries.py`,
