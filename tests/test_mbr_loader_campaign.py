@@ -110,6 +110,43 @@ def test_the_replacement_plan_names_every_cell_whose_run_was_void() -> None:
     assert pending == [{"arm": "G", "k": 8, "seq": 512, "block": 0}], pending
 
 
+def test_a_block_with_a_void_run_is_not_counted_and_its_replacement_is(tmp_path: Path) -> None:
+    """``speed-rule.md``: a block with a void run is not counted, and the block runs again under
+    its own number. The excluded block's surviving ``ok`` arm must not slip into the pair."""
+    import json
+
+    module = _module()
+    rows = []
+    for block in range(1, 6):
+        rows += [_speed_row("G", 100.0, block=block), _speed_row("H", 90.0, block=block)]
+    rows += [_speed_row("G", 100.0, block=0), _speed_row("H", 120.0, block=0)]
+    folder = tmp_path / "speed"
+    _write_speed_folder(folder, rows)
+    (folder / "excluded_blocks.json").write_text(
+        json.dumps([{"k": 8, "seq": 64, "block": 0, "reason": "void power run"}]) + "\n",
+        encoding="utf-8")
+    window = module._speed(folder)["windows"]["(8,64)"]
+    assert window["gains_pct"] == [10.0] * 5, window
+    assert window["mean_gain_pct"] == 10.0, window
+
+
+def test_the_gate_written_into_analysis_json_is_json() -> None:
+    """``analysis.json`` holds the harness gate. ``lever_gate`` keys its windows by ``(k, seq)``
+    tuples, and a tuple key is not JSON: the writer must name each window the way the rest of the
+    analysis does, ``"(8,64)"``."""
+    import json
+
+    module = _module()
+    rows = []
+    for block in range(5):
+        rows += [_speed_row("G", 100.0, block=block), _speed_row("H", 90.0, block=block)]
+    gate = module.mm.lever_gate(rows, lever="H", previous="G",
+                                windows=module.mm.LOADER_WINDOWS, min_windows=2)
+    text = json.dumps(module._gate_json(gate))
+    assert '"(8,64)"' in text, text
+    assert "(8, 64)" not in text, text
+
+
 def test_the_loader_speed_command_takes_the_block_count() -> None:
     """``run_speed_h.sh`` passes ``--blocks 5`` to ``loader-speed``; the parser must take it."""
     import subprocess

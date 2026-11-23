@@ -127,8 +127,26 @@ def _valid_runs(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [r for r in rows if r.get("outcome", "ok") == "ok"]
 
 
+def _excluded_blocks(folder: Path) -> set:
+    """Blocks a void run disqualifies. ``speed-rule.md``: a block with a void run is not counted
+    and is replaced; the replacement pass runs under its own block number, so the excluded block's
+    surviving ``ok`` arm never joins a pair. The file names each exclusion and its reason."""
+    path = folder / "excluded_blocks.json"
+    if not path.exists():
+        return set()
+    return {(item["k"], item["seq"], item["block"])
+            for item in json.loads(path.read_text(encoding="utf-8"))}
+
+
+def _speed_rows(folder: Path) -> List[Dict[str, Any]]:
+    """Rows a verdict may read: valid runs of blocks no void run disqualified."""
+    excluded = _excluded_blocks(folder)
+    return [row for row in _valid_runs(_read_jsonl(folder / "rows.jsonl"))
+            if (row["k"], row["seq"], row.get("block", 0)) not in excluded]
+
+
 def _speed(folder: Path) -> Dict[str, Any]:
-    rows = _valid_runs(_read_jsonl(folder / "rows.jsonl"))
+    rows = _speed_rows(folder)
     records = _read_jsonl(folder / "arm_records.jsonl")
     table = mm.summarize_rows(rows)
     windows: Dict[str, Any] = {}
@@ -177,6 +195,22 @@ def _speed(folder: Path) -> Dict[str, Any]:
             "blocks": max((r.get("block", 0) for r in rows), default=0) + 1}
 
 
+def _window(k: int, seq: int) -> str:
+    return f"({k},{seq})"
+
+
+def _gate_json(gate: Dict[str, Any]) -> Dict[str, Any]:
+    """The harness gate with its windows named as JSON strings. ``lever_gate`` keys its windows
+    by ``(k, seq)`` tuples and lists the pairs of its VRAM cells; JSON has no tuple key, so the
+    writer names them the way ``speed["windows"]`` and the result lines do."""
+    speed = dict(gate["speed"])
+    speed["windows"] = {_window(*pair): detail for pair, detail in speed["windows"].items()}
+    vram = dict(gate["vram"])
+    vram["worse_in"] = [_window(*pair) for pair in vram["worse_in"]]
+    vram["oom_relief"] = [_window(*pair) for pair in vram["oom_relief"]]
+    return dict(gate, speed=speed, vram=vram)
+
+
 def main(argv: object = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path)
@@ -188,18 +222,18 @@ def main(argv: object = None) -> int:
         folder = args.root / name
         bits[name] = _bits(folder)
         bits_rows += _read_jsonl(folder / "rows.jsonl")
-    speed_rows = _valid_runs(_read_jsonl(args.root / SPEED_FOLDER / "rows.jsonl"))
+    speed_rows = _speed_rows(args.root / SPEED_FOLDER)
     speed = _speed(args.root / SPEED_FOLDER)
     gate = mm.lever_gate(bits_rows + speed_rows, lever="H", previous="G",
                          windows=mm.LOADER_WINDOWS, min_windows=mm.LOADER_MIN_WINDOWS)
-    analysis = {"bits": bits, "speed": speed, "gate": gate}
+    analysis = {"bits": bits, "speed": speed, "gate": _gate_json(gate)}
     (args.root / "analysis.json").write_text(json.dumps(analysis, indent=2), encoding="utf-8")
     lines = ["# Result lines (ticket 05, part 2)", ""]
     lines += _result_lines(bits_rows, kind="bits")
     lines.append("")
     lines += _result_lines(speed_rows, kind="speed")
     (args.root / "rows.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(json.dumps({"gate": gate, "speed": speed}, indent=2))
+    print(json.dumps({"gate": analysis["gate"], "speed": speed}, indent=2))
     return 0
 
 
