@@ -26,7 +26,12 @@ python src/soup_cli/utils/_native_expert_async/build_ext.py --build-lib /tmp/nat
 The module name is `_native_expert_stream_async`; put the build directory on
 `PYTHONPATH` to import it.
 
-Build note: CUDA 13 with GCC 15 fails inside nvcc on glibc's `noexcept` `rsqrt`
-declarations before it reaches this source. That is a host-toolchain pairing
-(`nvcc` versus the C library headers), not a file from #77; use a GCC that the
-toolkit supports. The C++-only build imports on PyTorch 2.14.1+cu130 (CUDA 13).
+Build note: CUDA 13 with GCC 15 (glibc 2.43) stops inside nvcc on glibc's `noexcept`
+`rsqrt`/`rsqrtf` declarations before it reaches this source. That is a host-toolchain pairing
+(`nvcc` versus the C library headers), not a file from #77. `build_ext.py` diagnoses it before
+nvcc runs and prints the documented two-line patch (llama.cpp's): add `noexcept (true)` to the
+`rsqrt(double x)` and `rsqrtf(float x)` declarations in
+`$CUDA_HOME/include/crt/math_functions.h` (lines 629 and 653 in CUDA 13.0; keep a
+`math_functions.h.soup-backup` beside it). The script never edits the header itself. Roll back by
+restoring that backup or with `pip install --force-reinstall nvidia-cuda-crt`. The C++-only build
+imports on PyTorch 2.14.1+cu130 (CUDA 13).

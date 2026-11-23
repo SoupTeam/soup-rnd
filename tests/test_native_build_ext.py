@@ -105,6 +105,18 @@ def test_glibc_version_parsing_reads_the_confstr_spelling() -> None:
     assert module.parse_glibc_version("") is None
 
 
+def test_the_toolkit_version_comes_from_version_json(tmp_path: Path) -> None:
+    module = _module()
+    (tmp_path / "version.json").write_text(
+        '{"cuda": {"name": "CUDA SDK", "version": "13.0.88"}}', encoding="utf-8"
+    )
+    assert module._cuda_version(tmp_path) == (13, 0)
+    (tmp_path / "version.json").write_text(
+        '{"cuda": {"version": "12.8.61"}}', encoding="utf-8"
+    )
+    assert module._cuda_version(tmp_path) == (12, 8)
+
+
 def test_the_check_refuses_without_touching_the_header(tmp_path: Path) -> None:
     module = _module()
     header = _header(tmp_path, patched=False)
