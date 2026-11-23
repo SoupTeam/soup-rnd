@@ -4017,7 +4017,9 @@ def install_streaming(
 
     # The selected loader's requirements are checked here too, not only in the trainer: an
     # API caller asking for ``cpp_async_2slot`` on a CPU host gets the refusal before the
-    # model, the cache or the pool is touched, never a silent Python lease (ADR 0002).
+    # stream and the pool are created, never a silent Python lease (ADR 0002). In
+    # ``build_streamed_model`` the adapter attach happens earlier; the refusal still lands
+    # before anything streams.
     resolve_expert_loader(expert_loader)
     import torch
 

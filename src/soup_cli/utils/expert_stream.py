@@ -1310,6 +1310,11 @@ def _build_streamed_experts_class() -> Any:
                                     autocast_dtype=autocast_dtype,
                                     mm=matmul,
                                 )
+                        except BaseException:
+                            # Match the forward trace: a failed lease is an error row, not a
+                            # replay of a visit that read nothing.
+                            row["status"] = "error"
+                            raise
                         finally:
                             # One semantics with the counter: the row takes the lease's bytes,
                             # and only a visit that read nothing is a replay.
@@ -1319,7 +1324,8 @@ def _build_streamed_experts_class() -> Any:
                                 else 0
                             )
                             row["logical_bytes_read"] = bytes_read
-                            row["status"] = "ok" if bytes_read else "replay"
+                            if row.get("status") != "error":
+                                row["status"] = "ok" if bytes_read else "replay"
                         if grad_hidden is not None and grad_rows is not None:
                             grad_hidden.index_add_(
                                 0, tokens, grad_rows.to(grad_hidden.dtype)
