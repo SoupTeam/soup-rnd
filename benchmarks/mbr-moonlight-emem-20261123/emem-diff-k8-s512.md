@@ -1,10 +1,10 @@
-Main source: other = 1112.9 MiB of free space trapped in segments pinned by fused_scratch
+Main source: other = 1112.9 MiB of free space trapped in segments pinned by staging
 E minus C:
 - total: live +265.1 MiB, reserved +1152.0 MiB
-- cublaslt_workspace: live +0.0 MiB, reserved +0.0 MiB
+- cublaslt_workspace: live +17.1 MiB, reserved +17.1 MiB
 - algo_discovery: live +0.0 MiB, reserved +0.0 MiB
-- staging: live +0.0 MiB, reserved +0.0 MiB
-- fused_scratch: live +265.1 MiB, reserved +265.4 MiB
+- staging: live +247.9 MiB, reserved +247.9 MiB
+- fused_scratch: live +0.0 MiB, reserved +0.3 MiB
 - other: live +0.0 MiB, reserved +886.6 MiB
 Segment free space:
 - C: releasable 1272.0 MiB, trapped 40.2 MiB

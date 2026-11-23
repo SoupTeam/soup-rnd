@@ -20,12 +20,12 @@
         "reserved_bytes": 0
       },
       "E": {
-        "live_bytes": 0,
-        "reserved_bytes": 0
+        "live_bytes": 17956864,
+        "reserved_bytes": 17956864
       },
       "delta": {
-        "live_bytes": 0,
-        "reserved_bytes": 0
+        "live_bytes": 17956864,
+        "reserved_bytes": 17956864
       }
     },
     "algo_discovery": {
@@ -48,12 +48,12 @@
         "reserved_bytes": 0
       },
       "E": {
-        "live_bytes": 0,
-        "reserved_bytes": 0
+        "live_bytes": 259984896,
+        "reserved_bytes": 259984896
       },
       "delta": {
-        "live_bytes": 0,
-        "reserved_bytes": 0
+        "live_bytes": 259984896,
+        "reserved_bytes": 259984896
       }
     },
     "fused_scratch": {
@@ -62,12 +62,12 @@
         "reserved_bytes": 0
       },
       "E": {
-        "live_bytes": 277941760,
-        "reserved_bytes": 278253056
+        "live_bytes": 0,
+        "reserved_bytes": 311296
       },
       "delta": {
-        "live_bytes": 277941760,
-        "reserved_bytes": 278253056
+        "live_bytes": 0,
+        "reserved_bytes": 311296
       }
     },
     "other": {
@@ -4066,7 +4066,7 @@
     {
       "size": 32251904,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "staging",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -5020,7 +5020,7 @@
     {
       "size": 22173184,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "staging",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -5228,7 +5228,7 @@
     {
       "size": 21322752,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "staging",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -5719,7 +5719,7 @@
     {
       "size": 16125952,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "staging",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -5927,7 +5927,7 @@
     {
       "size": 15507456,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "staging",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -6786,7 +6786,7 @@
     {
       "size": 11186176,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "staging",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -6994,7 +6994,7 @@
     {
       "size": 11086848,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "staging",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -7202,7 +7202,7 @@
     {
       "size": 9437184,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "cublaslt_workspace",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -7600,7 +7600,7 @@
     {
       "size": 8519680,
       "live": true,
-      "klass": "fused_scratch",
+      "klass": "cublaslt_workspace",
       "frames": [
         {
           "name": "torch::unwind::unwind()",
@@ -14208,7 +14208,7 @@
           "active_bytes": 22173184,
           "trapped_bytes": 313371136,
           "holders": [
-            "fused_scratch"
+            "staging"
           ]
         },
         {
@@ -14216,7 +14216,7 @@
           "active_bytes": 42645504,
           "trapped_bytes": 292898816,
           "holders": [
-            "fused_scratch"
+            "staging"
           ]
         },
         {
@@ -14224,7 +14224,8 @@
           "active_bytes": 46918656,
           "trapped_bytes": 288625664,
           "holders": [
-            "fused_scratch"
+            "cublaslt_workspace",
+            "staging"
           ]
         },
         {
@@ -14232,8 +14233,8 @@
           "active_bytes": 57905664,
           "trapped_bytes": 109866496,
           "holders": [
-            "fused_scratch",
-            "other"
+            "other",
+            "staging"
           ]
         },
         {
@@ -14241,7 +14242,7 @@
           "active_bytes": 70551040,
           "trapped_bytes": 97221120,
           "holders": [
-            "fused_scratch"
+            "staging"
           ]
         },
         {
@@ -14249,7 +14250,7 @@
           "active_bytes": 9437184,
           "trapped_bytes": 36700160,
           "holders": [
-            "fused_scratch"
+            "cublaslt_workspace"
           ]
         },
         {
@@ -14257,7 +14258,7 @@
           "active_bytes": 15507456,
           "trapped_bytes": 18046976,
           "holders": [
-            "fused_scratch"
+            "staging"
           ]
         },
         {
@@ -14281,7 +14282,7 @@
           "active_bytes": 21322752,
           "trapped_bytes": 1745920,
           "holders": [
-            "fused_scratch"
+            "staging"
           ]
         },
         {
@@ -14604,10 +14605,10 @@
     }
   },
   "trapped_by_holder": {
-    "cublaslt_workspace": 0,
+    "cublaslt_workspace": 325325824,
     "algo_discovery": 0,
-    "staging": 0,
-    "fused_scratch": 1158476288,
+    "staging": 1121776128,
+    "fused_scratch": 0,
     "other": 118386176
   }
 }
