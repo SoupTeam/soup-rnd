@@ -3822,13 +3822,20 @@ def _prepare_expert_streaming(
     layers: Any, shard_dir: str, index: Any, *, device: str, codes: Optional[Mapping[str, Any]],
     two_reads: bool = False, grouped_expert_routes: bool = False,
     expert_transfer: str = "sync", expert_host_cache_bytes: int = 0,
-    expert_prefetch: bool = False,
+    expert_prefetch: bool = False, expert_loader: str = "async_lease",
 ) -> Tuple[Any, Tuple[Any, ...]]:
     """Prepare the bounded expert slot and validate the replacement modules.
 
     The caller owns the returned pool and readers. Readers are closed on any
     preparation failure, including failures after one or more files were opened.
+
+    ``expert_loader`` selects where a lease's bytes come from: ``async_lease`` keeps the
+    reader's own synchronous read, ``cpp_async_2slot`` opens the compiled two-slot stream
+    over the same readers and hands it to the pool. On CUDA the C++ arm packs the stored
+    components into one block, which is what the compiled stream fills; the pool then copies
+    that block to the device once, exactly like ``expert_transfer="packed"``.
     """
+    from soup_cli.utils.expert_loader import EXPERT_LOADER_CHOICES
     from soup_cli.utils.expert_shard import ExpertShardReader
     from soup_cli.utils.expert_stream import (
         ExpertBufferPool,
@@ -3838,8 +3845,21 @@ def _prepare_expert_streaming(
     )
     from soup_cli.utils.layer_shard import expert_paths
 
+    if expert_loader not in EXPERT_LOADER_CHOICES:
+        raise ValueError(
+            f"expert_loader must be one of {EXPERT_LOADER_CHOICES}, got {expert_loader!r}"
+        )
+    if expert_loader != "async_lease" and expert_prefetch:
+        raise ValueError(
+            "cpp_async_2slot does not combine with the Python expert prefetch thread; "
+            "the compiled stream owns its own read-ahead"
+        )
+    if expert_loader != "async_lease" and str(device).startswith("cuda"):
+        expert_transfer = "packed"
+
     readers: Dict[int, Any] = {}
     pool = None
+    stream = None
     try:
         for layer, path in expert_paths(shard_dir, index).items():
             readers[layer] = ExpertShardReader(
@@ -3855,12 +3875,17 @@ def _prepare_expert_streaming(
         # Size staging for the largest one, not whichever reader happens to be first.
         first = max(readers.values(), key=lambda reader: reader.max_span)
         plan = plan_expert_buffer(first, dtype=index.dtype, transfer=expert_transfer)
+        if expert_loader != "async_lease":
+            from soup_cli.utils.expert_loader import open_native_stream
+
+            stream = open_native_stream(readers, host_cache_bytes=expert_host_cache_bytes)
         pool = ExpertBufferPool(
             first, device=device, dtype=index.dtype,
             weight_budget_bytes=expert_allocation_budget(plan, device=device), codes=codes,
             **({"transfer": expert_transfer} if expert_transfer != "sync" else {}),
             **({"host_cache_bytes": expert_host_cache_bytes} if expert_host_cache_bytes else {}),
             **({"prefetch": True} if expert_prefetch else {}),
+            **({"stream": stream} if stream is not None else {}),
         )
         install_streamed_experts(
             layers, readers, pool, two_reads=two_reads, grouped_expert_routes=grouped_expert_routes
@@ -3868,6 +3893,8 @@ def _prepare_expert_streaming(
         return pool, tuple(readers.values())
     except BaseException:
         cleanup = ([pool.close] if pool is not None else [])
+        if pool is None and stream is not None:
+            cleanup.append(stream.close)
         cleanup.extend(reader.close for reader in readers.values())
         for close in cleanup:
             try:
@@ -3954,6 +3981,7 @@ def install_streaming(
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
     expert_prefetch: bool = False,
+    expert_loader: str = "async_lease",
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3972,6 +4000,10 @@ def install_streaming(
     ``expert_prefetch`` (same caches, off by default) reads the next hit expert of a layer on
     a worker thread while the current one computes, in the forward and the backward. The bytes,
     the order and the numbers are unchanged. API switch, no config field.
+
+    ``expert_loader`` (``"async_lease"`` by default) is the selected loader arm; with
+    ``"cpp_async_2slot"`` the pool reads through the compiled stream and the readers' own
+    synchronous read is replaced. The option itself is validated in ``expert_loader``.
 
     ``refill_before_backward`` says the loss runs a second forward before each
     step's backward; an untied output head then hands autograd a private copy
@@ -4067,6 +4099,7 @@ def install_streaming(
                 expert_transfer=expert_transfer,
                 expert_host_cache_bytes=expert_host_cache_bytes,
                 expert_prefetch=expert_prefetch,
+                expert_loader=expert_loader,
             )
         else:
             for lever, enabled in (
@@ -4075,6 +4108,7 @@ def install_streaming(
                 ("expert_transfer", expert_transfer != "sync"),
                 ("expert_host_cache_bytes", bool(expert_host_cache_bytes)),
                 ("expert_prefetch", expert_prefetch),
+                ("expert_loader", expert_loader != "async_lease"),
             ):
                 if enabled:
                     raise ValueError(
@@ -4709,6 +4743,7 @@ def build_streamed_model(
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
     expert_prefetch: bool = False,
+    expert_loader: str = "async_lease",
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -4778,6 +4813,7 @@ def build_streamed_model(
                 if expert_host_cache_bytes else {}
             ),
             **({"expert_prefetch": True} if expert_prefetch else {}),
+            **({"expert_loader": expert_loader} if expert_loader != "async_lease" else {}),
         )
     except BaseException:
         for external in external_sources:

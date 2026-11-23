@@ -1284,6 +1284,7 @@ class StreamingSetupMixin:
             ngram_source=ngram_source,
             refill_before_backward=self._STREAM_REFILL_BEFORE_BACKWARD,
             partial_ram_budget=partial_budget,
+            expert_loader=loader,
             **({"ram_cache_bytes": cache_bytes} if cache_bytes and not defer_ram_cache else {}),
         )
         if tcfg.stream_ram_cache_mb and tier != TIER_DISK:

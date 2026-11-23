@@ -2,9 +2,10 @@
 
 These three files are the C++17/CUDA extension from PR #77 (commit
 [`dc0f0e0a`](https://github.com/SoupTeam/soup-rnd/commit/dc0f0e0a9a5beff3e281970e5152f85140d871d3),
-author kok-o). They are vendored here so the portability work has a source to build
-and test; no loader imports or wires them yet. The loader gates (`cpp_async_2slot`)
-stay in ticket 04.
+author kok-o). They are vendored here so the portability work has a source to build and test.
+The opt-in `cpp_async_2slot` loader arm wires them into the per-expert expert pool: every lease
+is read through the compiled two-slot stream instead of the Python reader. The default loader
+stays `async_lease`.
 
 Changes from the original:
 

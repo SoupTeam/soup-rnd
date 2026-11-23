@@ -1,8 +1,8 @@
 """Portability of the #77 async expert extension taken into ``src``.
 
-The C++/CUDA source is vendored for tickets 04/05 and is not wired into a loader
-here: importing ``soup_cli`` must not build it, and a test that needs the compiled
-module skips instead of failing a machine that never built it.
+The C++/CUDA source is vendored for the loader arm and is wired into the per-expert pool
+only behind the opt-in ``cpp_async_2slot``: importing ``soup_cli`` must not build it, and a
+test that needs the compiled module skips instead of failing a machine that never built it.
 """
 
 from __future__ import annotations

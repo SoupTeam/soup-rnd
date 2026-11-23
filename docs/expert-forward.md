@@ -290,9 +290,10 @@ CUDA extension does not build or run there, and no MPS bit-equality claim is mad
 **Windows is not supported**: the streaming paths and the exact-GEMM extension are
 untested there, and no Windows build or run is offered; this is the same scope note as
 the mbr-unified PR. The #77 async extension source is vendored under
-`src/soup_cli/utils/_native_expert_async/` for the loader tickets; it uses
-`st_mtimespec` on Apple platforms so its C++ source is at least macOS-clang clean, but
-it is not wired into a loader and its CUDA kernels remain Linux-only.
+`src/soup_cli/utils/_native_expert_async/` for the loader arm; it uses
+`st_mtimespec` on Apple platforms so its C++ source is at least macOS-clang clean, is wired
+into the per-expert pool only behind the opt-in `cpp_async_2slot`, and its CUDA kernels
+remain Linux-only.
 
 Checked: CPU (`tests/test_expert_gemm_select.py`) each refusal with the environment probe
 replaced, and that `native` patches nothing; CPU fakes of the extension
@@ -347,13 +348,19 @@ they build on an expert fetcher with cache tiers that this code does not have.
 `async_lease` is the single-slot pool above and changes nothing. `cpp_async_2slot` selects the
 C++ two-slot loader vendored from PR #77 in `utils/_native_expert_async`; it is valid only with
 `stream_expert_layout: per_expert` and `stream_layers: true`. Selection is never replaced by the
-Python lease: without the compiled extension the run stops before the tokenizer is loaded and
-prints the `build_ext.py` command, and with the extension built it still stops until the pool
-swap is wired (ticket 04's GPU part). CPU tests: `tests/test_expert_loader.py` (selection,
-ordered sequences, cancellation, read failure, a wrong expert id, and the same bytes driving
-`FusedCpuBackend`). GPU scaffolds that skip until the extension is built:
-`tests/test_nf4_decoder_bnb.py` (decoder against bitsandbytes 0.50.2 on `uint16`) and
-`tests/test_native_expert_async_race.py` (rings 2/4/8, cancel, read failure).
+Python lease: without the compiled extension or without CUDA the run stops before the tokenizer
+is loaded and prints the `build_ext.py` command. With both present the expert pool reads every
+lease through `PackedStreamAsync` (ring 2, two I/O workers) instead of
+`ExpertShardReader.read_host`, on CUDA filling the same packed block that
+`expert_transfer="packed"` copies to the device once. The extension is built with
+`python src/soup_cli/utils/_native_expert_async/build_ext.py build_ext --build-lib <dir>
+--with-cuda-nf4`; `build_ext.py` diagnoses the CUDA 13 / glibc 2.43 `rsqrt` conflict before
+`nvcc` and prints the documented two-line header patch without editing anything. CPU tests:
+`tests/test_expert_loader.py` (selection, the wired pool through a stream-shaped CPU stand, the
+same bytes driving `FusedCpuBackend`, and the compiled stream itself when it is on
+`PYTHONPATH`), plus `tests/test_native_build_ext.py`. GPU scaffolds that skip until the
+extension is built: `tests/test_nf4_decoder_bnb.py` (decoder against bitsandbytes 0.50.2 on
+`uint16`) and `tests/test_native_expert_async_race.py` (rings 2/4/8, cancel, read failure).
 
 ## Local checks
 

@@ -1,15 +1,16 @@
 """Loader selection and the CPU stand of the #77 two-slot packed stream.
 
 ``async_lease`` stays the default loader. ``cpp_async_2slot`` is an opt-in in the Pydantic
-config and raises ``CppAsyncLoaderUnavailableError`` when the vendored extension is not built;
-the Python lease is never substituted for it.
+config and raises ``CppAsyncLoaderUnavailableError`` when the vendored extension is not built
+or there is no CUDA; the Python lease is never substituted for it. With the extension built
+the arm is wired: the expert pool reads every lease through the selected stream.
 
 The sequence checks drive ``PackedSequenceLoader`` (the host-side controller) against
 ``PythonPackedStream``, a threaded stand of the extension's documented contract: worker threads
 fill a bounded ring out of order, ``consume_next`` still hands experts back in sequence order,
 a cancelled or failed sequence always frees its slots, and a wrong expert id is refused. The
-last check feeds the loaded packed blocks to ``FusedCpuBackend`` (the CPU stand of the fused
-node from ticket 03) and compares the output with the same backend fed directly.
+last checks feed the loaded packed blocks to ``FusedCpuBackend`` (the CPU stand of the fused
+node from ticket 03) and compare the output with the same backend fed directly.
 """
 
 from __future__ import annotations
@@ -737,10 +738,21 @@ class PoolReadingStand:
 
         entry = self.plan.entry_for(reader)
         host = reader.read_host(expert, self._staging[reader.path])
+        stored = reader.stored_components(expert)
+        tensors = {row[0]: host[component[0]] for row, component in zip(entry.rows, stored)}
         block = torch.empty(self.packed_bytes, dtype=torch.uint8)
-        self._pack_into(block, entry.rows, host)
+        self._pack_into(block, entry.rows, tensors)
         ctypes.memmove(destination, block.data_ptr(), self.packed_bytes)
         self.reads += 1
+
+    def read_host(self, reader: Any, expert: int, staging: Any) -> Dict[str, Any]:
+        self.read(reader, expert, staging.data_ptr())
+        rows = self.layouts[self.plan.entry_for(reader).layer]
+        stored = reader.stored_components(expert)
+        return {
+            stored[index][0]: staging[offset : offset + count].view(dtype).view(shape)
+            for index, (_name, offset, count, dtype, shape) in enumerate(rows)
+        }
 
     def close(self) -> None:
         self.closed = True

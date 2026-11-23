@@ -284,6 +284,35 @@ class ExpertShardReader:
                     )
         return self._handle
 
+    def stored_components(
+        self, expert: int
+    ) -> Tuple[Tuple[str, Tuple[int, ...], Any, int, int], ...]:
+        """``(name, shape, torch dtype, start, end)`` of each stored tensor, in packing order.
+
+        The order is the file's own tensor order for this expert (``gate_up`` then ``down``,
+        each with its NF4 sidecars). It is what ``expert_transfer.layout_rows`` must see to
+        build the packed block the C++ two-slot stream fills: the same block the pool copies
+        to the device.
+        """
+        if isinstance(expert, bool) or not isinstance(expert, int) or not 0 <= expert < self.count:
+            raise IndexError(f"expert {expert} outside [0, {self.count})")
+        return tuple(
+            (
+                tensor_name,
+                tuple(entry.shape),
+                _stored_torch_dtype(entry.dtype),
+                entry.start,
+                entry.end,
+            )
+            for tensor_name, entry in self._entries[expert]
+        )
+
+    def stored_bytes(self, expert: int) -> int:
+        """Sum of the stored bytes of ``expert``, without reading them."""
+        return sum(
+            end - start for _name, _shape, _dtype, start, end in self.stored_components(expert)
+        )
+
     def read_host(self, expert: int, staging: Any) -> Dict[str, Any]:
         """``expert``'s stored tensors as CPU views into ``staging``.
 

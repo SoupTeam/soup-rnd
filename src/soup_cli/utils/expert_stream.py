@@ -180,6 +180,7 @@ class ExpertBufferPool:
         transfer: str = "sync",
         host_cache_bytes: int = 0,
         prefetch: bool = False,
+        stream: Optional[Any] = None,
     ) -> None:
         """``prefetch`` (off by default) adds a second host staging buffer and one worker
         thread. ``prefetch(reader, expert)`` then reads the named expert in the background
@@ -191,7 +192,14 @@ class ExpertBufferPool:
         component; the dequantised weights are the same. ``host_cache_bytes`` (packed only)
         also keeps whole packed blocks in pageable RAM up to that many bytes, first come first
         kept; a hit reads nothing from the experts file. The cache is not charged to any other
-        RAM budget. Both are off by default."""
+        RAM budget. Both are off by default.
+
+        ``stream`` (off by default) is the selected alternative loader: an object with a
+        positive ``packed_bytes`` and ``read(reader, expert, destination_ptr)`` /
+        ``read_host(reader, expert, staging)``. Every lease then takes its bytes from it
+        instead of ``ExpertShardReader.read_host``; ``cpp_async_2slot`` builds a
+        ``CppPackedStream`` over the readers. The pool closes it with the rest of its state.
+        """
         import torch
 
         from soup_cli.utils.expert_shard import aligned_staging
@@ -214,6 +222,18 @@ class ExpertBufferPool:
             raise ValueError("host_cache_bytes needs transfer='packed'")
         if type(prefetch) is not bool:
             raise ValueError("prefetch must be a bool")
+        stream_packed = getattr(stream, "packed_bytes", None) if stream is not None else None
+        if stream is not None:
+            if (
+                isinstance(stream_packed, bool)
+                or not isinstance(stream_packed, int)
+                or stream_packed < 1
+            ):
+                raise ValueError("stream.packed_bytes must be a positive integer")
+            if not callable(getattr(stream, "read", None)) or not callable(
+                getattr(stream, "read_host", None)
+            ):
+                raise ValueError("stream must provide read() and read_host()")
         self.plan, layout = _buffer_layout(reader, dtype, transfer)
         if self.plan.weight_bytes > weight_budget_bytes:
             raise ValueError(
@@ -260,6 +280,8 @@ class ExpertBufferPool:
         self._buffers: dict = {}
         self._staging_owner = self._staging = None
         self._pinned = None
+        self._stream = stream
+        self._stream_staging_owner = self._stream_staging = None
         #: Prefetch state. ``prefetch_enabled`` may be switched at run time; it has an effect
         #: only on a pool built with ``prefetch=True`` (the staging and the worker exist).
         self.prefetch_enabled = prefetch
@@ -283,6 +305,17 @@ class ExpertBufferPool:
             self._packed_bytes = self.plan.packed_region_bytes
             if host_cache_bytes:
                 self._host_cache = PackedHostHotset(host_cache_bytes)
+        if self._stream is not None:
+            if transfer == "packed":
+                if stream_packed != self._packed_bytes:
+                    raise ValueError(
+                        f"the packed stream writes {stream_packed} bytes, the pool's pinned "
+                        f"region is {self._packed_bytes} — build both from the same readers"
+                    )
+            else:
+                self._stream_staging_owner, self._stream_staging = aligned_staging(
+                    stream_packed
+                )
         before = torch.cuda.memory_allocated(self.device) if self.device.type == "cuda" else 0
         try:
             self._arena = torch.empty(self.plan.weight_bytes, dtype=torch.uint8, device=self.device)
@@ -312,8 +345,14 @@ class ExpertBufferPool:
             self._buffers.clear()
             self._arena = self._staging_owner = self._staging = self._pinned = None
             self._prefetch_staging_owner = self._prefetch_staging = None
+            self._stream_staging_owner = self._stream_staging = None
             self._closed = True
             raise
+
+    @property
+    def stream(self) -> Optional[Any]:
+        """The selected alternative loader feeding every lease, or None for the reader."""
+        return self._stream
 
     def validate_reader(self, reader: ExpertShardReader) -> None:
         """All layers sharing this slot must have the same storage contract."""
@@ -370,6 +409,21 @@ class ExpertBufferPool:
             event.record()
             self._h2d_event = event
 
+    def _copy_host(self, expert: int, host: Mapping[str, Any]) -> None:
+        """Copy an expert's stored tensors into its arena views and dequantise NF4 parts."""
+        from soup_cli.utils.expert_shard import expert_key
+        from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
+
+        for part in EXPERT_PARTS:
+            key = expert_key(expert, part)
+            spec = self._specs.get(part)
+            if spec is None:
+                self._buffers[part].copy_(host[key], non_blocking=False)
+                continue
+            for idx, name in enumerate(quant_sidecar_keys(key, spec)):
+                self._buffers[f"{part}:{idx}"].copy_(host[name], non_blocking=False)
+            self._dequantize(part, spec)
+
     def _load(
         self,
         reader: ExpertShardReader,
@@ -378,25 +432,20 @@ class ExpertBufferPool:
         phase: Optional[str] = None,
         layer_idx: Optional[int] = None,
     ) -> None:
-        from soup_cli.utils.expert_shard import expert_key
-        from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
-
         fetch_succeeded = False
         self.last_lease_bytes = 0
         try:
             if self.transfer == "packed":
                 self._load_packed(reader, expert)
             else:
-                host = self._read_host(reader, expert)
-                for part in EXPERT_PARTS:
-                    key = expert_key(expert, part)
-                    spec = self._specs.get(part)
-                    if spec is None:
-                        self._buffers[part].copy_(host[key], non_blocking=False)
-                        continue
-                    for idx, name in enumerate(quant_sidecar_keys(key, spec)):
-                        self._buffers[f"{part}:{idx}"].copy_(host[name], non_blocking=False)
-                    self._dequantize(part, spec)
+                host = (
+                    self._stream.read_host(reader, expert, self._stream_staging)
+                    if self._stream is not None
+                    else self._read_host(reader, expert)
+                )
+                if self._stream is not None:
+                    self.last_lease_bytes = reader.stored_bytes(expert)
+                self._copy_host(expert, host)
             self.fetches += 1
             fetch_succeeded = True
         finally:
@@ -416,6 +465,19 @@ class ExpertBufferPool:
         from soup_cli.utils.expert_shard import expert_key
         from soup_cli.utils.expert_transfer import pack_into
         from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
+
+        if self._stream is not None:
+            # The compiled stream is the reader: it fills the pinned block with one sequence,
+            # then the pool copies it to the arena once exactly like the Python packed path.
+            self._wait_staging_free()
+            self._stream.read(reader, expert, self._pinned.data_ptr())
+            self.last_lease_bytes = reader.stored_bytes(expert)
+            self._arena[: self._packed_bytes].copy_(self._pinned, non_blocking=True)
+            self._mark_staging_busy()
+            self.h2d_copies += 1
+            for part in EXPERT_PARTS:
+                self._dequantize(part, self._specs[part])
+            return
 
         self._wait_staging_free()
         region = self._pinned[: self._packed_bytes]
@@ -614,6 +676,14 @@ class ExpertBufferPool:
                 "discards": self.prefetch_discards,
             },
             "host_cache": self._host_cache.stats() if self._host_cache is not None else None,
+            "stream": (
+                None
+                if self._stream is None
+                else {
+                    "name": type(self._stream).__name__,
+                    "packed_bytes": self._stream.packed_bytes,
+                }
+            ),
             "closed": self._closed,
             "cpu_nf4_temporaries": self.device.type == "cpu" and bool(self._specs),
         }
@@ -631,6 +701,12 @@ class ExpertBufferPool:
                     self._prefetch_executor.shutdown(wait=True)
                     self._prefetch_executor = None
                 self._prefetch_staging_owner = self._prefetch_staging = None
+                self._stream_staging_owner = self._stream_staging = None
+                if self._stream is not None:
+                    close_stream = getattr(self._stream, "close", None)
+                    if callable(close_stream):
+                        close_stream()
+                    self._stream = None
                 self._buffers.clear()
                 self._arena = self._staging_owner = self._staging = self._pinned = None
                 self._host_cache = None
@@ -1104,6 +1180,144 @@ def _build_streamed_experts_class() -> Any:
             self._forward_lock = threading.Lock()
             # MBR may need a real recompute output for a deferred decoder hook.
             self._mbr_materialize_recompute = False
+
+        def backward_from_inputs(
+            self,
+            hidden_states: Any,
+            top_k_index: Any,
+            top_k_weights: Any,
+            grad_output: Any,
+            *,
+            autocast_cfg: Mapping[str, Any],
+            need_hidden: bool = True,
+            need_weights: bool = True,
+            segment_counts: Optional[Sequence[int]] = None,
+            mm: Optional[Any] = None,
+        ) -> Tuple[Optional[Any], Optional[Any]]:
+            """Streaming per-expert backward straight from detached window inputs (M2+).
+
+            One visit per hit expert, in reverse expert order like autograd's reverse
+            topological order, re-reading each expert's weights for the visit. Nothing of the
+            forward is kept: no ``top_k``-fold gathered ``current_state`` per
+            ``WeightedFrozenExpert`` node (448 MiB at k=64 S=64 and 3.50 GiB at k=64 S=512 on
+            DeepSeek-V3 671B) and no full-window sorted activation buffers.
+            ``direct_expert_backward.expert_vjp`` runs the same ops as the node's backward, per
+            segment, without a graph.
+
+            ``segment_counts`` is the row count of every micro-batch the inputs were
+            concatenated from. Each expert's rows are then gathered micro-batch by micro-batch
+            in their original route order and differentiated per segment, so every matmul has
+            the row count of the per-micro-batch call A0 makes, not one call over the window
+            (the shapes of native GEMM bits). ``mm`` replaces the per-segment matmul.
+            """
+            import torch
+
+            from soup_cli.utils import direct_expert_backward
+
+            if grad_output.requires_grad:
+                raise RuntimeError("expert streaming does not support higher-order gradients")
+            if not (need_hidden or need_weights):
+                return None, None
+            sizes = None if segment_counts is None else [int(value) for value in segment_counts]
+            if sizes is not None and (any(value < 0 for value in sizes)
+                                      or sum(sizes) != hidden_states.shape[0]):
+                raise ValueError(
+                    f"expert segments {sizes} do not cover the {hidden_states.shape[0]} rows"
+                )
+            boundaries = None
+            if sizes is not None and len(sizes) > 1:
+                boundaries = torch.tensor(sizes, device=hidden_states.device).cumsum(0)[:-1]
+            matmul = direct_expert_backward.segment_mm if mm is None else mm
+            if not self._forward_lock.acquire(blocking=False):
+                raise RuntimeError("expert forward is already active")
+            try:
+                self.last_trace = []
+                self.pool.validate_reader(self.reader)
+                _validate_routing(hidden_states, top_k_index, top_k_weights, self.pool)
+                _validate_training_activation(self.act_fn)
+                if grad_output.shape != hidden_states.shape:
+                    raise ValueError("expert backward grad_output shape must match hidden_states")
+                if top_k_index.shape[1] > self.num_experts:
+                    raise ValueError("routing top-k exceeds the expert count")
+                if top_k_index.numel() and (
+                    top_k_index.min().item() < 0
+                    or top_k_index.max().item() >= self.num_experts
+                ):
+                    raise ValueError("routing contains an expert outside the reader")
+
+                expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
+                expert_mask = expert_mask.permute(2, 1, 0)
+                if self.grouped_expert_routes:
+                    routes = list(_grouped_expert_routes(expert_mask))
+                else:
+                    expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
+                    routes = list(_default_expert_routes(expert_mask, expert_hit))
+                del expert_mask
+
+                grad_hidden = torch.zeros_like(hidden_states) if need_hidden else None
+                grad_weights = torch.zeros_like(top_k_weights) if need_weights else None
+                device_type = hidden_states.device.type
+                autocast_dtype = (
+                    autocast_cfg.get("dtype") if autocast_cfg.get("enabled", False) else None
+                )
+                # Ascending for the trace, so the visited-expert telemetry keeps forward order;
+                # the leases below run in reverse, as the forward's nodes are visited.
+                for expert, _top_k_pos, token_idx in routes:
+                    self.last_trace.append(
+                        {
+                            "layer": self.layer_idx,
+                            "expert": expert,
+                            "token_routes": token_idx.numel(),
+                            "logical_bytes_read": 0,
+                            "status": "replay",
+                        }
+                    )
+                with torch.no_grad(), torch.autocast(device_type, enabled=False):
+                    for expert, top_k_pos, token_idx in reversed(routes):
+                        if boundaries is not None:
+                            segment = torch.bucketize(token_idx, boundaries, right=True)
+                            order = torch.argsort(segment, stable=True)
+                            tokens, slots = token_idx[order], top_k_pos[order]
+                            counts = [
+                                count
+                                for count in torch.bincount(
+                                    segment, minlength=len(sizes)
+                                ).tolist()
+                                if count
+                            ]
+                        else:
+                            tokens, slots = token_idx, top_k_pos
+                            counts = [int(token_idx.numel())]
+                        with self.pool.lease(
+                            self.reader,
+                            expert,
+                            phase="backward_dX",
+                            layer_idx=self.layer_idx,
+                        ) as (gate_up, down):
+                            grad_rows, grad_row_weights = direct_expert_backward.expert_vjp(
+                                hidden_states[tokens].detach(),
+                                top_k_weights[tokens, slots, None].detach(),
+                                gate_up,
+                                down,
+                                grad_output[tokens],
+                                counts,
+                                need_hidden=need_hidden,
+                                need_weights=need_weights,
+                                autocast_dtype=autocast_dtype,
+                                mm=matmul,
+                            )
+                        if grad_hidden is not None and grad_rows is not None:
+                            grad_hidden.index_add_(
+                                0, tokens, grad_rows.to(grad_hidden.dtype)
+                            )
+                        if grad_weights is not None and grad_row_weights is not None:
+                            grad_weights[tokens, slots] = grad_row_weights.squeeze(-1).to(
+                                grad_weights.dtype
+                            )
+                        del grad_rows, grad_row_weights
+                return grad_hidden, grad_weights
+            finally:
+                self._forward_lock.release()
 
         def forward(self, hidden_states: Any, top_k_index: Any, top_k_weights: Any) -> Any:
             if not self._forward_lock.acquire(blocking=False):
