@@ -854,7 +854,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="SDPA math backend only (diagnostic for attention backward)")
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
-        if name in ("speed", "lever-speed", "abba"):
+        if name in ("speed", "lever-speed", "loader-speed", "abba"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
         if name == "abba":
             p.add_argument("--start-block", type=int, default=0,
