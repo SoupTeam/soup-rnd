@@ -276,16 +276,16 @@ def test_lever_speed_plan_is_symmetric_and_normal_mode() -> None:
 
 def test_lever_bit_plan_covers_a0_and_every_lever_in_deterministic_mode() -> None:
     plan = mm.lever_bit_plan(seq=64)
-    assert {p["arm"] for p in plan} == {"A0", "C", "E", "F", "G", "H"}
+    assert {p["arm"] for p in plan} == {"A0", "C", "D", "E", "F", "G", "H"}
     assert {p["k"] for p in plan} == set(mm.BIT_LADDER)
     assert all(p["kind"] == "bits" and p["deterministic"] for p in plan)
 
 
 def test_k64_ladder_uses_c_as_reference_and_plans_no_a0() -> None:
-    assert mm.ladder_arms(8) == ("A0", "C", "E", "F", "G", "H")
-    assert mm.ladder_arms(64) == ("C", "E", "F", "G", "H")
+    assert mm.ladder_arms(8) == ("A0", "C", "E", "F", "G", "H", "D")
+    assert mm.ladder_arms(64) == ("C", "E", "F", "G", "H", "D")
     lever = mm.lever_bit_plan(seq=64, ks=(64,))
-    assert [p["arm"] for p in lever] == ["C", "E", "F", "G", "H"]
+    assert [p["arm"] for p in lever] == ["C", "E", "F", "G", "H", "D"]
     plain = mm.bit_plan(seq=64, ks=(64,))
     assert [p["arm"] for p in plain] == ["B0", "C"]
     assert all(p["k"] == 64 and p["kind"] == "bits" and p["deterministic"]
@@ -567,7 +567,7 @@ def test_every_arm_runtime_names_its_loader() -> None:
 
 
 def test_the_ladder_carries_h_at_every_k_and_keeps_a0_below_it() -> None:
-    assert mm.ladder_arms(8)[-1] == "H" and "A0" in mm.ladder_arms(8)
+    assert "H" in mm.ladder_arms(8) and "A0" in mm.ladder_arms(8)
     assert "H" in mm.ladder_arms(64) and "A0" not in mm.ladder_arms(64)
     assert mm.arm_options("H", k=4) == mm.arm_options("C", k=4)
 
@@ -644,6 +644,34 @@ def test_the_loader_gate_fails_when_h_differs_from_a0_at_k2() -> None:
     gate = mm.lever_gate(rows, lever="H", previous="G", windows=mm.LOADER_WINDOWS,
                          min_windows=mm.LOADER_MIN_WINDOWS)
     assert gate["bits"]["pass"] is False and gate["bits"]["differs_at"] == [2]
+
+
+# ---- ticket 06: D = decoupled MBR, C's sibling, and the large-window switch ----
+def test_the_decoupled_arm_is_c_sibling_with_the_subwindow_flag() -> None:
+    assert mm.DECOUPLED_ARM == "D" and mm.DECOUPLED_PREVIOUS == "C"
+    assert mm.arm_options("D", k=8) == {"route_preserving_mbr": True, "mbr_group_size": 8,
+                                        "mbr_decoupled_subwindow": True}
+    assert "mbr_ordered_backward" not in mm.arm_options("D", k=64)
+    # Decoupled runs its own expert backward, so it needs the native GEMM like C.
+    assert mm.arm_runtime("D") == mm.arm_runtime("C")
+    assert mm.parse_arm_list("D") == ("D",)
+    assert "D" in mm.ladder_arms(8) and "D" in mm.ladder_arms(64)
+
+
+def test_the_large_window_switch_only_opens_when_c_does_not_fit() -> None:
+    assert mm.large_window_enabled(previous_fits=True) is False
+    assert mm.large_window_enabled(previous_fits=False) is True
+
+
+def test_decoupled_speed_plan_is_c_d_d_c_over_the_three_fitting_windows() -> None:
+    plan = mm.decoupled_speed_plan(blocks=5)
+    assert {(p["k"], p["seq"]) for p in plan} == set(mm.DECOUPLED_WINDOWS)
+    assert mm.DECOUPLED_WINDOWS == ((8, 64), (8, 512), (64, 64))
+    per_window = [p for p in plan if (p["k"], p["seq"]) == (8, 64)]
+    assert [p["arm"] for p in per_window[:4]] == ["C", "D", "D", "C"]
+    assert len(plan) == 5 * len(mm.DECOUPLED_WINDOWS) * 4
+    assert {p["block"] for p in plan} == set(range(5))
+    assert all(p["kind"] == "speed" and p["deterministic"] is False for p in plan)
 
 
 def test_sweep_child_forwards_math_attention_only_when_asked() -> None:

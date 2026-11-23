@@ -141,6 +141,9 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
         raise ValueError(f"arm {arm} does not exist at k={k} (A0 only at k<={A0_MAX_K})")
     if arm == "A0":
         return {}
+    if arm == DECOUPLED_ARM:  # C's step without the ordered backward; the subwindow orders it
+        return {"route_preserving_mbr": True, "mbr_group_size": k,
+                "mbr_decoupled_subwindow": True}
     options: Dict[str, Any] = {"route_preserving_mbr": True, "mbr_group_size": k}
     if arm == "C" or arm in LEVER_ARMS:
         options["mbr_ordered_backward"] = True
@@ -160,6 +163,10 @@ LEVER_ARMS: Dict[str, Dict[str, Any]] = {
     # Ticket 05: the same stack as G with the expert pool fed by the compiled two-slot stream.
     "H": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": True,
           "expert_loader": "cpp_async_2slot"},
+    # Ticket 06: D is C's sibling, not a step of the E..H stack. Its decoupled backward runs
+    # its own expert backward, so it needs C's native GEMM and C's lease (no lt-fused).
+    "D": {"expert_gemm": "native", "async_lease": False, "fast_row_gather": False,
+          "expert_loader": "async_lease"},
 }
 LEVER_PREVIOUS = {"E": "C", "F": "E", "G": "F", "H": "G"}
 # The local gate of ticket 05 compares the cpp loader arm with the Python lease on the windows
@@ -171,6 +178,13 @@ LEVER_MIN_GAIN = 0.03
 LEVER_MIN_WINDOWS = 3
 LEVER_T_CRITICAL = 2.78  # two-sided 5% with 4 degrees of freedom (5 blocks)
 VRAM_TOLERANCE_BYTES = 64 * 2**20  # reserved and NVML wobble; allocated is compared exactly
+
+# Ticket 06: decoupled MBR. It is C's sibling: the same route-preserving step without the
+# ordered backward, with ``mbr_decoupled_subwindow`` doing the ordered recompute itself.
+DECOUPLED_ARM, DECOUPLED_PREVIOUS = "D", "C"
+# The three windows that fit 4 GiB for C; (64,512) is the large-window case of the switch.
+DECOUPLED_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64))
+DECOUPLED_MIN_WINDOWS = 2  # the local gate of ticket 06 asks for two of the three fitting ones
 
 
 def ladder_arms(k: int) -> Tuple[str, ...]:
@@ -187,18 +201,42 @@ def arm_runtime(arm: str) -> Dict[str, Any]:
                                      "expert_loader": "async_lease"}))
 
 
+def _pair_speed_plan(previous: str, arm: str, windows: Sequence[Tuple[int, int]], *,
+                     blocks: int) -> List[Dict[str, Any]]:
+    """Normal-mode A-B-B-A blocks of two hands over ``windows``: the two-arm order of
+    ``METHOD.md``, where each hand sits at mean position 2.5 so a drift of the host cancels."""
+    return [{"arm": hand, "k": k, "seq": seq, "block": block, "kind": "speed",
+             "deterministic": False}
+            for block in range(blocks) for k, seq in windows
+            for hand in (previous, arm, arm, previous)]
+
+
 def loader_speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
     """Normal-mode G-H-H-G blocks over the three fitting windows (ticket 05).
 
     G is the current stack with the Python lease (A), H the same stack with ``cpp_async_2slot``
-    (B). The block order is the two-arm ``BLOCK_ORDER`` of ``METHOD.md``: each hand sits at mean
-    position 2.5, so a steady drift of the host cancels in the paired gain. The ticket names the
-    three-arm ``A-B-C-C-B-A``; that order needs three hands and this gate has two.
+    (B). The ticket names the three-arm ``A-B-C-C-B-A``; that order needs three hands and this
+    gate has two.
     """
-    return [{"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
-             "deterministic": False}
-            for block in range(blocks) for k, seq in LOADER_WINDOWS
-            for arm in (LOADER_PREVIOUS, LOADER_ARM, LOADER_ARM, LOADER_PREVIOUS)]
+    return _pair_speed_plan(LOADER_PREVIOUS, LOADER_ARM, LOADER_WINDOWS, blocks=blocks)
+
+
+def decoupled_speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
+    """Normal-mode C-D-D-C blocks over the three fitting windows (ticket 06).
+
+    C is the ordered arm (A), D decoupled MBR (B): the A-B-B-A form of the ticket's
+    ``A-B-C-C-B-A`` for a two-hand gate.
+    """
+    return _pair_speed_plan(DECOUPLED_PREVIOUS, DECOUPLED_ARM, DECOUPLED_WINDOWS, blocks=blocks)
+
+
+def large_window_enabled(*, previous_fits: bool) -> bool:
+    """The large-window switch: decoupled only where the ordered arm does not fit (D2, ticket 06).
+
+    Where C fits, C stays the default even if D is faster; D is a reason to take the lever only
+    when it removes C's OOM.
+    """
+    return not previous_fits
 
 
 def lever_speed_plan(*, blocks: int = 1) -> List[Dict[str, Any]]:
@@ -828,7 +866,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba",
-                 "loader-speed"):
+                 "loader-speed", "decoupled-speed"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -854,7 +892,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="SDPA math backend only (diagnostic for attention backward)")
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
-        if name in ("speed", "lever-speed", "loader-speed", "abba"):
+        if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
         if name == "abba":
             p.add_argument("--start-block", type=int, default=0,
@@ -876,6 +914,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             "bits": lambda: bit_plan(seq=args.seq, ks=args.ladder_ks), "profile": profile_plan,
             "lever-speed": lambda: lever_speed_plan(blocks=args.blocks),
             "loader-speed": lambda: loader_speed_plan(blocks=args.blocks),
+            "decoupled-speed": lambda: decoupled_speed_plan(blocks=args.blocks),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
     if args.command in ("bits", "lever-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]
