@@ -205,6 +205,34 @@ def row_losses(logits: Any, labels: Any) -> tuple[list[float], list[int]]:
     return row_loss, row_tokens
 
 
+def _seedable(trainer: Any, sampler: Any) -> Any:
+    """The sampler accelerate would iterate, before the recording wrapper hides it.
+
+    ``Accelerator.prepare`` replaces a plain ``RandomSampler`` with its
+    ``SeedableRandomSampler`` (seeded by ``data_seed``, else torch's initial seed, plus the
+    epoch). Wrapped, the sampler is no ``RandomSampler`` and the swap is skipped: the
+    shuffle then draws from the global RNG, so a recorded run saw its rows in another
+    order than the same config without the recorder or under ``training.l2l``. The swap
+    is done here with accelerate's own arguments.
+    """
+    from torch.utils.data import RandomSampler
+
+    if type(sampler) is not RandomSampler:
+        return sampler
+    config = getattr(getattr(trainer, "accelerator", None), "dataloader_config", None)
+    if config is None or not getattr(config, "use_seedable_sampler", False):
+        return sampler
+    from accelerate.data_loader import SeedableRandomSampler
+
+    return SeedableRandomSampler(
+        data_source=sampler.data_source,
+        replacement=sampler.replacement,
+        num_samples=sampler._num_samples,
+        generator=sampler.generator,
+        data_seed=getattr(config, "data_seed", None),
+    )
+
+
 @functools.lru_cache(maxsize=None)
 def make_rewind_trainer_class(base_cls: type) -> type:
     """Return a subclass of ``base_cls`` that records rows and per-row losses.
@@ -284,7 +312,7 @@ def make_rewind_trainer_class(base_cls: type) -> type:
             state = getattr(self, _STATE_ATTR, None)
             if state is None or sampler is None:
                 return sampler
-            return IndexRecordingSampler(sampler, state)
+            return IndexRecordingSampler(_seedable(self, sampler), state)
 
         def compute_loss(  # type: ignore[override]
             self,
