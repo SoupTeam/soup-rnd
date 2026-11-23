@@ -1273,7 +1273,9 @@ def _build_streamed_experts_class() -> Any:
                         }
                     )
                 with torch.no_grad(), torch.autocast(device_type, enabled=False):
-                    for expert, top_k_pos, token_idx in reversed(routes):
+                    for row, (expert, top_k_pos, token_idx) in zip(
+                        reversed(self.last_trace), reversed(routes), strict=True
+                    ):
                         if boundaries is not None:
                             segment = torch.bucketize(token_idx, boundaries, right=True)
                             order = torch.argsort(segment, stable=True)
@@ -1288,24 +1290,36 @@ def _build_streamed_experts_class() -> Any:
                         else:
                             tokens, slots = token_idx, top_k_pos
                             counts = [int(token_idx.numel())]
-                        with self.pool.lease(
-                            self.reader,
-                            expert,
-                            phase="backward_dX",
-                            layer_idx=self.layer_idx,
-                        ) as (gate_up, down):
-                            grad_rows, grad_row_weights = direct_expert_backward.expert_vjp(
-                                hidden_states[tokens].detach(),
-                                top_k_weights[tokens, slots, None].detach(),
-                                gate_up,
-                                down,
-                                grad_output[tokens],
-                                counts,
-                                need_hidden=need_hidden,
-                                need_weights=need_weights,
-                                autocast_dtype=autocast_dtype,
-                                mm=matmul,
+                        fetches = self.pool.fetches
+                        try:
+                            with self.pool.lease(
+                                self.reader,
+                                expert,
+                                phase="backward_dX",
+                                layer_idx=self.layer_idx,
+                            ) as (gate_up, down):
+                                grad_rows, grad_row_weights = direct_expert_backward.expert_vjp(
+                                    hidden_states[tokens].detach(),
+                                    top_k_weights[tokens, slots, None].detach(),
+                                    gate_up,
+                                    down,
+                                    grad_output[tokens],
+                                    counts,
+                                    need_hidden=need_hidden,
+                                    need_weights=need_weights,
+                                    autocast_dtype=autocast_dtype,
+                                    mm=matmul,
+                                )
+                        finally:
+                            # One semantics with the counter: the row takes the lease's bytes,
+                            # and only a visit that read nothing is a replay.
+                            bytes_read = (
+                                self.pool.last_lease_bytes
+                                if self.pool.fetches != fetches
+                                else 0
                             )
+                            row["logical_bytes_read"] = bytes_read
+                            row["status"] = "ok" if bytes_read else "replay"
                         if grad_hidden is not None and grad_rows is not None:
                             grad_hidden.index_add_(
                                 0, tokens, grad_rows.to(grad_hidden.dtype)
@@ -1365,7 +1379,6 @@ def _build_streamed_experts_class() -> Any:
                         "logical_bytes_read": 0, "status": "loading",
                     }
                     self.last_trace.append(row)
-                    before = self.reader.bytes_read
                     fetches = self.pool.fetches
                     try:
                         if self.fast_row_gather:
@@ -1387,13 +1400,12 @@ def _build_streamed_experts_class() -> Any:
                         row["status"] = "error"
                         raise
                     finally:
-                        if hinting:
-                            # The reader's counter also moves for the expert read ahead.
-                            row["logical_bytes_read"] = (
-                                self.pool.last_lease_bytes if self.pool.fetches != fetches else 0
-                            )
-                        else:
-                            row["logical_bytes_read"] = self.reader.bytes_read - before
+                        # The same figure the counter took. ``reader.bytes_read`` is not it on
+                        # the cpp path (the compiled stream reads through its own descriptors)
+                        # and it also moves for the expert read ahead under a prefetch hint.
+                        row["logical_bytes_read"] = (
+                            self.pool.last_lease_bytes if self.pool.fetches != fetches else 0
+                        )
                     # Outside the load status on purpose: the lease is over, and a non-reentrant
                     # checkpoint recompute may stop here (it raises once every saved tensor has
                     # been recomputed), which is not an expert load failure.

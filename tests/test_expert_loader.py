@@ -758,6 +758,18 @@ class PoolReadingStand:
         self.closed = True
 
 
+class CppPathStand(PoolReadingStand):
+    """``PoolReadingStand`` with the extension's counter behaviour: ``CppPackedStream.read``
+    reads through its own file descriptors, so ``ExpertShardReader.bytes_read`` never moves."""
+
+    def read_host(self, reader: Any, expert: int, staging: Any) -> Dict[str, Any]:
+        before = reader.bytes_read
+        try:
+            return super().read_host(reader, expert, staging)
+        finally:
+            reader.bytes_read = before
+
+
 def _dense_pool(reader: Any, stream: Any) -> Any:
     from soup_cli.utils.expert_stream import (
         ExpertBufferPool,
@@ -900,5 +912,68 @@ def test_the_compiled_two_slot_stream_feeds_the_pool(tmp_path: Path) -> None:
                     expected,
                 ), f"expert {expert} came back wrong"
         assert pool.stats()["fetches"] == 2
+    finally:
+        pool.close()
+
+
+# ---------------------------------------------------------------- trace vs counter
+#
+# ``benchmarks/results/b1.2-olmoe-forward-20261020/analyze.py`` holds the invariant
+# ``pool.logical_bytes_read == sum(row["logical_bytes_read"] for row in last_trace)``. The
+# compiled stream moves no ``reader`` counter, and ``backward_from_inputs`` leases real bytes,
+# so both trace producers must take the same lease figure the counter takes.
+
+
+def test_the_cpp_path_forward_trace_matches_the_pool_counter(tmp_path: Path) -> None:
+    """MEDIUM-1: on the cpp path the row takes the lease's bytes, not ``reader.bytes_read``."""
+    from soup_cli.utils.expert_stream import streamed_experts_class
+
+    reader, _gate_up, _down, _info = _dense_expert_shard(tmp_path)
+    stand = CppPathStand({0: reader})
+    pool = _dense_pool(reader, stand)
+    wrapped = streamed_experts_class()(reader, pool, torch.nn.SiLU(), 0)
+    hidden = torch.randn(DENSE_ROWS, DENSE_HIDDEN)
+    index = torch.arange(DENSE_ROWS).reshape(DENSE_ROWS, 1)
+    weights = torch.rand(DENSE_ROWS, 1)
+    try:
+        with torch.no_grad():
+            wrapped(hidden, index, weights)
+        assert reader.bytes_read == 0  # what the extension's own descriptors do
+        assert pool.logical_bytes_read > 0
+        assert [row["status"] for row in wrapped.last_trace] == ["ok"] * DENSE_ROWS
+        assert sum(
+            row["logical_bytes_read"] for row in wrapped.last_trace
+        ) == pool.logical_bytes_read
+    finally:
+        pool.close()
+
+
+def test_backward_from_inputs_trace_matches_the_pool_counter(tmp_path: Path) -> None:
+    """MEDIUM-1: the decoupled backward's rows record its real lease, and are not ``replay``."""
+    from soup_cli.utils.expert_stream import streamed_experts_class
+
+    reader, _gate_up, _down, _info = _dense_expert_shard(tmp_path)
+    stand = CppPathStand({0: reader})
+    pool = _dense_pool(reader, stand)
+    wrapped = streamed_experts_class()(reader, pool, torch.nn.SiLU(), 0)
+    hidden = torch.randn(DENSE_ROWS, DENSE_HIDDEN)
+    index = torch.arange(DENSE_ROWS).reshape(DENSE_ROWS, 1)
+    weights = torch.rand(DENSE_ROWS, 1)
+    try:
+        d_hidden, d_weights = wrapped.backward_from_inputs(
+            hidden,
+            index,
+            weights,
+            torch.ones_like(hidden),
+            autocast_cfg={"enabled": False, "dtype": None, "cache_enabled": True},
+            segment_counts=[DENSE_ROWS],
+        )
+        assert d_hidden is not None and d_weights is not None
+        assert reader.bytes_read == 0
+        assert pool.logical_bytes_read > 0
+        assert [row["status"] for row in wrapped.last_trace] == ["ok"] * DENSE_ROWS
+        assert sum(
+            row["logical_bytes_read"] for row in wrapped.last_trace
+        ) == pool.logical_bytes_read
     finally:
         pool.close()
