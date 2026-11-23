@@ -1510,6 +1510,14 @@ class L2LStep:
                     "mbr_decoupled_subwindow runs its own expert backward and cannot keep the "
                     "bits of a patched expert node; use it with the native expert GEMM"
                 )
+            # direct_mm (--expert-direct-backward) swaps only WeightedFrozenExpert.backward;
+            # backward_from_inputs passes mm=None and runs its own expert_vjp, so the patched
+            # backward would be silently ignored. Refuse instead, like the fused forward.
+            if getattr(node.backward, "__module__", "") != expert_stream.__name__:
+                raise ValueError(
+                    "mbr_decoupled_subwindow runs its own expert backward and cannot keep the "
+                    "bits of a patched expert backward; use it with the native expert GEMM"
+                )
             if mbr_recompute_subwindow is not None and (
                 isinstance(mbr_recompute_subwindow, bool)
                 or not isinstance(mbr_recompute_subwindow, int)

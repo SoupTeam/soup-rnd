@@ -337,6 +337,35 @@ def test_decoupled_mbr_refuses_a_patched_expert_node(
         rig.close()
 
 
+def test_decoupled_mbr_refuses_a_patched_expert_backward(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A direct_mm backward cannot keep its bits here, so it is refused, not ignored."""
+    from soup_cli.utils import direct_expert_backward, expert_stream
+
+    rig = build_rig(tmp_path, "patched_backward", k=2)
+    try:
+        ids = window(rig, 2)
+        node = direct_expert_backward.weighted_expert_function(
+            expert_stream.streamed_experts_class().forward
+        )
+
+        def direct_backward(*_args: Any, **_kwargs: Any) -> Any:
+            raise AssertionError("the direct backward must not run")
+
+        direct_backward.__module__ = "soup_cli.utils.direct_expert_backward"
+        monkeypatch.setattr(node, "backward", staticmethod(direct_backward))
+        with pytest.raises(ValueError, match="patched expert backward"):
+            rig.stepper.run(
+                ids,
+                rig.store,
+                route_preserving_mbr=True,
+                mbr_decoupled_subwindow=True,
+            )
+    finally:
+        rig.close()
+
+
 def _expert_inputs(experts: Any, k: int, rows: int, width: int) -> Tuple[List[Any], List[Any]]:
     import torch
 
