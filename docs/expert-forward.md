@@ -319,14 +319,19 @@ gave +4 to +9% but one of four k = 2 runs differed from A0 (three repeats were e
 as not bit-safe; `fast_row_gather` added nothing.
 
 On RTX 3050 Laptop (4 GiB, normal mode, one block,
-[the memory diagnosis](../benchmarks/mbr-moonlight-emem-20261123/README.md)) the premium is zero at
-(8,64) and +172 MiB of NVML at (64,64), but +1154 MiB at (8,512): E takes 3458 of the 4096 MiB
-against 2304 for the ordered arm. Allocator snapshots of one step separate it: 265 MiB are the
-fused expert's retained scratch buffers (14 slots plus two cuBLASLt workspaces, sized by the largest
-expert visit, 3937 rows at this window), and 887 MiB are free space trapped in 160/320 MiB allocator
-segments that those buffers pin, which `empty_cache()` cannot release. It is not a per-row-count
-retention and `expandable_segments` does not remove it. Treat `lt-fused` as an opt-in for cards with
-headroom; at (8,512) on 4 GiB it leaves 638 MiB free.
+[the memory diagnosis](../benchmarks/mbr-moonlight-emem-20261123/README.md)) the premium depends on
+the window: zero at (8,64), +170 MiB reserved and +172 MiB NVML at (64,64), +1152 MiB reserved and
++1154 MiB NVML at (8,512). At (8,512) E takes 3458 of the 4096 MiB against 2304 for the ordered
+arm C. The NVML figure is a separate counter: memory outside the caching allocator grew by 2 MiB
+between the two processes, which is the gap to the reserved delta. Allocator snapshots of one step
+separate the reserved delta: 265.4 MiB are the fused path's working set (14 buffers from the nine
+slot kinds plus two cuBLASLt workspaces, sized by the largest expert visit, 3937 rows at this
+window) and 886.6 MiB are `other` cached blocks; in the free-space view 1112.9 MiB more is trapped
+in 160/320 MiB segments that live buffers pin and 226.0 MiB less is releasable. That space cannot
+leave by the allocator's semantics (`empty_cache()` was not measured), the 886.6 MiB are not the
+trapped number, and one `expandable_segments` run did not remove the premium. It is not a
+per-row-count retention. Treat `lt-fused` as an opt-in for cards with headroom; at (8,512) on 4 GiB
+it leaves 638 MiB free.
 
 ### Host-side levers: `async_lease` and `fast_row_gather` (experimental, off by default)
 
