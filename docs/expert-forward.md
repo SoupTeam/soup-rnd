@@ -232,9 +232,10 @@ recompute, backward), one copy per stored component.
 
 Prefetch changes when a read starts, never which bytes are read. `reader.fetches` and
 `reader.bytes_read` also count a read-ahead that was discarded, while the pool's `fetches` and
-`logical_bytes_read` count only the loads a lease used. With hints on, a `last_trace` row's
-`logical_bytes_read` is the bytes of its own lease for the same reason. A hint is not issued for
-an expert already in the host cache. Measured on Moonlight (RTX 3060, MBR group 8) with
+`logical_bytes_read` count only the loads a lease used. A `last_trace` row's
+`logical_bytes_read` is the bytes of its own lease — the same figure the counter took — on the
+`cpp_async_2slot` stream and in `backward_from_inputs` as well as the Python path. A hint is
+not issued for an expert already in the host cache. Measured on Moonlight (RTX 3060, MBR group 8) with
 `packed`, it takes the step from 18.8 s to 16.6 s, about -11% over three A-B-B-A blocks; the
 read of one expert (about 3 ms) is longer than the compute it hides behind, so the disk still
 limits the step.
