@@ -163,8 +163,12 @@ def _window(
     *,
     group_size: int,
     oracle: Optional[Any],
+    decoupled: bool = False,
 ) -> Dict[str, Any]:
     _zero_grads(rig.model)
+    extra = (
+        {"mbr_decoupled_subwindow": True, "mbr_recompute_subwindow": 1} if decoupled else {}
+    )
     losses = rig.stepper.run(
         ids,
         rig.store,
@@ -173,6 +177,7 @@ def _window(
         mbr_group_size=group_size,
         collect_phase_stats=True,
         routing_oracle=oracle,
+        **extra,
     )
     collected = _collect(rig.model)
     missing = [name for name, grad in collected.items() if grad is None]
@@ -269,6 +274,39 @@ def test_tiny_moe_mbr_with_the_oracle_equals_without_it_bitwise(
             assert not bad, f"{len(bad)} tensors differ, first {bad[:3]}"
         else:
             assert max_abs < 1e-6, f"dense FP32 differs by more than rounding: {max_abs}"
+    finally:
+        rig.close()
+
+
+@pytest.mark.parametrize("k", [1, 2, 4])
+def test_decoupled_mbr_with_the_oracle_matches_without_it_bitwise(
+    tmp_path: Any, k: int, record_property: Any,
+) -> None:
+    """The decoupled backward uses the Oracle's peek in R1 and recompute in R2."""
+    rig = _make_rig(tmp_path, k, "bfloat16")
+    ids = [
+        fixture.moe_batch(rig.config, seed=seed, rows=1, seq=6)["input_ids"]
+        for seed in range(k)
+    ]
+    calls = [l2l_step.capture_layer_call(rig.model, item) for item in ids]
+    try:
+        without = _window(rig, ids, calls, group_size=k, oracle=None, decoupled=True)
+        with DeepseekRoutingOracle(rig.model, pin=False) as oracle:
+            with_oracle = _window(
+                rig, ids, calls, group_size=k, oracle=oracle, decoupled=True
+            )
+            stats = rig.stepper.routing_oracle_stats
+        assert stats is not None
+        assert stats["step_counts"] == {
+            "native_forward": len(rig.moe_layers) * k,
+            "oracle_peek": len(rig.moe_layers) * k,
+            "oracle_recompute": len(rig.moe_layers) * k,
+            "oracle_vjp": len(rig.moe_layers) * k,
+        }
+        bad = differing(without, with_oracle)
+        record_property("different_tensors", len(bad))
+        record_property("first_different", bad[:3])
+        assert not bad, f"{len(bad)} tensors differ, first {bad[:3]}"
     finally:
         rig.close()
 

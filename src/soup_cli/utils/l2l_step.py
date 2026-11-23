@@ -859,6 +859,8 @@ class L2LStep:
         self.counters: Optional[LoadCounters] = None
         #: Per-layer phase counters from the opt-in route-preserving MBR path.
         self.route_preserving_mbr_stats: Optional[Dict[str, Any]] = None
+        #: Telemetry of the last ``run`` when a routing Oracle was passed.
+        self.routing_oracle_stats: Optional[Dict[str, Any]] = None
         #: Optional expert read counters split by layer and step phase.
         self.expert_phase_stats: Optional[Dict[str, Any]] = None
 
@@ -882,6 +884,10 @@ class L2LStep:
         deferred_hooks: Tuple[Any, Any, List[Any]],
         split_records: Optional[List[Dict[str, Any]]] = None,
         reverse_graph_order: bool = False,
+        *,
+        layer_idx: Optional[int] = None,
+        routing_oracle: Any = None,
+        oracle_phase: Optional[str] = None,
     ) -> Tuple[List[Any], List[Tuple[Any, Any]], List[List[int]], Dict[str, int]]:
         """Run each layer's attention/router per micro-batch, grouping only routed experts.
 
@@ -893,6 +899,8 @@ class L2LStep:
         the forward pass and the recompute alike (two-read replays router decisions in the order
         the forward took them), so one backward over the group adds gradients in micro-batch
         order (see ``mbr_ordered_backward``); rows, outputs and routes keep micro-batch order.
+        ``routing_oracle`` wraps each micro-batch's layer call in its ``forward`` or
+        ``recompute`` visit, keyed by the global micro-batch index.
         """
         import torch
 
@@ -920,7 +928,15 @@ class L2LStep:
                 build_order = list(reversed(indices)) if reverse_graph_order else list(indices)
                 for mb in build_order:
                     state = states[mb] if states is not None else None
-                    self._layer(module, hidden[mb], state, calls[mb])
+                    oracle_context = (
+                        routing_oracle.visit(layer_idx, mb, oracle_phase)
+                        if routing_oracle is not None
+                        and layer_idx is not None
+                        and oracle_phase is not None
+                        else nullcontext()
+                    )
+                    with oracle_context:
+                        self._layer(module, hidden[mb], state, calls[mb])
                     if getattr(module, "_forward_hooks", None) or getattr(
                         inner, "_forward_hooks", None
                     ):
@@ -1041,6 +1057,7 @@ class L2LStep:
         pair: Any,
         routing_budget: Optional[Tuple[int, int]],
         phase_stats: Optional[Dict[str, Any]],
+        routing_oracle: Any = None,
     ) -> Tuple[Dict[str, int], int, float, float, int]:
         """Decoupled 3-phase MBR backward (M1 + M2+): O(sub_w) autograd VRAM across any k.
 
@@ -1054,6 +1071,8 @@ class L2LStep:
         Phase R2 (``sub_w`` micro-batches at a time, in ascending order): recompute attention,
         router and shared FFN under ``enable_grad()``, inject ``(d_hidden, d_weights)`` as extra
         roots of a multi-root backward, and free the graph before the next sub-window.
+        ``routing_oracle`` visits R1 as ``peek`` (read-only replay) and R2 as ``recompute``, so
+        neither phase runs the router again.
         """
         import torch
 
@@ -1106,7 +1125,13 @@ class L2LStep:
                         mb_input = store.get(idx, mb)
                         total_tokens += int(mb_input.shape[0] * mb_input.shape[1])
                         mb_state = states[mb][idx] if states else None
-                        self._layer(layer, mb_input, mb_state, calls[mb])
+                        oracle_context = (
+                            routing_oracle.visit(idx, mb, "peek")
+                            if routing_oracle is not None
+                            else nullcontext()
+                        )
+                        with oracle_context:
+                            self._layer(layer, mb_input, mb_state, calls[mb])
                         if getattr(layer, "_forward_hooks", None) or getattr(
                             inner, "_forward_hooks", None
                         ):
@@ -1204,7 +1229,13 @@ class L2LStep:
                             mb = indices[pos]
                             mb_input = store.get(idx, mb).requires_grad_(True)
                             mb_state = states[mb][idx] if states else None
-                            self._layer(layer, mb_input, mb_state, calls[mb])
+                            oracle_context = (
+                                routing_oracle.visit(idx, mb, "recompute")
+                                if routing_oracle is not None
+                                else nullcontext()
+                            )
+                            with oracle_context:
+                                self._layer(layer, mb_input, mb_state, calls[mb])
                             row = r2_capture[-1]
                             out_mb = (
                                 row["residual"] + row["shared_output"]
@@ -1372,6 +1403,7 @@ class L2LStep:
         collect_phase_stats: bool = False,
         mbr_split_backward: bool = False,
         mbr_ordered_backward: bool = False,
+        routing_oracle: Any = None,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
@@ -1402,6 +1434,11 @@ class L2LStep:
         (``mbr_recompute_subwindow``, default 1) so peak autograd VRAM stays O(1) across any
         ``k`` while the gradients add up in micro-batch order like plain L2L's. It excludes
         ``mbr_split_backward`` and ``mbr_ordered_backward``.
+
+        ``routing_oracle`` (a :class:`soup_cli.utils.routing_oracle.DeepseekRoutingOracle`)
+        keeps the forward router choices and forward scores and replays them in the
+        recompute, so the recompute runs no router or top-k. It requires
+        ``route_preserving_mbr=True`` and no reference pass.
         """
         if type(route_preserving_mbr) is not bool:
             raise ValueError("route_preserving_mbr must be a bool")
@@ -1419,6 +1456,18 @@ class L2LStep:
             raise ValueError("mbr_ordered_backward is only valid with route_preserving_mbr=True")
         if mbr_ordered_backward and mbr_split_backward:
             raise ValueError("mbr_ordered_backward and mbr_split_backward exclude each other")
+        if routing_oracle is not None and not route_preserving_mbr:
+            raise ValueError("routing_oracle requires route_preserving_mbr=True")
+        if routing_oracle is not None:
+            missing = [
+                name
+                for name in (
+                    "begin_step", "visit", "require_complete", "report", "end_step", "abort_step"
+                )
+                if not callable(getattr(routing_oracle, name, None))
+            ]
+            if missing:
+                raise ValueError(f"routing_oracle lacks {', '.join(missing)}")
         if routing_budget is not None and (
             len(routing_budget) != 2
             or any(type(value) is not int or value < 0 for value in routing_budget)
@@ -1484,6 +1533,7 @@ class L2LStep:
         if head is not None and (labels is not None or n_items is not None):
             raise ValueError("a custom head owns its labels and scale: pass no labels or n_items")
         self.route_preserving_mbr_stats = None
+        self.routing_oracle_stats = None
         expert_pool = getattr(self.runtime, "expert_pool", None)
         previous_phase_tracking = getattr(expert_pool, "phase_read_tracking", None)
         if collect_phase_stats and previous_phase_tracking is not None:
@@ -1508,6 +1558,7 @@ class L2LStep:
                         mbr_ordered_backward=mbr_ordered_backward,
                         mbr_decoupled_subwindow=mbr_decoupled_subwindow,
                         mbr_recompute_subwindow=mbr_recompute_subwindow,
+                        routing_oracle=routing_oracle,
                     )
                 else:
                     guard = (
@@ -1528,6 +1579,8 @@ class L2LStep:
                             collect_phase_stats=collect_phase_stats,
                         )
         finally:
+            if routing_oracle is not None:
+                routing_oracle.abort_step()
             if previous_phase_tracking is not None:
                 expert_pool.phase_read_tracking = previous_phase_tracking
         self.counters = counters
@@ -1552,6 +1605,7 @@ class L2LStep:
         mbr_ordered_backward: bool = False,
         mbr_decoupled_subwindow: bool = False,
         mbr_recompute_subwindow: Optional[int] = None,
+        routing_oracle: Any = None,
     ) -> List[Any]:
         import torch
 
@@ -1584,6 +1638,11 @@ class L2LStep:
             head = sft_head(labels, total)
 
         passes = as_passes(reference)
+        if passes and routing_oracle is not None:
+            raise ValueError(
+                "routing_oracle does not support reference passes: the oracle records the "
+                "policy forward only"
+            )
         if passes and l2l_rng.has_draws(self.call.draws):
             raise ValueError(
                 "the L2L reference pass does not support dropout: the reference forward "
@@ -1634,6 +1693,8 @@ class L2LStep:
             for spec, ids in zip(passes, pass_ids):
                 with self._pass_adapters(spec):
                     pass_hidden.append([self.owner.embed_tokens(x) for x in ids])
+            if routing_oracle is not None:
+                routing_oracle.begin_step([tuple(int(d) for d in value.shape) for value in hidden])
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
@@ -1653,6 +1714,9 @@ class L2LStep:
                                 group_size,
                                 deferred_hooks,
                                 reverse_graph_order=mbr_ordered_backward,
+                                layer_idx=idx,
+                                routing_oracle=routing_oracle,
+                                oracle_phase="forward",
                             )
                         )
                     for mb in range(k):
@@ -1787,6 +1851,7 @@ class L2LStep:
                             pair,
                             routing_budget,
                             phase_stats,
+                            routing_oracle,
                         )
                         if phase_stats is not None:
                             after_layer = self._expert_read_snapshot()
@@ -1836,6 +1901,9 @@ class L2LStep:
                                 deferred_hooks,
                                 split_records,
                                 reverse_graph_order=mbr_ordered_backward,
+                                layer_idx=idx,
+                                routing_oracle=routing_oracle,
+                                oracle_phase="recompute",
                             )
                         )
                     after_recompute = (
@@ -1992,6 +2060,10 @@ class L2LStep:
                 layer.use_checkpoint = saved
         if route_preserving_mbr and (mbr_routes or mbr_route_record_bytes != 0):
             raise RuntimeError("route-preserving MBR did not consume every forward route record")
+        if routing_oracle is not None:
+            routing_oracle.require_complete()
+            self.routing_oracle_stats = routing_oracle.report()
+            routing_oracle.end_step()
         if train_embedding:
             # The reverse walk prefetches this at layer 0 and records it on the prefetcher. A
             # one-layer decoder never changes direction, so only then is it still to be asked.
