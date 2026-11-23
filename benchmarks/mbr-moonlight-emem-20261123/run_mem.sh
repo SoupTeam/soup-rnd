@@ -18,6 +18,10 @@ MOONLIGHT_ROOT="${MOONLIGHT_ROOT:-/home/m1kadoo/moonlight-local}"
 OUT="${OUT:-$HERE}"
 REV="${REV:-2a9a177f4841649f849ba941e41d2ee73c042314}"
 TARGETS="q_proj,kv_a_proj_with_mqa,kv_b_proj,o_proj"
+# Overridable for the CPU tests: the AC-online file and the inhibit wrapper. An empty
+# INHIBIT_CMD runs the cell unprotected, which is only meant for the fake-venv tests.
+AC_ONLINE="${AC_ONLINE:-/sys/class/power_supply/ACAD/online}"
+INHIBIT_CMD="${INHIBIT_CMD-systemd-inhibit}"
 
 if [[ -e "$OUT/rows_canonical.jsonl" || -L "$OUT/rows_canonical.jsonl" ]]; then
   printf 'Refusing to start: %s/rows_canonical.jsonl already exists. Move it to raw/ first.\n' \
@@ -47,13 +51,19 @@ for window in 8:64 8:512 64:64; do
   for arm in C E; do
     name="mem-$arm-k$k-s$seq"
     printf '== %s start %s\n' "$name" "$(date +%T)"
-    if [[ "$(cat /sys/class/power_supply/ACAD/online 2>/dev/null)" == 1 ]]; then
-      systemd-inhibit --what=sleep --why="ticket13 $arm ${k}x$seq" \
-        "$VENV/bin/python" -u "$HERE/run_mem.py" \
-        --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" --out "$OUT" \
-        --arm "$arm" --k "$k" --seq "$seq" --steps 3 --model-revision "$REV" \
-        --lora-targets "$TARGETS" > "$OUT/raw/logs/$name.log" 2>&1
-      status=$?
+    if [[ "$(cat "$AC_ONLINE" 2>/dev/null)" == 1 ]]; then
+      cell=("$VENV/bin/python" -u "$HERE/run_mem.py"
+        --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" --out "$OUT"
+        --arm "$arm" --k "$k" --seq "$seq" --steps 3 --model-revision "$REV"
+        --lora-targets "$TARGETS")
+      if [[ -n "$INHIBIT_CMD" ]]; then
+        "$INHIBIT_CMD" --what=sleep --why="ticket13 $arm ${k}x$seq" "${cell[@]}" \
+          > "$OUT/raw/logs/$name.log" 2>&1
+        status=$?
+      else
+        "${cell[@]}" > "$OUT/raw/logs/$name.log" 2>&1
+        status=$?
+      fi
     else
       printf 'Refusing %s: AC power is not online.\n' "$name" >&2
       status=1
