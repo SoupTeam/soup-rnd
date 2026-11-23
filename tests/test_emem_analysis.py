@@ -104,6 +104,39 @@ def test_classify_frames_uses_class_priority_across_the_stack(
     assert analysis.classify_frames(frames) == expected
 
 
+@pytest.mark.parametrize(
+    ("filename", "name", "expected"),
+    [
+        ("a0_exact_lt_ext.cpp",
+         "(anonymous namespace)::scratch(int, long, at::Tensor const&)", "staging"),
+        ("a0_exact_lt_ext.cpp",
+         "(anonymous namespace)::seg_matmul_raw(void const*, at::Tensor const&, bool, "
+         "std::vector<long, std::allocator<long> > const&, std::vector<long, "
+         "std::allocator<long> > const&, void*, at::Tensor const&)", "staging"),
+        ("a0_exact_lt_ext.cpp",
+         "(anonymous namespace)::shared_workspace(at::Tensor const&)", "cublaslt_workspace"),
+        ("a0_exact_lt_ext.cpp",
+         "(anonymous namespace)::lt_raw(void const*, long, long, at::Tensor const&, bool, "
+         "cublasLtMatmulAlgo_t const&, void*, at::Tensor const&, CUstream_st*)",
+         "cublaslt_workspace"),
+    ],
+)
+def test_classify_frames_reads_the_demangled_names_the_profiler_writes(
+    analysis: ModuleType, filename: str, name: str, expected: str,
+) -> None:
+    assert analysis.classify_frames([{"filename": filename, "name": name}]) == expected
+
+
+def test_classify_frames_does_not_mistake_seg_matmul_raw_for_matmul(
+    analysis: ModuleType,
+) -> None:
+    frames = [{
+        "filename": "a0_exact_lt_ext.cpp",
+        "name": "(anonymous namespace)::seg_matmul_raw(void const*, at::Tensor const&)",
+    }]
+    assert analysis.classify_frames(frames) != "cublaslt_workspace"
+
+
 def test_holdings_flattens_segments_and_only_counts_allocated_blocks_as_live(
     analysis: ModuleType,
 ) -> None:

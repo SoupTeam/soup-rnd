@@ -1,5 +1,6 @@
 """Analyze Moonlight memory measurements without importing PyTorch."""
 
+import re
 from collections import Counter
 from collections.abc import Sequence
 from typing import Any
@@ -78,21 +79,39 @@ def mem_premium(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def _names_function(name: Any, candidates: tuple[str, ...]) -> bool:
+    """Match a bare or demangled symbol on the function name, not on substrings.
+
+    The profiler writes demangled C++ signatures such as
+    ``(anonymous namespace)::scratch(int, long, at::Tensor const&)``. A plain
+    substring test would also accept ``seg_matmul_raw`` for ``matmul``.
+    """
+    symbol = str(name or "")
+    if symbol in candidates:
+        return True
+    return any(
+        re.search(rf"(?:^|::){re.escape(candidate)}\(", symbol) for candidate in candidates
+    )
+
+
 def classify_frames(frames: Sequence[dict[str, Any]]) -> str:
     """Use the highest-priority matching class anywhere in an allocation stack."""
     stack = [
         (frame.get("filename", "").replace("\\", "/").rsplit("/", 1)[-1], frame.get("name"))
         for frame in frames
     ]
-    if any(file == _EXT and name in ("matmul", "shared_workspace", "workspace_ptr", "lt_raw")
+    if any(file == _EXT
+           and _names_function(name, ("matmul", "shared_workspace", "workspace_ptr", "lt_raw"))
            for file, name in stack):
         return "cublaslt_workspace"
     if any(file == "a0_exact_lt.py"
-           and name in ("lookup", "_reproduces", "native_matmul", "_sample", "ensure")
+           and _names_function(name, ("lookup", "_reproduces", "native_matmul", "_sample",
+                                      "ensure"))
            for file, name in stack):
         return "algo_discovery"
     if any(
-        file in _NATIVE_FILES and name in ("scratch", "seg_matmul_raw", "merged", "copy_segments")
+        file in _NATIVE_FILES
+        and _names_function(name, ("scratch", "seg_matmul_raw", "merged", "copy_segments"))
         for file, name in stack
     ):
         return "staging"
