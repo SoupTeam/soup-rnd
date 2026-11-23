@@ -124,6 +124,34 @@ def test_eager_forward_bit_exact_and_load_order(tmp_path, count, partial, dtype)
         pool.close()
 
 
+def test_failed_lease_after_its_read_counts_no_bytes(tmp_path, monkeypatch):
+    """A copy error after the read: the counter and the error row both take zero bytes."""
+    import torch
+
+    module, _ = _experts()
+    reader, pool = _store(tmp_path, module)
+    streamed = _streamed(module, reader, pool)
+    args = _inputs(partial=True)
+
+    def fail_copy(expert, _host):
+        raise RuntimeError(f"copy of expert {expert} failed after the read")
+
+    monkeypatch.setattr(pool, "_copy_host", fail_copy)
+    try:
+        with pytest.raises(RuntimeError, match="after the read"):
+            with torch.no_grad():
+                streamed(*args)
+        # The bytes did reach the host, but the lease delivered no expert.
+        assert reader.bytes_read > 0
+        assert pool.fetches == 0
+        assert pool.logical_bytes_read == 0
+        assert [row["status"] for row in streamed.last_trace] == ["error"]
+        assert sum(row["logical_bytes_read"] for row in streamed.last_trace) == 0
+    finally:
+        reader.close()
+        pool.close()
+
+
 def test_negative_control_differs_in_the_same_process(tmp_path):
     import torch
 

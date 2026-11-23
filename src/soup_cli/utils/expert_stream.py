@@ -449,7 +449,9 @@ class ExpertBufferPool:
             self.fetches += 1
             fetch_succeeded = True
         finally:
-            bytes_read = self.last_lease_bytes
+            # A lease that failed after its read delivered no expert: neither the counter nor
+            # the phase row takes the bytes, exactly like the zero of its error row.
+            bytes_read = self.last_lease_bytes if fetch_succeeded else 0
             self.logical_bytes_read += bytes_read
             if self.phase_read_tracking and phase is not None and layer_idx is not None:
                 with self._phase_lock:
