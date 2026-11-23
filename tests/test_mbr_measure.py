@@ -257,12 +257,12 @@ def test_lever_arms_stack_on_the_ordered_arm() -> None:
     for arm in ("E", "F", "G"):
         assert mm.arm_options(arm, k=8) == c  # the step options are C's; the levers sit outside
     assert mm.arm_runtime("C") == {"expert_gemm": "native", "async_lease": False,
-                                   "fast_row_gather": False}
+                                   "fast_row_gather": False, "expert_loader": "async_lease"}
     assert mm.arm_runtime("E") == {"expert_gemm": "lt-fused", "async_lease": False,
-                                   "fast_row_gather": False}
+                                   "fast_row_gather": False, "expert_loader": "async_lease"}
     assert mm.arm_runtime("F")["async_lease"] and not mm.arm_runtime("F")["fast_row_gather"]
     assert mm.arm_runtime("G") == {"expert_gemm": "lt-fused", "async_lease": True,
-                                   "fast_row_gather": True}
+                                   "fast_row_gather": True, "expert_loader": "async_lease"}
     assert mm.arm_runtime("A0") == mm.arm_runtime("B0") == mm.arm_runtime("C")
 
 
@@ -276,16 +276,16 @@ def test_lever_speed_plan_is_symmetric_and_normal_mode() -> None:
 
 def test_lever_bit_plan_covers_a0_and_every_lever_in_deterministic_mode() -> None:
     plan = mm.lever_bit_plan(seq=64)
-    assert {p["arm"] for p in plan} == {"A0", "C", "E", "F", "G"}
+    assert {p["arm"] for p in plan} == {"A0", "C", "E", "F", "G", "H"}
     assert {p["k"] for p in plan} == set(mm.BIT_LADDER)
     assert all(p["kind"] == "bits" and p["deterministic"] for p in plan)
 
 
 def test_k64_ladder_uses_c_as_reference_and_plans_no_a0() -> None:
-    assert mm.ladder_arms(8) == ("A0", "C", "E", "F", "G")
-    assert mm.ladder_arms(64) == ("C", "E", "F", "G")
+    assert mm.ladder_arms(8) == ("A0", "C", "E", "F", "G", "H")
+    assert mm.ladder_arms(64) == ("C", "E", "F", "G", "H")
     lever = mm.lever_bit_plan(seq=64, ks=(64,))
-    assert [p["arm"] for p in lever] == ["C", "E", "F", "G"]
+    assert [p["arm"] for p in lever] == ["C", "E", "F", "G", "H"]
     plain = mm.bit_plan(seq=64, ks=(64,))
     assert [p["arm"] for p in plain] == ["B0", "C"]
     assert all(p["k"] == 64 and p["kind"] == "bits" and p["deterministic"]
@@ -550,6 +550,100 @@ def test_digest_ladder_verdict_and_tensor_verdict_share_the_a0_rule() -> None:
             {"arm": "E", "k": 2, "seq": 64, "status": "ok", "grad_sha256": "a", "loss": 1.0},
             {"arm": "C", "k": 2, "seq": 64, "status": "OOM"}]
     assert mm.ladder_verdict(rows) == {(2, "E"): "equal", (2, "C"): "OOM"}
+
+
+# ---- ticket 05: H = G + the cpp_async_2slot loader, and the loader speed plan ----
+def test_the_cpp_loader_is_the_h_arm_stacked_on_g() -> None:
+    assert mm.arm_runtime("H") == {"expert_gemm": "lt-fused", "async_lease": True,
+                                   "fast_row_gather": True, "expert_loader": "cpp_async_2slot"}
+    assert mm.arm_runtime("G")["expert_loader"] == "async_lease"
+    assert mm.LEVER_PREVIOUS["H"] == "G"
+    assert mm.parse_arm_list("H") == ("H",)
+
+
+def test_every_arm_runtime_names_its_loader() -> None:
+    for arm in ("A0", "B0", "C", "E", "F", "G", "H"):
+        assert mm.arm_runtime(arm)["expert_loader"] in ("async_lease", "cpp_async_2slot")
+
+
+def test_the_ladder_carries_h_at_every_k_and_keeps_a0_below_it() -> None:
+    assert mm.ladder_arms(8)[-1] == "H" and "A0" in mm.ladder_arms(8)
+    assert "H" in mm.ladder_arms(64) and "A0" not in mm.ladder_arms(64)
+    assert mm.arm_options("H", k=4) == mm.arm_options("C", k=4)
+
+
+def test_loader_speed_plan_is_g_h_h_g_over_the_three_fitting_windows() -> None:
+    plan = mm.loader_speed_plan(blocks=5)
+    assert {(p["k"], p["seq"]) for p in plan} == set(mm.LOADER_WINDOWS)
+    per_window = [p for p in plan if (p["k"], p["seq"]) == (8, 64)]
+    assert [p["arm"] for p in per_window[:4]] == ["G", "H", "H", "G"]
+    assert len(plan) == 5 * len(mm.LOADER_WINDOWS) * 4
+    # Block-major: one block covers every window before the next block starts.
+    assert {p["block"] for p in plan[:len(mm.LOADER_WINDOWS) * 4]} == {0}
+    assert {p["block"] for p in plan} == set(range(5))
+    assert all(p["kind"] == "speed" and p["deterministic"] is False for p in plan)
+
+
+def test_the_loader_gate_reads_the_three_fitting_windows_and_two_wins() -> None:
+    rows = [{"arm": "A0", "k": k, "seq": 64, "kind": "bits", "status": "ok",
+             "grad_sha256": "x", "loss": 1.0} for k in mm.BIT_LADDER]
+    rows += [{"arm": "H", "k": k, "seq": 64, "kind": "bits", "status": "ok",
+              "grad_sha256": "x", "loss": 1.0} for k in mm.BIT_LADDER]
+    for k, seq in mm.LOADER_WINDOWS:
+        gain = 0.0 if (k, seq) == (64, 64) else 0.04
+        for block in range(5):
+            rows += [_speed("G", k, seq, 100.0, block=block),
+                     _speed("H", k, seq, 100.0 * (1 - gain), block=block)]
+    gate = mm.lever_gate(rows, lever="H", previous="G", windows=mm.LOADER_WINDOWS,
+                         min_windows=mm.LOADER_MIN_WINDOWS)
+    assert gate["speed"]["windows_won"] == 2 and gate["speed"]["pass"] is True
+    assert gate["speed"]["t_test"] == "computed"
+    assert gate["bits"]["pass"] is True
+
+
+def test_the_loader_gate_needs_two_of_the_three_windows() -> None:
+    rows = [{"arm": "A0", "k": k, "seq": 64, "kind": "bits", "status": "ok",
+             "grad_sha256": "x", "loss": 1.0} for k in mm.BIT_LADDER]
+    rows += [{"arm": "H", "k": k, "seq": 64, "kind": "bits", "status": "ok",
+              "grad_sha256": "x", "loss": 1.0} for k in mm.BIT_LADDER]
+    for k, seq in mm.LOADER_WINDOWS:
+        gain = 0.04 if (k, seq) == (8, 64) else 0.0
+        for block in range(5):
+            rows += [_speed("G", k, seq, 100.0, block=block),
+                     _speed("H", k, seq, 100.0 * (1 - gain), block=block)]
+    gate = mm.lever_gate(rows, lever="H", previous="G", windows=mm.LOADER_WINDOWS,
+                         min_windows=mm.LOADER_MIN_WINDOWS)
+    assert gate["speed"]["windows_won"] == 1 and gate["speed"]["pass"] is False
+
+
+def test_a_window_that_clears_three_percent_but_not_the_paired_t_does_not_win() -> None:
+    def bit(arm: str, k: int) -> dict:
+        return {"arm": arm, "k": k, "seq": 64, "kind": "bits", "status": "ok",
+                "grad_sha256": "x", "loss": 1.0}
+
+    rows = [bit("A0", k) for k in mm.BIT_LADDER] + [bit("H", k) for k in mm.BIT_LADDER]
+    # Median gain 3%, mean 5%, spread 5.57 pt: t = 2.0, below the 2.78 critical value.
+    for k, seq in mm.LOADER_WINDOWS:
+        for block, gain in enumerate((0.03, 0.03, 0.03, 0.0, 0.16)):
+            rows += [_speed("G", k, seq, 100.0, block=block),
+                     _speed("H", k, seq, 100.0 * (1 - gain), block=block)]
+    gate = mm.lever_gate(rows, lever="H", previous="G", windows=mm.LOADER_WINDOWS,
+                         min_windows=mm.LOADER_MIN_WINDOWS)
+    assert gate["speed"]["windows"][(8, 64)]["gain"] == pytest.approx(0.03)
+    assert gate["speed"]["windows"][(8, 64)]["t"] < mm.LEVER_T_CRITICAL
+    assert gate["speed"]["windows_won"] == 0 and gate["speed"]["pass"] is False
+
+
+def test_the_loader_gate_fails_when_h_differs_from_a0_at_k2() -> None:
+    def bit(arm: str, k: int, sha: str) -> dict:
+        return {"arm": arm, "k": k, "seq": 64, "kind": "bits", "status": "ok",
+                "grad_sha256": sha, "loss": 1.0}
+
+    rows = [bit("A0", k, "x") for k in mm.BIT_LADDER]
+    rows += [bit("H", k, "x" if k != 2 else "y") for k in mm.BIT_LADDER]
+    gate = mm.lever_gate(rows, lever="H", previous="G", windows=mm.LOADER_WINDOWS,
+                         min_windows=mm.LOADER_MIN_WINDOWS)
+    assert gate["bits"]["pass"] is False and gate["bits"]["differs_at"] == [2]
 
 
 def test_sweep_child_forwards_math_attention_only_when_asked() -> None:
