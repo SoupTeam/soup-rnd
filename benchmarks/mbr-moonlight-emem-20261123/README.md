@@ -116,17 +116,18 @@ E holds 1112.9 MiB more trapped free space than C, and 226.0 MiB less releasable
 | 160 | 67.3 | 92.7 | fused_scratch |
 
 Every large pinned segment of E keeps only one to four live scratch buffers (8.1 to 30.8 MiB) and
-leaves the rest of the 160 or 320 MiB segment unusable. C's trapped space is 40.2 MiB in small
-segments and none of it is a 160/320 MiB block. By trapped bytes per holder, E minus C is +1104.8 MiB
-for `fused_scratch` and +112.9 MiB for `other` (a segment can list more than one holder, so the two
-sums exceed the 1112.9 MiB delta). This is the main source of the premium.
+leaves the rest of the 160 or 320 MiB segment unusable. C's trapped space is 40.2 MiB, mostly in
+20 MiB and 2 MiB segments; none of it is a 160 or 320 MiB block. By trapped bytes per holder, E
+minus C is +1104.8 MiB for `fused_scratch` and +112.9 MiB for `other` (a segment can list more than
+one holder, so the two sums exceed the 1112.9 MiB delta). This is the main source of the premium.
 
 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` does not remove it: one extra run of each arm in
 the same window gives C 2140.0 MiB reserved and E 3214.0 MiB, still +1074.0 MiB.
 
 The window dependence fits: the live scratch is the same at (64,64) (allocated delta +139.5 against
-+137.8 MiB at (8,512)), but the trap appears only at S=512. At S=64 the scratch fits into the
-existing segment layout without leaving 160/320 MiB segments partly empty; at S=512 it does not.
++137.8 MiB at (8,512)), but the trap appears only at S=512. The peaks say the same scratch does not
+raise reserved at S=64 (0 and +170 MiB), so the trap belongs to the S=512 segment layout; the
+S=64 allocator state was not snapshotted, so the layout itself is not claimed here.
 
 ## Candidates, each checked by name
 
