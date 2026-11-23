@@ -90,19 +90,46 @@ def _result_lines(rows: Sequence[Dict[str, Any]], *, kind: str) -> List[str]:
     return lines
 
 
+def tensor_diff(ref: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
+    """Diff detail of two loaded cells: ``torch.equal`` per tensor plus D1's opt-in metrics."""
+    import math
+
+    import torch
+
+    names = sorted(ref["grads"])
+    differing = [name for name in names
+                 if not torch.equal(ref["grads"][name], row["grads"][name])]
+    max_diff = max((float((ref["grads"][name] - row["grads"][name]).abs().max())
+                    for name in differing), default=0.0)
+    max_grad = max(float(value.abs().max()) for value in ref["grads"].values())
+    diff_sq = sum(float((ref["grads"][name] - row["grads"][name]).pow(2).sum())
+                  for name in names)
+    ref_sq = sum(float(ref["grads"][name].pow(2).sum()) for name in names)
+    rel_l2 = math.sqrt(diff_sq / ref_sq) if ref_sq else (0.0 if diff_sq == 0 else math.inf)
+
+    def cosine(left: Any, right: Any) -> float:
+        left_norm = float(left.pow(2).sum()) ** 0.5
+        right_norm = float(right.pow(2).sum()) ** 0.5
+        if left_norm == 0.0 and right_norm == 0.0:
+            return 1.0
+        if left_norm == 0.0 or right_norm == 0.0:
+            return 0.0
+        return float((left * right).sum()) / (left_norm * right_norm)
+
+    min_cos = min((cosine(ref["grads"][name], row["grads"][name]) for name in names),
+                  default=1.0)
+    return {"loss_equal": bool(torch.equal(ref["loss"], row["loss"])),
+            "grads_differing": len(differing), "grads_total": len(ref["grads"]),
+            "max_abs_diff": max_diff, "max_abs_grad": max_grad,
+            "grad_rel_l2": rel_l2, "min_cos": min_cos}
+
+
 def _diff_detail(tensor_dir: Path, base: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
     import torch
 
     ref = torch.load(tensor_dir / base["tensor_file"], weights_only=True)
     row = torch.load(tensor_dir / other["tensor_file"], weights_only=True)
-    differing = [name for name in ref["grads"]
-                 if not torch.equal(ref["grads"][name], row["grads"][name])]
-    max_diff = max((float((ref["grads"][name] - row["grads"][name]).abs().max())
-                    for name in differing), default=0.0)
-    max_grad = max(float(value.abs().max()) for value in ref["grads"].values())
-    return {"loss_equal": bool(torch.equal(ref["loss"], row["loss"])),
-            "grads_differing": len(differing), "grads_total": len(ref["grads"]),
-            "max_abs_diff": max_diff, "max_abs_grad": max_grad}
+    return tensor_diff(ref, row)
 
 
 def _bits(folder: Path) -> Dict[str, Any]:

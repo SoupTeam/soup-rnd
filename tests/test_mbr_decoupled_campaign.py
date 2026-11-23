@@ -12,6 +12,8 @@ import importlib.util
 from pathlib import Path
 from typing import Any, Dict
 
+import pytest
+
 from benchmarks.harness import mbr_measure as mm
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -115,6 +117,54 @@ def test_the_replacement_plan_names_every_cell_whose_run_was_void() -> None:
     settled = [dict(item, outcome="ok") for item in plan if item["arm"] == "C"]
     pending = module.pending_cells(plan, settled)
     assert [p["arm"] for p in pending] == ["D", "D"] * len(mm.DECOUPLED_WINDOWS), pending
+
+
+def test_the_diff_detail_carries_grad_rel_l2_and_min_cos(tmp_path: Path) -> None:
+    """D1's opt-in row: a lever that differs needs ``grad_rel_l2`` and ``min_cos``.
+
+    Worked example: grad ``a`` goes from (1,0) to (0,1), so its difference has squared norm 2
+    and the total reference squared norm is 1 + 1 = 2, giving ``grad_rel_l2`` = 1; grad ``b``
+    is unchanged with cosine 1, so ``min_cos`` is 0 (``a``'s cosine).
+    """
+    import torch
+
+    base = {"arm": "A0", "k": 2, "seq": 64, "status": "ok", "tensor_file": "a0.pt"}
+    other = {"arm": "D", "k": 2, "seq": 64, "status": "ok", "tensor_file": "d.pt"}
+    torch.save({"loss": torch.tensor([1.0], dtype=torch.float64),
+                "grads": {"a": torch.tensor([1.0, 0.0]), "b": torch.tensor([0.0, 1.0])}},
+               tmp_path / "a0.pt")
+    torch.save({"loss": torch.tensor([1.0], dtype=torch.float64),
+                "grads": {"a": torch.tensor([0.0, 1.0]), "b": torch.tensor([0.0, 1.0])}},
+               tmp_path / "d.pt")
+    detail = _module()._diff_detail(tmp_path, base, other)
+    assert detail["grad_rel_l2"] == pytest.approx(1.0)
+    assert detail["min_cos"] == pytest.approx(0.0)
+    assert detail["loss_equal"] is True
+
+
+def test_a_repeat_cell_is_compared_across_folders(tmp_path: Path) -> None:
+    """The repeat pass lives in its own folder, so the comparison loads both files itself."""
+    import importlib.util
+
+    import torch
+
+    path = ROOT / "benchmarks" / "mbr-moonlight-decoupled-20261124" / "compare_repeats.py"
+    spec = importlib.util.spec_from_file_location("mbr_decoupled_compare", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    first, repeat = tmp_path / "first" / "tensors", tmp_path / "repeat" / "tensors"
+    first.mkdir(parents=True)
+    repeat.mkdir(parents=True)
+    cell = {"loss": torch.tensor([2.0], dtype=torch.float64),
+            "grads": {"w": torch.tensor([1.0, 2.0])}}
+    torch.save(cell, first / "D-k2-s64.pt")
+    torch.save(cell, repeat / "D-k2-s64.pt")
+    same = module.compare_cell(first, repeat, "D", 2, 64)
+    assert same["loss_equal"] is True and same["grads_differing"] == 0
+    torch.save({"loss": cell["loss"], "grads": {"w": torch.tensor([1.0, 3.0])}},
+               repeat / "D-k2-s64.pt")
+    differs = module.compare_cell(first, repeat, "D", 2, 64)
+    assert differs["grads_differing"] == 1 and differs["grad_rel_l2"] > 0
 
 
 def test_the_decoupled_speed_command_takes_the_block_count() -> None:
