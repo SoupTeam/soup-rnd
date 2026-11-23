@@ -7,8 +7,10 @@ MBR (``mbr_decoupled_subwindow=True``) joins the window's routed experts into on
 recomputes attention, router and shared experts one micro-batch at a time, in micro-batch order.
 
 Criterion: ``torch.equal`` on the per-micro-batch losses and on every LoRA gradient at k=1, 2
-and 4 with NF4 storage and BF16 weights. The dense FP32 rows keep the known ~9e-8 divergence of
-PR #77: the test records what it measured and only holds it inside that envelope.
+and 4 with NF4 storage and BF16 weights. The dense FP32 rows keep PR #77's rounding gap: the
+largest measured value is 2.682e-07 at k=2 (k=4: 1.341e-07), recorded with the model and the
+window in ``benchmarks/decoupled-mbr-dense-fp32-20261123.md``; the test only holds it inside
+the 1e-6 envelope.
 
 The M2+ rows pin the zero-materialisation expert backward on its own: ``backward_from_inputs``
 against the per-micro-batch ``WeightedFrozenExpert`` autograd, and the segment row counts it hands
@@ -32,7 +34,8 @@ from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 
 pytestmark = _REQUIRES_TRAINING_FLOOR
 
-#: The dense FP32 envelope recorded from PR #77 for k >= 2, and the row that holds it.
+#: The dense FP32 envelope: measured max 2.682e-07 at k=2 on the fixture window
+#: (benchmarks/decoupled-mbr-dense-fp32-20261123.md); 1e-6 is that with headroom.
 KNOWN_DENSE_FP32_GAP = 1e-6
 
 
@@ -244,11 +247,13 @@ def test_decoupled_mbr_dropout_rng_replay_bit_exact(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("k", [1, 2, 4])
 def test_decoupled_mbr_dense_fp32_records_the_known_gap(tmp_path: Path, k: int) -> None:
-    """Dense FP32: k=1 is exact; k>=2 records PR #77's ~1e-7 gap and holds the envelope.
+    """Dense FP32: k=1 is exact; k>=2 records PR #77's 2.682e-07 gap and holds the envelope.
 
-    The losses are exact here too: the gap is the R2 multi-root backward adding the routed and
-    the non-routed contribution at the residual in another order than one engine call. BF16
-    rounds it away (the NF4+BF16 rows are exact), FP32 keeps it.
+    The largest measured gap on this fixture window is 2.682e-07 at k=2 (k=4: 1.341e-07);
+    see ``benchmarks/decoupled-mbr-dense-fp32-20261123.md``. The losses are exact here too:
+    the gap is the R2 multi-root backward adding the routed and the non-routed contribution
+    at the residual in another order than one engine call. BF16 rounds it away (the NF4+BF16
+    rows are exact), FP32 keeps it.
     """
     rig = build_rig(tmp_path, f"dense_fp32_k{k}", k=k, storage="dense", dtype="float32")
     try:

@@ -1521,8 +1521,11 @@ non-expert part of a sub-window of micro-batches (`mbr_recompute_subwindow`, def
 recomputed under grad, differentiated against the layer's output and the injected expert
 gradients, and freed before the next sub-window. Peak autograd memory stays O(sub-window) across
 any group size, the gradient accumulation order is plain L2L's, and on the CPU tiny-MoE seam it
-is bit-equal to L2L on NF4 + BF16 for k=1, 2 and 4. Dense FP32 keeps a ~1e-7 gradient gap from
-the multi-root backward's addition order at the residual. It excludes `mbr_split_backward` and
+is bit-equal to L2L on NF4 + BF16 for k=1, 2 and 4. Dense FP32 keeps a gradient gap from the
+multi-root backward's addition order at the residual: 2.682e-07 max abs at k=2 (1.341e-07 at
+k=4) on the tiny fixture, recorded with the model and window in
+[`benchmarks/decoupled-mbr-dense-fp32-20261123.md`](../benchmarks/decoupled-mbr-dense-fp32-20261123.md)
+and held by the test at 1e-6. It excludes `mbr_split_backward` and
 `mbr_ordered_backward`, and it drives the expert backward itself, so it requires the native
 expert GEMM: a fused expert node (`lt-fused`) is refused instead of losing its bits.
 
