@@ -15,6 +15,7 @@ node from ticket 03) and compares the output with the same backend fed directly.
 from __future__ import annotations
 
 import ctypes
+import importlib.util
 import threading
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -32,6 +33,7 @@ from soup_cli.utils.expert_loader import (  # noqa: E402
     detect_loader_environment,
     expert_loader_context,
     require_cpp_async_2slot,
+    resolve_expert_loader,
 )
 
 
@@ -100,16 +102,18 @@ def test_selecting_the_cpp_loader_never_falls_back_to_the_python_lease(
             pytest.fail("the body ran: the Python lease was substituted")
 
 
-def test_a_built_extension_is_still_refused_until_the_pool_is_wired(
+def test_a_built_extension_wires_the_selected_arm(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The CPU part selects the arm; the pool swap is the GPU part. No silent no-op."""
+    """With the extension and CUDA present the arm resolves to itself; nothing is refused."""
     monkeypatch.setattr(
         "soup_cli.utils.expert_loader.detect_loader_environment", lambda: env()
     )
-    with pytest.raises(CppAsyncLoaderUnavailableError, match="not wired"):
-        with expert_loader_context("cpp_async_2slot"):
-            pytest.fail("the body ran without the two-slot loader in the pool")
+    assert (
+        resolve_expert_loader("cpp_async_2slot") == "cpp_async_2slot"
+    )
+    with expert_loader_context("cpp_async_2slot") as selected:
+        assert selected is None
 
 
 def test_an_unknown_loader_is_refused() -> None:
@@ -666,3 +670,223 @@ def test_the_stand_does_not_leak_threads_after_close() -> None:
     loader.close()
     assert stream.ring_in_use == 0
     assert stream.workers_alive == 0
+
+
+# ---------------------------------------------------------------- the wired pool
+#
+# ``cpp_async_2slot`` replaces the Python lease inside ``ExpertBufferPool``: the pool reads
+# one expert through the selected stream instead of ``ExpertShardReader.read_host``. The
+# stand below speaks the same contract as the compiled stream, over the same shard files,
+# so the wiring is red-capable without a CUDA host. The last check drives the compiled
+# ``PackedStreamAsync`` itself (PYTHONPATH=<build dir>) and skips only when it is absent.
+
+
+DENSE_HIDDEN = 16
+DENSE_ROWS = 3
+
+
+def _dense_expert_shard(
+    tmp_path: Path,
+) -> Tuple[Any, Dict[int, Any], Dict[int, Any], Any]:
+    """One real expert file with three unquantised experts, plus the tensors written."""
+    from soup_cli.utils.expert_shard import ExpertShardReader, write_expert_shard
+
+    torch.manual_seed(11)
+    gate_up = {
+        expert: torch.randn(2 * DENSE_ROWS, DENSE_HIDDEN) for expert in range(3)
+    }
+    down = {expert: torch.randn(DENSE_HIDDEN, DENSE_ROWS) for expert in range(3)}
+    path = tmp_path / "experts_000.safetensors"
+    info = write_expert_shard(
+        str(path),
+        [(gate_up[expert], down[expert]) for expert in range(3)],
+        quantise=False,
+        device="cpu",
+    )
+    reader = ExpertShardReader(
+        str(path),
+        count=info.count,
+        shapes=info.shapes,
+        quant_specs=info.quant_specs,
+        dtype="float32",
+    )
+    return reader, gate_up, down, info
+
+
+class PoolReadingStand:
+    """Synchronous CPU stand of ``CppPackedStream``'s pool-facing contract."""
+
+    def __init__(self, readers: Mapping[int, Any]) -> None:
+        from soup_cli.utils.expert_loader import plan_packed_stream
+        from soup_cli.utils.expert_shard import aligned_staging
+        from soup_cli.utils.expert_transfer import pack_into
+
+        self.plan = plan_packed_stream(readers)
+        self.layouts = {entry.layer: entry.rows for entry in self.plan.layers}
+        self.packed_bytes = self.plan.packed_bytes
+        self.reads = 0
+        self.closed = False
+        self._staging = {
+            entry.reader.path: aligned_staging(entry.reader.max_span)[1]
+            for entry in self.plan.layers
+        }
+        self._pack_into = pack_into
+
+    def read(self, reader: Any, expert: int, destination: int) -> None:
+        import ctypes
+
+        entry = self.plan.entry_for(reader)
+        host = reader.read_host(expert, self._staging[reader.path])
+        block = torch.empty(self.packed_bytes, dtype=torch.uint8)
+        self._pack_into(block, entry.rows, host)
+        ctypes.memmove(destination, block.data_ptr(), self.packed_bytes)
+        self.reads += 1
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def _dense_pool(reader: Any, stream: Any) -> Any:
+    from soup_cli.utils.expert_stream import (
+        ExpertBufferPool,
+        expert_allocation_budget,
+        plan_expert_buffer,
+    )
+
+    plan = plan_expert_buffer(reader, dtype="float32")
+    return ExpertBufferPool(
+        reader,
+        device="cpu",
+        dtype="float32",
+        weight_budget_bytes=expert_allocation_budget(plan, device="cpu"),
+        stream=stream,
+    )
+
+
+def test_the_pool_lease_is_fed_by_the_selected_stream(tmp_path: Path) -> None:
+    """``FusedCpuBackend`` gets what the stream delivered, not a direct reader read."""
+    from tests.test_direct_expert_backward_mode import FusedCpuBackend
+
+    reader, gate_up, down, _info = _dense_expert_shard(tmp_path)
+    stand = PoolReadingStand({0: reader})
+    pool = _dense_pool(reader, stand)
+    hidden = torch.randn(DENSE_ROWS, DENSE_HIDDEN)
+    weights = torch.rand(DENSE_ROWS, 1)
+    reference_backend = FusedCpuBackend()
+    expected = {
+        expert: reference_backend.expert_forward(
+            hidden, weights, gate_up[expert], down[expert], [DENSE_ROWS]
+        )
+        for expert in range(3)
+    }
+    backend = FusedCpuBackend()
+    try:
+        for expert in (2, 0, 1, 0):
+            with pool.lease(reader, expert) as (lease_up, lease_down):
+                assert torch.equal(
+                    backend.expert_forward(hidden, weights, lease_up, lease_down, [DENSE_ROWS]),
+                    expected[expert],
+                ), f"expert {expert} came back wrong"
+    finally:
+        pool.close()
+    assert backend.forward_calls == 4
+    assert stand.reads == 4
+    assert stand.closed
+
+
+def test_the_pool_refuses_a_stream_that_was_not_built_over_the_reader(
+    tmp_path: Path,
+) -> None:
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    first_dir.mkdir()
+    second_dir.mkdir()
+    reader, _gate_up, _down, _info = _dense_expert_shard(first_dir)
+    other, _gate_up, _down, _info = _dense_expert_shard(second_dir)
+    stand = PoolReadingStand({0: reader})
+    pool = _dense_pool(reader, stand)
+    try:
+        with pytest.raises(ValueError, match="not registered"):
+            stand.read(other, 0, 0)
+    finally:
+        pool.close()
+
+
+def test_selecting_the_loader_opens_its_stream_for_the_pool(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The setup path hands the selected loader's stream to ``ExpertBufferPool``."""
+    import types
+
+    from soup_cli.utils.expert_stream import ExpertBufferPool
+    from soup_cli.utils.layer_stream_runtime import _prepare_expert_streaming
+
+    reader, _gate_up, _down, info = _dense_expert_shard(tmp_path)
+    monkeypatch.setattr(
+        "soup_cli.utils.layer_shard.expert_paths", lambda shard_dir, index: {0: reader.path}
+    )
+    monkeypatch.setattr(
+        "soup_cli.utils.expert_stream.install_streamed_experts", lambda *args, **kwargs: 0
+    )
+    seen: Dict[str, Any] = {}
+
+    def fake_open(readers: Mapping[int, Any], **kwargs: Any) -> Any:
+        seen["readers"] = dict(readers)
+        seen["kwargs"] = kwargs
+        return PoolReadingStand(readers)
+
+    monkeypatch.setattr("soup_cli.utils.expert_loader.open_native_stream", fake_open)
+    index = types.SimpleNamespace(
+        expert_count=info.count,
+        expert_shapes=info.shapes,
+        expert_quant_specs=info.quant_specs,
+        dtype="float32",
+    )
+    pool, readers = _prepare_expert_streaming(
+        [object()],
+        str(tmp_path),
+        index,
+        device="cpu",
+        codes=None,
+        expert_loader="cpp_async_2slot",
+    )
+    try:
+        assert isinstance(pool, ExpertBufferPool)
+        assert pool.stream is not None
+        assert seen["readers"] == {0: readers[0]}
+        assert readers[0].count == info.count
+    finally:
+        pool.close()
+
+
+def test_the_compiled_two_slot_stream_feeds_the_pool(tmp_path: Path) -> None:
+    """The real ``PackedStreamAsync`` drives the pool; skipped until it is built."""
+    if importlib.util.find_spec("_native_expert_stream_async") is None:
+        pytest.skip(
+            "_native_expert_stream_async is not built; run "
+            "python src/soup_cli/utils/_native_expert_async/build_ext.py "
+            "build_ext --build-lib /tmp/native-ext"
+        )
+    from soup_cli.utils.expert_loader import open_native_stream
+    from tests.test_direct_expert_backward_mode import FusedCpuBackend
+
+    reader, gate_up, down, _info = _dense_expert_shard(tmp_path)
+    stream = open_native_stream({0: reader})
+    pool = _dense_pool(reader, stream)
+    hidden = torch.randn(DENSE_ROWS, DENSE_HIDDEN)
+    weights = torch.rand(DENSE_ROWS, 1)
+    backend = FusedCpuBackend()
+    reference_backend = FusedCpuBackend()
+    try:
+        for expert in (2, 0):
+            expected = reference_backend.expert_forward(
+                hidden, weights, gate_up[expert], down[expert], [DENSE_ROWS]
+            )
+            with pool.lease(reader, expert) as (lease_up, lease_down):
+                assert torch.equal(
+                    backend.expert_forward(hidden, weights, lease_up, lease_down, [DENSE_ROWS]),
+                    expected,
+                ), f"expert {expert} came back wrong"
+        assert pool.stats()["fetches"] == 2
+    finally:
+        pool.close()
