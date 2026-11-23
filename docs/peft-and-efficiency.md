@@ -761,6 +761,21 @@ The experimental QuEST route (`quantization_aware: quest`) refuses this flag at
 config load because its evidence covers BF16, not FP16; see the
 [QuEST evidence boundary](performance-and-quantization.md#evidence-boundary).
 
+### fp16 loss-scale start (`training.fp16_init_scale`)
+
+```yaml
+training:
+  fp16_init_scale: 256    # power of two, 1..65536; unset = torch's 65536
+```
+
+The fp16 GradScaler starts at 65536 and halves on every step whose gradients overflow, skipping
+that step. A model that overflows far below the start therefore trains only after several
+skipped steps. Qwen3.5 / Qwen3.8 on a T4 overflow in the first Gated DeltaNet layer from a
+scale of 1024 (finite at 256), so with the default about the first 7 optimizer steps change
+nothing; in a 6-step Kaggle run every step was skipped. `256` trains from the first step; the
+scaler still grows (every 2000 good steps) and backs off as usual. Transformers SFT only; a note
+is printed when the run is not fp16.
+
 ### Loss Spike Auto-Recovery
 
 Extends the watchdog: instead of stopping on a spike, writes `<output>/spike_recovery.json` with decayed LR and attempt count for re-launch. Capped at 3 attempts by default.
