@@ -1488,7 +1488,23 @@ from the last to the first, so the autograd engine, which runs the node with the
 number first, meets micro-batch 0's nodes first and adds every weight's contributions in
 micro-batch order, in one engine call per group instead of one plus one per micro-batch. It is
 only valid with `route_preserving_mbr=True` and excludes `mbr_split_backward`. Rows, outputs and
-routes keep micro-batch order. `expert_gemm_context("lt-fused")` (API only, off by default) keeps the A0 bits of a grouped MBR
+routes keep micro-batch order.
+
+`L2LStep.run(..., route_preserving_mbr=True, mbr_decoupled_subwindow=True)` (an API option, no
+config field and no CLI flag, off by default) decouples the MBR backward into three passes. A
+no-grad pass runs attention and the router per micro-batch and keeps only the routed experts'
+inputs and routes; one streaming per-expert backward then runs over the whole group straight from
+those detached inputs, with the group's micro-batch row counts as the segments of every expert
+matmul, so no `top_k`-fold gathered state and no full-window sorted buffers are kept; finally the
+non-expert part of a sub-window of micro-batches (`mbr_recompute_subwindow`, default 1) is
+recomputed under grad, differentiated against the layer's output and the injected expert
+gradients, and freed before the next sub-window. Peak autograd memory stays O(sub-window) across
+any group size, the gradient accumulation order is plain L2L's, and on the CPU tiny-MoE seam it
+is bit-equal to L2L on NF4 + BF16 for k=1, 2 and 4. Dense FP32 keeps a ~1e-7 gradient gap from
+the multi-root backward's addition order at the residual. It excludes `mbr_split_backward` and
+`mbr_ordered_backward`.
+
+`expert_gemm_context("lt-fused")` (API only, off by default) keeps the A0 bits of a grouped MBR
 step by running each micro-batch segment's expert GEMM through a cuBLASLt call forced onto the
 native kernel; it needs CUDA sm_80+, PyTorch 2.14 and a compiler, and raises instead of falling
 back to native ([`expert-forward.md`](expert-forward.md#exact-expert-gemm-lt-fused-experimental-off-by-default)).
