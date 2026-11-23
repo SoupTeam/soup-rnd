@@ -1537,6 +1537,15 @@ Two more off-by-default switches of the expert pool and the expert
 loop (`ExpertBufferPool.async_lease`, `StreamedExperts.fast_row_gather`) are described in
 [`expert-forward.md`](expert-forward.md#host-side-levers-async_lease-and-fast_row_gather-experimental-off-by-default).
 
+Bit equality with A0 holds in the deterministic setup, not in normal mode. On the default SDPA
+backend two runs of the same arm can differ in the LoRA gradients while the loss stays bit-equal,
+because the memory-efficient attention backward sums `dQ` across key blocks in an order that
+`warn_only` determinism does not fix; the math backend or strict
+`torch.use_deterministic_algorithms(True)` restores equality. Measured on Moonlight-16B-A3B
+(RTX 3050 Laptop, k=1, S=512): 105 of 216 gradients differ in every pair of three runs, 0 of 216
+on math and at S=64
+([`benchmarks/mbr-moonlight-nondet-20261123/results.md`](../benchmarks/mbr-moonlight-nondet-20261123/results.md)).
+
 The 2026-11-17 Moonlight-16B-A3B Soup bridge measured group sizes 1/2/4/8 on one fixed
 512-token window. Group 8 reduced logical expert reads by 84.1% and took 18.37 s versus
 98.27 s for the matched two-read L2L control, with 9.95% relative raw-gradient difference and
