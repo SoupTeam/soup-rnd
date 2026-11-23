@@ -366,6 +366,14 @@ same bytes driving `FusedCpuBackend`, and the compiled stream itself when it is 
 extension is built: `tests/test_nf4_decoder_bnb.py` (decoder against bitsandbytes 0.50.2 on
 `uint16`) and `tests/test_native_expert_async_race.py` (rings 2/4/8, cancel, read failure).
 
+Measured on Moonlight-16B-A3B (RTX 3050 Laptop, `benchmarks/mbr-moonlight-loader-20261123/`):
+the stream is bit-equal to A0 at k = 1, 2, 4, 8 and at k = 8 on the S = 512 math backend, and it
+differs from C at k = 64, which the campaign records without blocking. It is not faster than
+`async_lease`: +1.90% on (8,64), -2.02% on (8,512), -0.81% on (64,64), five paired G-H-H-G blocks
+each, against a gate of 3% and t > 2.78. Memory is equal to three digits. The Python controller is
+0.45% of the step (`CppPackedStream.read`, `PackedStreamPlan.entry_for`), so no C++ controller was
+written. The arm stays an opt-in experiment and `async_lease` stays the default.
+
 ## Local checks
 
 ```text
