@@ -1586,6 +1586,7 @@ class StreamingSetupMixin:
             grouped_expert_routes=bool(getattr(tcfg, "l2l_grouped_expert_routes", False)),
             route_preserving_mbr=bool(getattr(tcfg, "l2l_route_preserving_mbr", False)),
             mbr_group_size=getattr(tcfg, "l2l_mbr_group_size", None),
+            routing_oracle=bool(getattr(tcfg, "l2l_routing_oracle", False)),
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
@@ -1596,6 +1597,11 @@ class StreamingSetupMixin:
                 "[yellow]Experimental route-preserving MBR:[/] grouped routed-expert FFN "
                 f"size {tcfg.l2l_mbr_group_size or effective_k}; attention/router stay "
                 "micro-batch-local"
+            )
+        if getattr(tcfg, "l2l_routing_oracle", False):
+            console.print(
+                "[yellow]Experimental routing Oracle:[/] the MBR recompute replays the "
+                "forward's router choices and scores"
             )
         return trainer
 

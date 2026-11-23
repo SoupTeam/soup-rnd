@@ -194,6 +194,10 @@ class L2LState:
     grouped_expert_routes: bool = False
     route_preserving_mbr: bool = False
     mbr_group_size: Optional[int] = None
+    #: Replay the MBR forward's router choices instead of recomputing them (off by default).
+    routing_oracle: bool = False
+    #: Created on the first step when ``routing_oracle`` is set; closed with the state.
+    _routing_oracle: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.loss is None:
@@ -257,6 +261,8 @@ class L2LState:
         if self.route_preserving_mbr:
             fields["l2l_route_preserving_mbr"] = True
             fields["l2l_mbr_group_size"] = self.mbr_group_size or self.effective_k
+        if self.routing_oracle:
+            fields["l2l_routing_oracle"] = True
         return fields
 
     def spill_directory(self) -> str:
@@ -276,6 +282,9 @@ class L2LState:
     def close(self) -> None:
         """Release the routing reservation only after activation users have drained."""
         self.close_store()
+        if self._routing_oracle is not None:
+            self._routing_oracle.close()
+            self._routing_oracle = None
         if self._routing_lease is not None:
             self._routing_lease.close()
             self._routing_lease = None
@@ -701,6 +710,15 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
     return state.store
 
 
+def _oracle_for(state: L2LState, model: Any) -> Any:
+    """The trainer's one routing Oracle, created on first use and closed with the state."""
+    if state._routing_oracle is None:
+        from soup_cli.utils.routing_oracle import DeepseekRoutingOracle
+
+        state._routing_oracle = DeepseekRoutingOracle(model, pin=None)
+    return state._routing_oracle
+
+
 def run_window(
     state: L2LState,
     model: Any,
@@ -738,6 +756,7 @@ def run_window(
         **routing,
         route_preserving_mbr=state.route_preserving_mbr,
         mbr_group_size=state.mbr_group_size,
+        routing_oracle=_oracle_for(state, model) if state.routing_oracle else None,
     )
     return losses, stepper.counters
 
@@ -852,6 +871,7 @@ def attach_l2l_state(
     grouped_expert_routes: bool = False,
     route_preserving_mbr: bool = False,
     mbr_group_size: Optional[int] = None,
+    routing_oracle: bool = False,
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
@@ -887,6 +907,7 @@ def attach_l2l_state(
         grouped_expert_routes=grouped_expert_routes,
         route_preserving_mbr=route_preserving_mbr,
         mbr_group_size=mbr_group_size,
+        routing_oracle=routing_oracle,
     )
     trainer._soup_l2l = state
     return state

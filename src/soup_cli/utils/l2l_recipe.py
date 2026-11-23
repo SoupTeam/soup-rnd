@@ -30,6 +30,7 @@ class L2LRecipe:
     grouped_expert_routes: bool = False
     route_preserving_mbr: bool = False
     mbr_group_size: Optional[int] = None
+    routing_oracle: bool = False
 
 
 def validate_l2l_options(tcfg: Any) -> None:
@@ -65,6 +66,11 @@ def resolve_l2l_recipe(tcfg: Any, *, effective_k: int | None = None) -> L2LRecip
             f"training.l2l_mbr_group_size={mbr_group_size} exceeds the "
             f"effective L2L window of {effective_k} micro-batches"
         )
+    routing_oracle = bool(getattr(tcfg, "l2l_routing_oracle", False))
+    if routing_oracle and not bool(getattr(tcfg, "l2l_route_preserving_mbr", False)):
+        raise ValueError(
+            "training.l2l_routing_oracle requires training.l2l_route_preserving_mbr=true"
+        )
     return L2LRecipe(
         requested_k=requested,
         effective_k=effective_k,
@@ -74,6 +80,7 @@ def resolve_l2l_recipe(tcfg: Any, *, effective_k: int | None = None) -> L2LRecip
         grouped_expert_routes=bool(getattr(tcfg, "l2l_grouped_expert_routes", False)),
         route_preserving_mbr=bool(getattr(tcfg, "l2l_route_preserving_mbr", False)),
         mbr_group_size=mbr_group_size,
+        routing_oracle=routing_oracle,
     )
 
 
@@ -123,6 +130,7 @@ def validate_resume(output_dir: "str | os.PathLike[str]", recipe: L2LRecipe) -> 
         "grouped_expert_routes",
         "route_preserving_mbr",
         "mbr_group_size",
+        "routing_oracle",
     ):
         before, now = getattr(saved, name), getattr(recipe, name)
         if before != now:

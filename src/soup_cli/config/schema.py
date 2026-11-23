@@ -3613,6 +3613,15 @@ class TrainingConfig(BaseModel):
             "Only valid with l2l_route_preserving_mbr=true; null means the full effective window."
         ),
     )
+    l2l_routing_oracle: bool = Field(
+        default=False,
+        description=(
+            "EXPERIMENTAL — keep the first forward's router choices and forward scores and "
+            "replay them in the MBR recompute, so the recompute runs no router linear or top-k. "
+            "Only valid with l2l_route_preserving_mbr=true. Off by default; on CPU the dense "
+            "FP32 normalize branch is not bit-neutral (~1e-7 relative L2), BF16 is."
+        ),
+    )
 
     @field_validator("l2l_spill_dir")
     @classmethod
@@ -6686,6 +6695,7 @@ class SoupConfig(BaseModel):
             "l2l_grouped_expert_routes": tcfg.l2l_grouped_expert_routes,
             "l2l_route_preserving_mbr": tcfg.l2l_route_preserving_mbr,
             "l2l_mbr_group_size": tcfg.l2l_mbr_group_size is not None,
+            "l2l_routing_oracle": tcfg.l2l_routing_oracle,
         }
         for name, differs_from_default in l2l_options.items():
             if differs_from_default and not tcfg.l2l:
@@ -6848,6 +6858,10 @@ class SoupConfig(BaseModel):
         elif tcfg.l2l_mbr_group_size is not None:
             raise ValueError(
                 "training.l2l_mbr_group_size requires training.l2l_route_preserving_mbr=true"
+            )
+        if tcfg.l2l_routing_oracle and not tcfg.l2l_route_preserving_mbr:
+            raise ValueError(
+                "training.l2l_routing_oracle requires training.l2l_route_preserving_mbr=true"
             )
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
