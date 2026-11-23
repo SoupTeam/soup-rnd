@@ -232,7 +232,10 @@ recompute, backward), one copy per stored component.
 
 Prefetch changes when a read starts, never which bytes are read. `reader.fetches` and
 `reader.bytes_read` also count a read-ahead that was discarded, while the pool's `fetches` and
-`logical_bytes_read` count only the loads a lease used. A `last_trace` row's
+`logical_bytes_read` count only the loads a lease used. A lease that fails after its read (a copy
+or a dequantise error) used no expert, so it counts no bytes in either figure: its `last_trace`
+row is an error row with zero `logical_bytes_read`, and the counter takes that same zero even
+though the bytes reached the host. A `last_trace` row's
 `logical_bytes_read` is the bytes of its own lease — the same figure the counter took — on the
 `cpp_async_2slot` stream and in `backward_from_inputs` as well as the Python path. A hint is
 not issued for an expert already in the host cache. Measured on Moonlight (RTX 3060, MBR group 8) with
