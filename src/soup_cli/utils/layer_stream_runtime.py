@@ -4013,6 +4013,12 @@ def install_streaming(
     ``read_ahead`` came about, so the page-lock messages advise a depth that is
     not raised straight back up on a striped cache.
     """
+    from soup_cli.utils.expert_loader import resolve_expert_loader
+
+    # The selected loader's requirements are checked here too, not only in the trainer: an
+    # API caller asking for ``cpp_async_2slot`` on a CPU host gets the refusal before the
+    # model, the cache or the pool is touched, never a silent Python lease (ADR 0002).
+    resolve_expert_loader(expert_loader)
     import torch
 
     from soup_cli.utils.layer_shard import (

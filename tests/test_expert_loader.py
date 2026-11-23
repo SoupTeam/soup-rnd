@@ -916,6 +916,32 @@ def test_the_compiled_two_slot_stream_feeds_the_pool(tmp_path: Path) -> None:
         pool.close()
 
 
+def test_the_runtime_refuses_the_cpp_loader_without_cuda(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MEDIUM-2: ``build_streamed_model`` refuses too, not only the trainer path."""
+    from soup_cli.utils.layer_stream_runtime import build_streamed_model
+    from tests.test_b2_deepseek_v3_stream import _lora
+    from tests.test_complete_packed_transfer import _tiny_cache
+
+    monkeypatch.setattr(
+        "soup_cli.utils.expert_loader.detect_loader_environment",
+        lambda: env(extension_available=True, cuda_available=False),
+    )
+    config, weights, shards, index = _tiny_cache(tmp_path, per_expert=True)
+    with pytest.raises(CppAsyncLoaderUnavailableError, match="CUDA"):
+        build_streamed_model(
+            model_id=str(weights),
+            shard_dir=shards,
+            index=index,
+            lora_config=_lora(config),
+            device="cpu",
+            dtype="float32",
+            pin=False,
+            expert_loader="cpp_async_2slot",
+        )
+
+
 # ---------------------------------------------------------------- trace vs counter
 #
 # ``benchmarks/results/b1.2-olmoe-forward-20261020/analyze.py`` holds the invariant
