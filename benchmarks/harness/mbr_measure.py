@@ -151,11 +151,22 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
 # adds the exact expert GEMM (``lt-fused``), F the async lease, G the light row gathers. They run
 # the step options of C; the levers are switched outside ``L2LStep.run`` (``arm_runtime``).
 LEVER_ARMS: Dict[str, Dict[str, Any]] = {
-    "E": {"expert_gemm": "lt-fused", "async_lease": False, "fast_row_gather": False},
-    "F": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": False},
-    "G": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": True},
+    "E": {"expert_gemm": "lt-fused", "async_lease": False, "fast_row_gather": False,
+          "expert_loader": "async_lease"},
+    "F": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": False,
+          "expert_loader": "async_lease"},
+    "G": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": True,
+          "expert_loader": "async_lease"},
+    # Ticket 05: the same stack as G with the expert pool fed by the compiled two-slot stream.
+    "H": {"expert_gemm": "lt-fused", "async_lease": True, "fast_row_gather": True,
+          "expert_loader": "cpp_async_2slot"},
 }
-LEVER_PREVIOUS = {"E": "C", "F": "E", "G": "F"}
+LEVER_PREVIOUS = {"E": "C", "F": "E", "G": "F", "H": "G"}
+# The local gate of ticket 05 compares the cpp loader arm with the Python lease on the windows
+# that fit 4 GiB, and asks for two of the three (the main track asks three of four).
+LOADER_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64))
+LOADER_MIN_WINDOWS = 2
+LOADER_PREVIOUS, LOADER_ARM = "G", "H"
 LEVER_MIN_GAIN = 0.03
 LEVER_MIN_WINDOWS = 3
 LEVER_T_CRITICAL = 2.78  # two-sided 5% with 4 degrees of freedom (5 blocks)
@@ -169,9 +180,25 @@ def ladder_arms(k: int) -> Tuple[str, ...]:
 
 
 def arm_runtime(arm: str) -> Dict[str, Any]:
-    """The levers outside ``L2LStep.run``: expert GEMM mode, async lease, fast row gather."""
+    """The levers outside ``L2LStep.run``: expert GEMM mode, async lease, fast row gather, and
+    which loader feeds the expert pool (``async_lease`` unless the arm is H)."""
     return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
-                                     "fast_row_gather": False}))
+                                     "fast_row_gather": False,
+                                     "expert_loader": "async_lease"}))
+
+
+def loader_speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
+    """Normal-mode G-H-H-G blocks over the three fitting windows (ticket 05).
+
+    G is the current stack with the Python lease (A), H the same stack with ``cpp_async_2slot``
+    (B). The block order is the two-arm ``BLOCK_ORDER`` of ``METHOD.md``: each hand sits at mean
+    position 2.5, so a steady drift of the host cancels in the paired gain. The ticket names the
+    three-arm ``A-B-C-C-B-A``; that order needs three hands and this gate has two.
+    """
+    return [{"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
+             "deterministic": False}
+            for block in range(blocks) for k, seq in LOADER_WINDOWS
+            for arm in (LOADER_PREVIOUS, LOADER_ARM, LOADER_ARM, LOADER_PREVIOUS)]
 
 
 def lever_speed_plan(*, blocks: int = 1) -> List[Dict[str, Any]]:
@@ -210,12 +237,15 @@ def _paired_t(gains: Sequence[float]) -> Optional[float]:
     return statistics.mean(gains) / (spread / len(gains) ** 0.5)
 
 
-def lever_gate(rows: Sequence[Dict[str, Any]], *, lever: str, previous: str) -> Dict[str, Any]:
+def lever_gate(rows: Sequence[Dict[str, Any]], *, lever: str, previous: str,
+               windows: Sequence[Tuple[int, int]] = WINDOWS,
+               min_windows: int = LEVER_MIN_WINDOWS) -> Dict[str, Any]:
     """The D1 gates of one lever against the arm before it: bits against the reference arm of each
     k (A0 at k <= 8, C above it; ladder, deterministic rows), peak VRAM in every window (an OOM of
     the previous arm that the lever removes counts as a reason to take it), and speed (at least 3%
-    in at least 3 of 4 windows; with 5 or more blocks the paired t of the per-block gains must
-    exceed 2.78 too)."""
+    in at least ``min_windows`` of ``windows``; with 5 or more blocks the paired t of the per-block
+    gains must exceed 2.78 too). The defaults are the main-track gate; ticket 05 passes its three
+    fitting windows and two of three."""
     bit_rows = [r for r in rows if r.get("kind") == "bits"]
     verdicts = ladder_verdict(bit_rows)
     # The ladder of k <= 8 stays the gate it was; a k above it counts when it has bits rows.
@@ -224,7 +254,7 @@ def lever_gate(rows: Sequence[Dict[str, Any]], *, lever: str, previous: str) -> 
     speed_rows = [r for r in rows if r.get("kind") == "speed"]
     table = summarize_rows(speed_rows)
     windows_won, relief, worse, detail = 0, [], [], {}
-    for k, seq in WINDOWS:
+    for k, seq in windows:
         now, before = table.get((lever, k, seq)), table.get((previous, k, seq))
         if now is None or before is None:
             continue
@@ -253,9 +283,9 @@ def lever_gate(rows: Sequence[Dict[str, Any]], *, lever: str, previous: str) -> 
     return {
         "bits": {"pass": not differs, "differs_at": differs},
         "vram": {"pass": vram_pass, "worse_in": worse, "oom_relief": relief},
-        "speed": {"pass": windows_won >= LEVER_MIN_WINDOWS or (vram_pass and bool(relief)),
+        "speed": {"pass": windows_won >= min_windows or (vram_pass and bool(relief)),
                   "windows_won": windows_won, "windows": detail,
-                  "needed_for_vram": bool(relief) and windows_won < LEVER_MIN_WINDOWS,
+                  "needed_for_vram": bool(relief) and windows_won < min_windows,
                   "t_test": "not computed (fewer than 5 blocks)" if blocks < 5 else "computed"},
     }
 
@@ -574,6 +604,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 device=device, dtype="bfloat16" if cuda else "float32", buffers=2, pin=False,
                 seed=0, quant="nf4" if cuda else "none", double_quant=False, tier="ram",
                 read_ahead=1, two_read_experts=True, grouped_expert_routes=True,
+                expert_loader=runtime_levers["expert_loader"],
                 **({"expert_transfer": "packed"} if cuda else {}))
         try:
             model.train()
@@ -611,6 +642,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             out: Dict[str, Any] = {
                 "tensor_file": tensor_name,
                 "attention": "math" if args.math_attention else "default",
+                "expert_loader": runtime_levers["expert_loader"],
                 "step_seconds": median_after_warmup(seconds), "all_step_seconds": seconds,
                 "loss": float(sum(float(x) for x in losses)), "levers": runtime_levers,
                 "grad_sha256": grad_digest(grads), "vram_limit_gib": vram_limit or None,
@@ -795,7 +827,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
 
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba"):
+    for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba",
+                 "loader-speed"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -842,6 +875,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             "abba": lambda: abba_plan(blocks=args.blocks, start_block=args.start_block),
             "bits": lambda: bit_plan(seq=args.seq, ks=args.ladder_ks), "profile": profile_plan,
             "lever-speed": lambda: lever_speed_plan(blocks=args.blocks),
+            "loader-speed": lambda: loader_speed_plan(blocks=args.blocks),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
     if args.command in ("bits", "lever-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]
