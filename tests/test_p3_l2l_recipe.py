@@ -35,6 +35,7 @@ def test_default_recipe_uses_the_accumulation_steps_as_effective_k():
     assert not recipe.grouped_expert_routes
     assert not recipe.route_preserving_mbr
     assert recipe.mbr_group_size is None
+    assert not recipe.routing_oracle
 
 
 def test_fp8_codec_is_refused_at_launch_by_name():
@@ -114,11 +115,33 @@ def test_mbr_recipe_records_streaming_switches_and_group_size(tmp_path, monkeypa
         l2l_grouped_expert_routes=True,
         l2l_route_preserving_mbr=True,
         l2l_mbr_group_size=4,
+        l2l_routing_oracle=True,
     ))
     write_recipe(tmp_path / "out", recipe)
     assert load_recipe(tmp_path / "out") == recipe
     assert recipe.mbr_group_size == 4
     assert recipe.route_preserving_mbr
+    assert recipe.routing_oracle
+
+
+def test_routing_oracle_requires_mbr_and_is_recorded_for_resume(tmp_path, monkeypatch):
+    from dataclasses import replace
+
+    from soup_cli.utils.l2l_recipe import resolve_l2l_recipe, validate_resume, write_recipe
+
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError, match="l2l_routing_oracle requires"):
+        resolve_l2l_recipe(_tcfg(l2l_routing_oracle=True))
+    recipe = resolve_l2l_recipe(_tcfg(
+        l2l_two_read_experts=True,
+        l2l_grouped_expert_routes=True,
+        l2l_route_preserving_mbr=True,
+        l2l_routing_oracle=True,
+    ))
+    write_recipe(tmp_path / "out", recipe)
+    validate_resume(tmp_path / "out", recipe)
+    with pytest.raises(ValueError, match="routing_oracle"):
+        validate_resume(tmp_path / "out", replace(recipe, routing_oracle=False))
 
 
 def test_resume_refuses_a_changed_mbr_recipe(tmp_path, monkeypatch):
@@ -148,6 +171,7 @@ def test_resume_refuses_a_changed_mbr_recipe(tmp_path, monkeypatch):
         ("grouped_expert_routes", False),
         ("route_preserving_mbr", False),
         ("mbr_group_size", 2),
+        ("routing_oracle", False),
     ],
 )
 def test_resume_rejects_each_mbr_switch_change(tmp_path, monkeypatch, field, value):
@@ -165,6 +189,7 @@ def test_resume_rejects_each_mbr_switch_change(tmp_path, monkeypatch, field, val
         grouped_expert_routes=True,
         route_preserving_mbr=True,
         mbr_group_size=8,
+        routing_oracle=True,
     )
     write_recipe(tmp_path, recipe)
     validate_resume(tmp_path, recipe)
@@ -190,6 +215,7 @@ def test_old_recipe_defaults_new_experimental_fields_to_off(tmp_path):
     assert recipe is not None
     assert not recipe.route_preserving_mbr
     assert recipe.mbr_group_size is None
+    assert not recipe.routing_oracle
 
 
 @pytest.mark.parametrize(
@@ -197,6 +223,7 @@ def test_old_recipe_defaults_new_experimental_fields_to_off(tmp_path):
     [
         ({"l2l_route_preserving_mbr": True}, "requires both"),
         ({"l2l_mbr_group_size": 2}, "requires training.l2l_route_preserving_mbr"),
+        ({"l2l_routing_oracle": True}, "l2l_routing_oracle requires"),
         (
             {
                 "l2l_two_read_experts": True,
