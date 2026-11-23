@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""Ticket 05, part 2: tables from the bits ladders and the loader speed blocks.
+
+Reads the sweeps written by ``run_bits.sh`` and ``run_speed.sh`` (``rows.jsonl``,
+``arm_records.jsonl`` and ``tensors/`` under ``--root``) and writes:
+
+- ``analysis.json``: the bits verdicts with the diff detail, the H-against-G speed gate, per
+  block gains, the memory cells and the ArmWatch check summary;
+- ``rows.md``: one result line per measured cell, each naming model, card, window, arm, mode and
+  torch version (the reporting rule of the map).
+
+``torch.equal`` on the saved loss and every LoRA gradient decides the bits verdicts; the
+reference arm is A0 at k <= 8 and C above it, as in the harness. Benchmark code, not shipped.
+
+    python analyze.py --root benchmarks/mbr-moonlight-loader-20261123
+
+The raw data (``rows.jsonl``, ``arm_records.jsonl``, ``tensors/``) lives inside this campaign
+folder in the repository, never outside it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import statistics
+import sys
+from collections import Counter
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+REPO = Path(__file__).resolve().parents[2]
+for entry in (str(REPO), str(REPO / "benchmarks")):
+    if entry not in sys.path:
+        sys.path.insert(0, entry)
+
+from benchmarks.harness import mbr_measure as mm  # noqa: E402
+
+MODEL = "Moonlight-16B-A3B"
+CARD = "RTX 3050 Laptop sm_86 4 GiB"
+BITS_FOLDERS = ("s64", "s512-math", "k64")
+SPEED_FOLDER = "speed"
+
+
+def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
+def _torch(rows: Sequence[Dict[str, Any]]) -> str:
+    versions = [r.get("environment", {}).get("versions", {}).get("torch")
+                for r in rows if r.get("status") == "ok"]
+    return next((v for v in versions if v), "unknown")
+
+
+def _gib(value: Optional[int]) -> str:
+    return "-" if value is None else f"{value / 2**30:.2f}"
+
+
+def _peaks(rows: Sequence[Dict[str, Any]], name: str) -> Optional[int]:
+    values = [r[name] for r in rows if r.get(name) is not None]
+    return max(values) if values else None
+
+
+def _result_lines(rows: Sequence[Dict[str, Any]], *, kind: str) -> List[str]:
+    """One line per (arm, k, seq) cell, naming model, card, window, arm, mode and torch."""
+    cells: Dict[Tuple[str, int, int], List[Dict[str, Any]]] = {}
+    for row in rows:
+        cells.setdefault((row["arm"], row["k"], row["seq"]), []).append(row)
+    torch = _torch(rows)
+    lines = []
+    ordered = sorted(cells.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][0]))
+    for (arm, k, seq), group in ordered:
+        status = next((r.get("status") for r in group if r.get("status") != "ok"), "ok")
+        losses = [r["loss"] for r in group if r.get("status") == "ok"]
+        clocks = [r.get("levers", {}).get("expert_loader") for r in group]
+        loader = next((c for c in clocks if c), "async_lease")
+        mode = "bits (deterministic)" if kind == "bits" else "speed (normal)"
+        text = (f"- {MODEL}, {CARD}, window ({k},{seq}), arm {arm} ({loader} loader), mode "
+                f"{mode}, torch {torch}: {status}")
+        if losses:
+            text += f", loss {losses[-1]:.6f}"
+        text += (f", allocated {_gib(_peaks(group, 'peak_allocated'))} GiB"
+                 f", reserved {_gib(_peaks(group, 'peak_reserved'))} GiB"
+                 f", NVML {_gib(_peaks(group, 'peak_nvml'))} GiB"
+                 f", RAM {_gib(_peaks(group, 'peak_ram'))} GiB")
+        if len(group) > 1:
+            text += f", runs {len(group)}"
+        lines.append(text)
+    return lines
+
+
+def _diff_detail(tensor_dir: Path, base: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
+    import torch
+
+    ref = torch.load(tensor_dir / base["tensor_file"], weights_only=True)
+    row = torch.load(tensor_dir / other["tensor_file"], weights_only=True)
+    differing = [name for name in ref["grads"]
+                 if not torch.equal(ref["grads"][name], row["grads"][name])]
+    max_diff = max((float((ref["grads"][name] - row["grads"][name]).abs().max())
+                    for name in differing), default=0.0)
+    max_grad = max(float(value.abs().max()) for value in ref["grads"].values())
+    return {"loss_equal": bool(torch.equal(ref["loss"], row["loss"])),
+            "grads_differing": len(differing), "grads_total": len(ref["grads"]),
+            "max_abs_diff": max_diff, "max_abs_grad": max_grad}
+
+
+def _bits(folder: Path) -> Dict[str, Any]:
+    rows = _read_jsonl(folder / "rows.jsonl")
+    verdicts = mm.tensor_ladder_verdict(rows, tensor_dir=folder / "tensors")
+    detail: Dict[str, Any] = {}
+    for (k, arm), verdict in sorted(verdicts.items()):
+        if verdict != "differs":
+            continue
+        base = next((r for r in rows if r["k"] == k and r["arm"] == mm.reference_arm(k)
+                     and r.get("status") == "ok"), None)
+        other = next(r for r in rows if r["k"] == k and r["arm"] == arm)
+        if base is not None:
+            detail[f"k{k}-{arm}"] = _diff_detail(folder / "tensors", base, other)
+    return {"folder": str(folder),
+            "verdicts": {f"k{k}-{arm}": v for (k, arm), v in sorted(verdicts.items())},
+            "diff_detail": detail,
+            "h_equal": {f"k{k}": verdicts.get((k, "H")) for k in sorted({r["k"] for r in rows})}}
+
+
+def _valid_runs(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Rows a verdict may read: a void run is never counted and is replaced (``speed-rule.md``,
+    ``METHOD.md``); its record stays in ``arm_records.jsonl`` and its raw row in ``rows.jsonl``."""
+    return [r for r in rows if r.get("outcome", "ok") == "ok"]
+
+
+def _speed(folder: Path) -> Dict[str, Any]:
+    rows = _valid_runs(_read_jsonl(folder / "rows.jsonl"))
+    records = _read_jsonl(folder / "arm_records.jsonl")
+    table = mm.summarize_rows(rows)
+    windows: Dict[str, Any] = {}
+    for k, seq in mm.LOADER_WINDOWS:
+        per_block: Dict[int, Dict[str, List[float]]] = {}
+        for row in rows:
+            if (row["k"], row["seq"]) == (k, seq) and row.get("status") == "ok":
+                per_block.setdefault(row["block"], {}).setdefault(row["arm"], []).append(
+                    row["step_seconds"])
+        gains, g_steps, h_steps = [], [], []
+        for block in sorted(per_block):
+            arms = per_block[block]
+            if "G" not in arms or "H" not in arms:
+                continue
+            g, h = statistics.median(arms["G"]), statistics.median(arms["H"])
+            g_steps.append(g)
+            h_steps.append(h)
+            gains.append(1 - h / g)
+        if len(gains) >= 2:
+            spread = statistics.stdev(gains)
+            t_value = (statistics.mean(gains) / (spread / len(gains) ** 0.5)
+                       if spread else float("inf") if statistics.mean(gains) > 0 else 0.0)
+        else:
+            t_value = None
+        windows[f"({k},{seq})"] = {
+            "G_step_s": round(statistics.mean(g_steps), 2) if g_steps else None,
+            "H_step_s": round(statistics.mean(h_steps), 2) if h_steps else None,
+            "gains_pct": [round(g * 100, 2) for g in gains],
+            "mean_gain_pct": round(statistics.mean(gains) * 100, 2) if gains else None,
+            "t": None if t_value is None else round(t_value, 2),
+            "mem_G": {name: table.get(("G", k, seq), {}).get(name)
+                      for name in ("peak_allocated", "peak_reserved", "peak_nvml", "peak_ram")},
+            "mem_H": {name: table.get(("H", k, seq), {}).get(name)
+                      for name in ("peak_allocated", "peak_reserved", "peak_nvml", "peak_ram")},
+        }
+    outcomes = Counter(record["outcome"] for record in records)
+    clock_max = [record["gpu_clock"]["sm_clock_mhz"]["max"] for record in records]
+    failed_checks = Counter(
+        name for record in records for name, check in record["checks"].items()
+        if check["outcome"] != "ok")
+    return {"folder": str(folder),
+            "windows": windows,
+            "outcomes": dict(outcomes),
+            "check_failures": dict(failed_checks),
+            "gpu_clock_max_min": min(c for c in clock_max if c is not None),
+            "blocks": max((r.get("block", 0) for r in rows), default=0) + 1}
+
+
+def main(argv: object = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", required=True, type=Path)
+    args = parser.parse_args(argv)
+
+    bits_rows: List[Dict[str, Any]] = []
+    bits: Dict[str, Any] = {}
+    for name in BITS_FOLDERS:
+        folder = args.root / name
+        bits[name] = _bits(folder)
+        bits_rows += _read_jsonl(folder / "rows.jsonl")
+    speed_rows = _valid_runs(_read_jsonl(args.root / SPEED_FOLDER / "rows.jsonl"))
+    speed = _speed(args.root / SPEED_FOLDER)
+    gate = mm.lever_gate(bits_rows + speed_rows, lever="H", previous="G",
+                         windows=mm.LOADER_WINDOWS, min_windows=mm.LOADER_MIN_WINDOWS)
+    analysis = {"bits": bits, "speed": speed, "gate": gate}
+    (args.root / "analysis.json").write_text(json.dumps(analysis, indent=2), encoding="utf-8")
+    lines = ["# Result lines (ticket 05, part 2)", ""]
+    lines += _result_lines(bits_rows, kind="bits")
+    lines.append("")
+    lines += _result_lines(speed_rows, kind="speed")
+    (args.root / "rows.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(json.dumps({"gate": gate, "speed": speed}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
