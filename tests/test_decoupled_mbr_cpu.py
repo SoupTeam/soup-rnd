@@ -342,31 +342,28 @@ def test_decoupled_mbr_refuses_a_patched_expert_node(
         rig.close()
 
 
-def test_decoupled_mbr_refuses_a_patched_expert_backward(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A direct_mm backward cannot keep its bits here, so it is refused, not ignored."""
+def test_decoupled_mbr_refuses_a_patched_expert_backward(tmp_path: Path) -> None:
+    """The real direct_mm context is refused, not a hand-set ``__module__`` on a stub."""
     from soup_cli.utils import direct_expert_backward, expert_stream
 
     rig = build_rig(tmp_path, "patched_backward", k=2)
     try:
         ids = window(rig, 2)
-        node = direct_expert_backward.weighted_expert_function(
-            expert_stream.streamed_experts_class().forward
-        )
-
-        def direct_backward(*_args: Any, **_kwargs: Any) -> Any:
-            raise AssertionError("the direct backward must not run")
-
-        direct_backward.__module__ = "soup_cli.utils.direct_expert_backward"
-        monkeypatch.setattr(node, "backward", staticmethod(direct_backward))
-        with pytest.raises(ValueError, match="patched expert backward"):
-            rig.stepper.run(
-                ids,
-                rig.store,
-                route_preserving_mbr=True,
-                mbr_decoupled_subwindow=True,
+        with direct_expert_backward.direct_backward(
+            lambda _pair, _rows: None, direct_expert_backward.segment_mm
+        ):
+            node = direct_expert_backward.weighted_expert_function(
+                expert_stream.streamed_experts_class().forward
             )
+            # The context installed its own backward: this is the real direct_mm patch.
+            assert node.backward.__module__ == direct_expert_backward.__name__
+            with pytest.raises(ValueError, match="patched expert backward"):
+                rig.stepper.run(
+                    ids,
+                    rig.store,
+                    route_preserving_mbr=True,
+                    mbr_decoupled_subwindow=True,
+                )
     finally:
         rig.close()
 
