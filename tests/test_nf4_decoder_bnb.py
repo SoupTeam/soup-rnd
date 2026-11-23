@@ -1,9 +1,34 @@
-"""The NF4 pair decoder must equal bitsandbytes 0.50.2 on ``uint16``, bit for bit.
+"""The NF4 pair decoder must equal bitsandbytes 0.50.2 on ``uint16``, with one documented
+exception: bf16-denormal products, where bitsandbytes flushes to signed zero.
 
-Red-capable scaffold: it skips until the vendored ``_native_expert_stream_async`` module is
-built with ``--with-cuda-nf4`` on a CUDA host. Run it on the card with
-``pytest tests/test_nf4_decoder_bnb.py -m gpu --no-cov -v``. Any differing bit is a failure
-that names the code byte, scale and output index; a benchmark never replaces this equality.
+The criterion, refined from ticket 04: on every output whose float32 product ``scale * value``
+is at least the bf16 minimum normal (``2**-126``), the extension and bitsandbytes 0.50.2 must
+agree bit for bit. On the denormal band they may differ by design, and the extension is then
+checked against the exact CPU reference instead (float32 multiply, round-to-nearest-even bf16),
+which is what the CUDA kernel does with ``--ftz=false``.
+
+Why the exception exists. bitsandbytes' CUDA dequantisation kernel runs with flush-to-zero:
+a result in the bf16 subnormal range becomes signed zero. The #77 kernel is built with
+``--ftz=false`` and keeps the subnormal. Neither is a corruption; only the subnormal band
+differs, and only on scale values small enough to put products there (measured: the
+``1e-38`` block, 60 of its 64 outputs; ``1e-45`` rounds to zero in bf16 on both sides).
+NaN payloads are not part of the contract either: IEEE 754 leaves them unspecified, so a NaN
+output is compared as a NaN, not by bits.
+
+The 16 NF4 codes (bitsandbytes 0.50.2 ``get_4bit_type("nf4")``, float32 hex in the comment):
+
+    0  0xBF800000  -1.0                   8  0x3DA2FAFF   0.07958029955625534
+    1  0xBF3239B1  -0.6961928009986877    9  0x3E24CAE3   0.16093020141124725
+    2  0xBF066B30  -0.5250730514526367   10  0x3E7C04DD   0.24611230194568634
+    3  0xBECA32A0  -0.39491748809814453  11  0x3EAD033A   0.33791524171829224
+    4  0xBE91A24D  -0.28444138169288635  12  0x3EE1A4B8   0.44070982933044434
+    5  0xBE3D353F  -0.18477343022823334  13  0x3F1007AB   0.5626170039176941
+    6  0xBDBA7871  -0.09105003625154495  14  0x3F3913B3   0.7229568362236023
+    7  0x00000000   0.0                  15  0x3F800000   1.0
+
+Run it on the card with ``pytest tests/test_nf4_decoder_bnb.py -m gpu --no-cov -v``. Any
+differing bit outside the denormal band is a failure that names the code byte, scale and output
+index; a benchmark never replaces this equality.
 """
 
 from __future__ import annotations
@@ -19,6 +44,27 @@ pytestmark = pytest.mark.gpu
 
 BLOCKSIZE = 64
 BNB_VERSION = "0.50.2"
+#: bf16's smallest normal; below it a product is a subnormal (or zero).
+BF16_MIN_NORMAL = 2.0**-126
+#: The 16 NF4 code values in code order; the source of truth the exact CPU reference uses.
+NF4_CODE_TABLE = (
+    -1.0,
+    -0.6961928009986877,
+    -0.5250730514526367,
+    -0.39491748809814453,
+    -0.28444138169288635,
+    -0.18477343022823334,
+    -0.09105003625154495,
+    0.0,
+    0.07958029955625534,
+    0.16093020141124725,
+    0.24611230194568634,
+    0.33791524171829224,
+    0.44070982933044434,
+    0.5626170039176941,
+    0.7229568362236023,
+    1.0,
+)
 
 
 def _extension_or_skip() -> Any:
@@ -129,6 +175,47 @@ def _random_scales(count: int, device: Any) -> Any:
     return torch.rand(count // BLOCKSIZE, dtype=torch.float32, device=device) * 2.0
 
 
+def _exact_reference(codes: Any, scales: Any) -> Tuple[Any, Any]:
+    """``(bits, products)`` on the CPU: ``scale * code`` in float32, then bf16 RNE.
+
+    No bitsandbytes is involved. ``products`` is what the denormal band is decided from,
+    one entry per decoded output. The kernel multiplies in float32 and converts with
+    ``__float2bfloat16_rn``; CPU float32 multiply plus torch's round-to-nearest-even cast is
+    the same operation.
+    """
+    table = torch.tensor(NF4_CODE_TABLE, dtype=torch.float32)
+    flat = codes.flatten().to("cpu").to(torch.int64)
+    values = torch.stack((flat >> 4, flat & 15), dim=1).flatten()
+    products = table[values] * scales.cpu().repeat_interleave(BLOCKSIZE)
+    return products.to(torch.bfloat16).view(torch.uint16), products
+
+
+def _difference(
+    expected: Any, actual: Any, products: Any, *, denormal_only: bool
+) -> Any:
+    """Boolean mask of outputs whose bits differ, NaN compared as a class, not a payload."""
+    expected_float = expected.view(torch.bfloat16).cpu()
+    actual_float = actual.view(torch.bfloat16).cpu()
+    both_nan = torch.isnan(expected_float) & torch.isnan(actual_float)
+    differing = (expected_float != actual_float) & ~both_nan
+    if denormal_only:
+        differing = differing & ~(products.abs() < BF16_MIN_NORMAL)
+    return differing
+
+
+def _first_difference(expected: Any, actual: Any, products: Any, *, denormal_only: bool) -> str:
+    differing = _difference(expected, actual, products, denormal_only=denormal_only)
+    if not differing.any():
+        return ""
+    index = int(differing.nonzero().flatten()[0])
+    return (
+        f"{int(differing.sum())} of {expected.numel()} bits differ; first at output index "
+        f"{index} (code byte {index // 2}, block {index // BLOCKSIZE}, product "
+        f"{float(products[index])!r}): reference {int(expected[index])} != "
+        f"extension {int(actual[index])}"
+    )
+
+
 def test_random_packets_cover_every_nf4_code() -> None:
     extension = _extension_or_skip()
     torch.manual_seed(20261123)
@@ -140,7 +227,8 @@ def test_random_packets_cover_every_nf4_code() -> None:
     assert _first_mismatch(expected, gate_bits) == ""
 
 
-def test_boundary_scales_match_bitsandbytes() -> None:
+def test_boundary_scales_match_bitsandbytes_except_bf16_denormals() -> None:
+    """The refined ticket-05 criterion: equality everywhere but the bf16 subnormal band."""
     extension = _extension_or_skip()
     scales = torch.tensor(
         [0.0, -0.0, 1e-45, 1e-38, 1.0, -1.0, float("inf"), float("nan")],
@@ -151,7 +239,44 @@ def test_boundary_scales_match_bitsandbytes() -> None:
     codes = _codes_covering_every_code(count, "cuda")
     (gate_bits, _) = _decode_pair(extension, codes, scales, None, None)
     expected = _reference(codes, scales)
-    assert _first_mismatch(expected, gate_bits) == ""
+    exact, products = _exact_reference(codes, scales)
+
+    assert _first_difference(expected, gate_bits, products, denormal_only=True) == ""
+
+    differing = _difference(expected, gate_bits, products, denormal_only=False)
+    denormal = products.abs() < BF16_MIN_NORMAL
+    assert differing.any(), "this fixture must exercise the denormal exception"
+    assert not (differing & ~denormal).any(), (
+        "bits differ outside the bf16 denormal band: " + _first_difference(
+            expected, gate_bits, products, denormal_only=True
+        )
+    )
+    # The measured exception: the 1e-38 block (index 3). bnb flushes its subnormal products.
+    assert differing[3 * BLOCKSIZE : 4 * BLOCKSIZE].any()
+    # The denormal band is answered by the exact CPU reference, not by bnb.
+    assert _first_difference(exact, gate_bits, products, denormal_only=False) == ""
+
+
+def test_the_denormal_block_matches_the_exact_cpu_reference() -> None:
+    """With scale 1e-38 every nonzero product is a bf16 subnormal: the CPU reference wins."""
+    extension = _extension_or_skip()
+    assert torch.equal(
+        torch.tensor(NF4_CODE_TABLE, dtype=torch.float32), _lookup("cpu")
+    ), "the documented NF4 table no longer matches bitsandbytes"
+    scales = torch.tensor([1e-38], dtype=torch.float32, device="cuda")
+    codes = _codes_covering_every_code(BLOCKSIZE, "cuda")
+    (gate_bits, _) = _decode_pair(extension, codes, scales, None, None)
+    exact, products = _exact_reference(codes, scales)
+    nonzero = products != 0
+    assert nonzero.any()
+    assert (products[nonzero].abs() < BF16_MIN_NORMAL).all()
+    assert _first_difference(exact, gate_bits, products, denormal_only=False) == ""
+    # The subnormals survive (no flush to signed zero), which is the whole exception.
+    assert gate_bits.cpu()[nonzero].ne(0).all()
+    # And bitsandbytes flushes the very same block to signed zeros.
+    expected = _reference(codes, scales)
+    assert (expected.view(torch.bfloat16) == 0).all()
+    assert expected.ne(gate_bits).any()
 
 
 def _quantised_matrix(shape: Tuple[int, int], device: Any) -> Tuple[Any, Any]:
