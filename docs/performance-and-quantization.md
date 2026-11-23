@@ -1471,6 +1471,26 @@ The feature is off by default and supports SFT only. It requires the streamed ro
 use two-read replay and grouped route dispatch. A configured group size cannot exceed the
 resolved L2L window; a final short group is permitted. The resolved switches are saved in
 `l2l_recipe.json` and a resume with different switches is refused.
+
+The routing Oracle is a second, independent opt-in switch on the same path:
+
+```yaml
+training:
+  l2l_route_preserving_mbr: true
+  l2l_routing_oracle: true
+```
+
+It keeps the first forward's router choices, selected sigmoid scores and normalizer, and
+replays them in the MBR recompute through the saved original-forward Jacobian, so the
+recompute runs no router linear, no top-k selection and no two-read top-k dispatch. It
+requires `l2l_route_preserving_mbr=true`, is refused beside a reference pass, and needs a
+native DeepSeek-V3 model with frozen router weights and autocast off at the router. Off by
+default. On CPU the target BF16 compute is bit-equal to MBR without the Oracle over losses
+and every LoRA gradient at k = 1, 2, 4; dense FP32 with `norm_topk_prob` differs at rounding
+level (2.98e-8 max abs, 7.29e-8 relative L2 on the direct router VJP). The CPU profile
+(`benchmarks/routing-oracle-cpu-20261123.md`) skips 50% of MBR's router executions and
+9-10% of the step time at k = 8 on the tiny fixture; that is not a GPU speed claim.
+
 By default MBR refuses decoder forward hooks, decoder backward hooks, MoE module hooks, and global
 module hooks rather than exposing a temporary output. A deterministic, microbatch-independent
 decoder forward hook may opt in with `soup_cli.utils.l2l_step.mbr_deferred_forward_hook`; MBR runs
