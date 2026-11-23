@@ -9,8 +9,10 @@ fixture: BF16 compute, dense storage, k micro-batches of one row each. Three run
 
 Reported as JSON and a short human summary: router and top-k calls per step, the
 skipped fraction, and the step-time win. The Oracle skips exactly the recompute's
-router and top-k work; the forward router stays native. A negative step-time win is a
-result, not an error: the Oracle adds host copies and its own dispatch.
+router and top-k work; the forward router stays native. "Top-k dispatches" is a
+derived figure (``topk_per_router_forward x router_calls``); the measured top-k column
+is ``aten::topk`` executions. A negative step-time win is a result, not an error: the
+Oracle adds host copies and its own dispatch.
 
 This is a CPU profile of call counts and wall time, not a GPU speed measurement.
 """
@@ -240,14 +242,20 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     router_calls = oracle_counts["router_calls"]
     per_router = int(round(oracle_counts["topk_calls"] / router_calls)) if router_calls else 0
     for arm in (baseline_counts, oracle_counts):
-        arm["topk_dispatches"] = per_router * arm["router_calls"]
+        # Derived, not measured: the router executions of that arm times the measured
+        # top-k-per-router ratio. The measured column is ``topk_calls`` (aten::topk).
+        arm["topk_dispatches_derived"] = per_router * arm["router_calls"]
     report["topk_per_router_forward"] = per_router
+    report["topk_dispatches_derivation"] = (
+        "per_router_forward x router_calls; derived from the Oracle arm's measured "
+        "aten::topk-per-router ratio, not an independent measurement"
+    )
     report["counts"] = {"without_oracle": baseline_counts, "with_oracle": oracle_counts}
     report["router_skipped_fraction"] = 1.0 - (
         oracle_counts["router_calls"] / baseline_counts["router_calls"]
     )
     report["topk_skipped_fraction"] = 1.0 - (
-        oracle_counts["topk_dispatches"] / baseline_counts["topk_dispatches"]
+        oracle_counts["topk_dispatches_derived"] / baseline_counts["topk_dispatches_derived"]
     )
     report["time_seconds"] = {
         "without_oracle": baseline_times,
@@ -270,10 +278,11 @@ def _summary(report: Dict[str, Any]) -> str:
         f"{report['model']['moe_layers']} MoE layers, top-k {report['model']['top_k']}",
         f"router calls/step: {baseline['router_calls']} -> {oracle['router_calls']} "
         f"({100 * report['router_skipped_fraction']:.1f}% skipped)",
-        f"top-k dispatches/step: {baseline['topk_dispatches']} -> "
-        f"{oracle['topk_dispatches']} "
+        f"top-k dispatches/step (derived {report['topk_per_router_forward']} per router "
+        f"call x router calls, not measured): {baseline['topk_dispatches_derived']} -> "
+        f"{oracle['topk_dispatches_derived']} "
         f"({100 * report['topk_skipped_fraction']:.1f}% skipped); "
-        f"aten::topk executions {baseline['topk_calls']} -> {oracle['topk_calls']} "
+        f"aten::topk executions (measured) {baseline['topk_calls']} -> {oracle['topk_calls']} "
         f"(two-read already replays the recompute's top-k)",
         f"step median: {report['time_seconds']['without_oracle_median']:.4f} s "
         f"-> {report['time_seconds']['with_oracle_median']:.4f} s "

@@ -11,7 +11,8 @@ review. The lever is `training.l2l_routing_oracle` over route-preserving MBR.
   2 MoE layers, 8 routed experts, top-2, one shared expert, hidden 32. BF16 compute, dense
   storage, per-expert streaming, `two_read_experts=True`, `grouped_expert_routes=True`.
 - One step = route-preserving MBR over k micro-batches of one row, S tokens, AdamW-free
-  (losses and gradients only). Median of 5 measured steps after 1 warmup step, one process.
+  (losses and gradients only). Median of 7 measured steps after 2 warmup steps (the harness
+  defaults, passed explicitly below), one process.
 - Harness: `benchmarks/harness/mbr_oracle_cpu_profile.py`.
 
 Reproduce (from the repository root, with the local CPU venv):
@@ -26,11 +27,14 @@ Add `--decoupled` for the decoupled MBR backward (R1 peek, R2 recompute).
 ## Counts and step time
 
 The baseline is the lever's own toggle: MBR without the Oracle. "Router calls" are native
-`DeepseekV3TopkRouter.forward` executions. "Top-k dispatches" are router top-k decisions,
-executed or replayed; two-read's `TopkDecisions` already replays the recompute's decisions
+`DeepseekV3TopkRouter.forward` executions. "Top-k dispatches" is a **derived** column, not a
+measurement: `topk_per_router_forward x router calls`, where the per-router ratio (3) comes
+from the Oracle arm's measured `aten::topk`-per-router ratio. Because of that it is
+identically the router-skipped fraction by construction. The measured top-k column is
+`aten::topk` executions: two-read's `TopkDecisions` already replays the recompute's decisions
 below `aten`, so the Oracle removes the dispatch entries, not the aten executions.
 
-| k | S | backward | router calls/step | top-k dispatches/step | `aten::topk` executions | step median, s | win |
+| k | S | backward | router calls/step | top-k dispatches/step (derived) | `aten::topk` executions (measured) | step median, s | win |
 |---|---|---|---|---|---|---|---|
 | 4 | 32 | grouped | 16 -> 8 (50.0%) | 48 -> 24 (50.0%) | 24 -> 24 | 0.0549 -> 0.0506 | **+7.8%** |
 | 8 | 16 | grouped | 32 -> 16 (50.0%) | 96 -> 48 (50.0%) | 48 -> 48 | 0.0906 -> 0.0809 | **+10.7%** |
