@@ -19,7 +19,10 @@ Supports three explicit visit phases per ``(layer, microbatch)``:
   differentiable recompute slot or building an autograd graph.
 - ``"recompute"`` (``torch.enable_grad``): returns ``(None, weights, ids)`` backed
   by the exact first-order ``_OriginalSigmoidJacobian`` autograd Function so router
-  weight gradients propagate back through attention and LoRA adapters.
+  weight gradients propagate back through attention and LoRA adapters. When the
+  router's weight matrix is made differentiable after construction, the same
+  Function also returns its first-order gradient (the frozen production router
+  never asks for it).
 
 Top-level imports are stdlib-only; ``torch`` and ``transformers`` stay lazy.
 """
@@ -120,11 +123,12 @@ def _oracle_function() -> Any:
 
     class _OriginalSigmoidJacobian(torch.autograd.Function):
         @staticmethod
-        def forward(ctx: Any, hidden: Any, state: _ReplayState) -> Tuple[Any, Any]:
+        def forward(ctx: Any, hidden: Any, weight: Any, state: _ReplayState) -> Tuple[Any, Any]:
             owner = state.owner()
             _require(owner is not None and not owner._closed, "probe owner is unavailable")
             ctx.set_materialize_grads(False)
             ctx.state = state
+            ctx.save_for_backward(hidden, weight)
             ids = state.ids.clone()
             if state.settings[5]:
                 normalized = state.scores / state.normalizer
@@ -135,7 +139,7 @@ def _oracle_function() -> Any:
             return weights, ids
 
         @staticmethod
-        def backward(ctx: Any, incoming: Any, _ids_gradient: Any) -> Tuple[Any, Any]:
+        def backward(ctx: Any, incoming: Any, _ids_gradient: Any) -> Tuple[Any, Any, Any]:
             state = ctx.state
             owner = state.owner()
             try:
@@ -180,8 +184,15 @@ def _oracle_function() -> Any:
                 )
                 gradient32 = full.mm(weight32)
                 hidden_gradient = gradient32.to(dtype=state.dtype).view(state.shape)
+                weight_gradient = None
+                if ctx.needs_input_grad[1]:
+                    # Same VJP, into the router's weight matrix: logits = hidden @ weight.T,
+                    # so dL/dweight = (dL/dlogits).T @ hidden, kept in the weight's dtype.
+                    saved_hidden, saved_weight = ctx.saved_tensors
+                    rows = saved_hidden.detach().reshape(-1, state.shape[-1]).float()
+                    weight_gradient = full.t().mm(rows).to(saved_weight.dtype)
                 owner._complete_replay(state)
-                return hidden_gradient, None
+                return hidden_gradient, weight_gradient, None
             except BaseException:
                 state.clear()
                 raise
@@ -572,7 +583,7 @@ class DeepseekRoutingOracle:
         state.scores = record.scores.to(device=device, non_blocking=self._pin)
         state.normalizer = record.normalizer.to(device=device, non_blocking=self._pin)
         self._pending[pair] = state
-        weights, ids = _oracle_function().apply(hidden, state)
+        weights, ids = _oracle_function().apply(hidden, weight, state)
         self._seen_recompute.add(pair)
         self._counts["oracle_recompute"] += 1
         self._step_counts["oracle_recompute"] += 1

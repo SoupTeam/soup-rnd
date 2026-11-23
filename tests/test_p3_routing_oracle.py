@@ -5,18 +5,20 @@ Three seams, all CPU:
 * one native ``DeepseekV3TopkRouter`` of the tiny fixture, compared against
   ``DeepseekRoutingOracle``: the forward replay must return the native logits, routing
   weights and indices bit for bit, and the saved original-forward sigmoid Jacobian must
-  reproduce native autograd's gradient of the routing weights into the router input. The
-  known dense-FP32 fact is measured, not hidden: with ``norm_topk_prob`` the two backward
-  paths differ at rounding level (~1e-7 relative L2), without it they are bit-equal.
+  reproduce native autograd's gradient of the routing weights into the router input and into
+  the router weight matrix. The known dense-FP32 fact is measured, not hidden: with
+  ``norm_topk_prob`` the two backward paths differ at rounding level (~1e-7 relative L2),
+  without it they are bit-equal.
 * the whole tiny MoE step through ``L2LStep.run(..., route_preserving_mbr=True)`` with and
   without the Oracle: per-micro-batch losses and every trainable gradient must be bit-equal
   at k = 1, 2, 4, and the recompute must report zero routing-weight drift.
 * the Oracle's own telemetry: every MoE (layer, micro-batch) records one native forward and
   one replayed recompute, so exactly half of MBR's router executions are skipped.
 
-The Oracle is only defined for frozen routers: the router parameter gets no gradient in
-either arm. "Gate-weight gradient" below is the upstream gradient of the gate's routing
-weights, the input the replay consumes.
+The Oracle requires a frozen router at construction, so production never asks it for the
+router weight's gradient. The first test unfreezes ``gate.weight`` only after the context
+opens and compares that first-order gradient against native autograd; the setting checks
+still see a frozen router when they run.
 """
 
 from __future__ import annotations
@@ -73,11 +75,22 @@ def test_oracle_replay_matches_native_gate_forward_and_input_gradient(
     layer_idx = config.first_k_dense_replace
     gate = owner.layers[layer_idx].mlp.gate
     hidden = torch.randn(5, config.hidden_size)
+    weight = gate.weight
 
-    inputs = hidden.clone().requires_grad_(True)
-    logits, weights, ids = type(gate).forward(gate, inputs)
-    upstream = torch.randn_like(weights)
-    (native_gradient,) = torch.autograd.grad(weights, inputs, upstream)
+    # The native arm differentiates the router's weight matrix too. The Oracle requires a
+    # frozen router at construction, so the native pass runs first and the flag is cleared
+    # before the context opens.
+    weight.requires_grad_(True)
+    try:
+        inputs = hidden.clone().requires_grad_(True)
+        logits, weights, ids = type(gate).forward(gate, inputs)
+        upstream = torch.randn_like(weights)
+        native_gradient, native_weight_gradient = torch.autograd.grad(
+            weights, (inputs, weight), upstream
+        )
+    finally:
+        weight.requires_grad_(False)
+    assert native_weight_gradient is not None and torch.count_nonzero(native_weight_gradient)
 
     with DeepseekRoutingOracle(resident, pin=False) as oracle:
         oracle.begin_step([(1, 5, config.hidden_size)])
@@ -86,11 +99,19 @@ def test_oracle_replay_matches_native_gate_forward_and_input_gradient(
                 forward = gate(hidden)
             with oracle.visit(layer_idx, 0, "peek"):
                 peek = gate(hidden)
-        replay_input = hidden.clone().requires_grad_(True)
-        with torch.enable_grad():
-            with oracle.visit(layer_idx, 0, "recompute"):
-                replay = gate(replay_input)
-        (replay_gradient,) = torch.autograd.grad(replay[1], replay_input, upstream)
+        # Unfreezing after construction keeps the Oracle's setting checks intact while asking
+        # this replay for the first-order gradient into the router weight matrix.
+        weight.requires_grad_(True)
+        try:
+            replay_input = hidden.clone().requires_grad_(True)
+            with torch.enable_grad():
+                with oracle.visit(layer_idx, 0, "recompute"):
+                    replay = gate(replay_input)
+            replay_gradient, replay_weight_gradient = torch.autograd.grad(
+                replay[1], (replay_input, weight), upstream, allow_unused=True
+            )
+        finally:
+            weight.requires_grad_(False)
         report = oracle.report()
         oracle.abort_step()
 
@@ -107,18 +128,26 @@ def test_oracle_replay_matches_native_gate_forward_and_input_gradient(
     assert torch.equal(replay[1], weights) and torch.equal(replay[2], ids)
 
     agreement = _agreement(native_gradient, replay_gradient)
+    assert replay_weight_gradient is not None, "the replay produced no gate-weight gradient"
+    weight_agreement = _agreement(native_weight_gradient, replay_weight_gradient)
     record_property("norm_topk_prob", norm_topk_prob)
     record_property("routed_scaling_factor", scaling)
-    record_property("gate_weight_gradient", upstream.abs().sum().item())
+    # The recorded figure is now a gradient (dL/dgate.weight), not the upstream seed.
+    record_property("gate_weight_gradient_abs_sum", float(native_weight_gradient.abs().sum()))
     for name, value in agreement.items():
         record_property(f"input_gradient_{name}", value)
+    for name, value in weight_agreement.items():
+        record_property(f"gate_weight_gradient_{name}", value)
     if norm_topk_prob:
         # Known dense-FP32 fact (main ticket 06): the normalize chain runs in another FP32
         # order, so only rounding-level differences are accepted here.
         assert agreement["max_abs"] < 1e-6, agreement
         assert agreement["rel_l2"] < 1e-6, agreement
+        assert weight_agreement["max_abs"] < 1e-6, weight_agreement
+        assert weight_agreement["rel_l2"] < 1e-6, weight_agreement
     else:
         assert agreement["equal"], agreement
+        assert weight_agreement["equal"], weight_agreement
 
 
 def test_oracle_replay_is_bit_equal_in_bfloat16(tmp_path: Any, record_property: Any) -> None:
