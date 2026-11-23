@@ -69,7 +69,9 @@ def grad_features(norms: Sequence[Any], n_layers: int) -> Dict[int, Dict[str, fl
     """Mean and coefficient of variation of each layer's windowed gradient norm."""
     out: Dict[int, Dict[str, float]] = {}
     for idx in range(n_layers):
-        values = [w[idx] for _step, w in norms if idx in w]
+        # a window with an fp16-overflowed step holds inf / nan: leave it out (layer_select also
+        # stops recording such windows; this guards records written before that)
+        values = [w[idx] for _step, w in norms if idx in w and math.isfinite(w[idx])]
         if not values:
             continue
         mean = sum(values) / len(values)

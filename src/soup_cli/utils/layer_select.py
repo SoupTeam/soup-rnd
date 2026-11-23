@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import random
 import re
@@ -254,6 +255,8 @@ class Selection:
     cache: List[Dict[str, Any]] = field(default_factory=list)
     #: progressive: per window, the step and each trainable layer's summed adapter gradient norm
     norms: List[Tuple[int, Dict[int, float]]] = field(default_factory=list)
+    #: progressive: steps of windows left out because a norm was not finite (fp16 overflow)
+    skipped_windows: List[int] = field(default_factory=list)
     #: training loss of every logged step (for the features' loss summary)
     losses: List[float] = field(default_factory=list)
     #: ``feature_step``: per-layer features for an adaptive choice of the cut (layer_features)
@@ -269,6 +272,7 @@ class Selection:
             "prefix_cache": self.cache,
             "norms": [{"step": st, "layers": {str(k): v for k, v in sorted(n.items())}}
                       for st, n in self.norms],
+            "skipped_windows": self.skipped_windows,
             "features": self.features,
         }
 
@@ -507,8 +511,18 @@ class _LayerSelectBody:  # noqa: N801
                 window[idx] = total if idx not in window else window[idx] + total
         return control
 
-    def _close_window(self, step: int) -> Dict[int, float]:
+    def _close_window(self, step: int) -> Optional[Dict[int, float]]:
+        """The window's summed norms, or None when one is not finite.
+
+        In fp16 an overflowed step (which the grad scaler then skips) leaves inf / nan in the
+        window. The rule must not see it: ``|inf - inf| / inf`` is nan, ``nan >= threshold`` is
+        False, and every layer would count as settled. Such a window is left out of the rule, the
+        recorded norms and the features; its step is kept in ``skipped_windows``.
+        """
         window = {idx: float(v) for idx, v in self.__dict__.pop("_window", {}).items()}
+        if not all(math.isfinite(v) for v in window.values()):
+            self.selection.skipped_windows.append(step)
+            return None
         self.selection.norms.append((step, dict(window)))
         return window
 

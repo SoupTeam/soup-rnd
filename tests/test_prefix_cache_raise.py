@@ -214,6 +214,35 @@ def test_smoothing_rides_over_one_outlier_window(tmp_path):
     assert min(_trainable(plain_model)) == 2
 
 
+@pytest.mark.parametrize("smoothing", [0.0, 0.8])
+def test_a_non_finite_window_does_not_freeze_unsettled_layers(tmp_path, smoothing):
+    """fp16: an overflowed step (skipped by the grad scaler) leaves inf in the first window's
+    norms. |inf - inf| / inf is nan and nan >= threshold is False, so before the fix every layer
+    counted as settled and the rule froze to its cap at the first check (ZERO-2 9B run)."""
+    def norms(idx, step):
+        return float("inf") if step == 1 else float(step * (idx + 1))  # never settles
+
+    model = _model("llama")
+    cb = _callback(tmp_path, interval_steps=1, freeze_threshold=0.03, max_freeze_below=4,
+                   freeze_smoothing=smoothing)
+    cb.on_train_begin(SimpleNamespace(device="cpu"), SimpleNamespace(global_step=0), None,
+                      model=model)
+    _drive(cb, model, norms, 6)
+    assert _trainable(model) == [0, 1, 2, 3, 4, 5]
+    cb.on_train_end(SimpleNamespace(device="cpu"), SimpleNamespace(global_step=6), None)
+    record = json.loads((tmp_path / "lora_layers.json").read_text())
+    assert record["skipped_windows"] == [1]
+    assert [w["step"] for w in record["norms"]] == [2, 3, 4, 5, 6]
+
+
+def test_a_non_finite_window_does_not_reach_the_grad_features():
+    from soup_cli.utils.layer_features import grad_features
+
+    feats = grad_features([(10, {0: float("inf")}), (20, {0: 2.0}), (30, {0: 4.0})], 1)
+    assert feats[0]["grad_mean"] == pytest.approx(3.0)
+    assert feats[0]["grad_cv"] == pytest.approx(1.0 / 3.0)
+
+
 def test_norms_are_recorded_per_window(tmp_path):
     model = _model("llama")
     cb = _callback(tmp_path, freeze_step=100, freeze_below=2, interval_steps=2)
