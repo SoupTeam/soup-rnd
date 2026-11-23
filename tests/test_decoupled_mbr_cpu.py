@@ -45,6 +45,8 @@ def build_rig(
     dtype: str = "bfloat16",
     rows: int = 2,
     seq: int = 6,
+    dropout: float = 0.0,
+    attention_dropout: float = 0.0,
 ) -> Rig:
     """One streamed tiny MoE with the flags route-preserving MBR validates."""
     import torch
@@ -61,11 +63,20 @@ def build_rig(
         storage=storage,
         dtype=dtype,
         layout="per_expert",
-        lora_config=fixture.moe_lora_config(targets=fixture.HEAD_SHARED_TARGETS),
+        lora_config=fixture.moe_lora_config(
+            dropout=dropout, targets=fixture.HEAD_SHARED_TARGETS
+        ),
         two_read_experts=True,
         grouped_expert_routes=True,
     )
     moe.model.train()
+    if attention_dropout:
+        for module in moe.model.modules():
+            if hasattr(module, "attention_dropout"):
+                module.attention_dropout = attention_dropout
+            module_config = getattr(module, "config", None)
+            if module_config is not None:
+                module_config._attn_implementation = "eager"
     first = fixture.moe_batch(config, seed=0, rows=rows, seq=seq)["input_ids"]
     stepper = l2l_step.L2LStep(
         moe.model, moe.runtime, l2l_step.capture_layer_call(moe.model, first)
@@ -88,7 +99,14 @@ def window(rig: Rig, k: int) -> List[Any]:
     ]
 
 
-def run_window(rig: Rig, ids: List[Any], *, decoupled: bool) -> Dict[str, Any]:
+def run_window(
+    rig: Rig,
+    ids: List[Any],
+    *,
+    decoupled: bool,
+    group_size: int | None = None,
+    recompute_subwindow: int | None = None,
+) -> Dict[str, Any]:
     """One window through ``L2LStep.run``: A0, or decoupled MBR over the whole window."""
     import torch
 
@@ -99,8 +117,9 @@ def run_window(rig: Rig, ids: List[Any], *, decoupled: bool) -> Dict[str, Any]:
             ids,
             rig.store,
             route_preserving_mbr=True,
-            mbr_group_size=len(ids),
+            mbr_group_size=len(ids) if group_size is None else group_size,
             mbr_decoupled_subwindow=True,
+            mbr_recompute_subwindow=recompute_subwindow,
             collect_phase_stats=True,
         )
     else:
@@ -160,7 +179,13 @@ def test_decoupled_mbr_equals_a0_bitwise_nf4_bf16(tmp_path: Path, k: int) -> Non
         bad, gap = record(f"NF4+BF16 k={k}", a0, cand)
         assert not bad, f"{len(bad)} tensors differ at k={k} (max_abs={gap:.3e}): {bad[:5]}"
         stats = cand_stats(rig)
-        for layer in stats["layers"].values():
+        layers = [
+            row
+            for row in stats["layers"].values()
+            if row.get("init_forward", {}).get("unique_expert_count")
+        ]
+        assert layers, "no MoE layer ran"
+        for layer in layers:
             assert layer["recompute_forward"]["expert_fetches"] == 0
             assert layer["backward_dX"]["expert_fetches"] > 0
             assert layer["route_id_mismatch_slots"] == 0
@@ -174,9 +199,57 @@ def cand_stats(rig: Rig) -> Dict[str, Any]:
     return stats
 
 
+def test_decoupled_mbr_equals_a0_with_smaller_groups_and_subwindows(tmp_path: Path) -> None:
+    """Groups of 2 and a two-micro-batch recompute sub-window keep A0's bits too."""
+    rig = build_rig(tmp_path, "groups", k=4)
+    try:
+        ids = window(rig, 4)
+        a0 = run_window(rig, ids, decoupled=False)
+        cand = run_window(rig, ids, decoupled=True, group_size=2, recompute_subwindow=2)
+        bad, gap = record("NF4+BF16 k=4 groups=2 sub_w=2", a0, cand)
+        assert not bad, f"{len(bad)} tensors differ (max_abs={gap:.3e}): {bad[:5]}"
+        stats = cand_stats(rig)
+        assert stats["group_size"] == 2
+        assert all(
+            row["init_forward"]["grouped_expert_dispatch_calls"] == 2
+            for row in stats["layers"].values()
+            if "init_forward" in row and row["init_forward"].get("unique_expert_count")
+        )
+    finally:
+        rig.close()
+
+
+def test_decoupled_mbr_dropout_rng_replay_bit_exact(tmp_path: Path) -> None:
+    """The no-grad R1 pass and the R2 recompute draw exactly one dropout mask per call."""
+    import torch
+
+    rig = build_rig(
+        tmp_path, "dropout", k=4, storage="dense", dtype="float32",
+        dropout=0.15, attention_dropout=0.1,
+    )
+    try:
+        ids = window(rig, 4)
+        torch.manual_seed(99)
+        a0 = run_window(rig, ids, decoupled=False)
+        rng_a0 = torch.get_rng_state()
+        torch.manual_seed(99)
+        cand = run_window(rig, ids, decoupled=True)
+        assert torch.equal(rng_a0, torch.get_rng_state()), "the RNG stream advanced differently"
+        bad, gap = record("dense FP32 dropout k=4", a0, cand)
+        assert not [name for name in bad if name.startswith("loss")], bad
+        assert gap <= KNOWN_DENSE_FP32_GAP, f"max_abs={gap:.3e}"
+    finally:
+        rig.close()
+
+
 @pytest.mark.parametrize("k", [1, 2, 4])
 def test_decoupled_mbr_dense_fp32_records_the_known_gap(tmp_path: Path, k: int) -> None:
-    """Dense FP32: k=1 is exact; k>=2 records PR #77's ~9e-8 and holds the envelope."""
+    """Dense FP32: k=1 is exact; k>=2 records PR #77's ~1e-7 gap and holds the envelope.
+
+    The losses are exact here too: the gap is the R2 multi-root backward adding the routed and
+    the non-routed contribution at the residual in another order than one engine call. BF16
+    rounds it away (the NF4+BF16 rows are exact), FP32 keeps it.
+    """
     rig = build_rig(tmp_path, f"dense_fp32_k{k}", k=k, storage="dense", dtype="float32")
     try:
         ids = window(rig, k)
@@ -238,8 +311,11 @@ def test_decoupled_mbr_validation_and_dropped_knobs(tmp_path: Path) -> None:
 def _expert_inputs(experts: Any, k: int, rows: int, width: int) -> Tuple[List[Any], List[Any]]:
     import torch
 
+    from soup_cli.utils.layer_stream_runtime import _torch_dtype
+
+    dtype = _torch_dtype(str(experts.pool.dtype))
     torch.manual_seed(19)
-    hiddens = [torch.randn(rows, width, dtype=experts.pool.dtype) for _ in range(k)]
+    hiddens = [torch.randn(rows, width, dtype=dtype) for _ in range(k)]
     indices = []
     for _ in range(k):
         logits = torch.randn(rows, experts.num_experts)
@@ -259,7 +335,7 @@ def test_streaming_expert_backward_equals_per_microbatch_autograd(tmp_path: Path
         weights = [
             torch.rand(idx.shape, dtype=torch.float32) for idx in indices
         ]
-        dy = [torch.randn(rows, width, dtype=experts.pool.dtype) for _ in range(k)]
+        dy = [torch.randn(rows, width, dtype=hidden.dtype) for hidden in hiddens]
 
         ref_h = [h.clone().requires_grad_(True) for h in hiddens]
         ref_w = [w.clone().requires_grad_(True) for w in weights]
@@ -302,7 +378,7 @@ def test_streaming_expert_backward_equals_per_microbatch_autograd(tmp_path: Path
         want_calls = Counter()
         for expert in range(experts.num_experts):
             per_mb = [int((idx == expert).sum()) for idx in indices]
-            rows_of = tuple(sorted(count for count in per_mb if count))
+            rows_of = tuple(count for count in per_mb if count)  # micro-batch order, no zeros
             if rows_of:
                 want_calls[rows_of] += 4
         assert Counter(seen) == want_calls, f"{Counter(seen)} != {want_calls}"
