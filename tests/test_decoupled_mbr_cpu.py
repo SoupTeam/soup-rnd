@@ -308,6 +308,35 @@ def test_decoupled_mbr_validation_and_dropped_knobs(tmp_path: Path) -> None:
         rig.close()
 
 
+def test_decoupled_mbr_refuses_a_patched_expert_node(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fused expert node (lt-fused) cannot keep its bits here, so it is refused."""
+    from soup_cli.utils import direct_expert_backward, expert_stream
+
+    rig = build_rig(tmp_path, "patched", k=2)
+    try:
+        ids = window(rig, 2)
+        node = direct_expert_backward.weighted_expert_function(
+            expert_stream.streamed_experts_class().forward
+        )
+
+        def fused_forward(*_args: Any, **_kwargs: Any) -> Any:  # a fused node's forward
+            raise AssertionError("the fused forward must not run")
+
+        fused_forward.__module__ = "soup_cli.utils.direct_expert_backward"
+        monkeypatch.setattr(node, "forward", staticmethod(fused_forward))
+        with pytest.raises(ValueError, match="patched expert node"):
+            rig.stepper.run(
+                ids,
+                rig.store,
+                route_preserving_mbr=True,
+                mbr_decoupled_subwindow=True,
+            )
+    finally:
+        rig.close()
+
+
 def _expert_inputs(experts: Any, k: int, rows: int, width: int) -> Tuple[List[Any], List[Any]]:
     import torch
 

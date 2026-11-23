@@ -1448,6 +1448,19 @@ class L2LStep:
                 raise ValueError(
                     "mbr_decoupled_subwindow and mbr_ordered_backward exclude each other"
                 )
+            from soup_cli.utils import direct_expert_backward, expert_stream
+
+            # The switch closes the expert backward over detached inputs instead of the
+            # WeightedFrozenExpert nodes, so a fused node (lt-fused) could not keep its bits:
+            # refuse rather than silently take the native matmuls (ADR 0002).
+            node = direct_expert_backward.weighted_expert_function(
+                expert_stream.streamed_experts_class().forward
+            )
+            if getattr(node.forward, "__module__", "") != expert_stream.__name__:
+                raise ValueError(
+                    "mbr_decoupled_subwindow runs its own expert backward and cannot keep the "
+                    "bits of a patched expert node; use it with the native expert GEMM"
+                )
             if mbr_recompute_subwindow is not None and (
                 isinstance(mbr_recompute_subwindow, bool)
                 or not isinstance(mbr_recompute_subwindow, int)
