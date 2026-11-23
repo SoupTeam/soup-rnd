@@ -17,7 +17,7 @@ review. The lever is `training.l2l_routing_oracle` over route-preserving MBR.
 Reproduce (from the repository root, with the local CPU venv):
 
 ```bash
-python benchmarks/harness/mbr_oracle_cpu_profile.py --k 8 --seq 16 --steps 7 --warmup 2 \
+python -m benchmarks.harness.mbr_oracle_cpu_profile --k 8 --seq 16 --steps 7 --warmup 2 \
   --dtype bfloat16 --json /tmp/oracle-cpu.json
 ```
 
