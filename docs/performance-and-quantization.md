@@ -1502,7 +1502,8 @@ gradients, and freed before the next sub-window. Peak autograd memory stays O(su
 any group size, the gradient accumulation order is plain L2L's, and on the CPU tiny-MoE seam it
 is bit-equal to L2L on NF4 + BF16 for k=1, 2 and 4. Dense FP32 keeps a ~1e-7 gradient gap from
 the multi-root backward's addition order at the residual. It excludes `mbr_split_backward` and
-`mbr_ordered_backward`.
+`mbr_ordered_backward`, and it drives the expert backward itself, so it requires the native
+expert GEMM: a fused expert node (`lt-fused`) is refused instead of losing its bits.
 
 `expert_gemm_context("lt-fused")` (API only, off by default) keeps the A0 bits of a grouped MBR
 step by running each micro-batch segment's expert GEMM through a cuBLASLt call forced onto the
