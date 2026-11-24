@@ -233,7 +233,12 @@ def test_equal_boundaries_say_equal(cdiag: Any) -> None:
     assert verdict == {"kind": "equal", "modules_equal": True, "experts_equal": True}
 
 
-def test_the_model_revision_falls_back_to_the_cache_record(cdiag: Any, tmp_path: Path) -> None:
+def test_the_model_revision_is_explicit_or_the_source_config_hash(
+    cdiag: Any, tmp_path: Path
+) -> None:
+    """No guessed cache record next to the source: a cell's revision is the flag or the config."""
+    import argparse
+
     capture = importlib.import_module("capture_boundaries")
     source = tmp_path / "source"
     source.mkdir()
@@ -242,6 +247,14 @@ def test_the_model_revision_falls_back_to_the_cache_record(cdiag: Any, tmp_path:
     (tmp_path / "results" / "cache.json").write_text(
         json.dumps({"revision": "2a9a177f"}), encoding="utf-8"
     )
-    assert capture._model_revision(str(source)) == "2a9a177f"
+    assert capture._model_revision(str(source)) == "unknown"
+    assert capture._model_revision(str(source), "explicit") == "explicit"
     (source / "config.json").write_text('{"_commit_hash": "abcd"}', encoding="utf-8")
     assert capture._model_revision(str(source)) == "abcd"
+    assert capture._model_revision(str(source), "explicit") == "explicit"
+    assert capture._write_row(argparse.Namespace(
+        source=str(source), arm="A0", k=2, seq=64, backend="default", expert_gemm="segmented",
+        tag="a0-seg-k2-s64", model_revision="explicit",
+    ), {"dataset_sha256": "d" * 64, "linear_rows": 96, "passthrough_calls": 1}, 1)[
+        "model_revision"
+    ] == "explicit"

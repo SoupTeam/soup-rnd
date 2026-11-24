@@ -12,6 +12,7 @@ VENV="${VENV:-$HOME/.venvs/soup-rnd-cuda}"
 MOONLIGHT_ROOT="${MOONLIGHT_ROOT:-$HOME/moonlight-local}"
 OUT="${OUT:-$REPO/benchmarks/mbr-moonlight-cdiag-20261124}"
 TARGETS="q_proj,kv_a_proj_with_mqa,kv_b_proj,o_proj"
+REVISION="${REVISION:-2a9a177f4841649f849ba941e41d2ee73c042314}"
 ACAD=/sys/class/power_supply/ACAD/online
 
 export CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(list(nvidia.__path__)[0],'cu13'))")
@@ -37,7 +38,7 @@ for arm in A0 C; do
   "${INHIBIT[@]}" "$VENV/bin/python" -u "$REPO/benchmarks/mbr-moonlight-cdiag-20261124/capture_boundaries.py" \
     --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
     --out "$OUT" --arm "$arm" --k 2 --seq 64 --steps 3 --lora-targets "$TARGETS" \
-    --tag "$tag" > "$OUT/$tag.log" 2>&1
+    --tag "$tag" --model-revision "$REVISION" > "$OUT/$tag.log" 2>&1
   status=$?
   echo "== $arm exit=$status $(date +%T)"
   [ "$status" -eq 0 ] || (( failed += 1 ))

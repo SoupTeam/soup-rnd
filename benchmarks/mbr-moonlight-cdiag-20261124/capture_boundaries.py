@@ -224,17 +224,19 @@ def _projection(shape: tuple[int, ...]) -> str:
     raise RuntimeError(f"expert linear weight {shape} matches no known projection")
 
 
-def _model_revision(source: str) -> str:
-    """The pinned commit: the source config's hash, else the cache record's revision."""
-    root = Path(source).expanduser()
-    for candidate in (root / "config.json", root.parent / "results" / "cache.json"):
-        try:
-            payload = json.loads(candidate.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if found := payload.get("_commit_hash") or payload.get("revision"):
-            return str(found)
-    return "unknown"
+def _model_revision(source: str, override: str | None = None) -> str:
+    """The pinned commit: an explicit ``--model-revision``, else the source config's hash.
+
+    A source without the hash is ``unknown``; the campaign does not guess a revision from a cache
+    record next to the source, because that record belongs to the cache, not to this checkout."""
+    if override:
+        return override
+    try:
+        payload = json.loads((Path(source).expanduser() / "config.json").read_text(
+            encoding="utf-8"))
+    except (OSError, ValueError):
+        return "unknown"
+    return str(payload.get("_commit_hash") or "unknown")
 
 
 def _power_state() -> int | None:
@@ -298,14 +300,17 @@ def _write_row(args: argparse.Namespace, harness: dict[str, Any], power: int | N
 
     card = torch.cuda.get_device_name() if torch.cuda.is_available() else "CPU"
     return {
-        "model": _MODEL_SOURCE, "model_revision": _model_revision(args.source), "card": card,
+        "model": _MODEL_SOURCE,
+        "model_revision": _model_revision(args.source, getattr(args, "model_revision", None)),
+        "card": card,
         "window": f"k={args.k},S={args.seq}", "arm": args.arm, "mode": "bits (deterministic)",
         "torch_version": torch.__version__, "attention_backend": args.backend,
         "expert_gemm": args.expert_gemm, "strict_determinism": True,
         "power_ac_online": power, "tag": args.tag,
         **{key: harness.get(key) for key in (
             "status", "loss", "step_seconds", "peak_allocated", "peak_reserved", "peak_nvml",
-            "peak_ram", "tensor_file",
+            "peak_ram", "tensor_file", "dataset_sha256", "linear_rows", "mul_rows",
+            "passthrough_calls",
         )},
     }
 
@@ -326,13 +331,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expert-gemm", choices=("native", "segmented", "lt-fused"),
                         default="native")
     parser.add_argument("--tag", required=True)
+    parser.add_argument("--model-revision",
+                        help="Defaults to config.json's _commit_hash or unknown")
     parser.add_argument("--device", choices=("auto", "cpu"), default="auto")
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", args.tag):
         parser.error("--tag must be one filename component starting with a letter or digit")
     args.lora_targets = tuple(part.strip() for part in args.lora_targets.split(",") if part.strip())
     if _power_state() != 1:
-        print("refusing to run: AC power is not online", file=sys.stderr)
+        Console(stderr=True, markup=False, highlight=False).print(
+            "refusing to run: AC power is not online")
         return 2
     args.out.mkdir(parents=True, exist_ok=True)
     capture_file = args.out / "boundaries" / f"{args.tag}.json"

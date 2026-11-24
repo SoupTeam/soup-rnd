@@ -15,6 +15,7 @@ OUT="${OUT:-$REPO/benchmarks/mbr-moonlight-cdiag-20261124}"
 SEQS="${SEQS:-64 512}"
 KS="${KS:-1 2 4 8}"
 TARGETS="q_proj,kv_a_proj_with_mqa,kv_b_proj,o_proj"
+REVISION="${REVISION:-2a9a177f4841649f849ba941e41d2ee73c042314}"
 ACAD=/sys/class/power_supply/ACAD/online
 
 export CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(list(nvidia.__path__)[0],'cu13'))")
@@ -49,7 +50,8 @@ run_one() {
     "$REPO/benchmarks/mbr-moonlight-cdiag-20261124/capture_boundaries.py" \
     --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
     --out "$OUT" --arm "$arm" --k "$k" --seq "$seq" --steps 3 --lora-targets "$TARGETS" \
-    --expert-gemm segmented --tag "$tag" "${backend_args[@]}" > "$OUT/$tag.log" 2>&1
+    --expert-gemm segmented --tag "$tag" \
+    --model-revision "$REVISION" "${backend_args[@]}" > "$OUT/$tag.log" 2>&1
   local status=$?
   echo "== $tag exit=$status $(date +%T)"
   [ "$status" -eq 0 ] || (( failed += 1 ))
