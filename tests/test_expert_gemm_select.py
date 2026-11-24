@@ -87,7 +87,7 @@ def test_native_is_the_default_and_patches_nothing() -> None:
     from soup_cli.utils import expert_stream, l2l_step
 
     assert DEFAULT_EXPERT_GEMM == "native"
-    assert EXPERT_GEMM_CHOICES == ("native", "lt-fused")
+    assert EXPERT_GEMM_CHOICES == ("native", "segmented", "lt-fused")
     before = (
         functional.linear,
         torch.Tensor.__mul__,
@@ -120,7 +120,31 @@ def test_native_does_not_probe_the_environment(monkeypatch: pytest.MonkeyPatch) 
 
 def test_an_unknown_mode_is_refused() -> None:
     with pytest.raises(ValueError, match="native"):
-        expert_gemm_context("segmented")
+        expert_gemm_context("lt-padded")
+
+
+def test_segmented_keeps_the_native_linear_and_splits_the_expert_calls() -> None:
+    import torch.nn.functional as functional
+
+    from soup_cli.utils import expert_stream, l2l_step
+
+    before = (
+        functional.linear, torch.Tensor.__mul__,
+        expert_stream._grouped_expert_routes, l2l_step._route_preserving_deepseek_forward,
+    )
+    with expert_gemm_context("segmented") as state:
+        during = (
+            functional.linear, torch.Tensor.__mul__,
+            expert_stream._grouped_expert_routes, l2l_step._route_preserving_deepseek_forward,
+        )
+        assert isinstance(state, expert_gemm.SegmentState)
+        assert state.plans == {}
+        assert all(a is not b for a, b in zip(before, during))
+    after = (
+        functional.linear, torch.Tensor.__mul__,
+        expert_stream._grouped_expert_routes, l2l_step._route_preserving_deepseek_forward,
+    )
+    assert all(a is b for a, b in zip(before, after))
 
 
 def test_detect_environment_reports_this_machine() -> None:
