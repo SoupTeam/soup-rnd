@@ -1,0 +1,129 @@
+{
+  "row": {
+    "arm": "C",
+    "k": 8,
+    "seq": 64,
+    "kind": "speed",
+    "mode": "normal",
+    "dataset_sha256": "6beb56aef0d35cae86db050e793596605803289a83478962f0a592bfbabbe1a8",
+    "tensor_file": null,
+    "attention": "default",
+    "expert_loader": "async_lease",
+    "step_seconds": 21.493760316006956,
+    "all_step_seconds": [
+      20.261522967004566,
+      21.493760316006956
+    ],
+    "loss": 2.4534903466701508,
+    "levers": {
+      "expert_gemm": "native",
+      "async_lease": false,
+      "fast_row_gather": false,
+      "expert_loader": "async_lease"
+    },
+    "grad_sha256": "d498e3a22b475a7a27f25692fedf1b38ad1b9b7509c002a9e955e3a3b4668d7e",
+    "vram_limit_gib": null,
+    "direct_io": {
+      "requested": true,
+      "actual": true,
+      "fallback": false
+    },
+    "environment": {
+      "versions": {
+        "torch": "2.14.1+cu130",
+        "triton": "3.8.0",
+        "transformers": "5.20.2",
+        "peft": "0.21.2",
+        "bitsandbytes": "0.50.2",
+        "safetensors": "0.8.0"
+      },
+      "git_sha": "57ec6c3c81bf3ca51b8aeb0bcac5d1b5a49fcdbb",
+      "ptxas": "unknown"
+    },
+    "peak_allocated": 1020594176,
+    "peak_reserved": 1207959552,
+    "peak_nvml": 1373634560,
+    "peak_ram": 5780725760,
+    "status": "ok"
+  },
+  "trace": {
+    "wall_seconds": 21.753814850002527,
+    "cpu_self_seconds": 2.7151340909997135,
+    "expert_gemm": {
+      "calls": 0,
+      "rows_total": 0,
+      "seconds": 0,
+      "rows": {},
+      "kernels": {},
+      "by_rows": {}
+    },
+    "timeline": {
+      "kernels": 158681,
+      "copies": 11604,
+      "kernel_seconds": 2.4143457559991823,
+      "busy_seconds": 4.544914218999085,
+      "span_seconds": 21.753207574,
+      "gap_seconds": 17.208293355000915,
+      "exposed_seconds": 17.20890063100344,
+      "top": [
+        {
+          "name": "void kDequantizeBlockwise<__nv_bfloat16, 512, 64, 8, 2>(float*, unsigned char*, float*, __nv_bfloat16*, int, int)",
+          "calls": 7480,
+          "seconds": 0.5030487489999542
+        },
+        {
+          "name": "void gemm_4bit_sm80_m16n8k16<__nv_bfloat16, 64, 128, 64>(__nv_bfloat16 const*, unsigned char const*, float const*, unsigned char const*, float const*, float const*, __nv_bfloat16*, __nv_bfloat16 const*, int, int, int, int, int)",
+          "calls": 2160,
+          "seconds": 0.3015761220000603
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn",
+          "calls": 2092,
+          "seconds": 0.12778790999998804
+        },
+        {
+          "name": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_nn_align8::Params)",
+          "calls": 1224,
+          "seconds": 0.07877099099995569
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>, false>(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+          "calls": 10420,
+          "seconds": 0.07522955299994089
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_nn",
+          "calls": 1256,
+          "seconds": 0.06857273099999316
+        },
+        {
+          "name": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_tn_align8::Params)",
+          "calls": 368,
+          "seconds": 0.06617614199999132
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_nn",
+          "calls": 524,
+          "seconds": 0.05435026499998756
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_32x3_tn",
+          "calls": 160,
+          "seconds": 0.052916507000009994
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_64x128_ldg8_f2f_stages_32x6_tn",
+          "calls": 486,
+          "seconds": 0.049070495000002004
+        }
+      ]
+    }
+  },
+  "counted": {
+    "calls": 19478,
+    "rows": {
+      "2816": 9739,
+      "2048": 9739
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "row": {
+    "arm": "S",
+    "k": 8,
+    "seq": 64,
+    "kind": "speed",
+    "mode": "normal",
+    "dataset_sha256": "6beb56aef0d35cae86db050e793596605803289a83478962f0a592bfbabbe1a8",
+    "tensor_file": null,
+    "attention": "default",
+    "expert_loader": "async_lease",
+    "step_seconds": 23.804740309991757,
+    "all_step_seconds": [
+      22.40706541899999,
+      23.804740309991757
+    ],
+    "loss": 2.4631731063127518,
+    "levers": {
+      "expert_gemm": "segmented",
+      "async_lease": false,
+      "fast_row_gather": false,
+      "expert_loader": "async_lease"
+    },
+    "grad_sha256": "17ad69711149960b1d81f461952af93d9e4e9cf893e802bcfb6d85430ac9b5da",
+    "vram_limit_gib": null,
+    "direct_io": {
+      "requested": true,
+      "actual": true,
+      "fallback": false
+    },
+    "environment": {
+      "versions": {
+        "torch": "2.14.1+cu130",
+        "triton": "3.8.0",
+        "transformers": "5.20.2",
+        "peft": "0.21.2",
+        "bitsandbytes": "0.50.2",
+        "safetensors": "0.8.0"
+      },
+      "git_sha": "57ec6c3c81bf3ca51b8aeb0bcac5d1b5a49fcdbb",
+      "ptxas": "unknown"
+    },
+    "fused_visits": {},
+    "linear_rows": 638976,
+    "mul_rows": 319488,
+    "passthrough_calls": 2222,
+    "peak_allocated": 1020594176,
+    "peak_reserved": 1205862400,
+    "peak_nvml": 1371537408,
+    "peak_ram": 7099637760,
+    "status": "ok"
+  },
+  "trace": {
+    "wall_seconds": 25.115661570991506,
+    "cpu_self_seconds": 3.779357623999934,
+    "expert_gemm": {
+      "calls": 0,
+      "rows_total": 0,
+      "seconds": 0,
+      "rows": {},
+      "kernels": {},
+      "by_rows": {}
+    },
+    "timeline": {
+      "kernels": 265149,
+      "copies": 14264,
+      "kernel_seconds": 4.895142621999516,
+      "busy_seconds": 7.03262199999962,
+      "span_seconds": 25.115119604999997,
+      "gap_seconds": 18.082497605000377,
+      "exposed_seconds": 18.083039570991886,
+      "top": [
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn",
+          "calls": 19732,
+          "seconds": 1.1754986820000195
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_nn",
+          "calls": 11543,
+          "seconds": 0.6647133840001449
+        },
+        {
+          "name": "void kDequantizeBlockwise<__nv_bfloat16, 512, 64, 8, 2>(float*, unsigned char*, float*, __nv_bfloat16*, int, int)",
+          "calls": 7488,
+          "seconds": 0.5042007220000454
+        },
+        {
+          "name": "void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)",
+          "calls": 8120,
+          "seconds": 0.41028511800003964
+        },
+        {
+          "name": "void gemm_4bit_sm80_m16n8k16<__nv_bfloat16, 64, 128, 64>(__nv_bfloat16 const*, unsigned char const*, float const*, unsigned char const*, float const*, float const*, __nv_bfloat16*, __nv_bfloat16 const*, int, int, int, int, int)",
+          "calls": 2160,
+          "seconds": 0.3020544590000225
+        },
+        {
+          "name": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x64_32x4_nn_align8::Params)",
+          "calls": 2030,
+          "seconds": 0.15142342800001987
+        },
+        {
+          "name": "ampere_s16816gemm_bf16_256x128_ldg8_stages_32x3_tn",
+          "calls": 794,
+          "seconds": 0.12930575200000405
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn",
+          "calls": 1588,
+          "seconds": 0.12554798999999858
+        },
+        {
+          "name": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_nn_align8::Params)",
+          "calls": 1477,
+          "seconds": 0.09612286300002225
+        },
+        {
+          "name": "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_nn",
+          "calls": 1512,
+          "seconds": 0.09304389200001956
+        }
+      ]
+    }
+  },
+  "counted": {
+    "calls": 103826,
+    "rows": {
+      "2816": 51913,
+      "2048": 51913
+    }
+  }
+}
