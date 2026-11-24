@@ -44,7 +44,7 @@ def parse_k_list(text: str) -> Tuple[int, ...]:
 def parse_arm_list(text: str) -> Tuple[str, ...]:
     """Comma-separated arm names, each a known arm."""
     names = tuple(part.strip() for part in text.split(",") if part.strip())
-    known = ("A0", "B0", "C", *LEVER_ARMS)
+    known = ("A0", "B0", "C", SEGMENTED_ARM, *LEVER_ARMS)
     if not names or any(name not in known for name in names):
         raise argparse.ArgumentTypeError(f"--arms takes names of {', '.join(known)}")
     return names
@@ -135,7 +135,7 @@ def take_window(input_ids: Sequence[Sequence[int]], *, k: int) -> List[List[int]
 def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
     """``L2LStep.run`` keywords of an arm: A0 plain L2L, B0 route-preserving MBR, C B0 plus the
     ordered backward (the exact GEMM joins C with ticket 02), D C's decoupled sibling."""
-    if arm not in ("A0", "B0", "C", *LEVER_ARMS):
+    if arm not in ("A0", "B0", "C", SEGMENTED_ARM, *LEVER_ARMS):
         raise ValueError(f"unknown arm {arm!r}")
     if arm in ("A0", "B0", "C") and arm not in arms_for(k=k):
         raise ValueError(f"arm {arm} does not exist at k={k} (A0 only at k<={A0_MAX_K})")
@@ -145,7 +145,7 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
         return {"route_preserving_mbr": True, "mbr_group_size": k,
                 "mbr_decoupled_subwindow": True}
     options: Dict[str, Any] = {"route_preserving_mbr": True, "mbr_group_size": k}
-    if arm == "C" or arm in LEVER_ARMS:
+    if arm in ("C", SEGMENTED_ARM) or arm in LEVER_ARMS:
         options["mbr_ordered_backward"] = True
     return options
 
@@ -187,6 +187,14 @@ DECOUPLED_ARM, DECOUPLED_PREVIOUS = "D", "C"
 DECOUPLED_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64))
 DECOUPLED_MIN_WINDOWS = 2  # the local gate of ticket 06 asks for two of the three fitting ones
 
+# Ticket 14 tail: the price of the exact path. S is C's ordered step with
+# ``expert_gemm="segmented"`` (native cuBLAS per micro-batch), so the bit-preserving mode is
+# measured against C (what segmentation costs) and against A0 (how much of C's speed is left).
+SEGMENTED_ARM, SEGMENTED_PREVIOUS = "S", "C"
+SEGMENTED_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64))
+SEGMENTED_RUNTIME: Dict[str, Any] = {"expert_gemm": "segmented", "async_lease": False,
+                                    "fast_row_gather": False, "expert_loader": "async_lease"}
+
 
 def ladder_arms(k: int) -> Tuple[str, ...]:
     """The bits ladder at ``k``: A0 with C and every lever up to k=8; C and the levers above it,
@@ -197,6 +205,8 @@ def ladder_arms(k: int) -> Tuple[str, ...]:
 def arm_runtime(arm: str) -> Dict[str, Any]:
     """The levers outside ``L2LStep.run``: expert GEMM mode, async lease, fast row gather, and
     which loader feeds the expert pool (``async_lease`` unless the arm is H)."""
+    if arm == SEGMENTED_ARM:
+        return dict(SEGMENTED_RUNTIME)
     return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
                                      "fast_row_gather": False,
                                      "expert_loader": "async_lease"}))
@@ -229,6 +239,20 @@ def decoupled_speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
     ``A-B-C-C-B-A`` for a two-hand gate.
     """
     return _pair_speed_plan(DECOUPLED_PREVIOUS, DECOUPLED_ARM, DECOUPLED_WINDOWS, blocks=blocks)
+
+
+def segmented_speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
+    """Normal-mode A0-C-S-S-C-A0 blocks over the three fitting windows (ticket 14 tail).
+
+    A0 is the context hand, C the ordered arm, S C with ``expert_gemm="segmented"``. The order
+    is the ticket's ``A-B-C-C-B-A`` with the three hands; above ``A0_MAX_K`` A0 does not run, so
+    (64,64) keeps the C-S-S-C core.
+    """
+    return [{"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
+             "deterministic": False}
+            for block in range(blocks) for k, seq in SEGMENTED_WINDOWS
+            for arm in ("A0", "C", SEGMENTED_ARM, SEGMENTED_ARM, "C", "A0")
+            if arm != "A0" or k <= A0_MAX_K]
 
 
 def large_window_enabled(*, previous_fits: bool) -> bool:
@@ -884,7 +908,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba",
-                 "loader-speed", "decoupled-speed"):
+                 "loader-speed", "decoupled-speed", "seg-speed"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -910,7 +934,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="SDPA math backend only (diagnostic for attention backward)")
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
-        if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed"):
+        if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed",
+                    "seg-speed"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
         if name == "abba":
             p.add_argument("--start-block", type=int, default=0,
@@ -933,6 +958,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             "lever-speed": lambda: lever_speed_plan(blocks=args.blocks),
             "loader-speed": lambda: loader_speed_plan(blocks=args.blocks),
             "decoupled-speed": lambda: decoupled_speed_plan(blocks=args.blocks),
+            "seg-speed": lambda: segmented_speed_plan(blocks=args.blocks),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
     if args.command in ("bits", "lever-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]

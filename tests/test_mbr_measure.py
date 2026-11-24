@@ -572,6 +572,36 @@ def test_the_ladder_carries_h_at_every_k_and_keeps_a0_below_it() -> None:
     assert mm.arm_options("H", k=4) == mm.arm_options("C", k=4)
 
 
+# ---- ticket 14 tail: S = C + the segmented native expert GEMM, the price of the exact path ----
+def test_the_segmented_arm_keeps_c_step_options_and_switches_the_gemm() -> None:
+    assert mm.SEGMENTED_ARM == "S"
+    assert mm.arm_options("S", k=8) == mm.arm_options("C", k=8)
+    assert mm.arm_options("S", k=64) == mm.arm_options("C", k=64)
+    assert mm.arm_runtime("S") == {"expert_gemm": "segmented", "async_lease": False,
+                                   "fast_row_gather": False, "expert_loader": "async_lease"}
+    assert mm.parse_arm_list("S") == ("S",)
+
+
+def test_the_segmented_speed_plan_is_a_b_c_c_b_a_and_drops_a0_above_k8() -> None:
+    plan = mm.segmented_speed_plan(blocks=1)
+    assert {(p["k"], p["seq"]) for p in plan} == set(mm.SEGMENTED_WINDOWS)
+    assert [p["arm"] for p in plan if (p["k"], p["seq"]) == (8, 64)] == \
+        ["A0", "C", "S", "S", "C", "A0"]
+    assert [p["arm"] for p in plan if (p["k"], p["seq"]) == (64, 64)] == ["C", "S", "S", "C"]
+    assert len(plan) == 16
+    assert all(p["kind"] == "speed" and p["deterministic"] is False for p in plan)
+    five = mm.segmented_speed_plan(blocks=5)
+    assert len(five) == 80
+    assert {p["block"] for p in five} == set(range(5))
+
+
+def test_the_segmented_arm_stays_out_of_the_bits_ladders() -> None:
+    """The bits of S against A0 are ticket 14's ladder; this arm is speed and memory only."""
+    assert mm.SEGMENTED_ARM not in mm.ladder_arms(8)
+    assert mm.SEGMENTED_ARM not in mm.LEVER_ARMS
+    assert mm.SEGMENTED_ARM not in mm.arms_for(k=8)
+
+
 def test_loader_speed_plan_is_g_h_h_g_over_the_three_fitting_windows() -> None:
     plan = mm.loader_speed_plan(blocks=5)
     assert {(p["k"], p["seq"]) for p in plan} == set(mm.LOADER_WINDOWS)
