@@ -203,6 +203,17 @@ def test_environment_record_keeps_versions_and_marks_missing_tools_unknown() -> 
     assert out["git_sha"] == "abc" and out["ptxas"] == "unknown"
 
 
+def test_environment_record_carries_the_allocator_config_of_the_run() -> None:
+    """Ticket 16 runs every hand with expandable segments: the row must say so."""
+    def lookup(name: str) -> str | None:
+        return None
+
+    out = mm.environment_record(lookup, git_sha="abc", ptxas=None,
+                                alloc_conf="expandable_segments:True")
+    assert out["alloc_conf"] == "expandable_segments:True"
+    assert mm.environment_record(lookup, git_sha="abc", ptxas=None)["alloc_conf"] == "default"
+
+
 def test_direct_io_flag_is_recorded_and_a_silent_fallback_is_called_out() -> None:
     assert mm.direct_io_record(requested=True, actual=True) == {"requested": True,
                                                                  "actual": True, "fallback": False}

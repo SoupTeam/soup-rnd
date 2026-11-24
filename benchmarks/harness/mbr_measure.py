@@ -553,11 +553,13 @@ def phase_shares(summary: Dict[str, Dict[str, float]]) -> Dict[str, float]:
 _TRACKED = ("torch", "triton", "transformers", "peft", "bitsandbytes", "safetensors")
 
 
-def environment_record(lookup: Callable[[str], Any], *, git_sha: Any, ptxas: Any
-                       ) -> Dict[str, Any]:
-    """Tool versions and the git sha of a run; a missing one is written as ``unknown``."""
+def environment_record(lookup: Callable[[str], Any], *, git_sha: Any, ptxas: Any,
+                       alloc_conf: Optional[str] = None) -> Dict[str, Any]:
+    """Tool versions, the git sha and the allocator config of a run; a missing one is
+    ``unknown``, and an unset allocator config is written as ``default``."""
     return {"versions": {name: lookup(name) or "unknown" for name in _TRACKED},
-            "git_sha": git_sha or "unknown", "ptxas": ptxas or "unknown"}
+            "git_sha": git_sha or "unknown", "ptxas": ptxas or "unknown",
+            "alloc_conf": alloc_conf or "default"}
 
 
 def direct_io_record(*, requested: bool, actual: bool) -> Dict[str, bool]:
@@ -810,6 +812,7 @@ def gemm_plan_record(plan: Any) -> Dict[str, Any]:
 
 
 def _environment() -> Dict[str, Any]:  # pragma: no cover - needs the host's tools
+    import os
     import shutil
     import subprocess
     from importlib import metadata
@@ -828,7 +831,8 @@ def _environment() -> Dict[str, Any]:  # pragma: no cover - needs the host's too
             return None
 
     ptxas = run(["ptxas", "--version"]) if shutil.which("ptxas") else None
-    return environment_record(lookup, git_sha=run(["git", "rev-parse", "HEAD"]), ptxas=ptxas)
+    return environment_record(lookup, git_sha=run(["git", "rev-parse", "HEAD"]), ptxas=ptxas,
+                              alloc_conf=os.environ.get("PYTORCH_CUDA_ALLOC_CONF"))
 
 
 def _profile_step(stepper: Any, store: Any, ids: List[Any], options: Dict[str, Any],
