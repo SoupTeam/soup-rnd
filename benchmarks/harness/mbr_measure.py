@@ -134,7 +134,7 @@ def take_window(input_ids: Sequence[Sequence[int]], *, k: int) -> List[List[int]
 # --------------------------------------------------------------------------
 def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
     """``L2LStep.run`` keywords of an arm: A0 plain L2L, B0 route-preserving MBR, C B0 plus the
-    ordered backward (the exact GEMM joins C with ticket 02)."""
+    ordered backward (the exact GEMM joins C with ticket 02), D C's decoupled sibling."""
     if arm not in ("A0", "B0", "C", *LEVER_ARMS):
         raise ValueError(f"unknown arm {arm!r}")
     if arm in ("A0", "B0", "C") and arm not in arms_for(k=k):
@@ -152,7 +152,8 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
 
 # Lever arms of ticket 02, each stacked on the one before: C is B0 plus the ordered backward, E
 # adds the exact expert GEMM (``lt-fused``), F the async lease, G the light row gathers. They run
-# the step options of C; the levers are switched outside ``L2LStep.run`` (``arm_runtime``).
+# the step options of C; the levers are switched outside ``L2LStep.run`` (``arm_runtime``). D is
+# not part of that stack: it is C's decoupled sibling and carries its own step options.
 LEVER_ARMS: Dict[str, Dict[str, Any]] = {
     "E": {"expert_gemm": "lt-fused", "async_lease": False, "fast_row_gather": False,
           "expert_loader": "async_lease"},
