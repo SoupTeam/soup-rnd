@@ -720,6 +720,10 @@ def gemm_plan_record(plan: Any) -> Dict[str, Any]:
     table = getattr(plan, "table", None)
     if table is not None:
         record["algo_table"] = dict(table.stats)
+    for counter in ("linear_rows", "mul_rows", "passthrough_calls"):
+        value = getattr(plan, counter, None)
+        if value is not None:
+            record[counter] = int(value)
     return record
 
 

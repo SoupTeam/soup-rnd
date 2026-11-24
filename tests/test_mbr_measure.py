@@ -687,7 +687,10 @@ def test_a_segmented_expert_gemm_plan_has_no_algorithm_table() -> None:
     from soup_cli.utils.expert_gemm import SegmentState
 
     assert mm.gemm_plan_record(None) == {}
-    assert mm.gemm_plan_record(SegmentState()) == {"fused_visits": {}}
+    state = SegmentState(linear_rows=96, mul_rows=96, passthrough_calls=2)
+    assert mm.gemm_plan_record(state) == {
+        "fused_visits": {}, "linear_rows": 96, "mul_rows": 96, "passthrough_calls": 2,
+    }
 
     class Table:
         stats = {"merged_calls": 3}
