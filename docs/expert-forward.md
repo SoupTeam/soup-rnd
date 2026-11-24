@@ -280,6 +280,12 @@ M = 17..31, and the two order the K sum differently. `segmented` and `lt-fused` 
 call at the reference row count; `segmented` pays Python and dispatcher cost per segment,
 `lt-fused` does the same split in one extension call.
 
+`segmented` slices the joined rows with `split(counts)`, so every segment after the first starts
+at a row offset, and cuBLAS picks a kernel from the alignment as well as the row count. On
+Moonlight, K = 2048 and 1408 in bf16 is 4096 and 2816 bytes per row, both multiples of 16, so every
+segment start stays 16-byte aligned. Other hidden sizes were not checked: a K whose bf16 row is not
+a multiple of 16 bytes can start a segment at an unaligned offset and lose the reference kernel.
+
 `lt-fused` builds a C++/CUDA extension (`a0_exact_lt_ext.cpp`, `a0_exact_lt_kernels.cu`) with
 `torch.utils.cpp_extension.load` on first use ([ADR 0002](adr/0002-exact-gemm-optional-jit-extension.md)),
 so an install without a compiler keeps working. It never falls back to `native`. Before it builds

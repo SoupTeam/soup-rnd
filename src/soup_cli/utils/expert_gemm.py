@@ -1,4 +1,8 @@
-"""Expert GEMM plans for the route-preserving MBR step (``--expert-gemm``).
+"""Expert GEMM plans for the route-preserving MBR step (``expert_gemm_context``).
+
+The installed tool has no CLI flag for this: the API is
+``soup_cli.utils.expert_gemm.expert_gemm_context(mode)``. The benchmark harness and the ticket 14
+capture expose the same choice as ``--expert-gemm``.
 
 ``native`` (the default) changes nothing. ``segmented`` keeps native cuBLAS but cuts each expert
 call into the micro-batch segments L2L would have run, so every GEMM keeps the row count (and the
