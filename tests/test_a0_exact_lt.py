@@ -76,6 +76,31 @@ def discover(table: AlgoTable, backend: FakeBackend, parts: Any, w: Any, transpo
     backend.matmul_calls.clear()
 
 
+def test_prealloc_env_calls_the_shared_scratch_arena(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The launch options of the scratch arena reach the extension before the weights are built."""
+    from soup_cli.utils import a0_exact_lt
+
+    calls: List[Tuple[int, int, int, bool, bool]] = []
+
+    class FakeModule:
+        def prealloc_scratch(self, rows: int, hid: int, inter: int, now: bool,
+                             gather: bool) -> None:
+            calls.append((rows, hid, inter, now, gather))
+
+    monkeypatch.setenv("A0_SCRATCH_PREALLOC_ROWS", "3937")
+    monkeypatch.setenv("A0_SCRATCH_PREALLOC_HID", "2048")
+    monkeypatch.setenv("A0_SCRATCH_PREALLOC_INTER", "1408")
+    monkeypatch.setenv("A0_SCRATCH_WHEN", "lazy")
+    monkeypatch.setenv("A0_SCRATCH_PREALLOC_GATHER", "0")
+    a0_exact_lt.prealloc_scratch_from_env(FakeModule())
+    assert calls == [(3937, 2048, 1408, False, False)]
+
+    calls.clear()
+    monkeypatch.delenv("A0_SCRATCH_PREALLOC_ROWS")
+    a0_exact_lt.prealloc_scratch_from_env(FakeModule())
+    assert calls == []
+
+
 def test_bucket_segments_groups_equal_keys_in_first_seen_order_and_isolates_none() -> None:
     keys = ["a", None, "b", "a", None, "b", "a"]
     assert bucket_segments(keys) == [

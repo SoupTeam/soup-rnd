@@ -453,13 +453,99 @@ void device_copy(void* dst, const void* src, size_t bytes) {
 
 bool aligned_ptr(const void* p) { return reinterpret_cast<std::uintptr_t>(p) % 256 == 0; }
 
-// Scratch buffers of the fused expert, kept per thread, device slot and stream: the temporaries
-// h, a, y, grad_a, grad_y, grad_h and the gather buffers are reused call after call instead of
-// allocated (the autograd thread and the forward thread each have their own, the same stream
-// orders every reuse). Results that leave the call are fresh tensors.
+// Scratch buffers of the fused expert. The staging slots are one arena per (device, stream):
+// one preallocated block serves the forward and the backward and every visit, instead of a
+// tensor per slot and thread. A tensor per slot let a few small buffers pin 160/320 MiB
+// segments that the caching allocator had made for larger, already freed allocations. Slots
+// have fixed offsets in the arena, so the pointers of one call never overlap.
+//
+// The arena is sized by ``prealloc_scratch`` (the launch options of the benchmark); a slot that
+// does not fit (a larger visit than the arena was sized for, or a gather slot left out) falls
+// back to the per-thread per-slot pool below, which is also what runs when no arena was sized.
 enum Slot { kH, kA, kY, kGradA, kGradY, kGradH, kProd, kGatherIn, kGatherOut, kSlots };
 
-void* scratch(int slot, int64_t bytes, const at::Tensor& like) {
+constexpr int kScratchSlots = static_cast<int>(kSlots);
+constexpr int64_t kScratchAlign = 256;
+
+struct ScratchPlan {
+  int64_t bytes[kScratchSlots] = {};
+};
+
+struct ScratchArena {
+  at::Tensor buf;
+  int64_t off[kScratchSlots] = {};
+  int64_t len[kScratchSlots] = {};
+  int64_t bytes = 0;
+};
+
+std::mutex g_arena_mutex;
+std::map<std::pair<int, cudaStream_t>, ScratchArena> g_arenas;
+ScratchPlan g_arena_plan;
+bool g_arena_planned = false;
+
+int64_t align_up(int64_t value, int64_t align) {
+  return (value + align - 1) / align * align;
+}
+
+// Sizes of one visit. The gather slots take the largest row in/out bytes of any ``seg_matmul_raw``
+// call of the visit, so a forward and a backward share one layout even when only one uses them.
+ScratchPlan scratch_plan(int64_t rows, int64_t hid, int64_t inter, bool backward, bool gather) {
+  ScratchPlan plan;
+  plan.bytes[kH] = rows * 2 * inter * 2;
+  plan.bytes[kA] = rows * inter * 2;
+  plan.bytes[kY] = rows * hid * 2;
+  if (gather) {
+    const int64_t row_bytes = std::max(2 * hid, 4 * inter);
+    plan.bytes[kGatherIn] = rows * row_bytes;
+    plan.bytes[kGatherOut] = rows * row_bytes;
+  }
+  if (backward) {
+    plan.bytes[kGradY] = rows * hid * 2;
+    plan.bytes[kProd] = rows * hid * 4;
+    plan.bytes[kGradA] = rows * inter * 2;
+    plan.bytes[kGradH] = rows * 2 * inter * 2;
+  }
+  return plan;
+}
+
+void install_arena(ScratchArena& arena, const ScratchPlan& plan, int device) {
+  int64_t offset = 0;
+  for (int slot = 0; slot < kScratchSlots; ++slot) {
+    arena.off[slot] = offset;
+    arena.len[slot] = plan.bytes[slot];
+    offset += align_up(plan.bytes[slot], kScratchAlign);
+  }
+  arena.bytes = offset;
+  arena.buf = at::empty({offset},
+                        at::TensorOptions().dtype(at::kByte).device(at::kCUDA, device));
+}
+
+// Size the arena for the largest visit the run will make. ``now`` allocates at the call (used at
+// extension load, before the weights); otherwise the first expert call materializes it.
+void prealloc_scratch(int64_t rows, int64_t hid, int64_t inter, bool now, bool gather) {
+  TORCH_CHECK(rows > 0 && hid > 0 && inter > 0, "scratch arena needs positive rows, hid, inter");
+  const ScratchPlan plan = scratch_plan(rows, hid, inter, true, gather);
+  std::lock_guard<std::mutex> lock(g_arena_mutex);
+  g_arena_plan = plan;
+  g_arena_planned = true;
+  if (!now) return;
+  const int device = static_cast<int>(at::cuda::current_device());
+  const auto stream = static_cast<cudaStream_t>(at::cuda::getCurrentCUDAStream());
+  install_arena(g_arenas[std::make_pair(device, stream)], plan, device);
+}
+
+std::map<std::string, int64_t> scratch_stats() {
+  std::lock_guard<std::mutex> lock(g_arena_mutex);
+  int64_t bytes = 0;
+  for (const auto& entry : g_arenas) bytes += entry.second.bytes;
+  return {
+      {"arenas", static_cast<int64_t>(g_arenas.size())},
+      {"bytes", bytes},
+      {"planned", g_arena_planned ? 1 : 0},
+  };
+}
+
+void* legacy_scratch(int slot, int64_t bytes, const at::Tensor& like) {
   static thread_local std::map<std::tuple<int, int, cudaStream_t>, at::Tensor> pool;
   const auto key = std::make_tuple(static_cast<int>(like.get_device()), slot,
                                    static_cast<cudaStream_t>(at::cuda::getCurrentCUDAStream()));
@@ -468,6 +554,24 @@ void* scratch(int slot, int64_t bytes, const at::Tensor& like) {
     t = at::empty({std::max<int64_t>(bytes, 256)}, like.options().dtype(at::kByte));
   }
   return t.data_ptr();
+}
+
+void* scratch(int slot, int64_t bytes, const at::Tensor& like) {
+  if (bytes <= 0 || slot < 0 || slot >= kScratchSlots) return legacy_scratch(slot, bytes, like);
+  const int device = static_cast<int>(like.get_device());
+  const auto stream = static_cast<cudaStream_t>(at::cuda::getCurrentCUDAStream());
+  {
+    std::lock_guard<std::mutex> lock(g_arena_mutex);
+    auto it = g_arenas.find(std::make_pair(device, stream));
+    if (it == g_arenas.end() && g_arena_planned) {
+      it = g_arenas.emplace(std::make_pair(device, stream), ScratchArena()).first;
+      install_arena(it->second, g_arena_plan, device);
+    }
+    if (it != g_arenas.end() && it->second.len[slot] >= bytes) {
+      return static_cast<char*>(it->second.buf.data_ptr()) + it->second.off[slot];
+    }
+  }
+  return legacy_scratch(slot, bytes, like);
 }
 
 // Number of CUDA streams the Lt calls of one segment matmul are spread over (1: the current
@@ -900,6 +1004,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("register_algo", &register_algo, "store the A0 algo of (out_cols, k, transposed, rows)");
   m.def("expert_forward", &expert_forward, "expert_mlp(hidden) * weights, merged A0-exact GEMMs");
   m.def("expert_backward", &expert_backward, "direct expert backward, merged A0-exact GEMMs");
+  m.def("prealloc_scratch", &prealloc_scratch,
+        "size the shared scratch arena for the largest expert visit (now: allocate at once)");
+  m.def("scratch_stats", &scratch_stats, "arena count and bytes of the shared scratch");
 #ifdef A0_HAVE_KERNELS
   m.attr("has_kernels") = true;
   m.def("copy_segments", &t_copy_segments);

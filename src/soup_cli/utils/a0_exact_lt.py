@@ -395,10 +395,10 @@ def load_extension(
     from torch.utils.cpp_extension import load
 
     include_paths, ldflags = _cuda_paths()
+    module = None
     if kernels:
         try:
             module = _build(load, include_paths, ldflags, verbose, with_kernels=True)
-            return LtExtensionBackend(module)
         except Exception as exc:  # noqa: BLE001 - nvcc missing or a build error: say so, fall back
             if strict:
                 raise
@@ -406,7 +406,28 @@ def load_extension(
 
             Console(stderr=True).out(
                 f"[a0_exact_lt] kernels build failed ({exc!r:.300}); using the ATen path")
-    return LtExtensionBackend(_build(load, include_paths, ldflags, verbose, with_kernels=False))
+    if module is None:
+        module = _build(load, include_paths, ldflags, verbose, with_kernels=False)
+    prealloc_scratch_from_env(module)
+    return LtExtensionBackend(module)
+
+
+def prealloc_scratch_from_env(module: Any) -> None:
+    """Hand the launch options of the shared scratch arena to the extension.
+
+    ``A0_SCRATCH_PREALLOC_ROWS`` (with ``_HID`` and ``_INTER``) is the largest expert visit the
+    arena is sized for; ``A0_SCRATCH_WHEN=early`` allocates it at load (before the weights),
+    ``lazy`` at the first expert call. ``A0_SCRATCH_PREALLOC_GATHER=0`` leaves the two gather
+    slots out of the arena; they fall back to the per-call pool when a call needs them.
+    """
+    rows = os.environ.get("A0_SCRATCH_PREALLOC_ROWS")
+    if not rows:
+        return
+    hid = int(os.environ["A0_SCRATCH_PREALLOC_HID"])
+    inter = int(os.environ["A0_SCRATCH_PREALLOC_INTER"])
+    now = os.environ.get("A0_SCRATCH_WHEN", "early") != "lazy"
+    gather = os.environ.get("A0_SCRATCH_PREALLOC_GATHER", "1") != "0"
+    module.prealloc_scratch(int(rows), hid, inter, now, gather)
 
 
 def _build(load: Any, include_paths: List[str], ldflags: List[str], verbose: bool,

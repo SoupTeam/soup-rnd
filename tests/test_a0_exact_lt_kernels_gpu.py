@@ -194,6 +194,49 @@ def test_expert_calls_from_several_threads_match_the_single_thread_bits() -> Non
             assert same(a, b)
 
 
+def test_one_scratch_arena_serves_forward_and_backward() -> None:
+    """The staging buffers of one stream are a single preallocated arena, not a buffer per slot
+    and thread. The arena serves visits of different row counts without another block, and the
+    forward keeps the A0 bits of one native GEMM per segment."""
+    from soup_cli.utils import a0_exact_lt
+
+    backend = a0_exact_lt.load_extension()
+    module = backend.module
+    prealloc = getattr(module, "prealloc_scratch", None)
+    assert prealloc is not None, "the extension must expose prealloc_scratch"
+    scratch_stats = getattr(module, "scratch_stats", None)
+    assert scratch_stats is not None, "the extension must expose scratch_stats"
+    prealloc(64, 2048, 1408, True, True)
+    before = scratch_stats()
+    assert before["arenas"] == 1, before
+    assert before["bytes"] > 0, before
+
+    gate_up = (torch.randn(2816, 2048, device="cuda") * 0.02).to(torch.bfloat16)
+    down = (torch.randn(2048, 1408, device="cuda") * 0.02).to(torch.bfloat16)
+    fused = a0_exact_lt.FusedExpert(backend)
+
+    for counts in ([3, 1, 7, 20, 5, 2, 12, 9], [1, 2, 1]):
+        rows = sum(counts)
+        assert fused.ensure(counts, gate_up, down)
+        hidden = sample((rows, 2048))
+        weights = torch.rand(rows, 1, device="cuda")
+        grad = sample((rows, 2048), scale=1.0)
+        got = backend.expert_forward(hidden, weights, gate_up, down, counts)
+        backend.expert_backward(hidden, weights, gate_up, down, grad, counts, True, True)
+        torch.cuda.synchronize()
+        parts, offset = [], 0
+        for count in counts:
+            h = hidden[offset:offset + count] @ gate_up.t()
+            gate, up = h.chunk(2, dim=-1)
+            y = (torch.nn.functional.silu(gate) * up) @ down.t()
+            parts.append(y * weights[offset:offset + count])
+            offset += count
+        assert same(got, torch.cat(parts)), counts
+        after = scratch_stats()
+        assert after["arenas"] == 1, after
+        assert after["bytes"] == before["bytes"], (before, after)
+
+
 @pytest.mark.parametrize("hid", [2048, 7168, 1408, 512, 4096])
 def test_segment_row_sum_equals_one_aten_sum_per_segment(hid: int) -> None:
     """One launch for every segment of ``prod.sum(1, keepdim)``, bit for bit with the ATen call
