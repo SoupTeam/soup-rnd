@@ -149,3 +149,32 @@ def test_the_timeline_of_an_empty_trace_is_zeroed() -> None:
     assert timeline == {"kernels": 0, "copies": 0, "kernel_seconds": 0.0, "busy_seconds": 0.0,
                         "span_seconds": 0.0, "gap_seconds": 0.0, "exposed_seconds": 3.0,
                         "top": []}
+
+
+def test_a_step_summary_carries_the_counters_the_timeline_and_the_cpu_self_time() -> None:
+    events: List[Any] = [
+        expert_mm(16, "gate_up", kernels=[FakeKernel("cutlass", 100.0)]),
+        expert_mm(8, "down", kernels=[FakeKernel("cutlass", 30.0)]),
+        FakeEvent("aten::mm", device_type="CPU", self_cpu=2500.0, start=0.0, end=2000.0),
+        FakeEvent("cutlass", device_type="CUDA", start=0.0, end=130.0),
+    ]
+    summary = mt.step_summary(events, wall_seconds=0.5)
+    assert summary["wall_seconds"] == 0.5
+    assert summary["cpu_self_seconds"] == pytest.approx(2500.0 / 1e6)
+    gemm = summary["expert_gemm"]
+    assert gemm["calls"] == 2
+    assert gemm["rows_total"] == 24
+    assert gemm["seconds"] == pytest.approx(130e-6)
+    assert gemm["rows"] == {8: 1, 16: 1}
+    assert gemm["kernels"] == {"cutlass": {"calls": 2, "seconds": pytest.approx(130e-6),
+                                           "rows_min": 8, "rows_max": 16}}
+    assert summary["timeline"]["kernels"] == 1
+    assert summary["timeline"]["busy_seconds"] == pytest.approx(130e-6)
+
+
+def test_a_step_without_expert_calls_has_zero_totals_and_empty_tables() -> None:
+    summary = mt.step_summary([], wall_seconds=10.0)
+    assert summary["cpu_self_seconds"] == 0.0
+    assert summary["expert_gemm"] == {"calls": 0, "rows_total": 0, "seconds": 0.0,
+                                      "rows": {}, "kernels": {}}
+    assert summary["timeline"]["kernels"] == 0 and summary["timeline"]["top"] == []
