@@ -176,5 +176,19 @@ def test_a_step_without_expert_calls_has_zero_totals_and_empty_tables() -> None:
     summary = mt.step_summary([], wall_seconds=10.0)
     assert summary["cpu_self_seconds"] == 0.0
     assert summary["expert_gemm"] == {"calls": 0, "rows_total": 0, "seconds": 0.0,
-                                      "rows": {}, "kernels": {}}
+                                      "rows": {}, "kernels": {}, "by_rows": {}}
     assert summary["timeline"]["kernels"] == 0 and summary["timeline"]["top"] == []
+
+
+def test_the_row_table_gives_the_seconds_and_microseconds_per_row_of_each_m() -> None:
+    """The M efficiency: two 16-row calls of 1.5e-5 s and 0.5e-5 s, one 4-row call of 0.5e-5 s."""
+    table = mt.rows_table([
+        {"rows": 16, "projection": "gate_up", "kernel": "k", "seconds": 1.5e-5, "kernels": 1},
+        {"rows": 16, "projection": "down", "kernel": "k", "seconds": 0.5e-5, "kernels": 1},
+        {"rows": 4, "projection": "down", "kernel": "k", "seconds": 0.5e-5, "kernels": 1},
+    ])
+    assert list(table) == [4, 16]
+    assert table[16]["calls"] == 2
+    assert table[16]["seconds"] == pytest.approx(20e-6)
+    assert table[16]["us_per_row"] == pytest.approx(1.25)
+    assert table[4]["us_per_row"] == pytest.approx(1.25)
