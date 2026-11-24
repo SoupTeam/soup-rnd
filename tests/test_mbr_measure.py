@@ -760,36 +760,28 @@ def test_the_run_command_takes_trace_and_hands_it_to_run_one(monkeypatch: pytest
     assert seen["trace"] is False
 
 
-def test_sweep_child_forwards_count_and_gpu_util_only_when_asked() -> None:
+def test_the_run_child_forwards_count_only_when_asked() -> None:
     args = argparse.Namespace(source="s", cache="c", steps=3, out="o", device="auto", lora_r=16,
                               lora_targets=("q_proj",), tokenizer=None)
     item = {"arm": "C", "k": 8, "seq": 64, "kind": "speed", "deterministic": False}
     assert "--count" not in mm.child_run_args(args, item)
-    assert "--gpu-util" not in mm.child_run_args(args, item)
-    args.count, args.gpu_util = True, True
-    argv = mm.child_run_args(args, item)
-    assert "--count" in argv and "--gpu-util" in argv
+    args.count = True
+    assert "--count" in mm.child_run_args(args, item)
 
 
-def test_the_run_command_takes_count_and_gpu_util(monkeypatch: pytest.MonkeyPatch,
-                                                  capsys: pytest.CaptureFixture) -> None:
+def test_the_run_command_takes_count_and_hands_it_to_run_one(monkeypatch: pytest.MonkeyPatch,
+                                                             capsys: pytest.CaptureFixture) -> None:
     seen = {}
 
     def fake_run_one(args: argparse.Namespace) -> dict:
-        seen["count"], seen["gpu_util"] = args.count, args.gpu_util
-        return {"count": args.count, "gpu_util": args.gpu_util}
+        seen["count"] = args.count
+        return {"count": args.count}
 
     monkeypatch.setattr(mm, "run_one", fake_run_one)
     base = ["run", "--arm", "C", "--k", "8", "--seq", "64", "--kind", "speed",
             "--source", "s", "--cache", "c", "--out", "o"]
     assert mm.main(base) == 0
-    assert seen == {"count": False, "gpu_util": False}
-    assert mm.main(base + ["--count", "--gpu-util"]) == 0
-    assert seen == {"count": True, "gpu_util": True}
-    assert '"gpu_util": true' in capsys.readouterr().out
-
-
-def test_gpu_util_record_is_the_mean_max_and_sample_count() -> None:
-    assert mm.gpu_util_record([10, 20, 30]) == {"mean": 20.0, "max": 30, "samples": 3}
-    assert mm.gpu_util_record([100]) == {"mean": 100.0, "max": 100, "samples": 1}
-    assert mm.gpu_util_record([]) is None
+    assert seen["count"] is False
+    assert mm.main(base + ["--count"]) == 0
+    assert seen["count"] is True
+    assert '"count": true' in capsys.readouterr().out

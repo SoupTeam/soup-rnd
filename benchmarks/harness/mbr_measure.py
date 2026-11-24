@@ -474,15 +474,6 @@ def parse_nvml_used(samples: Sequence[str]) -> int:
     return max(int(s.split()[0]) for s in samples) * 2**20
 
 
-def gpu_util_record(samples: Sequence[int]) -> Optional[Dict[str, Any]]:
-    """Mean, peak and count of ``nvidia-smi`` ``utilization.gpu`` samples, in percent."""
-    values = [int(sample) for sample in samples]
-    if not values:
-        return None
-    return {"mean": round(sum(values) / len(values), 2), "max": max(values),
-            "samples": len(values)}
-
-
 def summarize_rows(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[str, int, int], Dict[str, Any]]:
     """Per (arm, k, seq): median step seconds over the ok runs, max of each peak, run count.
     A cell with an OOM keeps the OOM status and its peaks; it has no step time."""
@@ -589,51 +580,6 @@ class _NvmlSampler:
         self._thread.join()
 
 
-def _gpu_util_now() -> int:
-    import subprocess
-
-    out = subprocess.run(["nvidia-smi", "--query-gpu=utilization.gpu",
-                          "--format=csv,noheader,nounits"],
-                         capture_output=True, text=True, check=True).stdout
-    return int(out.split("\n")[0].strip())
-
-
-class _GpuUtilSampler:
-    """``nvidia-smi`` ``utilization.gpu`` on a thread, every ``interval`` seconds.
-
-    The card is exclusive during a run, so the device-wide utilisation nvidia-smi reports is the
-    step's utilisation. It samples only between ``__enter__`` and ``__exit__``, so the samples
-    cover the step loop and nothing else. A failed sample is skipped.
-    """
-
-    def __init__(self, interval: float = 0.25) -> None:
-        import threading
-
-        self.samples: List[int] = []
-        self._stop, self._interval = threading.Event(), interval
-        self._thread = threading.Thread(target=self._loop, daemon=True)
-
-    def _loop(self) -> None:
-        while not self._stop.is_set():
-            try:
-                self.samples.append(_gpu_util_now())
-            except Exception:  # noqa: BLE001 - nvidia-smi missing or busy: skip the sample
-                pass
-            self._stop.wait(self._interval)
-
-    def __enter__(self) -> "_GpuUtilSampler":
-        self._thread.start()
-        return self
-
-    def __exit__(self, *exc: Any) -> None:
-        self._stop.set()
-        self._thread.join()
-
-    def record(self) -> Optional[Dict[str, Any]]:
-        """The ``gpu_util`` row field: mean, max and sample count, or None without samples."""
-        return gpu_util_record(self.samples)
-
-
 def _is_cuda_oom(error: BaseException) -> bool:
     import torch
 
@@ -703,14 +649,29 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
         )
         from soup_cli.utils.expert_gemm import expert_gemm_context
 
-        with ExitStack() as levers:  # entered before the model is built: the class defaults
-            levers.enter_context(fast_row_gather_context(runtime_levers["fast_row_gather"]))
-            levers.enter_context(async_lease_context(runtime_levers["async_lease"]))
-            gemm_state["plan"] = levers.enter_context(
-                expert_gemm_context(runtime_levers["expert_gemm"]))
-            return build_and_run()
+        # The counter wraps the module-level ``F.linear`` before the expert-GEMM context captures
+        # it: ``segmented`` keeps the reference it finds and calls it once per segment, so a count
+        # installed inside the context would see one call per expert visit instead of one per
+        # micro-batch segment.
+        counted = bool(getattr(args, "count", False))
+        original_linear = torch.nn.functional.linear
+        counter = None
+        if counted:
+            from benchmarks.harness import mbr_count
 
-    def build_and_run() -> Dict[str, Any]:
+            counter = mbr_count.ExpertCounter()
+            torch.nn.functional.linear = counter.wrap(original_linear)
+        try:
+            with ExitStack() as levers:  # entered before the model is built: class defaults
+                levers.enter_context(fast_row_gather_context(runtime_levers["fast_row_gather"]))
+                levers.enter_context(async_lease_context(runtime_levers["async_lease"]))
+                gemm_state["plan"] = levers.enter_context(
+                    expert_gemm_context(runtime_levers["expert_gemm"]))
+                return build_and_run(counter)
+        finally:
+            torch.nn.functional.linear = original_linear
+
+    def build_and_run(counter: Any = None) -> Dict[str, Any]:
         index = read_shard_index(args.cache)
         lora = LoraConfig(r=args.lora_r, lora_alpha=2 * args.lora_r, lora_dropout=0.0,
                           bias="none", target_modules=list(args.lora_targets),
@@ -735,35 +696,22 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             params = {n: p for n, p in model.named_parameters() if p.requires_grad}
             seconds: List[float] = []
             losses: List[Any] = []
-            counted = bool(getattr(args, "count", False))
+            counted = counter is not None
             snapshots: List[Dict[str, Any]] = []
-            original_linear: Any = None
-            util = (_GpuUtilSampler() if cuda and getattr(args, "gpu_util", False) else None)
-            if counted:  # the profiler cannot count these calls at this step size: wrap F.linear
-                from benchmarks.harness import mbr_count
-
-                counter = mbr_count.ExpertCounter()
-                original_linear = torch.nn.functional.linear
-                torch.nn.functional.linear = counter.wrap(original_linear)
-            try:
-                with (util if util is not None else _NullContext()):  # samples the steps only
-                    for _ in range(args.steps):
-                        for p in params.values():
-                            p.grad = None
-                        if cuda:
-                            torch.cuda.synchronize()
-                        started = time.perf_counter()
-                        losses = stepper.run(ids, store, n_items=label_tokens(ids),
-                                             labels=[i.clone() for i in ids], **options)
-                        if cuda:
-                            torch.cuda.synchronize()
-                        seconds.append(time.perf_counter() - started)
-                        if counted:
-                            snapshots.append(counter.snapshot())
-                            counter.reset()
-            finally:
-                if original_linear is not None:
-                    torch.nn.functional.linear = original_linear
+            for _ in range(args.steps):
+                for p in params.values():
+                    p.grad = None
+                if cuda:
+                    torch.cuda.synchronize()
+                started = time.perf_counter()
+                losses = stepper.run(ids, store, n_items=label_tokens(ids),
+                                     labels=[i.clone() for i in ids], **options)
+                if cuda:
+                    torch.cuda.synchronize()
+                seconds.append(time.perf_counter() - started)
+                if counted:
+                    snapshots.append(counter.snapshot())
+                    counter.reset()
             grad_tensors = {name: p.grad for name, p in sorted(params.items())
                             if p.grad is not None}
             grads = {name: g.detach().float().flatten().cpu().tolist()
@@ -786,6 +734,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                     actual=all(r.direct for r in getattr(runtime, "expert_readers", ()))),
                 "environment": _environment()}
             if counted:
+                from benchmarks.harness import mbr_count
+
                 phases: Dict[str, int] = {}
                 for snapshot in snapshots:
                     for phase, count in snapshot["phases"].items():
@@ -795,8 +745,6 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                     "median": mbr_count.median_calls(snapshots),
                     "rows": mbr_count.merged_rows(snapshots),
                     "phases": phases, "steps": len(snapshots)}
-            if util is not None:
-                out["gpu_util"] = util.record()
             # lt-fused reports visits on the fused path and its algorithm table; segmented only
             # reports its counters, and native has no plan at all.
             out.update(gemm_plan_record(gemm_state.get("plan")))
@@ -932,8 +880,6 @@ def child_run_args(args: Any, item: Dict[str, Any]) -> List[str]:
         argv.append("--trace")
     if getattr(args, "count", False):
         argv.append("--count")
-    if getattr(args, "gpu_util", False):
-        argv.append("--gpu-util")
     if getattr(args, "math_attention", False):
         argv.append("--math-attention")
     return argv
@@ -1063,8 +1009,6 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                                 "written into the row")
             p.add_argument("--count", action="store_true",
                            help="count the routed-expert F.linear calls of every step into the row")
-            p.add_argument("--gpu-util", action="store_true",
-                           help="sample nvidia-smi utilisation.gpu while the steps run")
         if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed",
                     "seg-speed"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)

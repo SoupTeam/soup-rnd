@@ -159,3 +159,10 @@ def test_expert_seconds_prices_every_call_with_the_per_m_table() -> None:
 def test_a_row_count_without_a_price_gives_no_seconds() -> None:
     assert mc.expert_seconds({24: 4}, {8: 40.0}) is None
     assert mc.expert_seconds({}, {8: 40.0}) == 0.0
+
+
+def test_merged_calls_of_several_steps_are_divided_by_the_step_count() -> None:
+    """The histogram of three steps priced once is a per-step number, not three steps of it."""
+    merged = {8: 300}
+    assert mc.expert_seconds(merged, {8: 40.0}, steps=3) == 0.004
+    assert mc.expert_seconds(merged, {8: 40.0}) == 0.012

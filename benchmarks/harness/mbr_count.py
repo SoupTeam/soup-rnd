@@ -143,12 +143,14 @@ def merged_rows(snapshots: Sequence[Dict[str, Any]]) -> Dict[int, int]:
     return dict(sorted(merged.items()))
 
 
-def expert_seconds(rows: Dict[int, int], per_row_us: Dict[int, float]) -> Optional[float]:
-    """Σ calls(M) × the microsecond price of one expert GEMM at M.
+def expert_seconds(rows: Dict[int, int], per_row_us: Dict[int, float],
+                   *, steps: int = 1) -> Optional[float]:
+    """Σ calls(M) × the microsecond price of one expert GEMM at M, divided over ``steps``.
 
     ``per_row_us`` prices one call at row count M (the per-M table of ``sweep_rows.py``), not one
-    row: ``expert_seconds({8: 3}, {8: 120.0})`` is 3 × 120 µs. None when a row count has no
-    measured price: the model reports the missing rows rather than guessing a price for them.
+    row: ``expert_seconds({8: 3}, {8: 120.0})`` is 3 × 120 µs. ``rows`` may merge the calls of
+    several steps, so the sum is divided by ``steps`` to stay a per-step number. None when a row
+    count has no measured price: the model reports the missing rows rather than guessing them.
     """
     prices = {int(row_count): float(price) for row_count, price in per_row_us.items()}
     total_us = 0.0
@@ -157,4 +159,4 @@ def expert_seconds(rows: Dict[int, int], per_row_us: Dict[int, float]) -> Option
         if price is None:
             return None
         total_us += int(calls) * price
-    return total_us / 1e6
+    return total_us / 1e6 / max(1, int(steps))
