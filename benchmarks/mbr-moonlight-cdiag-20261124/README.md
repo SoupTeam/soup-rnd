@@ -16,7 +16,7 @@ M = 15 and M = 16 rows; C called it once, with M = 31. All 31 rows differ; in th
 803 of 2048 elements differ, max abs 1.22e-4 against a row max of 2.92e-2 (relative 4.2e-3).
 
 **Operation and cause:** cuBLAS picks the GEMM kernel *and its K reduction* from the row count.
-For this shape M <= 16 runs `ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_stages_64x6` (one
+For this shape M <= 16 runs `ampere_bf16_s16816gemm_64x64_sliced1x2_stages_64x6` (one
 reduction); M = 17..31 runs `cutlass_80_tensorop_bf16_s16816gemm_relu_64x64_64x6_align8` **plus
 `cublasLt::splitKreduce_kernel`** (two-stage split-K sum). Same formula, different summation tree.
 Classification: **algorithmic kernel selection by row count (split-K reduction), not a dtype
@@ -45,8 +45,56 @@ D bit-identical to C), and E escapes it because `lt-fused` forces the reference 
 |---|---|---|---|---|---|
 | A0 vs C, k=2, S=64 | no (1.928908 vs 1.918482) | 108 / 216 | 4.680e-2 | 1.286e-1 | 0.982401 |
 
-This is the same number the ticket 03/06 rows recorded, reproduced three times
-(`repro/bits.json`).
+This is the same number the ticket 03/06 rows recorded; `repro/bits.json` holds one A0/C pair
+from two fresh processes.
+
+## B1: the direct chain, A0 plain against C-seg
+
+The ladder compared C-seg with A0+seg in every window. Only k=2, S=64 also had a direct
+A0-plain control. `compare_cross_day.py` closes that gap on the CPU from stored tensors: A0 plain
+is ticket 03's tensor (20261122, `~/moonlight-local/results/bits`), C-seg is the ticket 14 ladder
+tensor, and the ladder's A0+seg against C-seg verdict is read from `ladder/*/bits.json`. The
+report is `cross-day/bits.json` and `cross-day/bits.md`.
+
+| k, S | A0 plain vs A0+seg | ladder A0+seg vs C-seg | A0 plain vs C-seg | covered |
+|---|---|---|---|---|
+| k=1, S=64 | equal, 0 / 216 | equal, 0 / 216 | equal, 0 / 216 | yes |
+| k=2, S=64 | equal, 0 / 216 | equal, 0 / 216 | differs, 108 / 216 | no |
+| k=4, S=64 | equal, 0 / 216 | equal, 0 / 216 | equal, 0 / 216 | yes |
+| k=8, S=64 | equal, 0 / 216 | equal, 0 / 216 | equal, 0 / 216 | yes |
+| k=1, S=512 | equal, 0 / 216 | equal, 0 / 216 | equal, 0 / 216 | yes |
+| k=2, S=512 | equal, 0 / 216 | equal, 0 / 216 | equal, 0 / 216 | yes |
+| k=4, S=512 | equal, 0 / 216 | equal, 0 / 216 | equal, 0 / 216 | yes |
+| k=8, S=512 | equal, 0 / 216 | equal, 0 / 216 | equal, 0 / 216 | yes |
+
+**Covered: 7 of 8 cells directly, plus the rung the ladder lacked.** Two facts changed against the
+first report:
+
+- A0 plain equals A0+seg in **all 8 cells**, not only k=2, S=64. The no-op control is no longer
+  one cell: the 20261122 A0 tensors and the 20261124 A0+seg tensors are bit-equal everywhere.
+- C-seg equals plain A0 directly in 7 cells. At **k=2, S=64 the direct comparison is not
+  covered**: `tensors/C-k2-s64.pt` was overwritten by `run_repro.sh` at 07:21 with the plain-C run
+  (loss 1.918482, 108 / 216 against A0), after the ladder wrote C-seg to the same filename at
+  07:13. The ladder record `ladder/k2-s64/bits.json` still holds the A0+seg against C-seg verdict
+  (loss equal, 0 / 216), and the A0-plain against A0+seg control holds in this cell, so the chain
+  there is the recorded pair plus transitivity, not a fresh direct comparison. No GPU rerun was
+  made for it.
+
+**Dataset and configuration.** The bits rows of ticket 03 carry
+`dataset_sha256 = 6beb56ae...` for S=64 and `91048d80...` for S=512; every row of a window shares
+one value (`dataset_sha256` in `cross-day/bits.json`). Recomputing `mbpp_records(seq=...)` with the
+same tokenizer reproduces exactly these two hashes, and the capture drives that same function; the
+ticket 14 rows only failed to store the field, because `_write_row` selected a subset of the harness
+row. The capture now writes `dataset_sha256` and the segment counters, so rows captured from here on
+carry them; the historical rows are unchanged.
+Both campaigns used Moonlight rev `2a9a177f...`, the same source and cache, LoRA targets
+`q_proj,kv_a_proj_with_mqa,kv_b_proj,o_proj` at rank 16, three steps, torch 2.14.1+cu130, the
+default SDPA backend at S=64 and the math backend at S=512. One deliberate difference: ticket 03
+ran deterministic with `warn_only=True`, ticket 14 strict; strictness changes whether a
+nondeterministic op raises, not the bits of a deterministic op. The capture now takes an explicit
+`--model-revision` (the run scripts pass `2a9a177f...`); the historical rows carry the revision the
+old fallback read from the cache record, and a source without a `_commit_hash` now records
+`unknown` instead of guessing.
 
 ## Boundaries (`compare-k2-s64/`)
 
@@ -103,7 +151,7 @@ are rounding-sized, not sign-sized); the extra `splitKreduce_kernel` is the math
 
 | alternative | exists | fact |
 |---|---|---|
-| `segmented` (new shipped mode) | **yes** | native cuBLAS called once per micro-batch segment, so every call keeps the reference row count. No extension. Ladder below: bit-equal at k = 1,2,4,8 in both windows. Cost: C k=2 (8,64) 17.16 s against 17.00 s native (one deterministic step, same rows); a k=8 Python segment count is visible in `rows.md`. |
+| `segmented` (new shipped mode) | **yes** | native cuBLAS called once per micro-batch segment, so every call keeps the reference row count. No extension. Ladder below: A0+seg against C-seg bit-equal at k = 1,2,4,8 in both windows, and C-seg against plain A0 directly in 7 of 8 cells (B1). Cost: C k=2, S=64 17.16 s against 17.00 s native (one deterministic step, same rows). The harness row now records `linear_rows`, `mul_rows` and `passthrough_calls`; rows captured before this change have no counters (the k=8 row names only its step time). |
 | `lt-fused` (arm E) | yes | forces the reference kernel per segment in one C++ call (`a0_exact_lt`); already the exact lever, measured in tickets 02/03. Needs the CUDA extension. |
 | `padded` (harness `padded_expert_gemm`, plan D1) | yes, other meaning | pads every call to one row count; with pad 32 and 512 a 1-row and a 2-row call give the same bits (`probe/`), so bits stop depending on M. It changes the reference too: A0 must be padded with the same pad, so it is a "both arms" invariant, not a way to keep plain-A0 bits. |
 | row-wise (`rowwise_expert_linear`, `invariant`) | yes, other meaning | one call per row (M=1 always); needs both arms at M=1. Does not reproduce plain A0, whose calls have M up to 63 here. |
@@ -118,29 +166,33 @@ row-wise).
 ## Fix and ladder
 
 The fix is the shipped mode `soup_cli.utils.expert_gemm.expert_gemm_context("segmented")`
-(`EXPERT_GEMM_CHOICES` now `native`, `segmented`, `lt-fused`), red tests first
-(`tests/test_expert_gemm_select.py`). It reuses `segmented_expert_gemm`, which splits both the
-forward GEMM and the recompute's backward at the micro-batch boundaries.
+(`EXPERT_GEMM_CHOICES` now `native`, `segmented`, `lt-fused`). The mode and its refusals are pinned
+by `tests/test_expert_gemm_select.py`; in the commit history the feature is `862042f8` and the tests
+are `6e0b4481`, so this is a test-pinned change, not a red-first sequence visible in history. It
+reuses `segmented_expert_gemm`, which splits both the forward GEMM and the recompute's backward at
+the micro-batch boundaries.
 
-`run_ladder.sh`: A0 and C both with `--expert-gemm segmented`, k = 1,2,4,8, windows (8,64) and
-(8,512) math, strict mode, three steps, fresh process per cell. For A0 the plan is empty (one
-segment per call), so it is a passthrough — the control below proves it.
+`run_ladder.sh`: A0 and C both with `--expert-gemm segmented`, k = 1,2,4,8, windows S=64 and
+S=512 math, strict mode, three steps, fresh process per cell. For A0 the plan is empty (one
+segment per call), so it is a passthrough — the cross-day control proves that in every cell. The
+verdict below is the ladder's A0+seg against C-seg pair.
 
 | window | loss bitwise equal | grads differing |
 |---|---|---|
-| (1,64) | yes | 0 / 216 |
-| (2,64) | yes | 0 / 216 |
-| (4,64) | yes | 0 / 216 |
-| (8,64) | yes | 0 / 216 |
-| (1,512) math | yes | 0 / 216 |
-| (2,512) math | yes | 0 / 216 |
-| (4,512) math | yes | 0 / 216 |
-| (8,512) math | yes | 0 / 216 |
+| k=1, S=64 | yes | 0 / 216 |
+| k=2, S=64 | yes | 0 / 216 |
+| k=4, S=64 | yes | 0 / 216 |
+| k=8, S=64 | yes | 0 / 216 |
+| k=1, S=512 math | yes | 0 / 216 |
+| k=2, S=512 math | yes | 0 / 216 |
+| k=4, S=512 math | yes | 0 / 216 |
+| k=8, S=512 math | yes | 0 / 216 |
 
 Controls (`ladder/`):
 
-- A0 plain against A0 with `segmented`: loss and all 216 gradients equal — the mode is a no-op on
-  a plain L2L step (`ladder/noop-a0-k2-s64/`).
+- A0 plain against A0 with `segmented`: loss and all 216 gradients equal in **all 8 cells** from the
+  stored tensors of both campaigns (`cross-day/`); the k=2, S=64 control is
+  `ladder/noop-a0-k2-s64/`. The mode is a no-op on a plain L2L step.
 - C native against C with `segmented` at k=2: 108 / 216 differ, max abs 4.68e-2, `grad_rel_l2`
   1.352e-1, min cos 0.982401 — the same divergence as against A0, so the mode is what changes the
   bits (`ladder/plain-vs-seg-c-k2-s64/`).
@@ -150,8 +202,9 @@ Controls (`ladder/`):
 
 The default is **not** switched to `segmented`: arm C is the base of the measured tables in
 tickets 02, 03, 06 and 13, and changing its definition silently would invalidate them. The exact
-lever stays E (`lt-fused`); `segmented` is the extension-free exact path, now available and
-proven.
+lever stays E (`lt-fused`); `segmented` is the extension-free exact path. It held in 7 of 8 cells
+by a fresh direct comparison and in the eighth by the pair recorded when the ladder ran; the
+one-cell gap is named in B1 rather than papered over.
 
 ## What this fixes in the other tickets
 
@@ -169,6 +222,14 @@ proven.
 - `cdiag.py`, `capture_boundaries.py`, `compare_boundaries.py` — boundary capture and comparison.
 - `probe_gemm_rows.py` — the op-level kernel and row-count matrix (`probe/`).
 - `compare_bits.py`, `summarize_rows.py` — the `torch.equal` verdict and `rows.md`.
+- `compare_cross_day.py`, `cross-day/` — B1: A0 plain (20261122) against ladder C-seg (20261124).
 - `run_repro.sh`, `run_ladder.sh` — the two campaigns (AC check, `systemd-inhibit`, lock file).
 - `rows.md` — every result row with model, card, window, arm, mode, expert GEMM, torch.
 - Raw tensors, captures and logs are git-ignored.
+
+## Commit types
+
+`CONTRIBUTING.md` lists `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. The
+earlier commits of this campaign use `bench`, which is not in that list. History is not rewritten;
+every new commit of the campaign uses `chore(bench)` for campaign data and the type that matches
+the change otherwise (`fix`, `test`, `docs`).
