@@ -141,6 +141,15 @@ def test_the_combination_table_marks_the_bits_of_a_window_it_has_no_reference_fo
     assert table["S everywhere"]["bits"]["(64,64)"] == "no A0 reference above k=8"
 
 
+def test_a_window_above_k8_reads_as_no_reference_even_without_a_bit_cell() -> None:
+    """The cross has no k=64 cell: A0 does not run there, so there is nothing to compare."""
+    module = _module(ANALYZE, "mbr_esc_analyze")
+    windows = {"(8,64)": {"C_step_s": 100.0, "S_step_s": 110.0, "E_step_s": 104.0},
+               "(64,64)": {"C_step_s": 300.0, "S_step_s": 500.0, "E_step_s": 360.0}}
+    table = module.combination_table(windows, bits={"8,64": True})
+    assert table["E everywhere"]["bits"]["(64,64)"] == "no A0 reference above k=8"
+
+
 def test_the_replacement_plan_names_every_esc_cell_whose_run_was_void() -> None:
     module = _module(REPLACE, "mbr_esc_replace")
     plan = mm.esc_speed_plan(blocks=1)

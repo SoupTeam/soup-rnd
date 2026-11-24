@@ -156,7 +156,10 @@ COMBINATIONS: Dict[str, Any] = {
 }
 
 
-def _bits_status(bits: Optional[Mapping[str, Optional[bool]]], key: str) -> str:
+def _bits_status(bits: Optional[Mapping[str, Optional[bool]]], window: str) -> str:
+    key = window.strip("()")
+    if bits is not None and key not in bits and int(key.split(",")[0]) > mm.A0_MAX_K:
+        return BITS_NO_REFERENCE
     if bits is None or key not in bits:
         return "not measured"
     if bits[key] is None:
@@ -194,7 +197,7 @@ def combination_table(windows: Mapping[str, Mapping[str, Any]], *,
                             for window, stats in windows.items()},
             "step_sum_rel_C": round(sum(steps) / base, 3) if base and None not in steps else None,
             "peaks": peaks,
-            "bits": {window: _bits_status(bits, window.strip("()")) for window in windows},
+            "bits": {window: _bits_status(bits, window) for window in windows},
         }
     return table
 
