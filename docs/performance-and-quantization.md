@@ -1529,6 +1529,17 @@ and held by the test at 1e-6. It excludes `mbr_split_backward` and
 `mbr_ordered_backward`, and it drives the expert backward itself, so it requires the native
 expert GEMM: a fused expert node (`lt-fused`) is refused instead of losing its bits.
 
+Measured on RTX 3050 Laptop (sm_86, 4 GiB) with Moonlight-16B-A3B, NF4 + BF16: the decoupled
+arm is bit-equal to A0 only at k = 1. At k = 2, 4 and 8 it differs from A0 exactly as the
+ordered arm does (108 of 216 LoRA gradients, `grad_rel_l2` 0.079 to 0.130), because its
+forward is the ordered arm's grouped native expert GEMM; the CPU equality of NF4 + BF16 is a
+CPU-matmul property that the card does not share. Its own backward changes the gradients
+against the ordered arm at 0.7% to 1.6% relative with the loss bit-identical, and it is slower
+in every fitting window (-4.4% at (8,64), -3.2% at (8,512), -48.4% at (64,64)). The (64,512)
+window is OOM in both arms, so the large-window mode earns nothing on this card. The lever is
+not taken; data and the opt-in metrics: 
+[`benchmarks/mbr-moonlight-decoupled-20261124/README.md`](../benchmarks/mbr-moonlight-decoupled-20261124/README.md).
+
 `expert_gemm_context("lt-fused")` (API only, off by default) keeps the A0 bits of a grouped MBR
 step by running each micro-batch segment's expert GEMM through a cuBLASLt call forced onto the
 native kernel; it needs CUDA sm_80+, PyTorch 2.14 and a compiler, and raises instead of falling
