@@ -122,6 +122,19 @@ def kernel_table(calls: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     return table
 
 
+def rows_table(calls: Sequence[Dict[str, Any]]) -> Dict[int, Dict[str, Any]]:
+    """Rows -> calls, summed seconds and microseconds per row: the M efficiency of the GEMMs."""
+    table: Dict[int, Dict[str, Any]] = {}
+    for call in calls:
+        rows = int(call["rows"])
+        entry = table.setdefault(rows, {"calls": 0, "seconds": 0.0})
+        entry["calls"] += 1
+        entry["seconds"] += float(call["seconds"])
+    for rows, entry in table.items():
+        entry["us_per_row"] = entry["seconds"] * 1e6 / rows
+    return dict(sorted(table.items()))
+
+
 def step_summary(events: Iterable[Any], wall_seconds: float) -> Dict[str, Any]:
     """Whole-step summary: wall, CPU self time, the routed-expert GEMM counters and the timeline."""
     events = list(events)
@@ -137,6 +150,7 @@ def step_summary(events: Iterable[Any], wall_seconds: float) -> Dict[str, Any]:
             "seconds": sum(float(call["seconds"]) for call in calls),
             "rows": rows_histogram(calls),
             "kernels": kernel_table(calls),
+            "by_rows": rows_table(calls),
         },
         "timeline": kernel_timeline(events, wall_seconds),
     }
