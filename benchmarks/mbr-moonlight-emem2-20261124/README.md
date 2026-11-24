@@ -39,7 +39,7 @@ minus that C.
 | 1. order: arena at load, before weights | E | 2122.0 | 2624.0 | 2772.0 | +466.0 | no change (lazy arena is the same 2624.0; with the gather slots left out the early arena was +8.0 worse) |
 | 2. reuse: one arena, all 9 slots, lazy | E | 2122.0 | 2624.0 | 2772.0 | **+466.0** | **-686.0**; the win |
 | 2b. arena without the two gather slots | E | 2155.5 | 3054.0 | 3202.0 | +896.0 | worse: the gather buffers fall back to the old pool and pin 320 MiB segments |
-| 3. MemPool staging-only | - | - | - | - | - | not built: after the arena staging is one 168.0 MiB live block and no fragmented staging segment is left to isolate; a pool keeps the same live bytes and adds a second allocator. The class delta of the snapshot is all live |
+| 3. MemPool staging-only | - | - | - | - | - | not built: after the arena staging is one 167.2 MiB live block and no fragmented staging segment is left to isolate; a pool keeps the same live bytes and adds a second allocator. The class delta of the snapshot is all live |
 | 4. `max_split_size_mb:20` | E | 2141.3 | 3628.0 | 3766.0 | +1470.0 | worse by +1004.0 |
 | 4. `max_split_size_mb:32` | E | 2138.5 | 3584.0 | 3732.0 | +1426.0 | worse by +960.0 |
 | 5. `CUBLASLT_WORKSPACE_SIZE=1048576` | E | 2122.0 | 2624.0 | 2772.0 | +466.0 | 0.0: the retained 2 x 8.125 MiB are the extension's own `shared_workspace`, not torch's cuBLAS handle workspace |
@@ -60,7 +60,7 @@ each, outside git), committed diffs in `emem-diff-*.json` and `.md`.
 - Phase-1 source: 265.4 MiB live staging (14 buffers from the nine slot kinds in three thread
   pools, plus two cuBLASLt workspaces) and 1112.9 MiB of free space trapped in 160/320 MiB
   segments that 8-30 MiB live buffers pinned. The arena collapses the 14 buffers of three pools
-  into one 168.0 MiB block (the nine slots at the largest visit, 3937 rows; the two gather slots
+  into one 167.2 MiB block (the nine slots at the largest visit, 3937 rows; the two gather slots
   take the largest row bytes of a visit, 5632 B, each).
 - After the arena, the remaining trap was one 320 MiB segment that held only an 8.125 MiB
   `shared_workspace` (311.9 MiB free). That is the split-large-segment case of the research, but

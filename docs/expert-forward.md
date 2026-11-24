@@ -344,7 +344,7 @@ more was trapped in 160/320 MiB segments that 8-30 MiB live buffers pinned. That
 per-row-count retention.
 
 [Phase 2](../benchmarks/mbr-moonlight-emem2-20261124/README.md) removes most of it with one
-shared scratch arena in the extension: the nine slot kinds are one 168.0 MiB block (sized to the
+shared scratch arena in the extension: the nine slot kinds are one 167.2 MiB block (sized to the
 largest visit) instead of 14 buffers across three thread pools, and the two gather slots are in
 the same block. With `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` the premium at (8,512)
 falls to **+194.0 MiB reserved and +196.0 MiB NVML** (E 2334.0 and 2482.0 against C's 2140.0 and
