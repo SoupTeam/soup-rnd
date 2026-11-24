@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console
+
 
 def _line(row: dict[str, Any]) -> str:
     def number(key: str, scale: float, digits: int) -> str:
@@ -19,6 +21,10 @@ def _line(row: dict[str, Any]) -> str:
 
     loss = row.get("loss")
     loss_text = "loss n/a" if loss is None else f"loss {loss:.6f}"
+    segments = ""
+    if row.get("linear_rows") is not None:
+        segments = (f", segment rows {row['linear_rows']} / mul {row['mul_rows']} / "
+                    f"passthrough {row['passthrough_calls']}")
     return (
         f"- {row['model']} rev {row['model_revision']}, {row['card']}, window {row['window']}, "
         f"arm {row['arm']}, mode {row['mode']}, expert_gemm {row['expert_gemm']}, "
@@ -26,7 +32,7 @@ def _line(row: dict[str, Any]) -> str:
         f"step {number('step_seconds', 1.0, 2)} s, "
         f"alloc {number('peak_allocated', 2**30, 2)} / reserved "
         f"{number('peak_reserved', 2**30, 2)} / NVML {number('peak_nvml', 2**30, 2)} GiB, "
-        f"RAM {number('peak_ram', 2**30, 2)} GiB"
+        f"RAM {number('peak_ram', 2**30, 2)} GiB{segments}"
     )
 
 
@@ -47,7 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     lines = collect(args.paths)
     args.out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"{len(lines)} rows -> {args.out}")
+    Console(soft_wrap=True, markup=False, highlight=False).print(
+        f"{len(lines)} rows -> {args.out}")
     return 0
 
 

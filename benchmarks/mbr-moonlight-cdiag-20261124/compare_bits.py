@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import cdiag
+from rich.console import Console
 
 
 def _cosine(left: Any, right: Any) -> float:
@@ -86,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
         "|---|---|---|---|---|---|\n"
     )
     (args.out / "bits.md").write_text(header + line + "\n", encoding="utf-8")
-    print(line)
+    Console(soft_wrap=True, markup=False, highlight=False).print(line)
     return 0 if report["loss_bitwise_equal"] and not report["grad_differing"] else 1
 
 

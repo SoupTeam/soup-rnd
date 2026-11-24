@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import cdiag
+from rich.console import Console
 
 _FIRST_N = 12
 
@@ -161,8 +162,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--left", type=Path, required=True, help="A0 capture JSON")
     parser.add_argument("--right", type=Path, required=True, help="C capture JSON")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--labels", default=None,
+                        help="two comma-separated arm labels; default: the capture tag stems")
     args = parser.parse_args(argv)
-    labels = (args.left.stem, args.right.stem)
+    if args.labels:
+        labels = tuple(part.strip() for part in args.labels.split(","))
+        if len(labels) != 2 or not all(labels):
+            parser.error("--labels takes two comma-separated names")
+    else:
+        labels = (args.left.stem, args.right.stem)
     left, right = _load(args.left), _load(args.right)
     if left["step"] != right["step"]:
         raise SystemExit(f"step counts differ: {left['step']} vs {right['step']}")
@@ -189,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         _report(modules, experts, nodes, verdict, left, right, numeric, labels),
         encoding="utf-8",
     )
-    print(json.dumps(verdict))
+    Console(soft_wrap=True, markup=False, highlight=False).print(json.dumps(verdict))
     return 0
 
 

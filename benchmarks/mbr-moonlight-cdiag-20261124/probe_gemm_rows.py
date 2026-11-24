@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console
+
 _AC_ONLINE = Path("/sys/class/power_supply/ACAD/online")
 _MODEL = "Moonlight-16B-A3B"
 _HIDDEN, _INTER, _GATE_UP = 2048, 1408, 2816
@@ -240,7 +242,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     if int(_AC_ONLINE.read_text(encoding="ascii").strip()) != 1:
-        print("refusing to run: AC power is not online", file=sys.stderr)
+        Console(stderr=True, markup=False, highlight=False).print(
+            "refusing to run: AC power is not online")
         return 2
     result = probe(args)
     args.out.mkdir(parents=True, exist_ok=True)
