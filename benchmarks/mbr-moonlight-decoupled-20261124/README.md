@@ -31,7 +31,8 @@ are arm properties, not run noise.
 
 The first four rows repeat ticket 03's C rows: C differs from A0 at k = 2, 4 and 8 with the
 same count and size (k = 2: 108/216, max 4.68e-2, `grad_rel_l2` 1.286e-1). D's loss is
-bit-identical to C at every window, including (64,64) and (64,512); only the backward differs.
+bit-identical to C at every window that produced one, including (64,64); only the backward
+differs. At (64,512) neither arm produced a loss: both OOM.
 D against C, the isolation of the decoupling itself:
 
 | window | loss equal | grads differing | max abs | `grad_rel_l2` | `min_cos` |
