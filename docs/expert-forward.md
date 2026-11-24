@@ -260,7 +260,7 @@ also includes the streamed layer wrapper, which runs during recompute. A patched
 not detected and is unsupported. `install_streamed_experts(..., two_reads=True)` admits only
 `DeepseekV3DecoderLayer`.
 
-### Exact expert GEMM: `lt-fused` (experimental, off by default)
+### Exact expert GEMM: `segmented` and `lt-fused` (experimental, off by default)
 
 `soup_cli.utils.expert_gemm.expert_gemm_context(mode)` picks how a route-preserving MBR group
 (`L2LStep.run(..., route_preserving_mbr=True)`) runs its expert GEMMs. It is an API, with no
@@ -269,7 +269,16 @@ config field and no CLI flag.
 | Mode | Effect |
 |---|---|
 | `native` (default) | Nothing is patched and the environment is not probed. Native cuBLAS runs one call of M = all rows of the group, so the bits are the grouped-MBR bits. |
+| `segmented` | The same native cuBLAS GEMM, called once per micro-batch segment of the group, so each call keeps the row count (and therefore the kernel) of the L2L reference. Pure Python, no extension, no environment probe; forward and backward both go through the split plan. |
 | `lt-fused` | Each expert call is cut into the micro-batch segments L2L would have run. A cuBLASLt call forced onto the kernel native cuBLAS picks for that segment replaces the native call, so the group keeps the A0 bits (L2L, group size 1). Forward and the direct backward of one expert visit are one extension call each (`a0_exact_lt`, `direct_expert_backward`). |
+
+Why a grouped native call is not bit-equal above group size 1: cuBLAS picks the GEMM kernel, and
+its K reduction, from the row count. On sm_86 a `down` projection of Moonlight's expert
+(`2048x1408`, bf16) runs `ampere_bf16_s16816gemm_64x64` for M <= 16 but a split-K pair
+(`cutlass_80_tensorop_bf16_s16816gemm_relu_64x64` plus `cublasLt::splitKreduce_kernel`) for
+M = 17..31, and the two order the K sum differently. `segmented` and `lt-fused` both keep each
+call at the reference row count; `segmented` pays Python and dispatcher cost per segment,
+`lt-fused` does the same split in one extension call.
 
 `lt-fused` builds a C++/CUDA extension (`a0_exact_lt_ext.cpp`, `a0_exact_lt_kernels.cu`) with
 `torch.utils.cpp_extension.load` on first use ([ADR 0002](adr/0002-exact-gemm-optional-jit-extension.md)),
