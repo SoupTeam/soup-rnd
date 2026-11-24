@@ -1,0 +1,155 @@
+{
+  "source_commit": "2ba525130532d34004ead24c92037bb1ed763826",
+  "status": "PASS_LOCAL_RECOMPUTATION_OF_COMPLETE_DIAGNOSTIC",
+  "arms": [
+    {
+      "arm": "baseline",
+      "status": "PASS_MODEL_PROBE_TOLERANCES",
+      "loss": 15.923088073730469,
+      "nonzero_gradients": 224,
+      "gradient_failures": 0,
+      "max_relative_l2": 0.0,
+      "min_cosine": 1.0,
+      "median_relative_l2": 0.0,
+      "kernel_audit": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 12654,
+        "family_events": {
+          "rope": 0,
+          "rms_norm": 0,
+          "swiglu": 0,
+          "cross_entropy": 0
+        },
+        "scope": "Family attribution, not numerical parity"
+      }
+    },
+    {
+      "arm": "ce_only",
+      "status": "PASS_MODEL_PROBE_TOLERANCES",
+      "loss": 15.923088073730469,
+      "nonzero_gradients": 224,
+      "gradient_failures": 0,
+      "max_relative_l2": 0.0,
+      "min_cosine": 1.0,
+      "median_relative_l2": 0.0,
+      "kernel_audit": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 12662,
+        "family_events": {
+          "rope": 0,
+          "rms_norm": 0,
+          "swiglu": 0,
+          "cross_entropy": 1
+        },
+        "scope": "Family attribution, not numerical parity"
+      }
+    },
+    {
+      "arm": "fused_lce_only",
+      "status": "FAIL",
+      "loss": 15.923105239868164,
+      "nonzero_gradients": 224,
+      "gradient_failures": 36,
+      "max_relative_l2": 0.03716078085530552,
+      "min_cosine": 0.9993095727082069,
+      "median_relative_l2": 0.01175542295619037,
+      "kernel_audit": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 12816,
+        "family_events": {
+          "rope": 0,
+          "rms_norm": 0,
+          "swiglu": 0,
+          "cross_entropy": 24
+        },
+        "scope": "Family attribution, not numerical parity"
+      }
+    },
+    {
+      "arm": "rms_norm_only",
+      "status": "FAIL",
+      "loss": 15.933662414550781,
+      "nonzero_gradients": 224,
+      "gradient_failures": 224,
+      "max_relative_l2": 0.15782084530696172,
+      "min_cosine": 0.9875798229435551,
+      "median_relative_l2": 0.06107324868725804,
+      "kernel_audit": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 11359,
+        "family_events": {
+          "rope": 0,
+          "rms_norm": 194,
+          "swiglu": 0,
+          "cross_entropy": 0
+        },
+        "scope": "Family attribution, not numerical parity"
+      }
+    },
+    {
+      "arm": "rope_only",
+      "status": "FAIL",
+      "loss": 15.941527366638184,
+      "nonzero_gradients": 224,
+      "gradient_failures": 218,
+      "max_relative_l2": 0.08257251711589,
+      "min_cosine": 0.996585605471837,
+      "median_relative_l2": 0.04117483952194788,
+      "kernel_audit": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 11470,
+        "family_events": {
+          "rope": 96,
+          "rms_norm": 0,
+          "swiglu": 0,
+          "cross_entropy": 0
+        },
+        "scope": "Family attribution, not numerical parity"
+      }
+    },
+    {
+      "arm": "swiglu_only",
+      "status": "FAIL",
+      "loss": 15.923088073730469,
+      "nonzero_gradients": 224,
+      "gradient_failures": 33,
+      "max_relative_l2": 0.0342033729733107,
+      "min_cosine": 0.9994213148172435,
+      "median_relative_l2": 0.01012098394511252,
+      "kernel_audit": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 12526,
+        "family_events": {
+          "rope": 0,
+          "rms_norm": 0,
+          "swiglu": 96,
+          "cross_entropy": 0
+        },
+        "scope": "Family attribution, not numerical parity"
+      }
+    },
+    {
+      "arm": "combined",
+      "status": "FAIL",
+      "loss": 15.950319290161133,
+      "nonzero_gradients": 224,
+      "gradient_failures": 224,
+      "max_relative_l2": 0.17343131652270818,
+      "min_cosine": 0.9848843263519543,
+      "median_relative_l2": 0.060766749490326205,
+      "kernel_audit": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 10209,
+        "family_events": {
+          "rope": 96,
+          "rms_norm": 194,
+          "swiglu": 96,
+          "cross_entropy": 24
+        },
+        "scope": "Family attribution, not numerical parity"
+      }
+    }
+  ],
+  "performance_verdict": "NO_VERDICT",
+  "scope": "one microbatch backward per arm, zero optimizer updates; not full training or performance validation"
+}

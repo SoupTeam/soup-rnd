@@ -1,0 +1,155 @@
+H2 CE fp64-reference arm addendum (prospective; attempt018)
+============================================================
+Date: 2026-10-30. Design: researcher_attempt018_design.md revision 7.3 (authoritative), code review checklist
+rev 7. Applies to a FRESH attempt whose source commit contains this file and whose contract sets
+"series": "ref64". Written after attempts 015-017 were seen: the regimes, constants and thresholds below are
+CONVENTIONS and are NOT blind to those results.
+
+Text that travels with every label and result file
+--------------------------------------------------
+"Constants fixed after attempts 015-017 were seen. Reference = exact-CE gradient with the rest of the model
+in bf16/NF4, not a full-precision gradient: the comparison is against an fp64 CE reference propagated
+through the bf16 backward, NOT the true full-model gradient. The existing policy comparison and the BLOCKED
+outcomes of attempts 015/016 are unchanged." Nothing here can turn attempt015/016 into PASS. numerical_policy.json,
+thresholds, workset, fixture, h2_gpu_correctness.py, h2_ce_training.py and the 2400/600/40 s limits are
+unchanged. The default and noise_floor series behave as before.
+
+Question
+--------
+With the same bf16 model path, which arm's LoRA-B gradient is closer to the gradient obtained when the CE
+gradient is computed in fp64 and propagated through the bf16 backward? The reference is the exact-CE
+gradient, NOT the true full-model (full-precision) gradient.
+
+Series (six fresh children, fixed order; "series": "ref64" is the only way to select it)
+  1 baseline_probes        P   PyTorch CE (stock)
+  2 ce_only_probes         L   Liger CE (the 016 pattern)
+  3 ref64_probes           R   CE64
+  4 ref64_probes_repeat    R2  CE64 again
+  5 ref64_perturbed_probe02  Rp on probe 02: 18 passes
+  6 ref64_perturbed_probe03  Rp on probe 03: 18 passes
+Children 1-4 capture probes 00-03 (probe 00 with the kernel trace). Children 5-6 run 6 levels x 3 seeds = 18
+backward passes of ONE decisive probe each, every pass in its own folder pass_<level>_<seed> (pass 0_0 with
+the kernel trace). A child that reaches the 600 s limit is killed and the series is INCOMPLETE; there is no
+dry run and nothing changes during a run.
+
+CE64 (fail closed)
+------------------
+torch.nn.functional.cross_entropy is rebound once to a custom autograd function. Accepted only: fp32 2-D
+CUDA input with V = 128256 in the real configuration, int64 1-D target, ignore_index -100, reduction 'mean',
+weight/label_smoothing/size_average/reduce absent or default. Anything else raises and the series is VOID.
+Forward and backward run in fp64 on row chunks with autocast disabled; the loss is returned as a 0-dim fp32
+tensor; backward returns the fp32 rounding of the exact fp64 gradient (times grad_output), so the existing
+`.float()` backward casts it to bf16 exactly as in the other arms (never a direct fp64 -> bf16 rounding).
+Input and target are checksummed (and _version recorded) before forward and after backward; any change is
+VOID. A call counter must equal the number of loss evaluations. A reduced-V CPU configuration exists for tests
+and is flagged TEST_CONFIGURATION_NOT_A_RESULT.
+
+Hooks (recording only)
+----------------------
+A forward hook on lm_head stores the SHA-256 of its bf16 output per probe/pass and a tensor hook stores
+grad.detach().clone() (always returns None) for the four probe children. The perturbation children store,
+per pass, the LoRA-B gradient (about 42 MB), the lm_head SHA-256 and the perturbation parameters (level,
+seed, flip count, eligible-element count, a hash of the flipped positions); NOT the dlogits (pass-0 dlogits
+are not stored). Peak GPU memory is recorded per probe/pass. CE64 works on chunks of 32 rows (a fixed
+implementation constant, mathematically identical to the unchunked formula).
+
+Rp (rounding-noise calibration)
+-------------------------------
+Inside CE64's backward, after the fp32 -> bf16 rounding, round(f x active) (at least one) random bf16
+elements are moved by exactly one ulp on the bit pattern in a random direction, where active = non-ignored
+rows x V (the phi denominator) and the positions are drawn among the elements of those rows whose magnitude
+is a normal, non-maximal bf16 value (recorded as eligible_usable; eligible_total records active); the result is
+returned as an exactly representable fp32. Grid f = {1e-6, 3e-6, 1e-5, 3e-5, 1e-4, 3e-4} x 3 seeds;
+seed = 1000 x level_index + seed_index.
+
+Quantities
+----------
+d_X = ||g_X - g_R||2 / ||g_R||2 over the 224 non-zero LoRA-B tensors concatenated (float64), X in {P, L}.
+phi_X = number of bf16 dlogits elements of X that differ from R / (non-ignored rows x V).
+G(Rp, R) = the same distance for each perturbation pass. Regression (per decisive probe, 18 points, 16 df):
+log G = alpha + beta log f + e; sigma_hat residual sd; pf = sqrt(1 + 1/n + (x0 - xbar)^2 / Sxx).
+Decisive probes are 02 and 03 (a priori); 00 and 01 are never decisive.
+
+Per decisive probe and arm (CONVENTIONS k = 3, Q = 1.5)
+  phi = 0:                    NOISE_CONSISTENT iff d = 0; d > 0 fails control 7 (REFERENCE_ARM_INVALID)
+  0 < phi < 1e-6:             evaluated at 1e-6, reported _MARGINAL
+  d = 0 with phi > 0:         NOISE_CONSISTENT (no logarithm)
+  1e-6 <= phi <= 3e-4, d > 0: NOISE_CONSISTENT iff log d <= alpha + beta log(phi) + k sigma_hat pf,
+                              otherwise EXCESS
+  phi > 3e-4:                 NOT_CALIBRATABLE
+LIGER side holds when phi_L <= phi_P / Q; PYTORCH side when phi_P <= phi_L / Q (inclusive, no division).
+
+Ordered label table (first match wins)
+  1 VOID                     pin/environment/GPU mismatch, wrong or missing bindings, a CE64 refusal or
+                             integrity failure, non-finite values (including a NaN/inf distance or flip
+                             fraction found in the review), a hook changing a gradient, out of memory.
+                             Any recorded child error other than the deadline TimeoutError is VOID.
+  2 INCOMPLETE               fewer than 6 children, a probe missing, fewer than 18 passes in a perturbation
+                             child; a child killed or crashed without evidence, or ended by the deadline
+                             TimeoutError. result.json run_status mirrors rows 1-2 (VOID / INCOMPLETE).
+  3 REFERENCE_ARM_INVALID    any of controls 1-7 fails
+  4 INCONCLUSIVE_NO_REPRODUCTION  P and L bit-identical (all 448 gradients) in probe 02 OR 03
+  5 NOT_CALIBRATABLE         phi > 3e-4 in either arm of a decisive probe, or the regression fails (beta <= 0
+                             or the one-sided 5% t test does not reject beta = 0, or a pass with G = 0)
+  6 LIGER_CLOSER_BY_FLIPS_NOISE_CONSISTENT / PYTORCH_CLOSER_BY_FLIPS_NOISE_CONSISTENT
+                             both arms NOISE_CONSISTENT in both decisive probes and the side holds in both
+  7 INDISTINGUISHABLE_NOISE_CONSISTENT  both NOISE_CONSISTENT, neither side holds in some probe or the probes
+                             point opposite ways
+  8 EXCESS_OVER_FLIP_NOISE_<PYTORCH|LIGER|BOTH>  some arm is EXCESS in some decisive probe
+Suffixes (rows 6 and 7): _LOW_POWER if detectable_factor = exp(k sigma_hat pf(phi_X)) exceeds 5 (strictly)
+for ANY arm-probe among the decisive probes, then _MARGINAL. Row 8 carries only _MARGINAL, and for row 8
+the flip-ratio band is not applied (the label rests on the EXCESS arms' distances, not on the flip ratio):
+only the distance band and the 0 < phi < 1e-6 rule can mark it. (Pre-registered reading, one line.)
+MARGINAL: r = phi_L / phi_P within 10% of 1/Q or of Q (both phi positive; either threshold, any decisive
+probe); or | log d - bound | <= 0.1 k sigma_hat pf (never for d = 0: no logarithm is taken); or a
+0 < phi < 1e-6 arm. The heteroscedasticity ratio is report-only.
+
+Controls
+  1 R and R2 bit-identical (gradients, dlogits, loss) for all four probes
+  2 |loss_R - loss_P| and |loss_R - loss_L| <= 2 fp32 spacings of the loss value
+  3 lm_head output hash equal across P, L, R, R2 and every Rp pass; initial_identity equal
+  4 CE64 changed no input (integrity record true)
+  5 CE64 calls: 4 per R/R2 child, 18 per Rp child, 0 in P and L; no Liger kernel in R, R2, Rp, P; the 016
+    pattern in L
+  6 environment receipts equal across children
+  7 phi = 0 implies a bit-identical LoRA-B gradient. Integrity (REFERENCE_ARM_INVALID, no new control
+    number): the 224 LoRA-A gradients are exactly zero in every arm, probe and perturbation pass
+  8 regression sanity (gives NOT_CALIBRATABLE, row 5)
+  9 history check (descriptive): not part of the label
+Always reported: per-arm phi, d, alpha, beta, sigma_hat, pf, detectable_factor, het, level means, rho =
+max(d_L, 2^-8) / max(d_P, 2^-8) (report only), per-tensor relative L2 / cosine / max ratio, peak memory.
+
+May claim: which arm has fewer bf16 dlogits flips against the fp64 reference on the real 8B logits of probes
+02 and 03 (dlogits level) on this GPU/boot, and whether each arm's LoRA-B distance is consistent with random
+one-ulp flips at its own flip fraction within detectable_factor (a model-level statement only without
+_LOW_POWER and only as consistency with rounding noise, not a ranking).
+May NOT claim: that 015/016 changed; that either arm is "correct"; that the policy tolerance is right;
+anything about training windows, the denominator, speed, memory, other GPUs or other data; that the
+full-precision gradient favors either arm.
+
+Pinning and limits
+------------------
+This file, h2_ce_ref64.py, h2_ce_ref64_review.py, h2_ce_ref64_evidence.py and the changed h2_ce_confirmation.py and
+h2_operator_patch.py are in ARTIFACTS; a new contract pins their hashes from the new source commit. CPU
+tests cover logic with a reduced-V configuration; the CUDA path, peak memory and per-pass time are only
+observed at the run. The per-pass time (unverified) includes two whole-model snapshots per pass
+(about 5 GB hashed each); even at 10-20 s per pass a perturbation child stays below the 600 s limit.
+
+Prospective evidence validation correction (2026-10-31; no attempt018 GPU data exists)
+------------------------------------------------------------------------------------
+Every completed child is checked with the existing sealed-child validator before launching the
+next child: exact inventory and SHA, path containment, process ownership, F1/clocks, bindings and
+the actual kernel trace. A failed check ends the series as VOID without a subsequent child/retry.
+Offline ref64 review repeats those checks, requires all child contracts and GPU/boot/source IDs to
+match the whole-series authority, verifies source artifact hashes and historical model identity,
+and checks every actual probe input against its frozen workset entry. Perturbation passes use
+the same decisive probe entry. Offline review is valid after lease expiry and relocation; it does
+not attempt to start a process or validate an expired execution deadline as a live authorization.
+All lm_head hashes must be present and valid SHA-256 values; missing values may never compare
+equal. Stored dlogits must be finite bf16 tensors with the real vocabulary/row shape and zero
+gradient on ignored rows. Each perturbation pass must record the frozen grid, seed, flip count,
+eligible counts and position/direction hashes. Missing/malformed evidence is never a scientific
+label. Recorded child failures use the same VOID/INCOMPLETE distinction in live and offline
+review, and series status propagates a VOID or INCOMPLETE review instead of calling it complete.
+The statistical label table, numerical policy, frozen inputs, model revision and time limits
+are unchanged. CPU synthetic fixtures test the evidence gates; they are not CUDA results.

@@ -1,0 +1,74 @@
+"""Box side, started by dispatch.py: stage U (updates series), then stage S (Unsloth audit).
+
+  run_us.py <stage_bound_unix_s>
+
+Stage U runs h2_ce_confirmation.py with the written contract (its own 2400 s bound). Stage S
+starts only if 600 s fit before the stage bound; it is one audited child of h2_perf_abba.py,
+run outside the source checkout. Writes /data/h2/evidence/us_done.json at the end, always.
+"""
+import json
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+root = Path("/data/h2")
+ev = root / "evidence"
+repo = root / "repo"
+python = "/data/h2/env/bin/python"
+bound = float(sys.argv[1])
+done = {"stage": "us", "started_unix_s": time.time()}
+try:
+    with (ev / "ce_launch.log").open("xb") as log:
+        u = subprocess.run(
+            [python, str(repo / "benchmarks/harness/h2_ce_confirmation.py"),
+             "--contract", str(ev / "ce_contract.json"), "--out", str(ev / "h2close_U")],
+            cwd=repo, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            timeout=2400 + 120,
+        )
+    done["stage_u_exit"] = u.returncode
+    try:
+        series = json.loads((ev / "h2close_U" / "series.json").read_text())
+        done["stage_u"] = {k: series.get(k) for k in ("status", "arms", "error")}
+    except (OSError, ValueError) as error:
+        done["stage_u"] = {"status": "NO_SERIES_JSON", "error": str(error)}
+    if time.time() + 600 + 15 > bound:
+        done["stage_s"] = {"status": "NOT_STARTED", "reason": "stage bound reached"}
+    else:
+        work = ev / "h2close_S"
+        work.mkdir()
+        with (work / "child.log").open("xb") as log:
+            try:
+                s = subprocess.run(
+                    [python, "-B", str(repo / "benchmarks/harness/h2_perf_abba.py"), "audit",
+                     "U", str(root / "model_snapshot"), str(work / "run")],
+                    cwd=work, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                    timeout=600,
+                )
+                done["stage_s_exit"] = s.returncode
+            except subprocess.TimeoutExpired:
+                done["stage_s_exit"] = "timeout"
+        report = work / "run" / "run.json"
+        failure = work / "run" / "failure.json"
+        if report.exists():
+            data = json.loads(report.read_text())
+            audit = data["h2"]["audit"]
+            sys.path.insert(0, str(repo / "benchmarks/harness"))
+            from h2_perf_abba import run_problems  # stdlib-only import; no torch here
+
+            receipt = json.loads((repo / "benchmarks/h2/perf_workload_receipt.json").read_text())
+            problems = run_problems(data, receipt["steps"]["step_tokens"])  # S2 and bench validity
+            status = audit["status"] if not problems else "UPDATES_FAIL"
+            done["stage_s"] = {"status": status, "problems": audit["problems"] + problems,
+                               "bench_valid": data["valid"], "steps": data["steps_measured"],
+                               "unsloth_version": data["h2"].get("unsloth_version")}
+        elif failure.exists():
+            done["stage_s"] = {"status": "UNSLOTH_INCOMPATIBLE_OR_FAILED",
+                               "error": json.loads(failure.read_text())["error"]}
+        else:
+            done["stage_s"] = {"status": "INCOMPLETE", "exit": done.get("stage_s_exit")}
+except BaseException as error:  # noqa: BLE001 -- recorded, never retried
+    done["error"] = f"{type(error).__name__}: {error}"
+finally:
+    done["finished_unix_s"] = time.time()
+    (ev / "us_done.json").write_text(json.dumps(done, indent=2) + "\n")

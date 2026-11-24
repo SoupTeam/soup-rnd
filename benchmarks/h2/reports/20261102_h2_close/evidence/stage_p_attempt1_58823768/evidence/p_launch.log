@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/data/h2/repo/benchmarks/harness/h2_perf_abba.py", line 655, in <module>
+    sys.exit(main(sys.argv))
+             ^^^^^^^^^^^^^^
+  File "/data/h2/repo/benchmarks/harness/h2_perf_abba.py", line 639, in main
+    result = series.run(block_seconds_estimate=float(argv[6]))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/h2/repo/benchmarks/harness/h2_perf_abba.py", line 590, in run
+    return self._save("FAILED_RUN", "; ".join(entry["problems"]))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/h2/repo/benchmarks/harness/h2_perf_abba.py", line 495, in _save
+    "analysis": analyze(self.records, self.order) if self.records else None,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/h2/repo/benchmarks/harness/h2_perf_abba.py", line 442, in analyze
+    "pairs": {a: pair_verdict(records, order, a) for a in PAIR_ARMS if a in order},
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/h2/repo/benchmarks/harness/h2_perf_abba.py", line 442, in <dictcomp>
+    "pairs": {a: pair_verdict(records, order, a) for a in PAIR_ARMS if a in order},
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/h2/repo/benchmarks/harness/h2_perf_abba.py", line 385, in pair_verdict
+    from scipy import stats
+ModuleNotFoundError: No module named 'scipy'

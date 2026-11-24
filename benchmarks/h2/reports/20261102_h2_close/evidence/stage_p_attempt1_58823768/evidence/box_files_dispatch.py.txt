@@ -1,0 +1,78 @@
+"""H2-close stage P dispatch (box side) (H2_CLOSE_PROTOCOL.txt sections 4 and 6).
+
+Re-checks the box, the pinned source, setup/staging receipts and the GO throughput gate, then
+starts `h2_perf_abba.py series` detached for the admitted arms. The series deadline is the lease
+minus the export margin and the 40 s cleanup reserve; no block starts that cannot finish by it.
+"""
+import json
+import os
+import subprocess
+import time
+from pathlib import Path
+
+root = Path("/data/h2")
+ev = root / "evidence"
+repo = root / "repo"
+COMMIT = "fc2880f914d0007f72c234b5b53d39f148d90526"
+INSTANCE = 58823768
+VOLUME = 58823767
+CAP = 3.0
+GPU = "GPU-b03f015b-bc6a-9a0c-9b30-32ae39f25af5"
+BOOT = "c9931034-0385-4823-a608-6cd69cc5c03c"
+ADMITTED = "A,L"  # from the stage U/S outcomes (protocol P2)
+EVIDENCE = ev / "h2close_P"
+FIRST_BLOCK_ESTIMATE_S = 900  # replaced by the longest observed block after the first one
+rental = json.loads((root / "rental.json").read_text())
+assert rental["status"] == "PREFLIGHT_PASS" and rental["stage"] == "p"
+assert rental["instance_id"] == INSTANCE and rental["volume_id"] == VOLUME
+assert rental["source_commit"] == COMMIT and rental["gpu_uuid"] == GPU and rental["boot_id"] == BOOT
+assert Path("/proc/sys/kernel/random/boot_id").read_text().strip() == BOOT
+assert ADMITTED in ("A,L", "A,U", "A,L,U")
+
+
+def run(*cmd):
+    return subprocess.check_output(list(cmd), text=True).strip()
+
+
+assert run("git", "-C", str(repo), "rev-parse", "HEAD") == COMMIT
+assert not run("git", "-C", str(repo), "status", "--porcelain", "--untracked-files=all")
+assert not EVIDENCE.exists() and not (ev / "p_launch.json").exists()
+for phase in ("setup", "staging"):
+    r = json.loads((ev / (phase + "_supervised_001") / "result.json").read_text())
+    assert r["status"] == "PASS" and r["group_cleanup_confirmed"]
+r = json.loads((ev / "staging/receipt.json").read_text())
+assert r["status"] == "PASS_REMOTE_SNAPSHOT_SHA" and r["total_bytes"] == 16077845652
+r = json.loads((ev / "snapshot_structural_audit.json").read_text())
+assert r["status"] == "PASS_SNAPSHOT_FILE_AND_STRUCTURE_AUDIT" and r["tensor_count"] == 291
+assert run("nvidia-smi", "--query-gpu=uuid", "--format=csv,noheader") == GPU
+assert not run("nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader")
+gate = json.loads((root / "throughput_gate.json").read_text())
+now = time.time()
+assert gate["status"] == "GO" and gate["instance_id"] == INSTANCE and 0 < now - gate["unix_s"] <= 1800
+margin = gate["export_margin_seconds"]
+assert isinstance(margin, (int, float)) and margin >= 600
+lease = rental["lease_deadline_unix_s"]
+deadline = lease - margin - 40
+assert now + FIRST_BLOCK_ESTIMATE_S < deadline, "not even one block fits before the export margin"
+rate = rental["candidate"]["quoted_total_hourly_usd"]
+assert rate * (lease - rental["created_unix_s"]) / 3600 + rental["cleanup_traffic_reserve_usd"] <= CAP
+env = dict(
+    os.environ, PYTHONPATH="/data/h2/repo/benchmarks/harness:/data/h2/repo/src:/data/h2/repo",
+    HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_DATASETS_OFFLINE="1",
+    CUDA_VISIBLE_DEVICES=GPU,
+)
+label = "H2-close P, RTX 4090 %s, instance %d" % (GPU, INSTANCE)
+EVIDENCE.mkdir()
+with (ev / "p_launch.log").open("xb") as log:
+    child = subprocess.Popen(
+        ["/data/h2/env/bin/python", "-B", str(repo / "benchmarks/harness/h2_perf_abba.py"),
+         "series", str(EVIDENCE), ADMITTED, str(root / "model_snapshot"), str(deadline),
+         str(FIRST_BLOCK_ESTIMATE_S), label],
+        cwd=EVIDENCE, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+(ev / "p_launch.json").write_text(json.dumps({
+    "stage": "p", "admitted": ADMITTED, "supervisor_pid": child.pid, "unix_s": now,
+    "series_deadline_unix_s": deadline, "lease_deadline_unix_s": lease,
+    "export_margin_seconds": margin}))
+print(json.dumps({"supervisor_pid": child.pid, "status": "P_DISPATCHED"}))

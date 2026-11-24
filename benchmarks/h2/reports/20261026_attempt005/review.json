@@ -1,0 +1,24 @@
+{
+  "status": "PROSPECTIVE_FIX_LOCAL_TESTS_PASS_NOT_GPU_VALIDATED",
+  "base_commit": "d9a753fa1e9f4411d97873921edb6aa421959520",
+  "utc": "2026-10-26T16:52:18.652556+00:00",
+  "validation": {
+    "command": "PYTHONPATH=src:benchmarks/harness python -m pytest tests/test_h2_candidate_recipe.py tests/test_h2_gpu_correctness.py tests/test_h2_snapshot_staging.py tests/test_h2_watchdog.py --no-cov -q",
+    "passed": 66,
+    "skipped": 0,
+    "ruff": "PASS tests/test_h2_candidate_recipe.py",
+    "git_diff_check": "PASS",
+    "initial_collection_issue": "First invocation omitted PYTHONPATH; corrected local invocation passed."
+  },
+  "full_repository_ci": "NOT_RUN",
+  "performance_verdict": "NO_VERDICT",
+  "source_sha256": {
+    "benchmarks/h2/candidate_configs/baseline.json": "61889eccb324eed59ca5688ef903722906e085883c824282ef0ada51238e4f4b",
+    "benchmarks/h2/candidate_configs/liger.json": "8b1b9edbf2d98495eadc2a2afbaad3d010f570bfd353ce1f22a91336c4359846",
+    "benchmarks/h2/candidate_configs/unsloth.json": "39536a8783bde97f3547f42e5a6c30f4d168ff1258dffb2ea7bbcc6611412b8f",
+    "tests/test_h2_candidate_recipe.py": "5293d3b3dbcc8a1167c0fc320a98714d54b3885e2480d2024cc6255d41bed0ef",
+    "benchmarks/h2/reports/20261026_attempt005/REPORT_RU.txt": "53377d161255d029c9a69f4444e10955fc3eae7866ad85e10a4dfd557d9c2636",
+    "benchmarks/h2/reports/20261026_attempt005/attempt_result.json": "9734de6c2209ef76b6d0afa21fa00a299d631c9e11e83a92e2f03d2e8277e3ec",
+    "benchmarks/h2/fixture_recovery_commit_paths.txt": "1ad06771ec3a4bf0abdeb721e0f0e53cfce480caba6973183920b98ef45ed808"
+  }
+}

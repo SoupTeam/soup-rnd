@@ -1,0 +1,17 @@
+Liger Kernel enabled: fused RMSNorm, SwiGLU, CrossEntropy, RoPE
+Loading tokenizer: /data/h2/model_snapshot
+Loading model: /data/h2/model_snapshot
+LoRA applied: 41,943,040 trainable / 8,072,204,288 total (0.52%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Auto mixed-precision picked: bf16 (model=/data/h2/model_snapshot, cc=8.9)
+Gradient checkpointing: full (every block)
+Rewind log: 
+/data/h2/evidence/h2close_U/ce_only_training/runner/trained_output/rewind.jsonl
+{'loss': '15.86', 'grad_norm': '66.5', 'learning_rate': '0.0002', 'num_tokens': '96', 'epoch': '0.25'}
+{'loss': '12.9', 'grad_norm': '66.5', 'learning_rate': '0.0002', 'num_tokens': '192', 'epoch': '0.5'}
+{'loss': '9.625', 'grad_norm': '27.62', 'learning_rate': '0.0002', 'num_tokens': '288', 'epoch': '0.75'}
+{'loss': '8.132', 'grad_norm': '35.75', 'learning_rate': '0.0002', 'num_tokens': '384', 'epoch': '1'}
+{'train_runtime': '11.84', 'train_samples_per_second': '1.351', 'train_steps_per_second': '0.338', 'train_loss': '11.63', 'epoch': '1'}
+COMPLETE_CE_CAPTURE; performance=NO_VERDICT

@@ -1,0 +1,23 @@
+🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
+W1102 11:32:46.315000 5500 torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W1102 11:32:46.334000 5500 torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+🦥 Unsloth Zoo will now patch everything to make training faster!
+Loading model via unsloth: /data/h2/model_snapshot
+==((====))==  Unsloth 2026.10.7: Fast Llama patching. Transformers: 5.17.0.
+   \\   /|    NVIDIA GeForce RTX 4090. Num GPUs = 1. Max memory: 23.516 GB. Platform: Linux.
+O^O/ \_/ \    Torch: 2.14.1+cu130. CUDA: 8.9. CUDA Toolkit: 13.0. Triton: 3.8.0
+\        /    Bfloat16 = TRUE. FA [Xformers = 0.0.35. FA2 = False]
+ "-____-"     Free license: http://github.com/unslothai/unsloth
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|          | 2/291 [00:00<00:22, 12.58it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:02, 98.17it/s]Loading weights:  17%|█▋        | 50/291 [00:00<00:01, 165.38it/s]Loading weights:  27%|██▋       | 78/291 [00:00<00:01, 201.47it/s]Loading weights:  36%|███▌      | 105/291 [00:00<00:00, 218.50it/s]Loading weights:  45%|████▌     | 132/291 [00:00<00:00, 229.46it/s]Loading weights:  55%|█████▍    | 159/291 [00:00<00:00, 240.88it/s]Loading weights:  64%|██████▍   | 186/291 [00:00<00:00, 248.02it/s]Loading weights:  73%|███████▎  | 213/291 [00:01<00:00, 248.15it/s]Loading weights:  84%|████████▎ | 243/291 [00:01<00:00, 261.75it/s]Loading weights:  93%|█████████▎| 271/291 [00:01<00:00, 266.03it/s]Loading weights: 100%|██████████| 291/291 [00:01<00:00, 227.53it/s]
+Unsloth: Will load /data/h2/model_snapshot as a legacy tokenizer.
+Unsloth 2026.10.7 patched 32 layers with 32 QKV layers, 32 O layers and 32 MLP layers.
+LoRA applied: 41,943,040 trainable / 8,072,204,288 total (0.52%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/96 [00:00<?, ? examples/s]return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map:  32%|███▏      | 31/96 [00:00<00:00, 289.37 examples/s]Map:  62%|██████▎   | 60/96 [00:00<00:00, 287.04 examples/s]Map:  93%|█████████▎| 89/96 [00:00<00:00, 284.06 examples/s]Map: 100%|██████████| 96/96 [00:00<00:00, 269.91 examples/s]
+Map:   0%|          | 0/96 [00:00<?, ? examples/s]Map: 100%|██████████| 96/96 [00:00<00:00, 5815.16 examples/s]
+Auto mixed-precision picked: bf16 (model=/data/h2/model_snapshot, cc=8.9)
+Gradient checkpointing: full (every block)
+Ignoring clean_up_tokenization_spaces=True for BPE tokenizer TokenizersBackend. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.

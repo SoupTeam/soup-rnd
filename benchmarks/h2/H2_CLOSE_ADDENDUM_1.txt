@@ -1,0 +1,29 @@
+H2-close protocol, addendum 1 (2026-11-02). Applies only to stage P attempts started after it is
+committed. H2_CLOSE_PROTOCOL.txt is unchanged; nothing below changes a threshold, rule, workload,
+arm, bound or label.
+
+1. What happened before this addendum
+- Stages U and S (instance 58810258, source fc2880f9): A UPDATES_PASS, L UPDATES_PASS. Unsloth
+  refused the recipe in its own trainer setup ("Untrained tokens ... <|eot_id|><|start_header_id|>
+  <|end_header_id|>", asks to make embed_tokens and lm_head trainable): S1, UNSLOTH_INCOMPATIBLE.
+  Arm U is not admitted to stage P (P2). Admitted: A,L.
+- Stage P attempt 1 (instance 58823768, source fc2880f9): the first run (block 0, arm A) failed
+  before training in soup bench train's trainable-parameter digest: TypeError "Got unsupported
+  ScalarType BFloat16" (the digest went through numpy, which has no bfloat16; the GPU adapters are
+  bf16, the CPU tests were fp32). P4 classified it FAILED_RUN and the series stopped, as designed.
+  Writing that result then crashed: the analysis imported scipy, which the box runtime
+  (runtime_candidate.lock) does not contain. No timed run exists; nothing was measured. Evidence:
+  archive sha256 46378636c4d231220df79250d4fa37889ecff4556234454780b96d44fa2621be.
+
+2. Fixes (code only)
+- src/soup_cli/bench/collector.py: the digest hashes raw bytes through a uint8 view. For dtypes
+  numpy supports the bytes, and so the fingerprints, are unchanged; bf16 now hashes.
+- benchmarks/harness/h2_perf_abba.py: the t quantile and two-sided p-value use a stdlib
+  implementation (regularized incomplete beta); it matches scipy to 2e-14 for df 1-60. Box-side
+  harness files must not import packages outside the runtime lock (test).
+- The CPU audit test now trains bf16 adapters, the dtype of the GPU runs.
+
+3. Stage P attempt 2
+A fresh attempt, not a retry or resume of attempt 1, under H2_CLOSE_PROTOCOL.txt section 4 and
+this addendum. Its cap is the stage P cap minus attempt 1's displayed spend: 3.00 - 0.30 = 2.70
+USD. The 1.50 USD reserve stays reserved for one repeat after host noise only (section 6).

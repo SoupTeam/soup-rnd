@@ -1,0 +1,54 @@
+{
+  "status": "PASS_LOCAL_OPERATOR_PROBE_PREPARATION",
+  "gpu_execution_status": "NOT_RUN",
+  "source_base_commit": "d74521b084f873199a277e2e87c335126d21586e",
+  "matrix_arms": [
+    "baseline",
+    "ce_only",
+    "fused_lce_only",
+    "rms_norm_only",
+    "rope_only",
+    "swiglu_only",
+    "combined"
+  ],
+  "model_updates_per_arm": 0,
+  "backwards_per_arm": 1,
+  "tests": {
+    "main_suite": {
+      "passed": 113,
+      "skipped": 0,
+      "command": "python -m pytest tests/test_h2_operator_probe.py tests/test_h2_numerics.py tests/test_h2_watchdog.py tests/test_h2_gpu_correctness.py --no-cov -q"
+    },
+    "pinned_cpu_compatibility": {
+      "passed": 4,
+      "deselected": 54,
+      "versions": {
+        "torch": "2.14.1",
+        "transformers": "5.17.0",
+        "peft": "0.21.2"
+      },
+      "command": "python -m pytest tests/test_h2_operator_probe.py --no-cov -q -k 'real_cpu_capture or wrong_initial_identity'",
+      "note": "Subset repeated in pinned CPU environment, not four additional unique tests"
+    }
+  },
+  "lint": "PASS",
+  "tracked_source_diff": "NONE; new diagnostic files only",
+  "limits": [
+    "Local tests do not establish CUDA execution or correctness of Liger kernels",
+    "Patch-controller doubles check isolation logic only; real tiny CPU backward checks collector equivalence",
+    "No independent external audit claimed",
+    "Historical attempt009 remains FAIL; performance NO_VERDICT",
+    "Requires new committed source SHA and current concrete rental/runtime authority before execution"
+  ],
+  "performance_verdict": "NO_VERDICT",
+  "file_sha256": {
+    "benchmarks/harness/h2_operator_probe.py": "cc73d2355f0b7b4fe6c0b1c6fd240635d1757033b58cef072d22ed92d1425ca3",
+    "benchmarks/harness/h2_operator_patch.py": "f0f91bea8d9e538179dd1b662d9ae7e441e3f5072524af27747fbe8a9d6d487f",
+    "benchmarks/harness/h2_operator_capture.py": "b2989e76aa6b7d61b7972bcd209b2b277f90ee27b8c22cddf4983fbd9a428841",
+    "benchmarks/h2/operator_study.json": "747482b78fae881208a5609429d7aba835ca1609794f10931a9974dcca07d1be",
+    "benchmarks/h2/OPERATOR_DIAGNOSTIC_PROTOCOL.txt": "4705dffa79e3ac9a79cadd66c7b651574f4b5765ec096c09169db54d48fc8910",
+    "tests/test_h2_operator_probe.py": "432882b23741f98d57c7c8df36aabb2db3473a28bbd39d5c6b3d1ebc0824daca",
+    "benchmarks/h2/operator_authority.example.json": "9d79229409179d725366c60e94684373d6b899419905d56f42a64c9375887641",
+    "benchmarks/h2/OPERATOR_DIAGNOSTIC_PROTOCOL.sha256": "7a56ebc572a7bc362daabfcd8af2c46d0c8459b87528db22aa851e47818c827f"
+  }
+}
