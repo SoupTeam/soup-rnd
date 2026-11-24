@@ -55,6 +55,56 @@ def rows_histogram(calls: Sequence[Dict[str, Any]]) -> Dict[int, int]:
     return dict(sorted(counts.items()))
 
 
+def kernel_timeline(events: Iterable[Any], wall_seconds: float) -> Dict[str, Any]:
+    """Device timeline of the step: kernel launches, copies, busy span and the exposed gap.
+
+    Kernel and copy names come from ``Memcpy*`` / ``Memset*`` prefixes; every other device event is
+    a kernel. Intervals are the ``time_range`` of the event in microseconds, and ``busy_seconds``
+    counts overlapping intervals once.
+    """
+    kernels: List[tuple] = []
+    copy_intervals: List[tuple] = []
+    counts: Dict[str, int] = {}
+    seconds: Dict[str, float] = {}
+    intervals: List[tuple] = []
+    for event in events:
+        if not str(getattr(event, "device_type", "")).endswith("CUDA"):
+            continue
+        span = getattr(event, "time_range", None)
+        if span is None:
+            continue
+        start, end = float(span.start), float(span.end)
+        intervals.append((start, end))
+        name = str(getattr(event, "name", "?"))
+        if name.startswith(("Memcpy", "Memset")):
+            copy_intervals.append((start, end))
+            continue
+        kernels.append((start, end))
+        counts[name] = counts.get(name, 0) + 1
+        seconds[name] = seconds.get(name, 0.0) + (end - start)
+
+    def union(items: Sequence[tuple]) -> float:
+        total, right = 0.0, None
+        for start, end in sorted(items):
+            if right is None or start > right:
+                total += end - start
+                right = end
+            elif end > right:
+                total += end - right
+                right = end
+        return total
+
+    busy = union(intervals) / 1e6
+    span = ((max(finish for _, finish in intervals) - min(begin for begin, _ in intervals)) / 1e6
+            if intervals else 0.0)
+    top = sorted(({"name": name, "calls": counts[name], "seconds": seconds[name] / 1e6}
+                  for name in counts), key=lambda entry: entry["seconds"], reverse=True)
+    return {"kernels": len(kernels), "copies": len(copy_intervals),
+            "kernel_seconds": sum(seconds.values()) / 1e6, "busy_seconds": busy,
+            "span_seconds": span, "gap_seconds": span - busy,
+            "exposed_seconds": max(0.0, float(wall_seconds) - busy), "top": top[:10]}
+
+
 def kernel_table(calls: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """Kernel string -> calls, summed seconds, and the row range it was launched for."""
     table: Dict[str, Dict[str, Any]] = {}
