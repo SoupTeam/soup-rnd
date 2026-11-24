@@ -732,3 +732,29 @@ def test_a_segmented_expert_gemm_plan_has_no_algorithm_table() -> None:
     assert mm.gemm_plan_record(Fused()) == {
         "fused_visits": {"fused_forward": 7}, "algo_table": {"merged_calls": 3},
     }
+
+
+def test_sweep_child_forwards_trace_only_when_the_item_asks() -> None:
+    args = argparse.Namespace(source="s", cache="c", steps=3, out="o", device="auto", lora_r=16,
+                              lora_targets=("q_proj",), tokenizer=None)
+    item = {"arm": "C", "k": 8, "seq": 64, "kind": "speed", "deterministic": False}
+    assert "--trace" not in mm.child_run_args(args, item)
+    assert "--trace" in mm.child_run_args(args, dict(item, trace=True))
+
+
+def test_the_run_command_takes_trace_and_hands_it_to_run_one(monkeypatch: pytest.MonkeyPatch,
+                                                             capsys: pytest.CaptureFixture) -> None:
+    seen = {}
+
+    def fake_run_one(args: argparse.Namespace) -> dict:
+        seen["trace"] = args.trace
+        return {"trace": args.trace, "arm": args.arm, "k": args.k, "seq": args.seq}
+
+    monkeypatch.setattr(mm, "run_one", fake_run_one)
+    base = ["run", "--arm", "S", "--k", "8", "--seq", "64", "--kind", "speed",
+            "--source", "s", "--cache", "c", "--out", "o"]
+    assert mm.main(base + ["--trace"]) == 0
+    assert seen["trace"] is True
+    assert '"trace": true' in capsys.readouterr().out
+    assert mm.main(base) == 0
+    assert seen["trace"] is False
