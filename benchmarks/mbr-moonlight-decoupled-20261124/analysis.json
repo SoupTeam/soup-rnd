@@ -1,0 +1,268 @@
+{
+  "bits": {
+    "s64": {
+      "folder": "benchmarks/mbr-moonlight-decoupled-20261124/s64",
+      "verdicts": {
+        "k1-C": "equal",
+        "k1-D": "equal",
+        "k2-C": "differs",
+        "k2-D": "differs",
+        "k4-C": "differs",
+        "k4-D": "differs",
+        "k8-C": "differs",
+        "k8-D": "differs"
+      },
+      "diff_detail": {
+        "k2-C": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.04680010676383972,
+          "max_abs_grad": 0.3620241582393646,
+          "grad_rel_l2": 0.12858887340612987,
+          "min_cos": 0.9824010826917914
+        },
+        "k2-D": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.04509608447551727,
+          "max_abs_grad": 0.3620241582393646,
+          "grad_rel_l2": 0.13034401040966845,
+          "min_cos": 0.9782508457557891
+        },
+        "k4-C": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.04609464108943939,
+          "max_abs_grad": 0.39803048968315125,
+          "grad_rel_l2": 0.10314845262983617,
+          "min_cos": 0.9828005330655154
+        },
+        "k4-D": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.04543277621269226,
+          "max_abs_grad": 0.39803048968315125,
+          "grad_rel_l2": 0.10211073822303061,
+          "min_cos": 0.9835043345171632
+        },
+        "k8-C": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.04241020232439041,
+          "max_abs_grad": 0.3546498417854309,
+          "grad_rel_l2": 0.07839232190244728,
+          "min_cos": 0.9849772609294009
+        },
+        "k8-D": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.0426064133644104,
+          "max_abs_grad": 0.3546498417854309,
+          "grad_rel_l2": 0.0785889216345362,
+          "min_cos": 0.9853385399743738
+        }
+      },
+      "d_equal": {
+        "k1": "equal",
+        "k2": "differs",
+        "k4": "differs",
+        "k8": "differs"
+      }
+    },
+    "k64": {
+      "folder": "benchmarks/mbr-moonlight-decoupled-20261124/k64",
+      "verdicts": {
+        "k64-D": "differs"
+      },
+      "diff_detail": {
+        "k64-D": {
+          "loss_equal": true,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.00154171884059906,
+          "max_abs_grad": 0.41542503237724304,
+          "grad_rel_l2": 0.003833310304396468,
+          "min_cos": 0.9999895291133014
+        }
+      },
+      "d_equal": {
+        "k64": "differs"
+      }
+    },
+    "s512-math": {
+      "folder": "benchmarks/mbr-moonlight-decoupled-20261124/s512-math",
+      "verdicts": {
+        "k8-C": "differs",
+        "k8-D": "differs"
+      },
+      "diff_detail": {
+        "k8-C": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.027904510498046875,
+          "max_abs_grad": 0.8178649544715881,
+          "grad_rel_l2": 0.03305077285525057,
+          "min_cos": 0.9972354969098699
+        },
+        "k8-D": {
+          "loss_equal": false,
+          "grads_differing": 108,
+          "grads_total": 216,
+          "max_abs_diff": 0.027691751718521118,
+          "max_abs_grad": 0.8178649544715881,
+          "grad_rel_l2": 0.032978387909504484,
+          "min_cos": 0.9970285014862371
+        }
+      },
+      "d_equal": {
+        "k8": "differs"
+      }
+    },
+    "k64-s512": {
+      "folder": "benchmarks/mbr-moonlight-decoupled-20261124/k64-s512",
+      "verdicts": {
+        "k64-D": "no C"
+      },
+      "diff_detail": {},
+      "d_equal": {
+        "k64": "no C"
+      }
+    }
+  },
+  "speed": {
+    "folder": "benchmarks/mbr-moonlight-decoupled-20261124/speed",
+    "windows": {
+      "(8,64)": {
+        "C_step_s": 20.32,
+        "D_step_s": 21.21,
+        "gains_pct": [
+          -3.92,
+          -5.45,
+          -3.91,
+          -4.36,
+          -4.23
+        ],
+        "mean_gain_pct": -4.38,
+        "t": -15.43,
+        "mem_C": {
+          "peak_allocated": 1000935936,
+          "peak_reserved": 1201668096,
+          "peak_nvml": 1354760192,
+          "peak_ram": 4928290816
+        },
+        "mem_D": {
+          "peak_allocated": 992172032,
+          "peak_reserved": 1142947840,
+          "peak_nvml": 1296039936,
+          "peak_ram": 4886716416
+        }
+      },
+      "(8,512)": {
+        "C_step_s": 27.15,
+        "D_step_s": 28.02,
+        "gains_pct": [
+          -2.51,
+          -3.35,
+          -2.96,
+          -3.84,
+          -3.29
+        ],
+        "mean_gain_pct": -3.19,
+        "t": -14.48,
+        "mem_C": {
+          "peak_allocated": 2166564352,
+          "peak_reserved": 2262827008,
+          "peak_nvml": 2415919104,
+          "peak_ram": 5328924672
+        },
+        "mem_D": {
+          "peak_allocated": 1932438528,
+          "peak_reserved": 2220883968,
+          "peak_nvml": 2373976064,
+          "peak_ram": 5288099840
+        }
+      },
+      "(64,64)": {
+        "C_step_s": 35.91,
+        "D_step_s": 53.28,
+        "gains_pct": [
+          -47.33,
+          -49.77,
+          -51.68,
+          -47.36,
+          -45.8
+        ],
+        "mean_gain_pct": -48.39,
+        "t": -46.52,
+        "mem_C": {
+          "peak_allocated": 1809615360,
+          "peak_reserved": 2025848832,
+          "peak_nvml": 2178940928,
+          "peak_ram": 5351206912
+        },
+        "mem_D": {
+          "peak_allocated": 1188137984,
+          "peak_reserved": 1386217472,
+          "peak_nvml": 1539309568,
+          "peak_ram": 5301743616
+        }
+      }
+    },
+    "outcomes": {
+      "ok": 60
+    },
+    "check_failures": {},
+    "gpu_clock_max_min": 1920,
+    "blocks": 5
+  },
+  "gate": {
+    "bits": {
+      "pass": false,
+      "differs_at": [
+        2,
+        4,
+        8,
+        64
+      ]
+    },
+    "vram": {
+      "pass": true,
+      "worse_in": [],
+      "oom_relief": []
+    },
+    "speed": {
+      "pass": false,
+      "windows_won": 0,
+      "windows": {
+        "(8,64)": {
+          "gain": -0.041486167044201494,
+          "t": -15.429982063173657
+        },
+        "(8,512)": {
+          "gain": -0.028817520890684234,
+          "t": -14.482951964092264
+        },
+        "(64,64)": {
+          "gain": -0.4800642828009727,
+          "t": -46.52167614292831
+        }
+      },
+      "needed_for_vram": false,
+      "t_test": "computed"
+    }
+  },
+  "large_window": {
+    "status": "measured",
+    "c_status": "OOM",
+    "d_status": "OOM",
+    "c_oom_relieved": false,
+    "large_window_enabled": true
+  }
+}
