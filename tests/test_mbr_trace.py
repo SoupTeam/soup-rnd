@@ -47,12 +47,28 @@ class FakeEvent:
 
 
 def expert_mm(rows: int, projection: str, *, kernels: Sequence[FakeKernel]) -> FakeEvent:
+    """One routed-expert ``aten::mm``: ``F.linear`` hands it the weight transposed, ``(K, N)``."""
     weight = mt.EXPERT_WEIGHT_SHAPES[projection]
-    return FakeEvent("aten::mm", input_shapes=((rows, weight[1]), weight), kernels=kernels)
+    return FakeEvent("aten::mm", input_shapes=((rows, weight[1]), weight[::-1]), kernels=kernels)
 
 
 def test_the_weight_shapes_are_the_two_routed_expert_projections() -> None:
     assert mt.EXPERT_WEIGHT_SHAPES == {"gate_up": (2816, 2048), "down": (2048, 1408)}
+
+
+def test_the_selection_reads_the_transposed_mm_shape_not_the_linear_weight_shape() -> None:
+    """``aten::mm`` gets ``(K, N)``: the linear orientation must not select, the mm one must."""
+    linear_orientation = FakeEvent(
+        "aten::mm", input_shapes=((16, 2048), (2816, 2048)), kernels=[FakeKernel("k", 10.0)])
+    assert mt.expert_calls([linear_orientation]) == []
+    assert len(mt.expert_calls([expert_mm(16, "gate_up", kernels=[FakeKernel("k", 10.0)])])) == 1
+
+
+def test_a_three_dimensional_input_counted_its_rows_without_the_feature_axis() -> None:
+    call = mt.expert_calls([FakeEvent(
+        "aten::mm", input_shapes=((1, 15, 2048), (2048, 2816)),
+        kernels=[FakeKernel("k", 10.0)])])[0]
+    assert call["rows"] == 15
 
 
 def test_one_entry_per_routed_expert_gemm_call() -> None:
@@ -80,9 +96,12 @@ def test_a_split_k_call_names_both_kernels_and_sums_their_time() -> None:
 
 def test_the_shared_expert_attention_and_empty_kernel_lists_are_not_routed_experts() -> None:
     events = [
-        # shared expert: (5632, 2048), attention: (2048, 2048)
-        FakeEvent("aten::mm", input_shapes=((16, 2048), (5632, 2048)),
+        # shared expert gate_up (5632, 2048) and down (2048, 2816): the mm shapes are (2048, 5632)
+        # and (2816, 2048), the second the mirror of a routed gate_up, so orientation matters
+        FakeEvent("aten::mm", input_shapes=((16, 2048), (2048, 5632)),
                   kernels=[FakeKernel("shared", 10.0)]),
+        FakeEvent("aten::mm", input_shapes=((16, 2816), (2816, 2048)),
+                  kernels=[FakeKernel("shared_down", 10.0)]),
         FakeEvent("aten::mm", input_shapes=((16, 2048), (2048, 2048)),
                   kernels=[FakeKernel("attention", 10.0)]),
         # the right weight, but the call has no kernels recorded (a CPU-only trace)
