@@ -334,19 +334,40 @@ gave +4 to +9% but one of four k = 2 runs differed from A0 (three repeats were e
 as not bit-safe; `fast_row_gather` added nothing.
 
 On RTX 3050 Laptop (4 GiB, normal mode, one block,
-[the memory diagnosis](../benchmarks/mbr-moonlight-emem-20261123/README.md)) the premium depends on
-the window: zero at (8,64), +170 MiB reserved and +172 MiB NVML at (64,64), +1152 MiB reserved and
-+1154 MiB NVML at (8,512). At (8,512) E takes 3458 of the 4096 MiB against 2304 for the ordered
-arm C. The NVML figure is a separate counter: memory outside the caching allocator grew by 2 MiB
-between the two processes, which is the gap to the reserved delta. Allocator snapshots of one step
-separate the reserved delta: 265.4 MiB are the fused path's working set (14 buffers from the nine
-slot kinds plus two cuBLASLt workspaces, sized by the largest expert visit, 3937 rows at this
-window) and 886.6 MiB are `other` cached blocks; in the free-space view 1112.9 MiB more is trapped
-in 160/320 MiB segments that live buffers pin and 226.0 MiB less is releasable. That space cannot
-leave by the allocator's semantics (`empty_cache()` was not measured), the 886.6 MiB are not the
-trapped number, and one `expandable_segments` run did not remove the premium. It is not a
-per-row-count retention. Treat `lt-fused` as an opt-in for cards with headroom; at (8,512) on 4 GiB
-it leaves 638 MiB free.
+[the phase-1 memory diagnosis](../benchmarks/mbr-moonlight-emem-20261123/README.md)) the premium
+depends on the window: zero at (8,64), +170 MiB reserved and +172 MiB NVML at (64,64), +1152 MiB
+reserved and +1154 MiB NVML at (8,512). At (8,512) E took 3458 of the 4096 MiB against 2304 for
+the ordered arm C. Allocator snapshots of one step separate the reserved delta: 265.4 MiB of the
+fused path's working set (14 buffers from the nine slot kinds in three thread pools plus two
+cuBLASLt workspaces) and 886.6 MiB of `other` cached blocks; in the free-space view 1112.9 MiB
+more was trapped in 160/320 MiB segments that 8-30 MiB live buffers pinned. That is not a
+per-row-count retention.
+
+[Phase 2](../benchmarks/mbr-moonlight-emem2-20261124/README.md) removes most of it with one
+shared scratch arena in the extension: the nine slot kinds are one 168.0 MiB block (sized to the
+largest visit) instead of 14 buffers across three thread pools, and the two gather slots are in
+the same block. With `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` the premium at (8,512)
+falls to **+194.0 MiB reserved and +196.0 MiB NVML** (E 2334.0 and 2482.0 against C's 2140.0 and
+2286.0 under the same flag), so E leaves 1614 MiB of the 4096 MiB NVML free against 638 MiB in
+phase 1. The remaining +194 MiB is live working set (167.2 MiB arena, 16.2 MiB two workspaces),
+not trapped free space. Speed does not regress in one ABBA block: E 27.72 s per step against C
+26.82 s (+3.3 %). The launch recipe is
+
+```bash
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+A0_SCRATCH_PREALLOC_ROWS=3937 A0_SCRATCH_PREALLOC_HID=2048 A0_SCRATCH_PREALLOC_INTER=1408 \
+A0_SCRATCH_WHEN=lazy A0_SCRATCH_PREALLOC_GATHER=1 \
+soup ... --expert-gemm lt-fused
+```
+
+`A0_SCRATCH_PREALLOC_ROWS` is the largest expert visit the run will make (`k * seq` is the safe
+bound); `A0_SCRATCH_WHEN=lazy` sizes the arena at the first expert call, `early` at extension
+load, and makes no difference at this window. Without the arena the phase-1 numbers stand:
+`expandable_segments` alone leaves +1056.0 MiB because the trap is live-block pinning, not
+slivers. `max_split_size_mb` 20 and 32 grow reserved by 1004 and 960 MiB; `CUBLASLT_WORKSPACE_SIZE`
+changes nothing, because the 2 x 8.125 MiB belong to the extension's own `shared_workspace`.
+`lt-fused` stays opt-in, but on a 4 GiB card it is usable with the arena options above; without
+them it is the phase-1 `lt-fused` with 638 MiB free.
 
 ### Host-side levers: `async_lease` and `fast_row_gather` (experimental, off by default)
 
