@@ -689,10 +689,9 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                     requested=True,
                     actual=all(r.direct for r in getattr(runtime, "expert_readers", ()))),
                 "environment": _environment()}
-            plan = gemm_state.get("plan")
-            if plan is not None:  # lt-fused: visits on the fused path against the Python path
-                out["fused_visits"] = dict(plan.direct_stats)
-                out["algo_table"] = dict(plan.table.stats)
+            # lt-fused reports visits on the fused path and its algorithm table; segmented only
+            # reports its counters, and native has no plan at all.
+            out.update(gemm_plan_record(gemm_state.get("plan")))
             if args.profile:
                 out["phases"] = _profile_step(stepper, store, ids, options, cuda)
             return out
@@ -708,6 +707,20 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     return make_row(arm=args.arm, k=args.k, seq=args.seq, kind=args.kind,
                     deterministic=args.deterministic, result=result,
                     dataset_sha256=data["sha256"])
+
+
+def gemm_plan_record(plan: Any) -> Dict[str, Any]:
+    """The expert GEMM context's counters for a result row.
+
+    ``lt-fused`` carries the fused-visit statistics and its cuBLASLt algorithm table;
+    ``segmented`` is a plain ``SegmentState`` without a table, and ``native`` has no plan."""
+    if plan is None:
+        return {}
+    record: Dict[str, Any] = {"fused_visits": dict(getattr(plan, "direct_stats", {}))}
+    table = getattr(plan, "table", None)
+    if table is not None:
+        record["algo_table"] = dict(table.stats)
+    return record
 
 
 def _environment() -> Dict[str, Any]:  # pragma: no cover - needs the host's tools

@@ -681,3 +681,21 @@ def test_sweep_child_forwards_math_attention_only_when_asked() -> None:
     assert "--math-attention" in mm.child_run_args(args, item)
     args.math_attention = False
     assert "--math-attention" not in mm.child_run_args(args, item)
+
+
+def test_a_segmented_expert_gemm_plan_has_no_algorithm_table() -> None:
+    from soup_cli.utils.expert_gemm import SegmentState
+
+    assert mm.gemm_plan_record(None) == {}
+    assert mm.gemm_plan_record(SegmentState()) == {"fused_visits": {}}
+
+    class Table:
+        stats = {"merged_calls": 3}
+
+    class Fused:
+        direct_stats = {"fused_forward": 7}
+        table = Table()
+
+    assert mm.gemm_plan_record(Fused()) == {
+        "fused_visits": {"fused_forward": 7}, "algo_table": {"merged_calls": 3},
+    }
