@@ -120,3 +120,23 @@ def kernel_table(calls: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         entry["rows_min"] = min(entry["rows_min"], int(call["rows"]))
         entry["rows_max"] = max(entry["rows_max"], int(call["rows"]))
     return table
+
+
+def step_summary(events: Iterable[Any], wall_seconds: float) -> Dict[str, Any]:
+    """Whole-step summary: wall, CPU self time, the routed-expert GEMM counters and the timeline."""
+    events = list(events)
+    calls = expert_calls(events)
+    return {
+        "wall_seconds": float(wall_seconds),
+        "cpu_self_seconds": sum(
+            float(getattr(event, "self_cpu_time_total", 0.0) or 0.0)
+            for event in events if str(getattr(event, "device_type", "")).endswith("CPU")) / 1e6,
+        "expert_gemm": {
+            "calls": len(calls),
+            "rows_total": sum(int(call["rows"]) for call in calls),
+            "seconds": sum(float(call["seconds"]) for call in calls),
+            "rows": rows_histogram(calls),
+            "kernels": kernel_table(calls),
+        },
+        "timeline": kernel_timeline(events, wall_seconds),
+    }
