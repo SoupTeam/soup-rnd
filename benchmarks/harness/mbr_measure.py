@@ -255,6 +255,30 @@ def segmented_speed_plan(*, blocks: int = 5) -> List[Dict[str, Any]]:
             if arm != "A0" or k <= A0_MAX_K]
 
 
+# Ticket 16: the three candidate default hands in one campaign. C is the ordered arm, S its
+# segmented sibling, E the lt-fused one. All three run the three windows that fit 4 GiB, and the
+# block order is the ticket's ``A-B-C-C-B-A`` with the hands in the roles C, S, E, E, S, C, so
+# every hand sits at mean position 3.5 and host drift cancels between hands.
+ESC_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64))
+ESC_HANDS: Tuple[str, ...] = ("C", SEGMENTED_ARM, "E", "E", SEGMENTED_ARM, "C")
+
+
+def esc_speed_plan(*, blocks: int = 5, start_block: int = 0) -> List[Dict[str, Any]]:
+    """Normal-mode C-S-E-E-S-C blocks over the three fitting windows (ticket 16).
+
+    Six hands per window, five blocks: 90 runs. A0 has no role here (and does not exist above
+    k=8, where C, S and E all do), so the palindrome is whole on every window. ``start_block``
+    resumes after a gate refusal: block numbers and run indexes continue the earlier numbering,
+    so the records of both parts sort together.
+    """
+    per_block = len(ESC_WINDOWS) * len(ESC_HANDS)
+    return [{"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
+             "deterministic": False, "index": block * per_block + position}
+            for block in range(start_block, start_block + blocks)
+            for position, (k, seq, arm) in enumerate(
+                (k, seq, arm) for k, seq in ESC_WINDOWS for arm in ESC_HANDS)]
+
+
 def large_window_enabled(*, previous_fits: bool) -> bool:
     """The large-window switch: decoupled only where the ordered arm does not fit (D2, ticket 06).
 
@@ -947,10 +971,22 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
     out.mkdir(parents=True, exist_ok=True)
     rows: List[Dict[str, Any]] = []
     deadline = time.time() + args.deadline_hours * 3600 if args.deadline_hours else None
+    gate = list(getattr(args, "gate", None) or ())
     for index, item in enumerate(plan):
         if deadline is not None and time.time() > deadline:
             print(f"deadline reached, {len(rows)} of {len(plan)} runs done", flush=True)
             break
+        if gate:
+            checked = subprocess.run(gate, capture_output=True, text=True)
+            if checked.stdout.strip():
+                print(checked.stdout.strip(), flush=True)
+            if checked.returncode != 0:
+                # The card is not healthy (ticket 13: AC, clock, power limit): refuse the run
+                # instead of writing a row the verdict would have to throw away.
+                print(f"gate refused run {index + 1} of {len(plan)} "
+                      f"({item['arm']} k={item['k']} S={item['seq']}): "
+                      f"{checked.stderr.strip()[-300:]}", flush=True)
+                break
         command = [sys.executable, __file__, *child_run_args(args, item)]
         number = run_number(item, index)
         kwargs = arm_watch_kwargs(args, arm=item["arm"], round_number=number // 2 + 1,
@@ -978,7 +1014,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba",
-                 "loader-speed", "decoupled-speed", "seg-speed"):
+                 "loader-speed", "decoupled-speed", "seg-speed", "esc-speed"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -990,6 +1026,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         if name != "run":
             p.add_argument("--deadline-hours", type=float, default=0,
                            help="stop launching runs after this many hours (0: no limit)")
+            p.add_argument("--gate", nargs="+", default=None, metavar="CMD",
+                           help="command checked before every run; a non-zero exit refuses the "
+                                "run and stops the sweep (ticket 13: AC, clock, power limit)")
         p.add_argument("--tokenizer", default=None, help="default: the --source folder")
         p.add_argument("--device", choices=("auto", "cpu"), default="auto")
         p.add_argument("--label", default=DEFAULT_LABEL,
@@ -1010,9 +1049,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--count", action="store_true",
                            help="count the routed-expert F.linear calls of every step into the row")
         if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed",
-                    "seg-speed"):
+                    "seg-speed", "esc-speed"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
-        if name == "abba":
+        if name in ("abba", "esc-speed"):
             p.add_argument("--start-block", type=int, default=0,
                            help="first block number, to resume a pilot in the same folder")
         if name in ("bits", "lever-bits"):
@@ -1034,6 +1073,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             "loader-speed": lambda: loader_speed_plan(blocks=args.blocks),
             "decoupled-speed": lambda: decoupled_speed_plan(blocks=args.blocks),
             "seg-speed": lambda: segmented_speed_plan(blocks=args.blocks),
+            "esc-speed": lambda: esc_speed_plan(blocks=args.blocks,
+                                               start_block=args.start_block),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
     if args.command in ("bits", "lever-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]

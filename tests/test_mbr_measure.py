@@ -595,6 +595,59 @@ def test_the_segmented_speed_plan_is_a_b_c_c_b_a_and_drops_a0_above_k8() -> None
     assert {p["block"] for p in five} == set(range(5))
 
 
+# ---- ticket 16: C-S-E-E-S-C, the three candidate hands in one campaign ----
+def test_the_esc_plan_is_c_s_e_e_s_c_on_the_three_fitting_windows() -> None:
+    plan = mm.esc_speed_plan(blocks=1)
+    assert {(p["k"], p["seq"]) for p in plan} == set(mm.ESC_WINDOWS)
+    for window in mm.ESC_WINDOWS:
+        assert [p["arm"] for p in plan if (p["k"], p["seq"]) == window] == \
+            ["C", "S", "E", "E", "S", "C"]
+    assert len(plan) == 6 * len(mm.ESC_WINDOWS)
+    assert all(p["kind"] == "speed" and p["deterministic"] is False for p in plan)
+
+
+def test_the_esc_plan_runs_five_blocks_of_ninety_runs_and_keeps_every_hand_centred() -> None:
+    """Every hand sits at the block centre (mean position 8.5 of 18), so host drift cancels."""
+    plan = mm.esc_speed_plan(blocks=5)
+    assert len(plan) == 90
+    assert {p["block"] for p in plan} == set(range(5))
+    first_block = plan[:6 * len(mm.ESC_WINDOWS)]
+    assert {p["block"] for p in first_block} == {0}
+    positions: dict = {}
+    for position, item in enumerate(first_block):
+        positions.setdefault(item["arm"], []).append(position)
+    assert {arm: sum(at) / len(at) for arm, at in positions.items()} == \
+        {"C": 8.5, "S": 8.5, "E": 8.5}
+
+
+def test_the_esc_plan_numbers_a_resumed_block_after_the_blocks_before_it() -> None:
+    plan = mm.esc_speed_plan(blocks=1, start_block=4)
+    assert {p["block"] for p in plan} == {4}
+    assert [p["index"] for p in plan][:2] == [72, 73]
+
+
+def test_the_esc_plan_needs_no_a0_at_k64_and_keeps_the_same_six_hands() -> None:
+    """A0 is not planned above k=8; C, S and E all exist at k=64, so the palindrome is whole."""
+    plan = mm.esc_speed_plan(blocks=1)
+    assert "A0" not in {p["arm"] for p in plan}
+    assert [p["arm"] for p in plan if (p["k"], p["seq"]) == (64, 64)] == \
+        ["C", "S", "E", "E", "S", "C"]
+
+
+# ---- the per-run gate of ticket 13, checked before every arm ----
+def test_a_refused_gate_stops_the_sweep_before_any_run(tmp_path) -> None:
+    import argparse
+
+    args = argparse.Namespace(
+        source="s", cache="c", out=str(tmp_path), steps=4, device="cpu", lora_r=16,
+        lora_targets=("q_proj",), tokenizer=None, label="x", deadline_hours=0,
+        gate=[__import__("sys").executable, "-c", "raise SystemExit(1)"])
+    plan = [{"arm": "C", "k": 8, "seq": 64, "block": 0, "kind": "speed",
+             "deterministic": False}]
+    assert mm.sweep(args, plan) == []
+    assert not (tmp_path / "rows.jsonl").exists()
+
+
 def test_the_segmented_arm_stays_out_of_the_bits_ladders() -> None:
     """The bits of S against A0 are ticket 14's ladder; this arm is speed and memory only."""
     assert mm.SEGMENTED_ARM not in mm.ladder_arms(8)
