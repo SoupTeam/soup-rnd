@@ -120,6 +120,18 @@ def test_the_three_combinations_read_the_arm_of_each_window_and_sum_the_steps() 
     assert table["E everywhere"]["steps_rel_C"]["(8,512)"] == pytest.approx(1.04)
 
 
+def test_the_repeats_rule_reads_a_pair_of_hands_as_its_abba_block() -> None:
+    """N of METHOD.md from the pilot: flat hands need the 2-block floor, noisy ones far more."""
+    module = _module(ANALYZE, "mbr_esc_analyze")
+    flat = _blocks(8, 64, C=[100.0] * 5, S=[110.0] * 5)
+    assert module.blocks_needed_for(flat, k=8, seq=64, now="S", before="C") == 2
+    noisy = _blocks(8, 64, C=[100.0, 120.0, 80.0, 110.0, 90.0],
+                    S=[150.0, 90.0, 200.0, 60.0, 160.0])
+    assert module.blocks_needed_for(noisy, k=8, seq=64, now="S", before="C") > 5
+    short = _blocks(8, 64, C=[100.0], S=[110.0])
+    assert module.blocks_needed_for(short, k=8, seq=64, now="S", before="C") is None
+
+
 def test_the_combination_table_marks_the_bits_of_a_window_it_has_no_reference_for() -> None:
     module = _module(ANALYZE, "mbr_esc_analyze")
     windows = {"(8,64)": {"C_step_s": 100.0, "S_step_s": 110.0, "E_step_s": 104.0},

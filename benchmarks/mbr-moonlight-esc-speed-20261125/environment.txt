@@ -1,0 +1,14 @@
+Ticket 16: C-S-E-E-S-C speed campaign, RTX 3050 Laptop, Moonlight-16B-A3B
+date: 2026-11-25T00:52:11+05:00
+card: NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 595.99.02
+code: 6150246e6be80ebb8e799b421ba59aa7091d18a7
+model revision: 2a9a177f4841649f849ba941e41d2ee73c042314
+python: Python 3.12.14
+torch: 2.14.1+cu130
+cuda runtime: 13.0
+gcc/nvcc: /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/nvidia/cu13
+cuda_home: /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/nvidia/cu13
+lora: rank 16, targets q_proj,kv_a_proj_with_mqa,kv_b_proj,o_proj
+env: PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+env: A0_SCRATCH_PREALLOC_ROWS=4096 A0_SCRATCH_PREALLOC_HID=2048 A0_SCRATCH_PREALLOC_INTER=1408 A0_SCRATCH_WHEN=lazy A0_SCRATCH_PREALLOC_GATHER=1
+gate: benchmarks/mbr-moonlight-emem2-20261124/gate.py before every run

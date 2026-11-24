@@ -199,6 +199,27 @@ def combination_table(windows: Mapping[str, Mapping[str, Any]], *,
     return table
 
 
+def blocks_needed_for(rows: Sequence[Dict[str, Any]], *, k: int, seq: int, now: str,
+                      before: str) -> Optional[int]:
+    """Blocks a 10% effect of ``now`` against ``before`` needs, by the METHOD repeats rule.
+
+    The rule reads blocks of A, B, B, A; a hand's per-block median stands in for its runs, so the
+    pair C-S (or E-C, E-S) of one block becomes one such block. Sigma is pooled over the two
+    hands and delta is 10% of the reference hand's mean. ``None`` below five blocks, where the
+    rule has no pilot to read.
+    """
+    from benchmarks.harness.arm_validity import Run, blocks_needed
+
+    left = _arm_steps(rows, k=k, seq=seq, arm=before)
+    right = _arm_steps(rows, k=k, seq=seq, arm=now)
+    blocks = [[Run(left[block], "ok"), Run(right[block], "ok"),
+               Run(right[block], "ok"), Run(left[block], "ok")]
+              for block in sorted(set(left) & set(right))]
+    if len(blocks) < 5:
+        return None
+    return blocks_needed(blocks)
+
+
 def _valid_runs(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """A void run is never counted; it is replaced under ``speed-rule.md``."""
     return [r for r in rows if r.get("outcome", "ok") == "ok"]
@@ -230,12 +251,19 @@ def _speed(folder: Path, *, bits: Optional[Mapping[str, Optional[bool]]] = None)
     rows = _speed_rows(folder)
     records = _read_jsonl(folder / "arm_records.jsonl")
     windows = {f"({k},{seq})": window_stats(rows, k=k, seq=seq) for k, seq in mm.ESC_WINDOWS}
+    needed = {f"({k},{seq})": {f"{now}_vs_{before}": blocks_needed_for(
+        rows, k=k, seq=seq, now=now, before=before) for now, before in DELTAS}
+        for k, seq in mm.ESC_WINDOWS}
     outcomes = Counter(record["outcome"] for record in records)
     clock_max = [record["gpu_clock"]["sm_clock_mhz"]["max"] for record in records]
     failed = Counter(name for record in records for name, check in record["checks"].items()
                      if check["outcome"] != "ok")
     return {"folder": str(folder), "windows": windows,
             "combinations": combination_table(windows, bits=bits),
+            "blocks_needed": needed,
+            "blocks_needed_max": max((value for per_pair in needed.values()
+                                      for value in per_pair.values()
+                                      if value is not None), default=None),
             "outcomes": dict(outcomes), "check_failures": dict(failed),
             "gpu_clock_max_min": min((c for c in clock_max if c is not None), default=None),
             "blocks": max((r.get("block", 0) for r in rows), default=0) + 1,
