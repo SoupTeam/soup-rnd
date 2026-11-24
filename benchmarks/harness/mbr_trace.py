@@ -1,0 +1,72 @@
+"""Summaries of one profiled ``L2LStep.run`` step for the ticket 15 phase profile (harness only).
+
+Everything here is pure and duck-typed over ``torch.profiler`` ``FunctionEvent``-like objects, so
+the tests need no torch and no GPU. A routed-expert GEMM is selected by its weight shape: the
+Moonlight-16B-A3B routed experts are ``(2816, 2048)`` and ``(2048, 1408)``, while the shared expert
+is ``(5632, 2048)`` / ``(2048, 2816)`` and attention is ``(2048, 2048)``.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, Iterable, List, Sequence
+
+# Weight shapes of one routed expert: gate/up fused, then down. Moonlight-16B-A3B only.
+EXPERT_WEIGHT_SHAPES: Dict[str, tuple] = {"gate_up": (2816, 2048), "down": (2048, 1408)}
+_PROJECTION_BY_WEIGHT = {shape: name for name, shape in EXPERT_WEIGHT_SHAPES.items()}
+
+
+def _weight_shape(event: Any) -> tuple:
+    """The second input shape of the event, when there is one."""
+    shapes = list(getattr(event, "input_shapes", ()) or ())
+    if len(shapes) < 2:
+        return ()
+    return tuple(shapes[1])
+
+
+def expert_calls(events: Iterable[Any]) -> List[Dict[str, Any]]:
+    """One entry per routed-expert GEMM: rows, projection, kernel string, seconds, kernel count."""
+    calls: List[Dict[str, Any]] = []
+    for event in events:
+        if getattr(event, "name", None) != "aten::mm":
+            continue
+        weight = _weight_shape(event)
+        projection = _PROJECTION_BY_WEIGHT.get(weight)
+        if projection is None:
+            continue
+        kernels = list(getattr(event, "kernels", ()) or ())
+        if not kernels:
+            continue
+        calls.append({
+            "rows": int(list(event.input_shapes)[0][0]),
+            "projection": projection,
+            "kernel": " | ".join(str(k.name) for k in kernels),
+            "seconds": sum(float(k.duration_time()) for k in kernels) / 1e6,
+            "kernels": len(kernels),
+        })
+    return calls
+
+
+def rows_histogram(calls: Sequence[Dict[str, Any]]) -> Dict[int, int]:
+    """Rows -> number of expert GEMM calls, ascending by row count."""
+    counts: Dict[int, int] = {}
+    for call in calls:
+        rows = int(call["rows"])
+        counts[rows] = counts.get(rows, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def kernel_table(calls: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Kernel string -> calls, summed seconds, and the row range it was launched for."""
+    table: Dict[str, Dict[str, Any]] = {}
+    for call in calls:
+        name = str(call["kernel"])
+        entry = table.get(name)
+        if entry is None:
+            table[name] = {"calls": 1, "seconds": float(call["seconds"]),
+                           "rows_min": int(call["rows"]), "rows_max": int(call["rows"])}
+            continue
+        entry["calls"] += 1
+        entry["seconds"] += float(call["seconds"])
+        entry["rows_min"] = min(entry["rows_min"], int(call["rows"]))
+        entry["rows_max"] = max(entry["rows_max"], int(call["rows"]))
+    return table
