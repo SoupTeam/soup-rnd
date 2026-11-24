@@ -1059,8 +1059,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
             p.add_argument("--trace", action="store_true",
-                           help="one torch-profiler step for expert-GEMM counters and the kernel "
-                                "timeline, written into the row")
+                           help="one CUDA-only torch-profiler step for the device timeline, "
+                                "written into the row")
             p.add_argument("--count", action="store_true",
                            help="count the routed-expert F.linear calls of every step into the row")
             p.add_argument("--gpu-util", action="store_true",
