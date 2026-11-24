@@ -111,7 +111,8 @@ def classify_frames(frames: Sequence[dict[str, Any]]) -> str:
         return "algo_discovery"
     if any(
         file in _NATIVE_FILES
-        and _names_function(name, ("scratch", "seg_matmul_raw", "merged", "copy_segments"))
+        and _names_function(name, ("scratch", "seg_matmul_raw", "merged", "copy_segments",
+                                   "install_arena", "prealloc_scratch"))
         for file, name in stack
     ):
         return "staging"

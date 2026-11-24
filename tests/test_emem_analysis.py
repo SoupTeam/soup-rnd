@@ -116,6 +116,11 @@ def test_classify_frames_uses_class_priority_across_the_stack(
         ("a0_exact_lt_ext.cpp",
          "(anonymous namespace)::shared_workspace(at::Tensor const&)", "cublaslt_workspace"),
         ("a0_exact_lt_ext.cpp",
+         "(anonymous namespace)::install_arena((anonymous namespace)::ScratchArena&, "
+         "(anonymous namespace)::ScratchPlan const&, int)", "staging"),
+        ("a0_exact_lt_ext.cpp",
+         "(anonymous namespace)::prealloc_scratch(long, long, long, bool, bool)", "staging"),
+        ("a0_exact_lt_ext.cpp",
          "(anonymous namespace)::lt_raw(void const*, long, long, at::Tensor const&, bool, "
          "cublasLtMatmulAlgo_t const&, void*, at::Tensor const&, CUstream_st*)",
          "cublaslt_workspace"),
