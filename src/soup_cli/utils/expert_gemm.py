@@ -297,9 +297,29 @@ def segmented_expert_gemm(
 
     def experts_forward(self: Any, hidden_states: Any, top_k_index: Any, top_k_weights: Any) -> Any:
         # the micro-batch sizes in micro-batch order: set by the step, or the call order seen
-        sizes = list(getattr(self, "_mbr_group_sizes", None) or pending)
+        declared = getattr(self, "_mbr_group_sizes", None)
+        seen = [int(size) for size in pending]
         pending.clear()
-        if sizes and sum(sizes) == hidden_states.shape[0]:
+        rows = int(hidden_states.shape[0])
+        if declared is not None:
+            sizes = [int(size) for size in declared]
+            if not sizes:
+                raise RuntimeError(
+                    f"empty _mbr_group_sizes: group sizes of layer {self.layer_idx} are unset"
+                )
+        else:
+            sizes = list(seen)
+        if any(size <= 0 for size in sizes):
+            raise RuntimeError(f"group sizes {sizes} are not positive row counts")
+        if sizes and sum(sizes) != rows:
+            raise RuntimeError(
+                f"group sizes {sizes} cover {sum(sizes)} rows, the group has {rows}"
+            )
+        if declared is not None and seen and sorted(sizes) != sorted(seen):
+            raise RuntimeError(
+                f"micro-batch order {sizes} does not match the captured group sizes {seen}"
+            )
+        if sizes:
             active["layer"] = self.layer_idx
             active["boundaries"] = torch.tensor(sizes, device=hidden_states.device).cumsum(0)[:-1]
         try:

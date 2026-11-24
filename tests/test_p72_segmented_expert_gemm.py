@@ -306,3 +306,55 @@ def test_alternating_switch_turns_an_option_on_for_every_second_step_only_when_a
     on = [alternating_switch(i, True) for i in range(6)]
     assert on == [False, True, False, True, False, True]
     assert [alternating_switch(i, False) for i in range(4)] == [False] * 4
+
+
+def test_the_harness_choices_and_dispatch_follow_the_src_module(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The harness adds its own modes, but the shipped list and dispatcher stay single-sourced."""
+    from benchmarks.harness import p72_invariant_expert_gemm as harness
+    from soup_cli.utils import expert_gemm as src
+
+    want = tuple(dict.fromkeys((*src.EXPERT_GEMM_CHOICES, "invariant", "padded", "lt-merged")))
+    assert set(harness.EXPERT_GEMM_CHOICES) == set(want)
+    assert len(harness.EXPERT_GEMM_CHOICES) == len(want)
+    calls: List[tuple[str, dict[str, Any]]] = []
+    sentinel = object()
+
+    def fake(mode: str, **options: Any) -> Any:
+        calls.append((mode, options))
+        return sentinel
+
+    monkeypatch.setattr(src, "expert_gemm_context", fake)
+    assert harness.expert_gemm_context("segmented") is sentinel
+    assert calls[-1] == ("segmented", {})
+    assert harness.expert_gemm_context("lt-fused", lt_backend="backend", streams=2) is sentinel
+    assert calls[-1] == ("lt-fused", {"backend": "backend", "streams": 2})
+
+
+def test_empty_or_mismatched_group_sizes_fail_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A joined group names its micro-batches; empty or different boundaries must not pass."""
+    import torch
+
+    from soup_cli.utils import expert_stream, l2l_step
+
+    cls = expert_stream.streamed_experts_class()
+    called: List[int] = []
+    monkeypatch.setattr(cls, "forward",
+                        lambda self, hidden, top_k_index, top_k_weights: called.append(
+                            int(hidden.shape[0])))
+    monkeypatch.setattr(l2l_step, "_route_preserving_deepseek_forward",
+                        lambda module, captured, hidden, *args, **kwargs: "captured")
+    fake = lambda sizes: types.SimpleNamespace(layer_idx=0, _mbr_group_sizes=sizes)  # noqa: E731
+    with segmented_expert_gemm():
+        for sizes in ([], [2, 1], [1, 1, 1]):
+            with pytest.raises(RuntimeError, match="group sizes"):
+                cls.forward(fake(sizes), torch.zeros(4, 8), None, None)
+        l2l_step._route_preserving_deepseek_forward(
+            None, [{"expert_input": torch.zeros(3, 8)}], torch.zeros(3, 8))
+        l2l_step._route_preserving_deepseek_forward(
+            None, [{"expert_input": torch.zeros(2, 8)}], torch.zeros(2, 8))
+        with pytest.raises(RuntimeError, match="micro-batch order"):
+            cls.forward(fake([4, 1]), torch.zeros(5, 8), None, None)
+        assert cls.forward(fake([3, 2]), torch.zeros(5, 8), None, None) is None
+    assert called == [5]

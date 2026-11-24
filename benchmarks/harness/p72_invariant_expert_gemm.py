@@ -18,10 +18,11 @@ must not share a cast across micro-batches. Plan section 6, row "Факт".
 
 from __future__ import annotations
 
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, ContextManager, Iterator, List
 
+from soup_cli.utils import expert_gemm as src_expert_gemm
 from soup_cli.utils.expert_gemm import (  # noqa: F401
     _EXPERT_NODE_FUNCTIONS,
     _EXPERT_NODE_MODULE,
@@ -40,7 +41,9 @@ from soup_cli.utils.expert_gemm import (  # noqa: F401
     segmented_expert_gemm,
 )
 
-EXPERT_GEMM_CHOICES = ("native", "invariant", "segmented", "padded", "lt-merged", "lt-fused")
+_HARNESS_GEMM_MODES = ("invariant", "padded", "lt-merged")
+EXPERT_GEMM_CHOICES = tuple(dict.fromkeys((*src_expert_gemm.EXPERT_GEMM_CHOICES,
+                                           *_HARNESS_GEMM_MODES)))
 
 
 @contextmanager
@@ -241,21 +244,22 @@ def expert_gemm_context(
     native GEMM called per micro-batch segment (the L2L shapes). ``padded``: every call padded
     to ``pad_rows`` rows (plan D1). ``lt-merged``: segmented, with same-kernel segments merged
     into one forced-algo cuBLASLt call (A0 bits kept). ``direct_backward`` (segmented and
-    lt-merged only) computes the expert node's backward without autograd, same bits."""
-    if mode == "lt-fused":
-        return lt_fused_expert_gemm(lt_backend, streams=streams)
+    lt-merged only) computes the expert node's backward without autograd, same bits.
+
+    The shipped modes and their dispatcher come from ``soup_cli.utils.expert_gemm``; this module
+    adds only ``invariant``, ``padded`` and ``lt-merged``, so a new shipped mode cannot silently
+    go missing here."""
+    if mode in src_expert_gemm.EXPERT_GEMM_CHOICES:
+        options: dict[str, Any] = {}
+        if mode == "lt-fused":
+            options = {"backend": lt_backend, "streams": streams}
+        elif mode == "segmented" and direct_backward:
+            options = {"direct_mm": _sibling("direct_expert_backward").segment_mm}
+        return src_expert_gemm.expert_gemm_context(mode, **options)
     if direct_backward and mode not in ("segmented", "lt-merged"):
         raise ValueError("the direct expert backward needs --expert-gemm segmented or lt-merged")
-    if mode == "native":
-        return nullcontext([0, 0])
     if mode == "invariant":
         return rowwise_expert_linear()
-    if mode == "segmented":
-        if direct_backward:
-            return segmented_expert_gemm(
-                direct_mm=_sibling("direct_expert_backward").segment_mm
-            )
-        return segmented_expert_gemm()
     if mode == "padded":
         return padded_expert_gemm(pad_rows)
     if mode == "lt-merged":

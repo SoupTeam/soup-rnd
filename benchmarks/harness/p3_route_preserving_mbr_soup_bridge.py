@@ -21,6 +21,11 @@ from typing import Any, Dict, List, Optional
 
 from soup_cli.utils.l2l_step import L2LStep
 
+try:  # package import from the repository, script import from benchmarks/harness
+    from benchmarks.harness.p72_invariant_expert_gemm import EXPERT_GEMM_CHOICES
+except ModuleNotFoundError:  # pragma: no cover - direct script run
+    from p72_invariant_expert_gemm import EXPERT_GEMM_CHOICES
+
 MODEL = "moonshotai/Moonlight-16B-A3B"
 REVISION = "2a9a177f4841649f849ba941e41d2ee73c042314"
 ROOT = Path("/workspace/p3-baseline")
@@ -478,7 +483,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--expert-gemm",
-        choices=("native", "invariant", "segmented", "padded", "lt-merged", "lt-fused"),
+        choices=EXPERT_GEMM_CHOICES,
         default="native",
         help="routed-expert GEMM: native cuBLAS; invariant (one row per call, plus the "
         "two-phase MBR backward so LoRA gradients add up in group-1 order; plan A2); or "
