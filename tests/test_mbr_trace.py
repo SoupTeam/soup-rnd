@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any, List, Optional, Sequence
 
+import pytest
+
 from benchmarks.harness import mbr_trace as mt
 
 
@@ -109,3 +111,41 @@ def test_the_kernel_table_groups_by_kernel_string_with_its_row_range() -> None:
     ])
     assert table["k_a"] == {"calls": 2, "seconds": 2e-5, "rows_min": 4, "rows_max": 16}
     assert table["k_a | k_b"] == {"calls": 1, "seconds": 2e-5, "rows_min": 8, "rows_max": 8}
+
+
+def test_the_timeline_counts_copies_apart_and_overlaps_once() -> None:
+    """k_a and k_b overlap (0-10 and 2-5), a memcpy follows at 10-12, a CPU op is ignored.
+
+    Busy is the union 0-12 = 12 us, not the 25 us sum of the intervals. Copies are not kernel
+    launches, and only kernels reach the top list.
+    """
+    events = [
+        FakeEvent("k_a", device_type="CUDA", start=0.0, end=10.0),
+        FakeEvent("k_b", device_type="CUDA", start=2.0, end=5.0),
+        FakeEvent("Memcpy DtoH (Device -> Pageable)", device_type="CUDA", start=10.0, end=12.0),
+        FakeEvent("aten::mm", device_type="CPU", start=0.0, end=1000.0),
+    ]
+    timeline = mt.kernel_timeline(events, wall_seconds=40e-6)
+    assert timeline["kernels"] == 2
+    assert timeline["copies"] == 1
+    assert timeline["kernel_seconds"] == pytest.approx(13e-6)
+    assert timeline["busy_seconds"] == pytest.approx(12e-6)
+    assert timeline["span_seconds"] == pytest.approx(12e-6)
+    assert timeline["gap_seconds"] == pytest.approx(0.0)
+    assert timeline["exposed_seconds"] == pytest.approx(28e-6)
+    assert timeline["top"] == [{"name": "k_a", "calls": 1, "seconds": pytest.approx(10e-6)},
+                               {"name": "k_b", "calls": 1, "seconds": pytest.approx(3e-6)}]
+
+
+def test_exposed_time_is_never_negative_when_the_wall_is_below_busy() -> None:
+    events = [FakeEvent("k_a", device_type="CUDA", start=0.0, end=20.0)]
+    timeline = mt.kernel_timeline(events, wall_seconds=5e-6)
+    assert timeline["exposed_seconds"] == pytest.approx(0.0)
+    assert timeline["gap_seconds"] == 0.0
+
+
+def test_the_timeline_of_an_empty_trace_is_zeroed() -> None:
+    timeline = mt.kernel_timeline([], wall_seconds=3.0)
+    assert timeline == {"kernels": 0, "copies": 0, "kernel_seconds": 0.0, "busy_seconds": 0.0,
+                        "span_seconds": 0.0, "gap_seconds": 0.0, "exposed_seconds": 3.0,
+                        "top": []}
