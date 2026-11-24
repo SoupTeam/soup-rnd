@@ -301,12 +301,11 @@ def result_lines(rows: Sequence[Dict[str, Any]]) -> List[str]:
                                                        order.get(kv[0][0], len(ARMS)))):
         status = next((r.get("status") for r in group if r.get("status") != "ok"), "ok")
         kind, mode = group[0].get("kind", "speed"), group[0].get("mode", "normal")
-        steps = [r["step_seconds"] for r in group
-                 if r.get("status") == "ok" and r.get("step_seconds") is not None]
+        step = _step_seconds(group)
         text = (f"- {MODEL}, {CARD}, window ({k},{seq}), arm {arm} "
                 f"({ARM_LABELS.get(arm, arm)}), mode {kind} ({mode}), torch {torch}: {status}")
-        if steps:
-            text += f", step {statistics.median(steps):.2f} s"
+        if step is not None:
+            text += f", step {step:.2f} s"
         calls = _expert_calls(group)
         if calls:
             text += f", expert calls {calls}"

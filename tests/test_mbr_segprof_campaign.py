@@ -354,8 +354,8 @@ def test_the_sweep_report_has_one_table_per_projection_naming_model_card_and_tor
     assert "Moonlight-16B-A3B" in text
     assert "RTX 3050 Laptop" in text and "2.14.1+cu130" in text
     assert text.count("| M | kernel | calls/reps | µs/call | µs/row |") == 2
-    assert "## gate_up: weight (2816, 2048)" in text
-    assert "## down: weight (2048, 1408)" in text
+    assert "## gate_up: Moonlight-16B-A3B weight (2816, 2048)" in text
+    assert "## down: Moonlight-16B-A3B weight (2048, 1408)" in text
     assert "| 8 | total | 1.0 | 120.000 | 15.000 |" in text
     assert "| 8 | total | 1.0 | 60.000 | 7.500 |" in text
 

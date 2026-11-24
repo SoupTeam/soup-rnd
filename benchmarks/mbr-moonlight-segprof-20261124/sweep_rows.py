@@ -120,8 +120,8 @@ def report_lines(sweep: Dict[str, Any]) -> List[str]:
              f"after {sweep['warmup']} warm-up calls, CUDA-only profile, no model.", ""]
     for name, entry in sweep["projections"].items():
         out_features, in_features = entry["weight"]
-        lines += [f"## {name}: weight ({out_features}, {in_features}) on {sweep['card']}, "
-                  f"torch {sweep['torch']}", "",
+        lines += [f"## {name}: {sweep['model']} weight ({out_features}, {in_features}) on "
+                  f"{sweep['card']}, torch {sweep['torch']}", "",
                   "| M | kernel | calls/reps | µs/call | µs/row |", "|---|---|---|---|---|"]
         for rows, record in entry["rows"].items():
             lines.append(f"| {rows} | total | {record['calls'] / reps:.1f} "
