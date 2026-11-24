@@ -716,6 +716,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             # lt-fused reports visits on the fused path and its algorithm table; segmented only
             # reports its counters, and native has no plan at all.
             out.update(gemm_plan_record(gemm_state.get("plan")))
+            if getattr(args, "trace", False):
+                out["trace"] = _trace_step(stepper, store, ids, options, cuda)
             if args.profile:
                 out["phases"] = _profile_step(stepper, store, ids, options, cuda)
             return out
@@ -789,6 +791,33 @@ def _profile_step(stepper: Any, store: Any, ids: List[Any], options: Dict[str, A
             "amdahl_min_share_2x_for_10pct": amdahl_min_share(target_gain=0.10, local_speedup=2.0)}
 
 
+def _trace_step(stepper: Any, store: Any, ids: List[Any], options: Dict[str, Any],
+                cuda: bool) -> Dict[str, Any]:  # pragma: no cover - needs the model
+    """One step under ``torch.profiler``: expert-GEMM counters and the device kernel timeline.
+
+    The profiled step is instrumented, so its seconds are not a speed number; only the counters and
+    the kernel timeline are read from it."""
+    import time
+
+    import torch
+    from torch.profiler import ProfilerActivity, profile
+
+    from benchmarks.harness import mbr_trace
+    from soup_cli.utils.l2l_step import label_tokens
+
+    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA] if cuda else [ProfilerActivity.CPU]
+    if cuda:
+        torch.cuda.synchronize()
+    with profile(activities=activities, record_shapes=True) as profiler:
+        started = time.perf_counter()
+        stepper.run(ids, store, n_items=label_tokens(ids), labels=[i.clone() for i in ids],
+                    **options)
+        if cuda:
+            torch.cuda.synchronize()
+        wall = time.perf_counter() - started
+    return mbr_trace.step_summary(list(profiler.events()), wall)
+
+
 class _NullContext:
     def __enter__(self) -> None:
         return None
@@ -810,6 +839,8 @@ def child_run_args(args: Any, item: Dict[str, Any]) -> List[str]:
         argv.append("--deterministic")
     if item.get("profile"):
         argv.append("--profile")
+    if item.get("trace"):
+        argv.append("--trace")
     if getattr(args, "math_attention", False):
         argv.append("--math-attention")
     return argv
@@ -934,6 +965,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="SDPA math backend only (diagnostic for attention backward)")
             p.add_argument("--profile", action="store_true",
                            help="add one phase-profiled step (normal mode only)")
+            p.add_argument("--trace", action="store_true",
+                           help="one torch-profiler step for expert-GEMM counters and the kernel "
+                                "timeline, written into the row")
         if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed",
                     "seg-speed"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
