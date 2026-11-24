@@ -35,7 +35,6 @@ def _speedscope(frames: List[Dict[str, str]], samples: List[Dict[str, Any]]) -> 
                           "weights": [s["weight"] for s in samples]}]}
 
 
-STEP = "l2l_step.py"
 FRAMES = [
     {"name": "run", "file": "/repo/src/soup_cli/utils/l2l_step.py"},
     {"name": "expert_mlp", "file": "/repo/src/soup_cli/utils/expert_gemm.py"},
