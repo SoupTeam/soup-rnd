@@ -374,5 +374,5 @@ def test_the_profile_step_help_builds() -> None:
     proc = subprocess.run([sys.executable, str(PROFILE_STEP), "--help"],
                           capture_output=True, text=True, check=True)
     for flag in ("--arm", "--k", "--seq", "--steps", "--source", "--cache", "--out",
-                 "--lora-targets", "--trace", "--pyspy", "--count", "--gpu-util"):
+                 "--lora-targets", "--trace", "--pyspy", "--count"):
         assert flag in proc.stdout, proc.stdout

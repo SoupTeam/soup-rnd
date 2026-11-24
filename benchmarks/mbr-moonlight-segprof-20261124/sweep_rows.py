@@ -29,8 +29,13 @@ for entry in (str(REPO), str(REPO / "benchmarks")):
 from benchmarks.harness.mbr_trace import EXPERT_WEIGHT_SHAPES  # noqa: E402
 
 MODEL = "Moonlight-16B-A3B"
-# The M values of the campaign: every power of two the routes hit, plus the odd sizes around them.
-ROWS = (1, 2, 4, 6, 8, 12, 16, 17, 24, 31, 32, 40, 48, 64, 96, 128, 192, 256, 384, 512, 640)
+# Every row count the campaign's counters can report, so the model prices each call exactly: C
+# groups up to 481 rows in one call, S never exceeds one micro-batch. 640 is the next power-ish
+# step above the largest group, kept as the tail bound.
+ROWS = (*range(1, 513), 640)
+# The rows the Markdown table shows: the bucket edges of the cuBLAS kernels and a few sizes inside
+# them. sweep.json keeps every measured M, and that is what the analyzer prices the calls with.
+REPORT_ROWS = (1, 2, 4, 6, 8, 12, 16, 17, 24, 31, 32, 40, 48, 64, 96, 128, 192, 256, 384, 512)
 AC_ONLINE = Path("/sys/class/power_supply/ACAD/online")
 
 
@@ -123,7 +128,8 @@ def report_lines(sweep: Dict[str, Any]) -> List[str]:
         lines += [f"## {name}: {sweep['model']} weight ({out_features}, {in_features}) on "
                   f"{sweep['card']}, torch {sweep['torch']}", "",
                   "| M | kernel | calls/reps | µs/call | µs/row |", "|---|---|---|---|---|"]
-        for rows, record in entry["rows"].items():
+        shown = [str(rows) for rows in REPORT_ROWS]
+        for rows, record in ((key, entry["rows"][key]) for key in shown if key in entry["rows"]):
             lines.append(f"| {rows} | total | {record['calls'] / reps:.1f} "
                          f"| {record['us_per_call']:.3f} | {record['us_per_row']:.3f} |")
             for kernel, kernel_record in (record.get("kernels") or {}).items():

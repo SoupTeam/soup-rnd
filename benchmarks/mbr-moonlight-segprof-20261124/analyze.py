@@ -48,6 +48,8 @@ CELLS: Tuple[Tuple[int, int], ...] = ((8, 64), (64, 64))
 ARMS = ("C", "S")
 ARM_LABELS = {"C": "ordered backward", "S": "C + segmented"}
 NAMED_AT = 0.6
+# The sweep rows the layout table shows: the kernel bucket edges and a few sizes inside them.
+REPORT_ROWS = (1, 2, 4, 6, 8, 12, 16, 17, 24, 31, 32, 40, 48, 64, 96, 128, 192, 256, 384, 512)
 HEADER = ("| arm | step s | expert calls | expert s (model) | µs/call | kernel s | busy s "
           "| exposed s | launches | py-spy expert | py-spy cuda | py-spy disk | measured |")
 RULE = "|" + "---|" * 13
@@ -146,6 +148,11 @@ def _expert_rows(rows: Sequence[Dict[str, Any]]) -> Dict[int, int]:
     return dict(sorted(merged.items()))
 
 
+def _expert_steps(rows: Sequence[Dict[str, Any]]) -> int:
+    """Number of steps whose calls the merged histogram holds, so the model stays per step."""
+    return sum(len((row.get("expert_gemm_calls") or {}).get("per_step") or []) for row in rows)
+
+
 def cell(rows: Sequence[Dict[str, Any]], *, trace_entry: Optional[Dict[str, Any]] = None,
          pyspy: Optional[Dict[str, Any]] = None,
          prices: Optional[Dict[int, float]] = None) -> Dict[str, Any]:
@@ -157,7 +164,8 @@ def cell(rows: Sequence[Dict[str, Any]], *, trace_entry: Optional[Dict[str, Any]
     prices = prices or {}
     timeline = ((trace_entry or {}).get("trace") or {}).get("timeline") or {}
     histogram = _expert_rows(rows)
-    model = mbr_count.expert_seconds(histogram, prices) if histogram else None
+    steps = _expert_steps(rows)
+    model = mbr_count.expert_seconds(histogram, prices, steps=steps) if histogram else None
     calls = _expert_calls(rows)
     return {
         "step_seconds": _step_seconds(rows),
@@ -165,6 +173,7 @@ def cell(rows: Sequence[Dict[str, Any]], *, trace_entry: Optional[Dict[str, Any]
         "expert_rows": histogram,
         "expert_seconds_model": model,
         "us_per_call": model * 1e6 / calls if model is not None and calls else None,
+        "model_steps": steps,
         "missing_rows": sorted(row_count for row_count in histogram if row_count not in prices),
         "measured": bool(timeline),
         "kernel_seconds": float(timeline["kernel_seconds"]) if timeline else None,
@@ -201,9 +210,19 @@ def _arm_row(arm: str, cell_row: Dict[str, Any]) -> str:
     return "| " + " | ".join(fields) + " |"
 
 
+HISTOGRAM_SHOWN = 64  # rows above one micro-batch are C-only; the tail is aggregated
+
+
 def _histogram_section(arm: str, window: str, cell_row: Dict[str, Any]) -> List[str]:
+    """Rows up to one micro-batch in full, the C-only tail of a grouped call aggregated."""
+    histogram = cell_row["expert_rows"] or {}
     lines = [f"### M histogram, arm {arm}, window {window}", "", "| rows | calls |", "|---|---|"]
-    lines += [f"| {rows} | {calls} |" for rows, calls in (cell_row["expert_rows"] or {}).items()]
+    lines += [f"| {rows} | {calls} |" for rows, calls in histogram.items()
+              if rows <= HISTOGRAM_SHOWN]
+    tail = {rows: calls for rows, calls in histogram.items() if rows > HISTOGRAM_SHOWN}
+    if tail:
+        lines.append(f"| {HISTOGRAM_SHOWN + 1}–{max(tail)} (one row per size in analysis.json) "
+                     f"| {sum(tail.values())} |")
     if cell_row["missing_rows"]:
         lines += ["", f"No sweep price for rows {cell_row['missing_rows']}: the model skips "
                       "the whole cell rather than guessing them."]
@@ -227,11 +246,13 @@ def _sweep_section(window: str, sweep: Optional[Dict[str, Any]],
     lines = [title, "",
              "| rows | gate_up µs | down µs | mean µs | C calls | S calls |",
              "|---|---|---|---|---|---|"]
-    for rows, mean in prices.items():
+    for rows in REPORT_ROWS:
+        if rows not in prices:
+            continue
         calls = " | ".join(str((arms.get(arm) or {}).get("expert_rows", {}).get(rows, "-"))
                            for arm in ARMS)
         lines.append(f"| {rows} | {price('gate_up', rows)} | {price('down', rows)} "
-                     f"| {mean:.1f} | {calls} |")
+                     f"| {prices[rows]:.1f} | {calls} |")
     lines.append("")
     return lines
 

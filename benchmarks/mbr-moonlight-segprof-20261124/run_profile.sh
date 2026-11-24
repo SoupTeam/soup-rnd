@@ -7,8 +7,9 @@
 # GEMM) and S (expert_gemm="segmented"):
 #
 #   1. sweep_rows.py: the isolated per-M kernel cost of the two routed-expert projections, no model;
-#   2. profile_step.py --count --gpu-util: the routed-expert F.linear counter of every step and
-#      the card's utilisation, no profiler (this is also what sets each cell's step time);
+#   2. profile_step.py --count: the routed-expert F.linear counter of every step, no profiler
+#      (this is also what sets each cell's step time). nvidia-smi polling was tried and rejected:
+#      one query blocks for seconds under load and inflated a (8,64) step from 24 s to 115 s;
 #   3. profile_step.py --trace: one CUDA-only profiled step per arm, (8,64) only;
 #   4. py-spy record --native: one snapshot per cell, into <out>/pyspy;
 #   5. analyze.py: analysis.json, layout.md and rows.md.
@@ -29,8 +30,8 @@ ACAD=/sys/class/power_supply/ACAD/online
 CELLS=("8 64" "64 64")
 # Only (8,64) is traced: the whole-step trace of (64,64) does not fit the host.
 TRACED_CELLS=("8 64")
-# The first step of every run is warm-up; three is the two timed steps the profile budget allows.
-STEPS=3
+# The first step of every run is warm-up and the pipeline lags one step, so four gives three timed steps.
+STEPS=4
 
 if [ -e "$OUT/runs/rows.jsonl" ]; then
   echo "refusing to run: $OUT/runs/rows.jsonl exists. Move it away first." >&2
@@ -60,12 +61,12 @@ echo "== sweep start $(date +%T)"
 "$VENV/bin/python" -u "$CAMPAIGN/sweep_rows.py" --out "$OUT" >> "$OUT/sweep.log" 2>&1
 echo "== sweep exit=$? $(date +%T)"
 
-echo "== count and gpu utilisation start $(date +%T)"
+echo "== count start $(date +%T)"
 for cell in "${CELLS[@]}"; do
   read -r k seq <<< "$cell"
   for arm in C S; do
     "${INHIBIT[@]}" "$VENV/bin/python" -u "$CAMPAIGN/profile_step.py" \
-      --arm "$arm" --k "$k" --seq "$seq" --steps "$STEPS" --count --gpu-util \
+      --arm "$arm" --k "$k" --seq "$seq" --steps "$STEPS" --count \
       --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
       --lora-targets "$TARGETS" --out "$OUT" \
       >> "$OUT/runs.log" 2>&1
