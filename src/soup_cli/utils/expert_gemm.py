@@ -1,8 +1,10 @@
 """Expert GEMM plans for the route-preserving MBR step (``--expert-gemm``).
 
-``native`` (the default) changes nothing. ``lt-fused`` keeps the A0 bits of grouped MBR: each
-expert call is cut into the micro-batch segments L2L would have run, and every segment's GEMM goes
-through a cuBLASLt call forced onto the kernel native cuBLAS picks for that segment (see
+``native`` (the default) changes nothing. ``segmented`` keeps native cuBLAS but cuts each expert
+call into the micro-batch segments L2L would have run, so every GEMM keeps the row count (and the
+kernel) of the reference step; it needs no extension. ``lt-fused`` keeps the A0 bits of grouped
+MBR: each expert call is cut into the micro-batch segments L2L would have run, and every segment's
+GEMM goes through a cuBLASLt call forced onto the kernel native cuBLAS picks for that segment (see
 ``a0_exact_lt``). ``lt-fused`` raises when it cannot run exactly; it never falls back to native
 (ADR 0002).
 
@@ -20,7 +22,7 @@ from typing import Any, Callable, ContextManager, Dict, Iterator, List, Optional
 
 from soup_cli.utils import a0_exact_lt, direct_expert_backward
 
-EXPERT_GEMM_CHOICES = ("native", "lt-fused")
+EXPERT_GEMM_CHOICES = ("native", "segmented", "lt-fused")
 DEFAULT_EXPERT_GEMM = "native"
 EXACT_TORCH_SERIES = (2, 14)  # the ATen reduction tree the fused kernels mirror
 MIN_CAPABILITY = (8, 0)
@@ -81,10 +83,14 @@ def require_lt_fused(environment: Optional[GemmEnvironment] = None) -> None:
 
 def expert_gemm_context(mode: str = DEFAULT_EXPERT_GEMM, **options: Any) -> ContextManager[Any]:
     """``native`` (default): the stock expert GEMMs, nothing patched, no environment probe.
-    ``lt-fused``: A0-exact fused expert visits (``require_lt_fused`` first; it never falls
-    back). ``options`` go to ``lt_fused_expert_gemm``."""
+    ``segmented``: the same native GEMM called once per micro-batch segment, so the row count and
+    the cuBLAS kernel of the reference step are kept; no extension. ``lt-fused``: A0-exact fused
+    expert visits (``require_lt_fused`` first; it never falls back). ``options`` go to the
+    chosen context."""
     if mode == "native":
         return nullcontext()
+    if mode == "segmented":
+        return segmented_expert_gemm(**options)
     if mode == "lt-fused":
         return lt_fused_expert_gemm(**options)
     raise ValueError(f"expert gemm must be one of {EXPERT_GEMM_CHOICES}, got {mode!r}")
