@@ -1,0 +1,139 @@
+{
+  "schema": "g3-capability-results-v1",
+  "client_date": "2026-10-23",
+  "timezone": "Asia/Almaty",
+  "attempt": 3,
+  "source_commit": "50cbebde583e74fa50184b9dc35c6f96b4c50ac5",
+  "protocol_sha256": "49878ed2eee7835b0bc4aaffc3a19660a804dd0799a02533dad5dd6f822ec292",
+  "task_status": "INCOMPLETE_ENVIRONMENT_BLOCKED",
+  "support_verdict": "NO_VERDICT",
+  "performance_claim": false,
+  "instance_id": 57258175,
+  "volume_id": 57258174,
+  "gpu": "NVIDIA GeForce RTX4090",
+  "gpu_uuid": "GPU-b2347a0f-db2e-86d7-fd47-b477405e99a0",
+  "boot_id": "b836688d-b1ab-40cb-b378-34f1b83d6f97",
+  "driver": "595.91.07",
+  "image": "nvidia/cuda:12.8.1-devel-ubuntu22.04",
+  "sdk_stats_mode": "off",
+  "target": {
+    "filesystem": "xfs",
+    "namespace": "nvme0n1",
+    "partition": "nvme0n1p3",
+    "major_minor": "259:3"
+  },
+  "native_build": "PASS",
+  "native_binary_sha256": "7b1f5104896c2b39805bca0ae6e88b1c46a6bb98f409408f982c0fa2546ef870",
+  "fixture": {
+    "bytes": 67108864,
+    "sha256": "024d8830fde37854a0cbf901df519b08fb6bbb955d50f7b056f8f05af0a9c186",
+    "generator": "shake256-g3-v1-per4KiB"
+  },
+  "independent_disk_sensor_controls": "PASS_DISK_SENSOR_CONTROLS",
+  "arm_order": [
+    "control",
+    "direct",
+    "direct",
+    "control"
+  ],
+  "arms": [
+    {
+      "index": 0,
+      "mode": "control",
+      "returncode": 0,
+      "full_readback_integrity": true,
+      "f1_outcome": "ok",
+      "gpu_clock_outcome": "ok",
+      "native_error": null,
+      "requested_bytes": 67108864,
+      "cuda_runtime": 12080,
+      "cuda_driver": 13020,
+      "explicit_pinned_host_bytes": 67108864
+    },
+    {
+      "index": 1,
+      "mode": "direct",
+      "returncode": 2,
+      "full_readback_integrity": false,
+      "f1_outcome": "ok",
+      "gpu_clock_outcome": "ok",
+      "native_error": {
+        "event": "CUFILE_ERROR",
+        "stage": "driver_open",
+        "code": 5001,
+        "explicit_not_supported": false
+      },
+      "requested_bytes": 67108864,
+      "cuda_runtime": null,
+      "cuda_driver": null,
+      "explicit_pinned_host_bytes": null
+    },
+    {
+      "index": 2,
+      "mode": "direct",
+      "returncode": 2,
+      "full_readback_integrity": false,
+      "f1_outcome": "ok",
+      "gpu_clock_outcome": "ok",
+      "native_error": {
+        "event": "CUFILE_ERROR",
+        "stage": "driver_open",
+        "code": 5001,
+        "explicit_not_supported": false
+      },
+      "requested_bytes": 67108864,
+      "cuda_runtime": null,
+      "cuda_driver": null,
+      "explicit_pinned_host_bytes": null
+    },
+    {
+      "index": 3,
+      "mode": "control",
+      "returncode": 0,
+      "full_readback_integrity": true,
+      "f1_outcome": "ok",
+      "gpu_clock_outcome": "ok",
+      "native_error": null,
+      "requested_bytes": 67108864,
+      "cuda_runtime": 12080,
+      "cuda_driver": 13020,
+      "explicit_pinned_host_bytes": 67108864
+    }
+  ],
+  "successful_control_transfers": 2,
+  "successful_direct_reads": 0,
+  "direct_driver_initializations_failed": 2,
+  "raw_local_audit": {
+    "status": "NO_VERDICT",
+    "local_raw_readback_audit": "PASS",
+    "performance_claim": false
+  },
+  "archive": {
+    "sha256": "5348ab7e2ef1171179e8c9388b20b0c6a04a1f17afc2d3d090dabf86d9f1a9d4",
+    "bytes": 95722071,
+    "logical_files": 57,
+    "logical_bytes": 1625777055,
+    "verified": true,
+    "source_snapshot_files_verified": 2497
+  },
+  "provider_cleanup": {
+    "stopped_confirmed": true,
+    "instance_deleted_confirmed": true,
+    "volume_deleted_confirmed": true,
+    "evidence": [
+      "provider_instances_after_delete_57258175.txt",
+      "provider_storage_after_delete_57258174.txt"
+    ],
+    "confirmed_unix_s": 1792696223.0193548
+  },
+  "budget": {
+    "cumulative_authorization_usd": 3,
+    "prior_attempt_reservation_usd": 0.5,
+    "third_attempt_conservative_reservation_usd": 0.25,
+    "exact_invoice_usd": null,
+    "reservation_is_not_invoice": true
+  },
+  "blocker": "cuFileDriverOpen returned CU_FILE_DRIVER_NOT_INITIALIZED (5001) in both fresh direct processes. This is not an explicit unsupported-device/platform verdict. No host driver/module/security change or compatibility fallback was attempted.",
+  "next_required": "An available NVMe target with a correctly configured GDS driver/transport and the required controls. Any changed configuration or source needs a separately declared frozen attempt; no automatic retry.",
+  "unix_s": 1792696145.0934541
+}

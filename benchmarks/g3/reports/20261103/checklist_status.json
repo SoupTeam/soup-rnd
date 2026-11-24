@@ -1,0 +1,42 @@
+{
+  "schema": "g3-checklist-v2",
+  "date": "2026-11-03",
+  "task_status": "INCOMPLETE_ENVIRONMENT_BLOCKED",
+  "support_verdict": "NO_VERDICT",
+  "direct_reads_completed": 0,
+  "performance_measured": false,
+  "rented_attempts": 8,
+  "rented_attempts_reaching_preregistered_outcome": 0,
+  "items": [
+    {
+      "requirement": "Check DirectStorage (Windows) or GDS (Linux) for compute buffers",
+      "complete": false,
+      "evidence": "GDS: 8 Linux leases, all ENVIRONMENT_BLOCKED (reports/20261023, 20261024, 20261026). DirectStorage: not run."
+    },
+    {
+      "requirement": "Short NVMe-to-VRAM test if available",
+      "complete": false,
+      "evidence": "0 completed direct reads; attempt 3 cuFile error 5001 (driver not initialized)."
+    },
+    {
+      "requirement": "Compare with existing unbuffered read (#974)",
+      "complete": false,
+      "evidence": "Two staged-copy controls passed on attempt 3; no comparison run."
+    },
+    {
+      "requirement": "Measure bandwidth, CPU and pinned RAM",
+      "complete": false,
+      "evidence": "Not measured."
+    },
+    {
+      "requirement": "Reproducible unsupported verdict if not supported",
+      "complete": false,
+      "evidence": "Not reached: environment gaps are not a stack-attributable native rejection."
+    }
+  ],
+  "unblock": [
+    "Linux host with owner-installed GDS and a single local NVMe (frozen probe unchanged)",
+    "Windows DirectStorage arm under a new prospective protocol"
+  ],
+  "vendor_reference": "https://docs.nvidia.com/gpudirect-storage/release-notes/index.html (checked 2026-11-03; not a verdict)"
+}

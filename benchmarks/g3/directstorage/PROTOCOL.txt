@@ -1,0 +1,88 @@
+G3 Windows DirectStorage arm: prospective protocol (2026-11-04)
+
+Written before any run on any machine. Commit it before the first run and do not edit it after;
+a later change is a dated addendum that applies only to runs started after it is committed. The
+Linux GDS protocol (../PROTOCOL.md) is unchanged; this is a separate API on a separate stack.
+
+1. Question
+On a consumer Windows laptop, does DirectStorage deliver file bytes into CUDA-accessible device
+memory, and how do bandwidth, CPU time and process memory compare with Soup's #974-style path
+(unbuffered file read into pinned host staging, then host-to-device copy)?
+Not asked and never claimed: a peer-to-peer NVMe-to-GPU route. DirectStorage on Windows moves
+data through runtime-managed staging; this probe cannot attribute the route. No training speed-up,
+no other machine, card or driver.
+
+2. Stack
+ds_probe.exe built from ds_probe.cpp with x86_64-w64-mingw32-g++ (build.sh records compiler
+version and binary SHA256). DirectStorage runtime 1.3.0: dstorage.dll and dstoragecore.dll taken
+from the official NuGet package microsoft.direct3d.directstorage.1.3.0.nupkg, SHA256
+8ab6c1082537565388b79050d94fdd7f5f437cd0f1d909e7b19f786042b97177 (run_g3.ps1 checks it). CUDA
+through the installed driver's nvcuda.dll (driver API), D3D12 through d3d12.dll. Nothing is
+installed. GPU, driver, OS build, disk model, volume and the probe SHA256 are recorded per run.
+
+3. Fixture
+One file of 1,073,741,824 bytes on the laptop's internal NVMe, written once by `prepare`: 4 KiB
+blocks, each filled by splitmix64 seeded with (20261104, block index), flushed, closed and read
+back in full against the generator. Every run reads the whole file.
+
+4. Arms (one fresh process per run)
+A  #974 analogue: CreateFileW with FILE_FLAG_NO_BUFFERING; two 32 MiB pinned host buffers
+   (cuMemHostAlloc); chunk i is read into buffer i%2 while chunk i-1 copies with
+   cuMemcpyHtoDAsync on one stream; destination is a 1 GiB cuMemAlloc allocation.
+   Timed: first ReadFile to the final stream synchronize.
+B  DirectStorage: D3D12 device on the adapter whose LUID equals the CUDA device's; a 1 GiB
+   committed buffer (default heap, D3D12_HEAP_FLAG_SHARED, state COMMON) imported into CUDA with
+   cuImportExternalMemory (D3D12 resource, dedicated) and mapped with
+   cuExternalMemoryGetMappedBuffer; DirectStorage file queue, default 32 MiB staging buffer,
+   32 requests of 32 MiB with destination BUFFER, one fence signal, one Submit.
+   Timed: first EnqueueRequest to fence completion seen on the CPU. A device-to-device copy of the
+   mapped buffer into a separate cuMemAlloc allocation is timed separately and reported, not used.
+Each process: 2 warm-up reads, then 3 timed reads; its number is the median of the 3.
+
+5. Correctness, per run (failing any is a failed run, not a slow one)
+Completed bytes equal requested bytes; no DirectStorage error record; every CUDA, D3D12 and
+Win32 call succeeds. After the timed reads the destination is copied back outside the timed
+interval and every byte is compared with the generator. A corruption control flips one byte of
+the copied-back data and must be detected.
+
+6. Validity, per run (void or unknown, never fail; METHOD.md Windows sensors, in the probe)
+power    GetSystemPowerStatus at start, every 2 s and at end; any sample off mains voids; an
+         unknown AC line on a machine with a battery is unknown.
+suspend  wall clock sampled every 2 s; two samples more than 30 s apart void.
+foreign  per-process read counters (GetProcessIoCounters) of every other process at start and
+         end; one other process reading 1,000,000,000 bytes or more voids. Processes that cannot
+         be opened are counted in the record. Reads cover every disk (Windows has no per-disk
+         counter here).
+Recorded, never voiding: GPU processes and clocks (nvidia-smi before and after; a Windows laptop
+GPU always has display processes), free memory, commit charge.
+Overall run outcome: void if any check is void; else unknown if any check is unknown; else ok.
+
+7. Series and repeats (METHOD.md, arm_validity.blocks_to_add, unchanged)
+Blocks A B B A in fresh processes. Pilot: 5 blocks. A block with a void run is replaced, not
+counted. Then the METHOD rule: N = max(5, ceil(7.85 (sigma/delta)^2)) with sigma the run-to-run
+spread pooled over A and B and delta 10% of mean A, recomputed once on reaching N (one top-up),
+cap 12 valid blocks. More than 2 void blocks in the series: NO_VERDICT_HOST_NOISE. A required check
+(power, suspend, foreign) that is unknown on a run the verdict reads gives NO_VERDICT. If the rule
+asks for more blocks than the cap allows, or than were run: NO_VERDICT for performance.
+
+8. Outcomes
+Capability (before any performance label):
+  DS_TO_CUDA_VERIFIED  B delivered all bytes correctly into imported CUDA memory in every valid
+                       run and A passed in every valid run.
+  DS_UNAVAILABLE_ON_TESTED_STACK  a DirectStorage, D3D12 or CUDA-import call fails with the same
+                       error in two separate fresh processes while A passes; scoped to this stack.
+  ENVIRONMENT_BLOCKED  missing DLL, driver, package or permission; not a stack verdict.
+  NO_VERDICT           anything else, including failed byte or corruption controls.
+Performance (only after DS_TO_CUDA_VERIFIED), on paired block differences d = mean(B) - mean(A)
+of useful GB/s, two-sided Student t 95% interval of the mean difference:
+  B_FASTER if its lower bound is above 0; B_SLOWER if its upper bound is below 0;
+  NO_DETECTABLE_DIFFERENCE otherwise. The ratio mean(B)/mean(A) is descriptive only.
+CPU seconds per read and process memory (private bytes, peak working set) are reported for both
+arms, descriptive only. Explicit pinned host bytes: A 64 MiB; B none from the probe (the runtime's
+staging buffer is configured at 32 MiB and is not measured separately).
+
+9. Procedure
+Laptop on mains, lid open, other programs closed, no other disk-heavy work. run_g3.ps1 checks
+the package SHA256, records the machine, runs `ds_probe selftest`, `prepare`, then the 5 pilot
+blocks, and zips the results. Analysis is offline (analyze_ds.py). No retry of a failed or void
+run; a top-up, if the rule asks for one, is a second run of run_g3.ps1 with the stated block count.

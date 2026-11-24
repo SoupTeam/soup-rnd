@@ -1,0 +1,20 @@
+G3 now has a frozen native direct-storage probe, positive transfer controls,
+validity calibration, preservation and local audit tooling. Six leases exposed
+one corrected build defect and unsuitable or unconfigured host environments.
+The only controlled capability attempt passed both staged-copy byte controls
+but failed both direct initializations with cuFile error5001. Direct reads:0.
+
+Status is INCOMPLETE / ENVIRONMENT_BLOCKED, support NO_VERDICT. This PR does
+not claim GDS support, explicit hardware non-support or a performance speedup.
+All six instance/volume pairs were preserved locally and deletion was verified.
+
+Review: benchmarks/g3/reports/20261023/STUDY_REPORT.txt,
+study_summary.json and checklist_status.json. Large raw archives stay local;
+the summary records their SHA256 and the verification scope.
+
+Validation: most recent targeted G3 run133passed/2skipped (real CUDA SDK cases
+unavailable locally), Ruff clean. Earlier wider tooling validation231passed/
+7skipped is historical. Corrected stats-off native compilation/linking passed
+on actual CUDA12.8.1; it is not positive DMA validation.
+
+G3 remains blocked pending a configured GDS host and one-/two-drive measurements.
