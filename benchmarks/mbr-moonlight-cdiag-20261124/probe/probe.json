@@ -1,0 +1,407 @@
+{
+  "model": "Moonlight-16B-A3B",
+  "card": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "window": "op probe, no model",
+  "arm": "operation",
+  "mode": "bits (strict deterministic)",
+  "torch_version": "2.14.1+cu130",
+  "cuda": "13.0",
+  "reduce_precision_reduction": true,
+  "projections": {
+    "gate_up": {
+      "shape": [
+        2816,
+        2048
+      ],
+      "kernels": {
+        "1": [
+          "void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)"
+        ],
+        "2": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "4": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "8": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "12": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "15": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "16": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "17": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn"
+        ],
+        "24": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn"
+        ],
+        "31": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn"
+        ],
+        "32": [
+          "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        ],
+        "33": [
+          "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        ],
+        "40": [
+          "ampere_s16816gemm_bf16_256x128_ldg8_stages_32x3_tn",
+          "void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)"
+        ],
+        "48": [
+          "ampere_s16816gemm_bf16_256x128_ldg8_stages_32x3_tn",
+          "void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)"
+        ],
+        "64": [
+          "ampere_s16816gemm_bf16_256x128_ldg8_stages_32x3_tn",
+          "void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)"
+        ]
+      },
+      "buckets": [
+        {
+          "first_m": 1,
+          "kernel": "void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)"
+        },
+        {
+          "first_m": 2,
+          "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        },
+        {
+          "first_m": 17,
+          "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn"
+        },
+        {
+          "first_m": 32,
+          "kernel": "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        },
+        {
+          "first_m": 40,
+          "kernel": "ampere_s16816gemm_bf16_256x128_ldg8_stages_32x3_tn,void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)"
+        }
+      ],
+      "pairs": [
+        {
+          "m_small": 15,
+          "m_large": 31,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 42240,
+          "max_abs_diff": 0.0
+        },
+        {
+          "m_small": 1,
+          "m_large": 2,
+          "equal": false,
+          "n_diff": 2,
+          "numel": 2816,
+          "max_abs_diff": 0.000244140625
+        },
+        {
+          "m_small": 8,
+          "m_large": 16,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 22528,
+          "max_abs_diff": 0.0
+        }
+      ],
+      "per_row": [
+        {
+          "m_small": 15,
+          "m_large": 31,
+          "equal": false,
+          "n_diff": 17,
+          "numel": 42240,
+          "max_abs_diff": 0.001953125
+        },
+        {
+          "m_small": 1,
+          "m_large": 2,
+          "equal": false,
+          "n_diff": 2,
+          "numel": 2816,
+          "max_abs_diff": 0.000244140625
+        },
+        {
+          "m_small": 8,
+          "m_large": 16,
+          "equal": false,
+          "n_diff": 10,
+          "numel": 22528,
+          "max_abs_diff": 0.001953125
+        }
+      ],
+      "per_micro_batch": [
+        {
+          "split": [
+            15,
+            16
+          ],
+          "m_large": 31,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 87296,
+          "max_abs_diff": 0.0
+        }
+      ],
+      "padded": [
+        {
+          "pad": 32,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 2816,
+          "max_abs_diff": 0.0
+        },
+        {
+          "pad": 512,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 2816,
+          "max_abs_diff": 0.0
+        }
+      ],
+      "reduced_precision_off": [
+        {
+          "m_small": 15,
+          "m_large": 31,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 42240,
+          "max_abs_diff": 0.0
+        },
+        {
+          "m_small": 1,
+          "m_large": 2,
+          "equal": false,
+          "n_diff": 2,
+          "numel": 2816,
+          "max_abs_diff": 0.000244140625
+        }
+      ],
+      "reduced_precision_off_kernels": {
+        "1": [
+          "void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)"
+        ],
+        "2": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "15": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "16": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "31": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn"
+        ],
+        "32": [
+          "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        ]
+      }
+    },
+    "down": {
+      "shape": [
+        2048,
+        1408
+      ],
+      "kernels": {
+        "1": [
+          "void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)"
+        ],
+        "2": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "4": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "8": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "12": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "15": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "16": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "17": [
+          "void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)",
+          "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8::Params)"
+        ],
+        "24": [
+          "void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)",
+          "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8::Params)"
+        ],
+        "31": [
+          "void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)",
+          "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8::Params)"
+        ],
+        "32": [
+          "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        ],
+        "33": [
+          "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        ],
+        "40": [
+          "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8::Params)"
+        ],
+        "48": [
+          "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8::Params)"
+        ],
+        "64": [
+          "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8::Params)"
+        ]
+      },
+      "buckets": [
+        {
+          "first_m": 1,
+          "kernel": "void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)"
+        },
+        {
+          "first_m": 2,
+          "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        },
+        {
+          "first_m": 17,
+          "kernel": "void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*),void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_64x6_tn_align8::Params)"
+        },
+        {
+          "first_m": 32,
+          "kernel": "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        },
+        {
+          "first_m": 40,
+          "kernel": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x3_tn_align8::Params)"
+        }
+      ],
+      "pairs": [
+        {
+          "m_small": 15,
+          "m_large": 31,
+          "equal": false,
+          "n_diff": 11928,
+          "numel": 30720,
+          "max_abs_diff": 0.0078125
+        },
+        {
+          "m_small": 1,
+          "m_large": 2,
+          "equal": false,
+          "n_diff": 2,
+          "numel": 2048,
+          "max_abs_diff": 6.103515625e-05
+        },
+        {
+          "m_small": 8,
+          "m_large": 16,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 16384,
+          "max_abs_diff": 0.0
+        }
+      ],
+      "per_row": [
+        {
+          "m_small": 15,
+          "m_large": 31,
+          "equal": false,
+          "n_diff": 11930,
+          "numel": 30720,
+          "max_abs_diff": 0.0078125
+        },
+        {
+          "m_small": 1,
+          "m_large": 2,
+          "equal": false,
+          "n_diff": 2,
+          "numel": 2048,
+          "max_abs_diff": 6.103515625e-05
+        },
+        {
+          "m_small": 8,
+          "m_large": 16,
+          "equal": false,
+          "n_diff": 7,
+          "numel": 16384,
+          "max_abs_diff": 0.00390625
+        }
+      ],
+      "per_micro_batch": [
+        {
+          "split": [
+            15,
+            16
+          ],
+          "m_large": 31,
+          "equal": false,
+          "n_diff": 24691,
+          "numel": 63488,
+          "max_abs_diff": 0.0078125
+        }
+      ],
+      "padded": [
+        {
+          "pad": 32,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 2048,
+          "max_abs_diff": 0.0
+        },
+        {
+          "pad": 512,
+          "equal": true,
+          "n_diff": 0,
+          "numel": 2048,
+          "max_abs_diff": 0.0
+        }
+      ],
+      "reduced_precision_off": [
+        {
+          "m_small": 15,
+          "m_large": 31,
+          "equal": false,
+          "n_diff": 15,
+          "numel": 30720,
+          "max_abs_diff": 0.001953125
+        },
+        {
+          "m_small": 1,
+          "m_large": 2,
+          "equal": false,
+          "n_diff": 2,
+          "numel": 2048,
+          "max_abs_diff": 6.103515625e-05
+        }
+      ],
+      "reduced_precision_off_kernels": {
+        "1": [
+          "void gemv2T_kernel_val<int, int, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, float, 128, 16, 4, 4, false, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16 const>, cublasGemvTensorStridedBatched<__nv_bfloat16>, float>, float, float)"
+        ],
+        "2": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "15": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "16": [
+          "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+        ],
+        "31": [
+          "void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, true, false, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)",
+          "void cutlass::Kernel2<cutlass_80_tensorop_s16816gemm_bf16_64x64_64x6_tn_align8>(cutlass_80_tensorop_s16816gemm_bf16_64x64_64x6_tn_align8::Params)"
+        ],
+        "32": [
+          "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x3_tn"
+        ]
+      }
+    }
+  }
+}
