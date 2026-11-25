@@ -10,7 +10,9 @@ Reads the sweeps written by ``run_bits.sh`` and ``run_speed.sh`` (``rows.jsonl``
   torch version (the reporting rule of the map).
 
 ``torch.equal`` on the saved loss and every LoRA gradient decides the bits verdicts; the
-reference arm is A0 at k <= 8 and C above it, as in the harness. Benchmark code, not shipped.
+reference arm is A0 at k <= 8 and C above it, as in the harness. The LoRA names and shapes come
+from ``grad_manifest.json`` in the campaign folder, which must equal ``mm.MOONLIGHT_GRAD_SHAPES``;
+without it no bits cell has a verdict. Benchmark code, not shipped.
 
     python analyze.py --root benchmarks/mbr-moonlight-loader-20261123
 
@@ -39,6 +41,7 @@ MODEL = "Moonlight-16B-A3B"
 CARD = "RTX 3050 Laptop sm_86 4 GiB"
 BITS_FOLDERS = ("s64", "s512-math", "k64")
 SPEED_FOLDER = "speed"
+GRAD_MANIFEST = "grad_manifest.json"
 
 
 def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
@@ -91,8 +94,13 @@ def _result_lines(rows: Sequence[Dict[str, Any]], *, kind: str) -> List[str]:
 def _diff_detail(tensor_dir: Path, base: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
     import torch
 
-    ref = torch.load(tensor_dir / base["tensor_file"], weights_only=True)
-    row = torch.load(tensor_dir / other["tensor_file"], weights_only=True)
+    ref_path = mm.contained_tensor(tensor_dir, base["tensor_file"])
+    row_path = mm.contained_tensor(tensor_dir, other["tensor_file"])
+    if ref_path is None or row_path is None:
+        raise ValueError(f"tensor outside {tensor_dir} or missing: {base['tensor_file']!r}, "
+                         f"{other['tensor_file']!r}")
+    ref = torch.load(ref_path, weights_only=True)
+    row = torch.load(row_path, weights_only=True)
     differing = [name for name in ref["grads"]
                  if not torch.equal(ref["grads"][name], row["grads"][name])]
     max_diff = max((float((ref["grads"][name] - row["grads"][name]).abs().max())
@@ -103,16 +111,51 @@ def _diff_detail(tensor_dir: Path, base: Dict[str, Any], other: Dict[str, Any]) 
             "max_abs_diff": max_diff, "max_abs_grad": max_grad}
 
 
-def _bits(folder: Path) -> Dict[str, Any]:
+def _grad_manifest(root: Path) -> Dict[str, List[int]]:
+    """The campaign's LoRA manifest, or {} (no verdict) when the file is missing or differs."""
+    return mm.load_grad_manifest(root / GRAD_MANIFEST) or {}
+
+
+RECORD_FIELDS = ("arm", "k", "seq", "run")
+
+
+def _binds(row: Dict[str, Any], record: Dict[str, Any]) -> bool:
+    """A row binds to its arm record when the record is ok, names the row's arm, and agrees on
+    every field of ``RECORD_FIELDS`` that both carry."""
+    return (record.get("outcome") == "ok" and "arm" in record
+            and all(record[name] == row.get(name) for name in RECORD_FIELDS
+                    if name in record and name in row))
+
+
+def _bound_rows(folder: Path) -> List[Dict[str, Any]]:
+    """Rows a bits verdict may read. A row whose outcome is not ok, and a row without an outcome,
+    reads as status ``void``, so its pair gets no verdict. When ``arm_records.jsonl`` exists, a
+    row must also bind to the record at its position (``_binds``). A folder without records
+    binds nothing beyond its own outcome; ``README.md`` names that limit."""
     rows = _read_jsonl(folder / "rows.jsonl")
-    verdicts = mm.tensor_ladder_verdict(rows, tensor_dir=folder / "tensors")
+    path = folder / "arm_records.jsonl"
+    records = _read_jsonl(path) if path.exists() else None
+    bound: List[Dict[str, Any]] = []
+    for position, row in enumerate(rows):
+        ok = row.get("outcome") == "ok"
+        if records is not None:
+            record = records[position] if position < len(records) else {}
+            ok = ok and _binds(row, record)
+        bound.append(row if ok else dict(row, status="void"))
+    return bound
+
+
+def _bits(folder: Path, grad_manifest: Dict[str, List[int]]) -> Dict[str, Any]:
+    rows = _bound_rows(folder)
+    verdicts = mm.tensor_ladder_verdict(rows, tensor_dir=folder / "tensors",
+                                        manifest=grad_manifest)
     detail: Dict[str, Any] = {}
     for (k, arm), verdict in sorted(verdicts.items()):
         if verdict != "differs":
             continue
-        base = next((r for r in rows if r["k"] == k and r["arm"] == mm.reference_arm(k)
+        base = next((r for r in reversed(rows) if r["k"] == k and r["arm"] == mm.reference_arm(k)
                      and r.get("status") == "ok"), None)
-        other = next(r for r in rows if r["k"] == k and r["arm"] == arm)
+        other = next(r for r in reversed(rows) if r["k"] == k and r["arm"] == arm)
         if base is not None:
             detail[f"k{k}-{arm}"] = _diff_detail(folder / "tensors", base, other)
     return {"folder": str(folder),
@@ -218,9 +261,10 @@ def main(argv: object = None) -> int:
 
     bits_rows: List[Dict[str, Any]] = []
     bits: Dict[str, Any] = {}
+    grad_manifest = _grad_manifest(args.root)
     for name in BITS_FOLDERS:
         folder = args.root / name
-        bits[name] = _bits(folder)
+        bits[name] = _bits(folder, grad_manifest)
         bits_rows += _read_jsonl(folder / "rows.jsonl")
     speed_rows = _speed_rows(args.root / SPEED_FOLDER)
     speed = _speed(args.root / SPEED_FOLDER)

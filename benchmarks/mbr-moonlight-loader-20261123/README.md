@@ -24,6 +24,10 @@ The kill ladder of the ticket is k = 1, 2, 4, 8: equal everywhere. The k = 64 ce
 C and the ticket records it without blocking. The two C repeats and the H repeat
 (`k64-counter-*`) are the counter runs.
 
+What a bits verdict may read, as in the decoupled campaign: a row whose `outcome` is not `ok` or
+is missing reads as `void`; with `arm_records.jsonl`, row N must bind to record N by arm, `k`,
+`seq` and `run`. The verdict and the diff detail read the same row, the last one per (k, arm).
+
 ## py-spy (`run_pyspy.sh`)
 
 Profile of one k = 8, S = 64 step, `--native`, on both arms. The Python controller leaf

@@ -43,6 +43,18 @@ D against C, the isolation of the decoupling itself:
 | (8,512) math | yes | 108/216 | 1.67e-3 | 2.171e-3 | 0.999980 |
 | (64,64) | yes | 108/216 | 1.54e-3 | 3.833e-3 | 0.999990 |
 
+### What a bits verdict may read
+
+- A row whose `outcome` is not `ok`, or is missing, reads as `void`. Its pair gets no verdict.
+- When `arm_records.jsonl` exists, row N binds to record N: the arm must match, and `k`, `seq` and
+  `run` must match wherever both carry the field. The record's `outcome` must be `ok`.
+- A folder without `arm_records.jsonl` binds nothing beyond its own row outcome. This is a limit:
+  such a folder cannot prove its rows belong to the arm they name. Every folder this analysis reads
+  has its records.
+- Duplicate rows: the last row of each (k, arm) decides, as in `mbr_measure.py`. An earlier
+  duplicate is overwritten, so it cannot yield `equal`. The test
+  `test_a_duplicate_row_gives_the_verdict_and_the_diff_the_same_row` pins this rule.
+
 ### Why the CPU equality does not carry to this card
 
 Part 1 pinned NF4+BF16 equality to A0 at k = 1, 2, 4 on CPU. That equality is real, but it is a
