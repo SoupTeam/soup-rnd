@@ -17,6 +17,15 @@ PLAN_ARGS = {
 }
 
 
+def test_routing_oracle_adds_one_normalizer_per_token_and_routed_layer():
+    plain = plan_moe_l2l(HostMemoryBudget(10**9), **PLAN_ARGS)
+    with_oracle = plan_moe_l2l(HostMemoryBudget(10**9), routing_oracle=True, **PLAN_ARGS)
+
+    assert plain.routing_record_bytes == 1920
+    # 4 micro-batches x 2 routed layers x 10 tokens x 4 bytes of float32 normalizer
+    assert with_oracle.routing_record_bytes == 1920 + 320
+
+
 @pytest.mark.parametrize(
     ("dtype", "pin", "expected_activations"),
     [

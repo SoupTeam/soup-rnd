@@ -70,6 +70,7 @@ def plan_moe_l2l(
     codec: str = "none",
     device_type: str = "cuda",
     host_workspace_bytes_per_batch: int = 0,
+    routing_oracle: bool = False,
 ) -> MoEL2LMemoryPlan:
     """Select the largest RAM-fitting ``k`` for a fixed upper bound on micro-batch shape.
 
@@ -109,6 +110,8 @@ def plan_moe_l2l(
     tokens = batch_size * sequence_length
     comparison_bytes = tokens * experts_per_token * 8
     routing_bytes_per_batch = n_moe_layers * comparison_bytes
+    if routing_oracle:
+        routing_bytes_per_batch += n_moe_layers * tokens * 4
     # Routing records and caller workspace both grow linearly with k.
     window_bytes_per_batch = routing_bytes_per_batch + host_workspace_bytes_per_batch
     available = host_budget.available_bytes

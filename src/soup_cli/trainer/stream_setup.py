@@ -1437,6 +1437,7 @@ class StreamingSetupMixin:
             host_workspace_bytes_per_batch=window_bytes,
             codec=tcfg.l2l_activation_codec,
             device_type=str(getattr(self.device, "type", self.device)).split(":", 1)[0],
+            routing_oracle=bool(getattr(tcfg, "l2l_routing_oracle", False)),
         )
         # Reuse C3's activation lease and shape guard without enabling its optional
         # dense weight cache. Routing records join the activation partition, so the
