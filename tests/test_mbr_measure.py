@@ -913,3 +913,5 @@ def test_the_ceg_and_ds_commands_reach_their_plans(monkeypatch: pytest.MonkeyPat
     assert seen["command"] == "ds-bits"
     assert seen["arms"] == ["A0", "DS"]
     assert seen["kind"] == {"bits"}
+    assert mm.main(["ds-bits", "--arms", "DS", *base]) == 0
+    assert seen["arms"] == ["DS"]

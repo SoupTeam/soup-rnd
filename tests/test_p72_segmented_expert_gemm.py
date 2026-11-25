@@ -362,6 +362,11 @@ def test_a_skipped_expert_forward_leaves_stale_captures_out_of_the_next_group(
         # The stale entries did not survive the group: a per-micro-batch call reads its own one.
         capture(2)
         assert cls.forward(fake(None), torch.zeros(2, 8), None, None) is None
+        # The group's own captures are still checked: a real boundary mismatch raises.
+        capture(2)
+        capture(2)
+        with pytest.raises(RuntimeError, match="micro-batch order"):
+            cls.forward(fake([2, 1]), torch.zeros(3, 8), None, None)
     assert called == [3, 2]
 
 

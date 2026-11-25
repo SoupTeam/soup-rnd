@@ -1132,7 +1132,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                                                 start_block=args.start_block),
             "ds-bits": lambda: decoupled_segmented_bit_plan(seq=args.seq, ks=args.ladder_ks),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
-    if args.command in ("bits", "lever-bits") and args.arms is not None:
+    if args.command in ("bits", "lever-bits", "ds-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]
         if not plan:
             parser.error("--arms selects no arm of this ladder")
