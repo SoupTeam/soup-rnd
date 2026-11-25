@@ -254,6 +254,18 @@ def test_legacy_speed_archive_without_campaign_identity_has_no_verdict() -> None
     assert any("campaign" in reason for reason in report["errors"])
 
 
+CW64_FOLDER = CAMPAIGN.parents[1] / ".scratch/mbr-unified-moonlight/speed-cw64-20261125"
+CW64_CAMPAIGN = "9be11676d4ed718a70a09c5f7120d0929f7379ef4216af7cdd6126cf2e383c3e"
+
+
+def test_speed_certifies_the_64x64_window_from_its_own_plan() -> None:
+    if not (CW64_FOLDER / "rows.jsonl").exists():
+        pytest.skip("the 64x64 speed campaign is not in this checkout")
+    report = analysis.speed_report(CW64_FOLDER, CW64_CAMPAIGN, windows=((64, 64),))
+    assert report["errors"] == []
+    assert report["windows"]["(64,64)"]["verdict"] == "available"
+
+
 def test_analyzer_manifest_is_the_harness_manifest() -> None:
     assert analysis.GRAD_SHAPES == mm.MOONLIGHT_GRAD_SHAPES
     assert len(analysis.GRAD_SHAPES) == analysis.GRAD_TOTAL == 216
@@ -774,7 +786,7 @@ def test_a_missing_stored_cross_fails_the_analyzer(
     _write(path / "rows.jsonl", rows)
     _isolate(monkeypatch, tmp_path)
     monkeypatch.setattr(analysis, "speed_report",
-                        lambda *args: {"windows": {}, "errors": []})
+                        lambda *args, **kwargs: {"windows": {}, "errors": []})
     empty = tmp_path / "empty-stored"
     empty.mkdir()
     argv = ["--root", str(tmp_path), "--stored-root", str(empty), "--source", "fake",

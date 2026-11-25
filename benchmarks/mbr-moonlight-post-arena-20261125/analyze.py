@@ -332,8 +332,9 @@ def _watch_errors(record: Row, *, speed: bool) -> list[str]:
     return errors
 
 
-def _block_plan(window: Window, block: int) -> list[Row]:
-    return [item for item in mm.ceg_speed_plan(blocks=1, start_block=block)
+def _block_plan(window: Window, block: int,
+                windows: Sequence[Window] = mm.CEG_WINDOWS) -> list[Row]:
+    return [item for item in mm.ceg_speed_plan(blocks=1, start_block=block, windows=windows)
             if (item["k"], item["seq"]) == window]
 
 
@@ -418,9 +419,11 @@ class SpeedEvidence:
     records: list[Row]
 
 
-def read_speed(folder: Path, expected_id: Optional[str] = None) -> SpeedEvidence:
+def read_speed(folder: Path, expected_id: Optional[str] = None, *,
+               windows: Sequence[Window] = mm.CEG_WINDOWS) -> SpeedEvidence:
     """Associate row/record identities before filtering. Each slot has a chain of attempts.
-    ``expected_id`` is the campaign the evidence must belong to; None checks only consistency."""
+    ``expected_id`` is the campaign the evidence must belong to; None checks only consistency.
+    ``windows`` is the plan the evidence must follow, one k=8 or k=64 window per entry."""
     errors: list[str] = []
     rows = _evidence(folder, "rows.jsonl", errors)
     records = _evidence(folder, "arm_records.jsonl", errors)
@@ -437,7 +440,7 @@ def read_speed(folder: Path, expected_id: Optional[str] = None) -> SpeedEvidence
             errors.append("environment_mixed")
     shas = expected_dataset_shas()
     attempts = {window: {slot: [slot] for slot in range(PILOT_BLOCKS)}
-                for window in mm.CEG_WINDOWS}
+                for window in windows}
     last_id = PILOT_BLOCKS - 1
     for entry in journal:
         window = (entry.get("k"), entry.get("seq"))
@@ -448,7 +451,7 @@ def read_speed(folder: Path, expected_id: Optional[str] = None) -> SpeedEvidence
             continue
         last_id = block
         attempts[window].setdefault(slot, []).append(block)
-    plans = {(window, block): _block_plan(window, block)
+    plans = {(window, block): _block_plan(window, block, windows)
              for window, slots in attempts.items() for chain in slots.values() for block in chain}
     run_keys = {item["index"] + 1: key for key, plan in plans.items() for item in plan}
     by_row: dict[tuple, list[tuple[int, Row]]] = defaultdict(list)
@@ -489,9 +492,10 @@ def _window_name(window: Window) -> str:
     return f"({window[0]},{window[1]})"
 
 
-def _repeat_counts(evidence: SpeedEvidence, count: int) -> dict[str, dict[str, int]]:
+def _repeat_counts(evidence: SpeedEvidence, count: int,
+                   windows: Sequence[Window]) -> dict[str, dict[str, int]]:
     counts = {}
-    for window in mm.CEG_WINDOWS:
+    for window in windows:
         slots = evidence.accepted[window]
         if not all(slot in slots for slot in range(count)):
             continue
@@ -505,19 +509,21 @@ def _repeat_counts(evidence: SpeedEvidence, count: int) -> dict[str, dict[str, i
     return counts
 
 
-def speed_progress(evidence: SpeedEvidence) -> dict[str, Any]:
-    """Pilot, one recomputation at N and at most one top-up, shared by both windows."""
+def speed_progress(evidence: SpeedEvidence, *,
+                   windows: Sequence[Window] = mm.CEG_WINDOWS) -> dict[str, Any]:
+    """Pilot, one recomputation at N and at most one top-up, shared by all windows."""
     def target(counts: dict, floor: int) -> int:
         return max(floor, *(value for pairs in counts.values() for value in pairs.values()))
 
     def missing(count: int) -> list[tuple[Window, int]]:
-        return [(window, slot) for window in mm.CEG_WINDOWS for slot in range(count)
+        return [(window, slot) for window in windows for slot in range(count)
                 if slot not in evidence.accepted[window]]
 
-    pilot = _repeat_counts(evidence, PILOT_BLOCKS)
+    pilot = _repeat_counts(evidence, PILOT_BLOCKS, windows)
     pilot_target = target(pilot, PILOT_BLOCKS) if pilot else PILOT_BLOCKS
-    initial_target = pilot_target if len(pilot) == len(mm.CEG_WINDOWS) else PILOT_BLOCKS
-    topup = _repeat_counts(evidence, initial_target) if not missing(initial_target) else {}
+    initial_target = pilot_target if len(pilot) == len(windows) else PILOT_BLOCKS
+    topup = (_repeat_counts(evidence, initial_target, windows)
+             if not missing(initial_target) else {})
     final_target = target(topup, initial_target) if topup else initial_target
     pending = missing(final_target)
     extra = {_window_name(window): sorted(slots - set(range(final_target)))
@@ -555,17 +561,18 @@ def _window_stats(blocks: list[tuple[int, list[Row]]]) -> Row:
                        for arm, rows in by_arm.items()}}
 
 
-def speed_report(folder: Path, expected_id: Optional[str] = None) -> Row:
-    evidence = read_speed(folder, expected_id)
-    progress = speed_progress(evidence)
+def speed_report(folder: Path, expected_id: Optional[str] = None, *,
+                 windows: Sequence[Window] = mm.CEG_WINDOWS) -> Row:
+    evidence = read_speed(folder, expected_id, windows=windows)
+    progress = speed_progress(evidence, windows=windows)
     target = progress["final_target"]
-    windows = {}
-    for window in mm.CEG_WINDOWS:
+    results = {}
+    for window in windows:
         pending = [slot for key, slot in progress["pending"] if key == window]
         slots = evidence.accepted[window]
         unexpected = progress["unexpected_slots"].get(_window_name(window), [])
         verdict = not evidence.errors and not progress["pending"] and not unexpected
-        windows[_window_name(window)] = {
+        results[_window_name(window)] = {
             "verdict": "available" if verdict else None,
             "invalid_blocks": evidence.invalid[window], "missing_slots": pending,
             "accepted_blocks": len(slots),
@@ -573,7 +580,7 @@ def speed_report(folder: Path, expected_id: Optional[str] = None) -> Row:
             **(_window_stats([slots[slot] for slot in range(target)]) if verdict else {}),
         }
     clocks = [_max_clock(record) for record in evidence.records]
-    return {"windows": windows, "errors": evidence.errors, "blocks_needed": progress["pilot"],
+    return {"windows": results, "errors": evidence.errors, "blocks_needed": progress["pilot"],
             "repeats": progress, "raw_runs": len(evidence.rows), "records": len(evidence.records),
             "runs": len(mm.CEG_HANDS) * sum(map(len, evidence.accepted.values())),
             "outcomes": dict(Counter(str(r.get("outcome", "missing")) for r in evidence.records)),
@@ -625,6 +632,9 @@ def main(argv: list[str] | None = None) -> int:
                                                     Path.home() / "moonlight-local"))
                         / "results" / "bits",
                         help="ticket 03 tensor root (default $MOONLIGHT_ROOT/results/bits)")
+    parser.add_argument("--speed-windows", type=mm.parse_ceg_windows, default=mm.CEG_WINDOWS,
+                        help="comma list of k x S windows the speed plan covers, e.g. 8x64,64x64"
+                             " (default 8x64,8x512)")
     parser.add_argument("--source", default=f"{moonlight}/source",
                         help="speed campaign model source (default $MOONLIGHT_ROOT/source)")
     parser.add_argument("--cache", default=f"{moonlight}/cache",
@@ -633,7 +643,7 @@ def main(argv: list[str] | None = None) -> int:
 
     campaign_id = expected_campaign_id(args.source, args.cache)
     bits = bits_report(args.root, args.stored_root, campaign_id)
-    speed = speed_report(args.root / SPEED_FOLDER, campaign_id)
+    speed = speed_report(args.root / SPEED_FOLDER, campaign_id, windows=args.speed_windows)
     analysis = {"model": MODEL, "card": CARD, "bits": bits, "speed": speed}
     (args.root / "analysis.json").write_text(json.dumps(analysis, indent=2, allow_nan=False) + "\n",
                                              encoding="utf-8")
