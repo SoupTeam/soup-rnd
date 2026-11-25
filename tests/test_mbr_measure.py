@@ -1169,3 +1169,46 @@ def test_the_ceg_and_ds_commands_reach_their_plans(monkeypatch: pytest.MonkeyPat
     assert seen["kind"] == {"bits"}
     assert mm.main(["ds-bits", "--arms", "DS", *base]) == 1
     assert seen["arms"] == ["DS"]
+
+
+def test_traj_plan_is_a0_then_g_for_each_step_at_fixed_k_and_seq() -> None:
+    plan = mm.traj_plan(steps=3, k=2, seq=64)
+    assert len(plan) == 2 * 3
+    assert [(p["arm"], p["step"]) for p in plan] == [
+        ("A0", 0), ("A0", 1), ("A0", 2), ("G", 0), ("G", 1), ("G", 2)]
+    assert all(p["k"] == 2 and p["seq"] == 64 and p["kind"] == "traj"
+               and p["deterministic"] for p in plan)
+
+
+def _traj_rows(steps: int = 5, *, identity: str = "id") -> list:
+    rows = []
+    for arm in ("A0", "G"):
+        for step in range(steps):
+            rows.append({"arm": arm, "k": 2, "seq": 64, "step": step, "status": "ok",
+                         "outcome": "ok", "campaign_id": identity,
+                         "loss_hex": f"loss{step}", "weight_sha256": f"w{step}"})
+    return rows
+
+
+def test_traj_verdict_equal_when_every_step_matches() -> None:
+    report = mm.traj_verdict(_traj_rows())
+    assert report["verdict"] == "equal"
+    assert report["first_difference"] is None
+    assert set(report["steps"].values()) == {"equal"}
+
+
+def test_traj_verdict_reports_the_first_differing_step() -> None:
+    rows = _traj_rows()
+    rows[-2]["weight_sha256"] = "other"
+    report = mm.traj_verdict(rows)
+    assert report["first_difference"] == 3
+    assert report["steps"]["3"] == "differs"
+    assert report["steps"]["2"] == "equal"
+
+
+def test_traj_verdict_needs_campaign_id_on_every_row() -> None:
+    rows = _traj_rows()
+    del rows[0]["campaign_id"]
+    report = mm.traj_verdict(rows)
+    assert report["verdict"].startswith("no verdict")
+    assert report["first_difference"] is None

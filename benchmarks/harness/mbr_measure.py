@@ -14,12 +14,15 @@ import json
 import math
 import os
 import statistics
+import struct
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64), (64, 512))
 BIT_LADDER: Tuple[int, ...] = (1, 2, 4, 8)
 A0_MAX_K = 8
+# Trajectory check (ticket 17): the AdamW recipe both arms take, identical for each step.
+TRAJ_LR, TRAJ_BETAS = 1e-4, (0.9, 0.999)
 PEAK_KEYS = ("peak_allocated", "peak_reserved", "peak_nvml", "peak_ram")
 # LoRA targets of the Kanana campaign. Other models pass --lora-targets.
 DEFAULT_LORA_TARGETS: Tuple[str, ...] = ("q_proj", "kv_b_proj", "o_proj")
@@ -72,9 +75,9 @@ def check_mode(kind: str, *, deterministic: bool) -> str:
     """The mode label for ``kind`` ("speed" or "bits"); a mixed mode is refused."""
     if kind == "speed" and deterministic:
         raise MixedModeError("speed must be measured in normal mode, not deterministic")
-    if kind == "bits" and not deterministic:
-        raise MixedModeError("bits must be measured in deterministic mode, not normal")
-    if kind not in ("speed", "bits"):
+    if kind in ("bits", "traj") and not deterministic:
+        raise MixedModeError(f"{kind} must be measured in deterministic mode, not normal")
+    if kind not in ("speed", "bits", "traj"):
         raise ValueError(f"unknown measurement kind {kind!r}")
     return "deterministic" if deterministic else "normal"
 
@@ -466,6 +469,44 @@ def bit_plan(*, seq: int, ks: Sequence[int] = BIT_LADDER) -> List[Dict[str, Any]
     """Deterministic-mode ladder over ``ks`` (default k = 1, 2, 4, 8) for the arms of each k."""
     return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits", "deterministic": True}
             for k in ks for arm in arms_for(k=k)]
+
+
+def traj_plan(*, steps: int = 8, k: int = 2, seq: int = 64) -> List[Dict[str, Any]]:
+    """Trajectory rows: A0 then G, one per AdamW step, deterministic, fixed ``k``/``seq``."""
+    return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "traj", "deterministic": True,
+             "step": step} for arm in ("A0", "G") for step in range(steps)]
+
+
+def traj_record(step: int, losses: Sequence[Any], params: Dict[str, Any]) -> Dict[str, Any]:
+    """Loss as float and as the hex of its float64 bytes, and the digest of the LoRA weights
+    after the optimizer step (``grad_digest`` over the values, so the bytes are exact)."""
+    loss = float(sum(float(x) for x in losses))
+    weights = {name: p.detach().float().flatten().cpu().tolist() for name, p in params.items()}
+    return {"step": step, "loss": loss, "loss_hex": struct.pack("<d", loss).hex(),
+            "weight_sha256": grad_digest(weights)}
+
+
+def traj_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    """Per step: ``equal`` when A0 and G have the same loss bytes and weight digest. No verdict
+    when any row is not ok or lacks a ``campaign_id``; the first differing step is reported."""
+    bad = [r for r in rows if r.get("status") != "ok" or r.get("outcome") != "ok"
+           or not r.get("campaign_id")]
+    if bad or not rows:
+        return {"verdict": "no verdict: not ok or no campaign_id", "steps": {},
+                "first_difference": None}
+    by_key = {(r["arm"], r["step"]): r for r in rows}
+    steps = sorted({r["step"] for r in rows})
+    verdicts: Dict[str, str] = {}
+    for step in steps:
+        a0, g = by_key.get(("A0", step)), by_key.get(("G", step))
+        if a0 is None or g is None:
+            verdicts[str(step)] = "missing"
+        else:
+            same = a0["loss_hex"] == g["loss_hex"] and a0["weight_sha256"] == g["weight_sha256"]
+            verdicts[str(step)] = "equal" if same else "differs"
+    first = next((step for step in steps if verdicts[str(step)] != "equal"), None)
+    overall = "equal" if first is None else "differs"
+    return {"verdict": overall, "steps": verdicts, "first_difference": first}
 
 
 def grad_digest(grads: Dict[str, Sequence[float]]) -> str:
@@ -922,7 +963,10 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             losses: List[Any] = []
             counted = counter is not None
             snapshots: List[Dict[str, Any]] = []
-            for _ in range(args.steps):
+            optimizer = (torch.optim.AdamW(list(params.values()), lr=TRAJ_LR, betas=TRAJ_BETAS)
+                         if args.kind == "traj" else None)
+            trajectory: List[Dict[str, Any]] = []
+            for step in range(args.steps):
                 for p in params.values():
                     p.grad = None
                 if cuda:
@@ -936,6 +980,9 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 if counted:
                     snapshots.append(counter.snapshot())
                     counter.reset()
+                if optimizer is not None:
+                    optimizer.step()
+                    trajectory.append(traj_record(step, losses, params))
             grad_tensors = {name: p.grad for name, p in sorted(params.items())
                             if p.grad is not None}
             grads = {name: g.detach().float().flatten().cpu().tolist()
@@ -959,6 +1006,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 "environment": _environment()}
             if args.kind == "bits":  # the live manifest: every trainable LoRA name and shape
                 out["grad_shapes"] = {name: list(p.shape) for name, p in sorted(params.items())}
+            if optimizer is not None:
+                out["trajectory"] = trajectory
             if counted:
                 from benchmarks.harness import mbr_count
 
@@ -1230,6 +1279,46 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
     return rows
 
 
+def traj_sweep(args: Any,  # pragma: no cover
+               plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """One ``run`` child per arm: the child takes every AdamW step on one model, so the whole
+    trajectory lives in one process. Its per-step records fan out into one row per (arm, step),
+    appended to ``<out>/rows.jsonl`` with the arm's outcome and the campaign identity."""
+    import subprocess
+    import sys
+
+    from benchmarks.harness.arm_validity import ArmWatch
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    identity = campaign_identity(source=args.source, cache=args.cache, tokenizer=args.tokenizer,
+                                 lora_r=args.lora_r, lora_targets=args.lora_targets,
+                                 steps=args.steps)
+    rows: List[Dict[str, Any]] = []
+    for number, arm in enumerate(dict.fromkeys(item["arm"] for item in plan)):
+        first = next(item for item in plan if item["arm"] == arm)
+        command = [sys.executable, __file__, *child_run_args(args, first)]
+        with ArmWatch(**arm_watch_kwargs(args, arm=arm, round_number=1, run=number + 1)) as watch:
+            proc = subprocess.run(command, capture_output=True, text=True)
+        line = next((ln for ln in reversed(proc.stdout.splitlines()) if ln.startswith("{")), None)
+        child = json.loads(line) if line else {
+            "arm": arm, "k": first["k"], "seq": first["seq"], "kind": "traj",
+            "mode": "deterministic", "status": "CRASH", "error": proc.stderr[-300:]}
+        if child.get("campaign_id", identity) != identity:
+            raise RuntimeError(f"campaign_id mismatch on arm {arm}: child "
+                               f"{child.get('campaign_id')!r}, sweep {identity!r}")
+        steps = child.pop("trajectory", [])
+        for item in (i for i in plan if i["arm"] == arm):
+            record = steps[item["step"]] if item["step"] < len(steps) else {"status": "CRASH"}
+            row = {**child, **record, "step": item["step"], "block": 0,
+                   "outcome": watch.record["outcome"], "campaign_id": identity}
+            rows.append(row)
+            append_jsonl(out / "rows.jsonl", row)
+        watch.record["campaign_id"] = identity
+        append_jsonl(out / "arm_records.jsonl", watch.record)
+    return rows
+
+
 def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     from pathlib import Path
 
@@ -1239,12 +1328,16 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba",
                  "loader-speed", "decoupled-speed", "seg-speed", "esc-speed", "ceg-speed",
-                 "ds-bits"):
+                 "ds-bits", "traj"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
         p.add_argument("--out", required=True)
-        p.add_argument("--steps", type=int, default=4, help="first step is warm-up")
+        p.add_argument("--steps", type=int, default=8 if name == "traj" else 4,
+                       help="first step is warm-up (traj: number of AdamW steps)")
+        if name == "traj":
+            p.add_argument("--k", type=int, default=2)
+            p.add_argument("--seq", type=int, default=64)
         p.add_argument("--lora-r", type=int, default=16)
         p.add_argument("--lora-targets", type=parse_lora_targets, default=DEFAULT_LORA_TARGETS,
                        help="comma-separated module names; default: the Kanana list")
@@ -1265,7 +1358,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--arm", required=True)
             p.add_argument("--k", type=int, required=True)
             p.add_argument("--seq", type=int, required=True)
-            p.add_argument("--kind", choices=("speed", "bits"), required=True)
+            p.add_argument("--kind", choices=("speed", "bits", "traj"), required=True)
             p.add_argument("--deterministic", action="store_true")
             p.add_argument("--math-attention", action="store_true",
                            help="SDPA math backend only (diagnostic for attention backward)")
@@ -1313,11 +1406,19 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                                                 start_block=args.start_block,
                                                  windows=args.windows),
             "ds-bits": lambda: decoupled_segmented_bit_plan(seq=args.seq, ks=args.ladder_ks),
-            "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
+            "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks),
+            "traj": lambda: traj_plan(steps=args.steps, k=args.k, seq=args.seq)}[args.command]()
     if args.command in ("bits", "lever-bits", "ds-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]
         if not plan:
             parser.error("--arms selects no arm of this ladder")
+    if args.command == "traj":
+        verdict = traj_verdict(traj_sweep(args, plan))
+        (Path(args.out) / "traj-verdict.json").write_text(json.dumps(verdict, indent=2),
+                                                          encoding="utf-8")
+        Console().print(f"traj: {verdict['verdict']}, first difference "
+                        f"{verdict['first_difference']}")
+        return 1 if verdict["verdict"].startswith("no verdict") else 0
     rows = sweep(args, plan)
     (Path(args.out) / "summary.md").write_text(markdown_table(summarize_rows(rows)),
                                                  encoding="utf-8")
