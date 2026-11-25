@@ -332,6 +332,39 @@ def test_the_harness_choices_and_dispatch_follow_the_src_module(
     assert calls[-1] == ("lt-fused", {"backend": "backend", "streams": 2})
 
 
+def test_a_skipped_expert_forward_leaves_stale_captures_out_of_the_next_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Decoupled R1 (ticket 06) forwards a layer with the experts skipped, so its captures are
+    never consumed. The next joined group must read its own trailing captures and still fail on
+    a mismatch inside them (ticket 17: segmented under the decoupled backward)."""
+    import torch
+
+    from soup_cli.utils import expert_stream, l2l_step
+
+    cls = expert_stream.streamed_experts_class()
+    called: List[int] = []
+    monkeypatch.setattr(cls, "forward",
+                        lambda self, hidden, top_k_index, top_k_weights: called.append(
+                            int(hidden.shape[0])))
+    monkeypatch.setattr(l2l_step, "_route_preserving_deepseek_forward",
+                        lambda module, captured, hidden, *args, **kwargs: "captured")
+    fake = lambda sizes: types.SimpleNamespace(layer_idx=0, _mbr_group_sizes=sizes)  # noqa: E731
+    with segmented_expert_gemm():
+        def capture(rows: int) -> None:  # the patched name, installed by the context above
+            l2l_step._route_preserving_deepseek_forward(
+                None, [{"expert_input": torch.zeros(rows, 8)}], torch.zeros(rows, 8))
+        for rows in (3, 3):  # two skipped R1 captures, no expert call consumed them
+            capture(rows)
+        capture(2)
+        capture(1)
+        assert cls.forward(fake([2, 1]), torch.zeros(3, 8), None, None) is None
+        # The stale entries did not survive the group: a per-micro-batch call reads its own one.
+        capture(2)
+        assert cls.forward(fake(None), torch.zeros(2, 8), None, None) is None
+    assert called == [3, 2]
+
+
 def test_empty_or_mismatched_group_sizes_fail_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
     """A joined group names its micro-batches; empty or different boundaries must not pass."""
     import torch
