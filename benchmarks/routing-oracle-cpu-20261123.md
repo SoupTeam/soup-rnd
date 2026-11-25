@@ -82,8 +82,8 @@ over losses and all 30 LoRA gradients:
 | BF16 | equal, max abs 0 | equal, max abs 0 | equal, max abs 0 |
 | dense FP32 | losses equal, 26/30 grads differ, max abs 1.19e-7, rel L2 1.34e-7 | losses equal, 30/30 differ, max abs 5.96e-8, rel L2 1.42e-7 | losses equal, 30/30 differ, max abs 2.24e-8, rel L2 1.38e-7 |
 
-So the lever is neutral for the target NF4/BF16 arm on CPU, and is not neutral in dense FP32
-at rounding level. Per D6 and the ticket, it stays an opt-in, off-by-default lever; a GPU
+So the lever is neutral for dense BF16 on CPU (the test rig's dtype; no quantization was run),
+and is not neutral in dense FP32 at rounding level. Per D6 and the ticket, it stays an opt-in, off-by-default lever; a GPU
 ladder decides whether it is neutral there.
 
 ## Tests

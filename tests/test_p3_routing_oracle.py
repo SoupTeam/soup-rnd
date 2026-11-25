@@ -322,7 +322,9 @@ def test_tiny_moe_mbr_with_the_oracle_equals_without_it_bitwise(
                 "gate_weight_rel_l2"
             ] == 0.0
 
-        assert bits_equal(without["losses"][0], with_oracle["losses"][0])
+        assert len(without["losses"]) == len(with_oracle["losses"]) == k
+        for index, (left, right) in enumerate(zip(without["losses"], with_oracle["losses"])):
+            assert bits_equal(left, right), f"loss[{index}] differs with the Oracle"
         bad = differing(without, with_oracle)
         max_abs = max(
             float(
