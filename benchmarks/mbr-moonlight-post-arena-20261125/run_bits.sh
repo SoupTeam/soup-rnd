@@ -17,7 +17,7 @@
 # keeps the reference and the one hand under test. `ds-bits` plans its A0-DS pair itself.
 #
 # Inputs, overridable from the environment: VENV, MOONLIGHT_ROOT, OUT (default this folder).
-set -u
+set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV="${VENV:-$HOME/.venvs/soup-rnd-cuda}"
@@ -28,10 +28,24 @@ HARNESS="$REPO/benchmarks/harness/mbr_measure.py"
 GATE="$REPO/benchmarks/mbr-moonlight-emem2-20261124/gate.py"
 ACAD=/sys/class/power_supply/ACAD/online
 
-mkdir -p "$OUT"
-
-export CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(list(nvidia.__path__)[0],'cu13'))")
 export PATH="$VENV/bin:$PATH"
+if ! command -v systemd-inhibit > /dev/null; then
+  echo "refusing to run: systemd-inhibit is required" >&2
+  exit 1
+fi
+mkdir -p "$OUT"
+exec 9> "$OUT/.bits.lock"
+if ! flock -n 9; then
+  echo "refusing to run: another campaign holds $OUT/.bits.lock" >&2
+  exit 1
+fi
+if [[ -e "$OUT/bits" || -L "$OUT/bits" ]]; then
+  echo "refusing to overwrite $OUT/bits; use a fresh OUT" >&2
+  exit 1
+fi
+
+CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(list(nvidia.__path__)[0],'cu13'))")
+export CUDA_HOME
 export PYTHONPATH="$REPO/src:$REPO"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export A0_SCRATCH_PREALLOC_ROWS=4096
@@ -41,23 +55,11 @@ export A0_SCRATCH_WHEN=lazy
 export A0_SCRATCH_PREALLOC_GATHER=1
 
 INHIBIT=(systemd-inhibit --what=sleep --why="ticket 17 post-arena bits blocks")
-command -v systemd-inhibit > /dev/null || INHIBIT=()
-
-exec 9> "$OUT/.bits.lock"
-if ! flock -n 9; then
-  echo "refusing to run: another campaign holds $OUT/.bits.lock" >&2
-  exit 1
-fi
-if compgen -G "$OUT/bits/*/rows.jsonl" > /dev/null; then
-  echo "refusing to run: $OUT/bits already has rows. Move them away first." >&2
-  exit 1
-fi
 if [[ "$(cat "$ACAD" 2>/dev/null)" != 1 ]]; then
   echo "Refusing the bits pass: AC power is not online." >&2
   exit 1
 fi
 
-failed=0
 sweep() {  # sweep <label> <bits|lever-bits|ds-bits> <args...>
   local label="$1" command="$2"
   shift 2
@@ -66,21 +68,22 @@ sweep() {  # sweep <label> <bits|lever-bits|ds-bits> <args...>
     return 1
   fi
   echo "== $label start $(date +%T)"
-  "${INHIBIT[@]}" "$VENV/bin/python" -u "$HARNESS" "$command" "$@" \
+  "${INHIBIT[@]}" "$VENV/bin/python" -u "$HARNESS" "$command" --require-complete "$@" \
     --gate "$VENV/bin/python" "$GATE" \
     --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
     --lora-targets "$TARGETS" --label "RTX 3050 Laptop, real" --out "$OUT/bits/$label" \
     > "$OUT/bits-$label.log" 2>&1
-  local code=$?
-  echo "== $label exit=$code $(date +%T)"
-  return $code
+  if [[ ! -s "$OUT/bits/$label/rows.jsonl" || ! -s "$OUT/bits/$label/arm_records.jsonl" \
+        || ! -s "$OUT/bits/$label/bits-verdict.json" ]]; then
+    echo "missing $label sweep output; see $OUT/bits-$label.log" >&2
+    return 1
+  fi
+  echo "== $label complete $(date +%T)"
 }
 
-sweep s64 lever-bits --seq 64 --ladder-ks 1,2,4,8 --arms A0,E || (( failed += 1 ))
-sweep s512-math lever-bits --seq 512 --ladder-ks 1,2,4,8 --arms A0,E --math-attention \
-  || (( failed += 1 ))
-sweep g-k2-s64 lever-bits --seq 64 --ladder-ks 2 --arms A0,G || (( failed += 1 ))
-sweep d-k2-s64 lever-bits --seq 64 --ladder-ks 2 --arms A0,D || (( failed += 1 ))
-sweep ds-k2-s64 ds-bits --seq 64 --arms A0,DS || (( failed += 1 ))
-echo "== bits done, failed sweeps: $failed $(date +%T)"
-exit $(( failed > 0 ))
+sweep s64 lever-bits --seq 64 --ladder-ks 1,2,4,8 --arms A0,E
+sweep s512-math lever-bits --seq 512 --ladder-ks 1,2,4,8 --arms A0,E --math-attention
+sweep g-k2-s64 lever-bits --seq 64 --ladder-ks 2 --arms A0,G
+sweep d-k2-s64 lever-bits --seq 64 --ladder-ks 2 --arms A0,D
+sweep ds-k2-s64 ds-bits --seq 64 --arms A0,DS
+echo "== bits complete $(date +%T)"

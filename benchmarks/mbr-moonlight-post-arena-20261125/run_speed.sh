@@ -8,30 +8,42 @@
 # k*S = 64*64 = 4096 rows). G is E plus async_lease plus fast_row_gather; C is the plain ordered
 # hand. A0 has no role: this ticket asks where G sits between E and C.
 #
-# Inputs, overridable from the environment: VENV, MOONLIGHT_ROOT, OUT (default this campaign
-# folder), BLOCKS, START_BLOCK (resume after a gate refusal).
-# Refuses to run over existing rows unless START_BLOCK > 0.
-set -u
+# Set OUT to a fresh campaign root. RESUME=1 repairs an interrupted run created by this launcher.
+set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV="${VENV:-$HOME/.venvs/soup-rnd-cuda}"
 MOONLIGHT_ROOT="${MOONLIGHT_ROOT:-$HOME/moonlight-local}"
 OUT="${OUT:-$REPO/benchmarks/mbr-moonlight-post-arena-20261125}"
-BLOCKS="${BLOCKS:-5}"
-START_BLOCK="${START_BLOCK:-0}"
+RESUME="${RESUME:-0}"
 TARGETS="q_proj,kv_a_proj_with_mqa,kv_b_proj,o_proj"
 HARNESS="$REPO/benchmarks/harness/mbr_measure.py"
 GATE="$REPO/benchmarks/mbr-moonlight-emem2-20261124/gate.py"
 ACAD=/sys/class/power_supply/ACAD/online
 
-if [ "$START_BLOCK" = "0" ] && [ -e "$OUT/speed/rows.jsonl" ]; then
-  echo "refusing to run: $OUT/speed/rows.jsonl exists. Move it away first." >&2
+export PATH="$VENV/bin:$PATH"
+if ! command -v systemd-inhibit > /dev/null; then
+  echo "refusing to run: systemd-inhibit is required" >&2
   exit 1
 fi
 mkdir -p "$OUT"
+exec 9> "$OUT/.speed.lock"
+if ! flock -n 9; then
+  echo "refusing to run: another campaign holds $OUT/.speed.lock" >&2
+  exit 1
+fi
+if [[ "$RESUME" = 1 ]]; then
+  if [[ ! -f "$OUT/speed/.ticket17-active" ]]; then
+    echo "refusing to resume: no active campaign at $OUT/speed" >&2
+    exit 1
+  fi
+elif [[ -e "$OUT/speed" || -L "$OUT/speed" ]]; then
+  echo "refusing to overwrite $OUT/speed; use a fresh OUT" >&2
+  exit 1
+fi
 
-export CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(list(nvidia.__path__)[0],'cu13'))")
-export PATH="$VENV/bin:$PATH"
+CUDA_HOME=$("$VENV/bin/python" -c "import nvidia,os;print(os.path.join(list(nvidia.__path__)[0],'cu13'))")
+export CUDA_HOME
 export PYTHONPATH="$REPO/src:$REPO"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export A0_SCRATCH_PREALLOC_ROWS=4096
@@ -41,39 +53,34 @@ export A0_SCRATCH_WHEN=lazy
 export A0_SCRATCH_PREALLOC_GATHER=1
 
 INHIBIT=(systemd-inhibit --what=sleep --why="ticket 17 C-E-G-G-E-C speed blocks")
-command -v systemd-inhibit > /dev/null || INHIBIT=()
-
-exec 9> "$OUT/.speed.lock"
-if ! flock -n 9; then
-  echo "refusing to run: another campaign holds $OUT/.speed.lock" >&2
-  exit 1
-fi
 if [[ "$(cat "$ACAD" 2>/dev/null)" != 1 ]]; then
   echo "Refusing the speed pass: AC power is not online." >&2
   exit 1
 fi
 
-echo "== ceg-speed C-E-G-G-E-C, blocks $BLOCKS from $START_BLOCK, start $(date +%T)"
-"${INHIBIT[@]}" "$VENV/bin/python" -u "$HARNESS" ceg-speed --blocks "$BLOCKS" \
-  --start-block "$START_BLOCK" --gate "$VENV/bin/python" "$GATE" \
-  --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
-  --lora-targets "$TARGETS" --label "RTX 3050 Laptop, real" --out "$OUT/speed" \
-  > "$OUT/speed.log" 2>&1
-echo "== ceg-speed exit=$? $(date +%T)"
-
-echo "== void replacements start $(date +%T)"
-if [ -e "$OUT/speed/rows.jsonl" ]; then
-  if [[ "$(cat "$ACAD" 2>/dev/null)" != 1 ]]; then
-    echo "Refusing the replacements: AC power is not online." >&2
+if [[ "$RESUME" != 1 ]]; then
+  mkdir "$OUT/speed"
+  : > "$OUT/speed/.ticket17-active"
+  echo "== C-E-G-G-E-C pilot start $(date +%T)"
+  "${INHIBIT[@]}" "$VENV/bin/python" -u "$HARNESS" ceg-speed --require-complete \
+    --gate "$VENV/bin/python" "$GATE" \
+    --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
+    --lora-targets "$TARGETS" --label "RTX 3050 Laptop, real" --out "$OUT/speed" \
+    > "$OUT/speed.log" 2>&1
+  if [[ ! -s "$OUT/speed/rows.jsonl" || ! -s "$OUT/speed/arm_records.jsonl" ]]; then
+    echo "missing speed sweep output; see $OUT/speed.log" >&2
     exit 1
   fi
-  "${INHIBIT[@]}" "$VENV/bin/python" -u \
-    "$REPO/benchmarks/mbr-moonlight-post-arena-20261125/replace_void.py" \
-    --out "$OUT/speed" --blocks "$BLOCKS" --start-block "$START_BLOCK" --gate "$GATE" \
-    --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
-    --lora-targets "$TARGETS" --label "RTX 3050 Laptop, real" \
-    > "$OUT/replace.log" 2>&1
-  echo "== void replacements exit=$? $(date +%T)"
-else
-  echo "== void replacements skipped: no speed rows $(date +%T)" | tee "$OUT/replace.log"
 fi
+
+echo "== replacements and top-up start $(date +%T)"
+"${INHIBIT[@]}" "$VENV/bin/python" -u \
+  "$REPO/benchmarks/mbr-moonlight-post-arena-20261125/replace_void.py" \
+  --out "$OUT/speed" --gate "$GATE" \
+  --source "$MOONLIGHT_ROOT/source" --cache "$MOONLIGHT_ROOT/cache" \
+  --lora-targets "$TARGETS" --label "RTX 3050 Laptop, real" >> "$OUT/replace.log" 2>&1
+if [[ ! -s "$OUT/speed/rows.jsonl" || ! -s "$OUT/speed/arm_records.jsonl" ]]; then
+  echo "missing speed output; see $OUT/replace.log" >&2
+  exit 1
+fi
+echo "== speed complete $(date +%T)"
