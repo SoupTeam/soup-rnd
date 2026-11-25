@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+import struct
+import subprocess
+import sys
+import time
 
 import pytest
 
@@ -1180,30 +1186,59 @@ def test_traj_plan_is_a0_then_g_for_each_step_at_fixed_k_and_seq() -> None:
                and p["deterministic"] for p in plan)
 
 
-def _traj_rows(steps: int = 5, *, identity: str = "id") -> list:
-    rows = []
-    for arm in ("A0", "G"):
-        for step in range(steps):
-            rows.append({"arm": arm, "k": 2, "seq": 64, "step": step, "status": "ok",
-                         "outcome": "ok", "campaign_id": identity,
-                         "loss_hex": f"loss{step}", "weight_sha256": f"w{step}"})
-    return rows
+DATASET = "ab" * 32
+IDENTITY = mm.campaign_identity(source="s", cache="c", tokenizer=None, lora_r=16,
+                                lora_targets=mm.DEFAULT_LORA_TARGETS, steps=3)
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def _record(step: int) -> dict:
+    loss = float(step) + 0.5
+    return {"step": step, "loss": loss, "loss_hex": struct.pack("<d", loss).hex(),
+            "weight_sha256": _digest(f"w{step}")}
+
+
+def _traj_rows(steps: int = 5, *, identity: str = "id", dataset: str = DATASET) -> list:
+    return [{**_record(step), "arm": arm, "k": 2, "seq": 64, "status": "ok", "outcome": "ok",
+             "campaign_id": identity, "dataset_sha256": dataset}
+            for arm in ("A0", "G") for step in range(steps)]
+
+
+def test_traj_plan_maps_a_nonstandard_window_step_by_step() -> None:
+    plan = mm.traj_plan(steps=5, k=3, seq=32)
+    assert [(p["arm"], p["step"], p["k"], p["seq"]) for p in plan] == (
+        [("A0", step, 3, 32) for step in range(5)] + [("G", step, 3, 32) for step in range(5)])
 
 
 def test_traj_verdict_equal_when_every_step_matches() -> None:
     report = mm.traj_verdict(_traj_rows())
     assert report["verdict"] == "equal"
     assert report["first_difference"] is None
-    assert set(report["steps"].values()) == {"equal"}
+    assert report["steps"] == {str(step): "equal" for step in range(5)}
 
 
 def test_traj_verdict_reports_the_first_differing_step() -> None:
     rows = _traj_rows()
-    rows[-2]["weight_sha256"] = "other"
+    rows[-2]["weight_sha256"] = _digest("other")  # G at step 3
     report = mm.traj_verdict(rows)
     assert report["first_difference"] == 3
-    assert report["steps"]["3"] == "differs"
-    assert report["steps"]["2"] == "equal"
+    assert report["steps"] == {"0": "equal", "1": "equal", "2": "equal", "3": "differs",
+                               "4": "equal"}
+
+
+def test_traj_verdict_names_the_first_step_for_a_loss_only_change_and_keeps_later_ones() -> None:
+    rows = _traj_rows()
+    loss_only = next(r for r in rows if r["arm"] == "G" and r["step"] == 1)
+    loss_only.update(loss=9.0, loss_hex=struct.pack("<d", 9.0).hex())
+    weights_only = next(r for r in rows if r["arm"] == "G" and r["step"] == 3)
+    weights_only["weight_sha256"] = _digest("other")
+    report = mm.traj_verdict(rows)
+    assert report["first_difference"] == 1
+    assert report["steps"] == {"0": "equal", "1": "differs", "2": "equal", "3": "differs",
+                               "4": "equal"}
 
 
 def test_traj_verdict_needs_campaign_id_on_every_row() -> None:
@@ -1212,3 +1247,253 @@ def test_traj_verdict_needs_campaign_id_on_every_row() -> None:
     report = mm.traj_verdict(rows)
     assert report["verdict"].startswith("no verdict")
     assert report["first_difference"] is None
+
+
+def test_traj_verdict_refuses_rows_from_two_campaigns() -> None:
+    rows = _traj_rows()
+    rows[-1]["campaign_id"] = "other"
+    assert mm.traj_verdict(rows)["verdict"].startswith("no verdict")
+
+
+def test_traj_verdict_refuses_rows_with_two_dataset_hashes() -> None:
+    rows = _traj_rows()
+    rows[0]["dataset_sha256"] = _digest("other")
+    assert mm.traj_verdict(rows)["verdict"].startswith("no verdict")
+
+
+def test_traj_verdict_refuses_a_conflicting_duplicate_even_before_a_matching_row() -> None:
+    rows = _traj_rows()
+    rows.insert(0, {**rows[0], "weight_sha256": _digest("other")})
+    report = mm.traj_verdict(rows)
+    assert report["verdict"].startswith("no verdict")
+    assert report["first_difference"] is None
+
+
+def test_traj_verdict_refuses_a_row_that_is_not_ok() -> None:
+    rows = _traj_rows()
+    rows[0]["status"] = "OOM"
+    assert mm.traj_verdict(rows)["verdict"].startswith("no verdict")
+
+
+def test_traj_verdict_refuses_a_nan_loss_even_when_both_arms_agree() -> None:
+    rows = _traj_rows()
+    for row in rows:
+        row.update(loss=float("nan"), loss_hex=struct.pack("<d", float("nan")).hex())
+    report = mm.traj_verdict(rows)
+    assert report["verdict"].startswith("no verdict")
+    assert report["steps"] == {}
+
+
+def test_traj_verdict_refuses_malformed_digests() -> None:
+    rows = _traj_rows()
+    for row in rows:
+        if row["step"] == 0:
+            row["weight_sha256"] = "w0"
+    assert mm.traj_verdict(rows)["verdict"].startswith("no verdict")
+
+
+def test_traj_verdict_needs_exactly_the_planned_rows() -> None:
+    plan = mm.traj_plan(steps=3, k=2, seq=64)
+    assert mm.traj_verdict(_traj_rows(steps=3), plan)["verdict"] == "equal"
+    assert mm.traj_verdict(_traj_rows(steps=3)[:-1], plan)["verdict"].startswith("no verdict")
+
+
+def test_traj_record_refuses_a_non_finite_loss() -> None:
+    with pytest.raises(ValueError, match="non-finite loss"):
+        mm.traj_record(0, [float("nan")], {})
+
+
+def test_traj_record_refuses_a_non_finite_weight() -> None:
+    torch = pytest.importorskip("torch")
+    params = {"w": torch.tensor([1.0, float("nan")])}
+    with pytest.raises(ValueError, match="non-finite weight"):
+        mm.traj_record(0, [0.5], params)
+
+
+def test_trajectory_step_records_the_weights_after_one_cpu_adamw_update() -> None:
+    torch = pytest.importorskip("torch")
+    weight = torch.nn.Parameter(torch.tensor([1.0], dtype=torch.float64))
+    weight.grad = torch.tensor([1.0], dtype=torch.float64)
+    optimizer = torch.optim.AdamW([weight], lr=1e-4, betas=(0.9, 0.999), weight_decay=0.0)
+    before = mm.traj_record(0, [0.5], {"w": weight})["weight_sha256"]
+    record = mm.trajectory_step(optimizer, 0, [0.5], {"w": weight})
+    assert record["step"] == 0 and record["loss"] == 0.5
+    assert weight.item() == pytest.approx(1.0 - 1e-4, abs=1e-9)
+    assert record["weight_sha256"] != before
+
+
+def test_traj_runs_under_strict_determinism_and_other_kinds_keep_warn_only() -> None:
+    assert mm.determinism_warn_only("traj") is False
+    assert mm.determinism_warn_only("bits") is True
+
+
+@pytest.mark.parametrize("flags", [["--steps", "1"], ["--steps", "0"], ["--k", "9"],
+                                   ["--k", "0"], ["--seq", "0"]])
+def test_traj_refuses_dimensions_it_cannot_measure(monkeypatch, tmp_path, flags) -> None:
+    launched = []
+    monkeypatch.setattr(mm, "traj_sweep", lambda args, plan: launched.append(plan) or [])
+    with pytest.raises(SystemExit):
+        mm.main(_traj_argv(tmp_path, *flags))
+    assert launched == []
+
+
+def test_traj_accepts_two_steps_and_the_a0_limit_of_k(monkeypatch, tmp_path) -> None:
+    launched = []
+    monkeypatch.setattr(mm, "traj_sweep", lambda args, plan: launched.append(plan) or [])
+    assert mm.main(_traj_argv(tmp_path, "--steps", "2", "--k", "8")) == 1  # no rows: no verdict
+    assert len(launched) == 1
+
+
+def test_traj_takes_the_math_attention_flag_into_every_child(monkeypatch, tmp_path) -> None:
+    seen = {}
+    monkeypatch.setattr(mm, "traj_sweep",
+                        lambda args, plan: seen.update(math=args.math_attention) or [])
+    mm.main(_traj_argv(tmp_path, "--math-attention"))
+    assert seen["math"] is True
+    args = argparse.Namespace(source="s", cache="c", tokenizer=None, lora_r=16, steps=2,
+                              lora_targets=mm.DEFAULT_LORA_TARGETS, out=str(tmp_path),
+                              device="auto", math_attention=True, count=False)
+    assert "--math-attention" in mm.child_run_args(args, mm.traj_plan(steps=2, k=2, seq=64)[0])
+
+
+# Sweep of ``traj`` with stub children: ``subprocess.run`` answers each child, ``ArmWatch`` is
+# replaced by a record with the outcome.
+def _traj_argv(out, *extra) -> list:
+    return ["traj", "--source", "s", "--cache", "c", "--out", str(out), "--steps", "3",
+            "--k", "2", "--seq", "64", *extra]
+
+
+@pytest.fixture
+def stub_watch(monkeypatch):
+    class FakeWatch:
+        def __init__(self, **kwargs) -> None:
+            self.record = {"outcome": "ok", "arm": kwargs["arm"]}
+
+        def __enter__(self) -> "FakeWatch":
+            return self
+
+        def __exit__(self, *exc) -> bool:
+            return False
+
+    monkeypatch.setattr("benchmarks.harness.arm_validity.ArmWatch", FakeWatch)
+
+
+def _stub_children(monkeypatch, reply, *, gate_code: int = 0) -> list:
+    """``reply(command)`` gives (exit code, stdout, stderr) of each child; the gate command
+    returns ``gate_code``. Returns the arms of the children that were launched."""
+    launched = []
+
+    def fake_run(command, capture_output=True, text=True, **_):
+        if command[0] != sys.executable:
+            return subprocess.CompletedProcess(command, gate_code,
+                                               "", "AC off" if gate_code else "")
+        launched.append(command[command.index("--arm") + 1])
+        code, out, err = reply(command)
+        return subprocess.CompletedProcess(command, code, out, err)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    return launched
+
+
+def _child(command, *, trajectory: list, status: str = "ok", campaign: str = IDENTITY,
+           error: str = "", drop: tuple = ()) -> str:
+    row = {"arm": command[command.index("--arm") + 1], "k": 2, "seq": 64, "kind": "traj",
+           "mode": "deterministic", "status": status, "campaign_id": campaign,
+           "dataset_sha256": DATASET, "trajectory": trajectory}
+    if error:
+        row["error"] = error
+    for key in drop:
+        row.pop(key)
+    return json.dumps(row) + "\n"
+
+
+def _good_trajectory(steps: int = 3) -> list:
+    return [_record(step) for step in range(steps)]
+
+
+def _read_rows(folder) -> list:
+    path = folder / "rows.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def test_traj_sweep_with_matching_stub_children_says_equal(monkeypatch, tmp_path,
+                                                           stub_watch) -> None:
+    _stub_children(monkeypatch, lambda cmd: (0, _child(cmd, trajectory=_good_trajectory()), ""))
+    assert mm.main(_traj_argv(tmp_path)) == 0
+    assert json.loads((tmp_path / "traj-verdict.json").read_text())["verdict"] == "equal"
+    assert len(_read_rows(tmp_path)) == 6
+
+
+def test_traj_sweep_does_not_trust_a_child_that_exits_nonzero(monkeypatch, tmp_path,
+                                                              stub_watch) -> None:
+    _stub_children(monkeypatch,
+                   lambda cmd: (1, _child(cmd, trajectory=_good_trajectory()), "boom"))
+    assert mm.main(_traj_argv(tmp_path)) == 1
+    assert json.loads((tmp_path / "traj-verdict.json").read_text())["verdict"].startswith(
+        "no verdict")
+    assert {r["status"] for r in _read_rows(tmp_path)} == {"CRASH"}
+
+
+def test_traj_sweep_refuses_a_child_without_campaign_id(monkeypatch, tmp_path,
+                                                        stub_watch) -> None:
+    _stub_children(monkeypatch, lambda cmd: (0, _child(cmd, trajectory=_good_trajectory(),
+                                                      drop=("campaign_id",)), ""))
+    assert mm.main(_traj_argv(tmp_path)) == 1
+    assert {r["status"] for r in _read_rows(tmp_path)} == {"CRASH"}
+
+
+def test_traj_sweep_refuses_a_child_from_another_campaign(monkeypatch, tmp_path,
+                                                          stub_watch) -> None:
+    _stub_children(monkeypatch, lambda cmd: (0, _child(cmd, trajectory=_good_trajectory(),
+                                                      campaign="other"), ""))
+    assert mm.main(_traj_argv(tmp_path)) == 1
+    assert {r["status"] for r in _read_rows(tmp_path)} == {"CRASH"}
+
+
+def test_traj_sweep_keeps_the_oom_status_of_a_child(monkeypatch, tmp_path, stub_watch) -> None:
+    _stub_children(monkeypatch, lambda cmd: (0, _child(cmd, trajectory=[], status="OOM",
+                                                      error="CUDA out of memory"), ""))
+    assert mm.main(_traj_argv(tmp_path)) == 1
+    rows = _read_rows(tmp_path)
+    assert {r["status"] for r in rows} == {"OOM"}
+    assert all("out of memory" in r["error"] for r in rows)
+
+
+def test_traj_sweep_maps_steps_by_their_step_field_not_their_position(
+        monkeypatch, tmp_path, stub_watch) -> None:
+    def reply(cmd):
+        arm_a0 = cmd[cmd.index("--arm") + 1] == "A0"
+        trajectory = list(reversed(_good_trajectory())) if arm_a0 else _good_trajectory()
+        return 0, _child(cmd, trajectory=trajectory), ""
+
+    _stub_children(monkeypatch, reply)
+    assert mm.main(_traj_argv(tmp_path)) == 0
+    assert json.loads((tmp_path / "traj-verdict.json").read_text())["verdict"] == "equal"
+
+
+def test_traj_sweep_refuses_a_trajectory_with_a_repeated_step(monkeypatch, tmp_path,
+                                                              stub_watch) -> None:
+    repeated = [_record(0), _record(0), _record(2)]
+    _stub_children(monkeypatch, lambda cmd: (0, _child(cmd, trajectory=repeated), ""))
+    assert mm.main(_traj_argv(tmp_path)) == 1
+
+
+def test_traj_refuses_every_arm_when_the_gate_fails(monkeypatch, tmp_path, stub_watch) -> None:
+    launched = _stub_children(
+        monkeypatch, lambda cmd: (0, _child(cmd, trajectory=_good_trajectory()), ""),
+        gate_code=1)
+    assert mm.main(_traj_argv(tmp_path, "--gate", "check")) == 1
+    assert launched == []
+    assert _read_rows(tmp_path) == []
+
+
+def test_traj_stops_before_the_arm_that_starts_past_the_deadline(monkeypatch, tmp_path,
+                                                                 stub_watch) -> None:
+    ticks = [0.0, 0.0]  # the deadline is set from the first read, A0 starts on the second
+    monkeypatch.setattr(time, "time", lambda: ticks.pop(0) if ticks else 1e9)
+    launched = _stub_children(
+        monkeypatch, lambda cmd: (0, _child(cmd, trajectory=_good_trajectory()), ""))
+    assert mm.main(_traj_argv(tmp_path, "--deadline-hours", "1")) == 1
+    assert launched == ["A0"]
+    rows = _read_rows(tmp_path)
+    assert len(rows) == 3 and {r["arm"] for r in rows} == {"A0"}

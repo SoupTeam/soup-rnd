@@ -23,6 +23,7 @@ BIT_LADDER: Tuple[int, ...] = (1, 2, 4, 8)
 A0_MAX_K = 8
 # Trajectory check (ticket 17): the AdamW recipe both arms take, identical for each step.
 TRAJ_LR, TRAJ_BETAS = 1e-4, (0.9, 0.999)
+TRAJ_MIN_STEPS = 2  # a warm-up step and one AdamW step: run_one takes the median after warm-up
 PEAK_KEYS = ("peak_allocated", "peak_reserved", "peak_nvml", "peak_ram")
 # LoRA targets of the Kanana campaign. Other models pass --lora-targets.
 DEFAULT_LORA_TARGETS: Tuple[str, ...] = ("q_proj", "kv_b_proj", "o_proj")
@@ -477,36 +478,195 @@ def traj_plan(*, steps: int = 8, k: int = 2, seq: int = 64) -> List[Dict[str, An
              "step": step} for arm in ("A0", "G") for step in range(steps)]
 
 
+def determinism_warn_only(kind: str) -> bool:
+    """``warn_only`` of ``torch.use_deterministic_algorithms``. A trajectory is strict: an op
+    without a deterministic kernel refuses the run instead of drifting silently."""
+    return kind != "traj"
+
+
+def traj_argument_problem(*, steps: int, k: int, seq: int) -> Optional[str]:
+    """Why a ``traj`` run cannot be measured, or None. One step has no timed step after warm-up,
+    and the plan always includes A0, which exists only up to ``A0_MAX_K``."""
+    if steps < TRAJ_MIN_STEPS:
+        return f"traj needs --steps >= {TRAJ_MIN_STEPS} (a warm-up step and one AdamW step)"
+    if not 1 <= k <= A0_MAX_K:
+        return f"traj runs A0, which takes --k 1..{A0_MAX_K}"
+    if seq < 1:
+        return "traj needs --seq >= 1"
+    return None
+
+
+def trajectory_step(optimizer: Any, step: int, losses: Sequence[Any],
+                    params: Dict[str, Any]) -> Dict[str, Any]:
+    """One AdamW step, then the record of the weights it leaves: the weights the next step's
+    gradients are taken at."""
+    optimizer.step()
+    return traj_record(step, losses, params)
+
+
 def traj_record(step: int, losses: Sequence[Any], params: Dict[str, Any]) -> Dict[str, Any]:
     """Loss as float and as the hex of its float64 bytes, and the digest of the LoRA weights
-    after the optimizer step (``grad_digest`` over the values, so the bytes are exact)."""
+    after the optimizer step (``grad_digest`` over the values, so the bytes are exact). A
+    non-finite loss or weight is refused before serialisation: NaN has many bit patterns and
+    equals nothing, so it can never be evidence."""
     loss = float(sum(float(x) for x in losses))
+    if not math.isfinite(loss):
+        raise ValueError(f"step {step}: non-finite loss {loss!r}")
     weights = {name: p.detach().float().flatten().cpu().tolist() for name, p in params.items()}
+    for name, values in weights.items():
+        if not all(math.isfinite(v) for v in values):
+            raise ValueError(f"step {step}: non-finite weight in {name}")
     return {"step": step, "loss": loss, "loss_hex": struct.pack("<d", loss).hex(),
             "weight_sha256": grad_digest(weights)}
 
 
-def traj_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+_HEX_DIGITS = frozenset("0123456789abcdef")
+
+
+def _is_hex(text: Any, length: int) -> bool:
+    return isinstance(text, str) and len(text) == length and set(text) <= _HEX_DIGITS
+
+
+def traj_record_problem(row: Mapping[str, Any]) -> Optional[str]:
+    """Why a trajectory payload cannot be compared, or None. The loss hex is the 8 bytes of a
+    finite float64 that equals ``loss``; the weight digest is a sha256."""
+    if not _is_hex(row.get("loss_hex"), 16):
+        return "loss_hex is not 8 bytes"
+    loss = struct.unpack("<d", bytes.fromhex(row["loss_hex"]))[0]
+    if not math.isfinite(loss):
+        return "non-finite loss"
+    if row.get("loss") != loss:
+        return "loss differs from loss_hex"
+    if not _is_hex(row.get("weight_sha256"), 64):
+        return "weight_sha256 is not a sha256"
+    return None
+
+
+def traj_verdict(rows: Sequence[Dict[str, Any]],
+                 plan: Optional[Sequence[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Per step: ``equal`` when A0 and G have the same loss bytes and weight digest. No verdict
-    when any row is not ok or lacks a ``campaign_id``; the first differing step is reported."""
-    bad = [r for r in rows if r.get("status") != "ok" or r.get("outcome") != "ok"
-           or not r.get("campaign_id")]
-    if bad or not rows:
-        return {"verdict": "no verdict: not ok or no campaign_id", "steps": {},
-                "first_difference": None}
-    by_key = {(r["arm"], r["step"]): r for r in rows}
-    steps = sorted({r["step"] for r in rows})
+    unless every row is ok, all rows share one campaign and one dataset hash, every payload is
+    valid, and the rows are exactly one per (arm, step) of ``plan`` (or of A0 and G at each step
+    when no plan is given). The first differing step is reported."""
+    def refused(reason: str) -> Dict[str, Any]:
+        return {"verdict": f"no verdict: {reason}", "steps": {}, "first_difference": None}
+
+    if not rows:
+        return refused("no rows")
+    if any(r.get("status") != "ok" or r.get("outcome") != "ok" for r in rows):
+        return refused("not ok")
+    if any(not r.get("campaign_id") for r in rows):
+        return refused("no campaign_id")
+    if len({r["campaign_id"] for r in rows}) != 1:
+        return refused("more than one campaign_id")
+    datasets = {r.get("dataset_sha256") for r in rows}
+    if len(datasets) != 1 or not _is_hex(next(iter(datasets)), 64):
+        return refused("dataset_sha256 differs or is missing")
+    keys = [(r.get("arm"), r.get("step")) for r in rows]
+    if len(set(keys)) != len(keys):
+        return refused("duplicate (arm, step) row")
+    for r in rows:
+        problem = traj_record_problem(r)
+        if problem:
+            return refused(f"invalid payload at {r.get('arm')} step {r.get('step')}: {problem}")
+    steps = sorted({step for _, step in keys})
+    expected = ({(p["arm"], p["step"]) for p in plan} if plan is not None
+                else {(arm, step) for arm in ("A0", "G") for step in steps})
+    if set(keys) != expected:
+        return refused("rows do not match the plan")
+    by_key = dict(zip(keys, rows))
     verdicts: Dict[str, str] = {}
     for step in steps:
-        a0, g = by_key.get(("A0", step)), by_key.get(("G", step))
-        if a0 is None or g is None:
-            verdicts[str(step)] = "missing"
-        else:
-            same = a0["loss_hex"] == g["loss_hex"] and a0["weight_sha256"] == g["weight_sha256"]
-            verdicts[str(step)] = "equal" if same else "differs"
+        a0, g = by_key[("A0", step)], by_key[("G", step)]
+        same = a0["loss_hex"] == g["loss_hex"] and a0["weight_sha256"] == g["weight_sha256"]
+        verdicts[str(step)] = "equal" if same else "differs"
     first = next((step for step in steps if verdicts[str(step)] != "equal"), None)
     overall = "equal" if first is None else "differs"
     return {"verdict": overall, "steps": verdicts, "first_difference": first}
+
+
+def _child_problem(child: Dict[str, Any], first: Dict[str, Any],
+                   identity: str) -> Optional[Tuple[str, str]]:
+    """(status, reason) when a child's row fails a check, else None. A child's own non-ok status
+    (OOM) is kept as the row status."""
+    if child.get("status") != "ok":
+        return (str(child.get("status") or "CRASH"),
+                str(child.get("error") or "child status is not ok")[-300:])
+    if child.get("campaign_id") != identity:
+        return "CRASH", f"campaign_id {child.get('campaign_id')!r}, sweep {identity!r}"
+    meta = {name: child.get(name) for name in ("arm", "k", "seq", "kind", "mode")}
+    planned = {"arm": first["arm"], "k": first["k"], "seq": first["seq"], "kind": "traj",
+               "mode": "deterministic"}
+    if meta != planned:
+        return "CRASH", f"child row {meta} differs from the plan {planned}"
+    if not _is_hex(child.get("dataset_sha256"), 64):
+        return "CRASH", "child row has no dataset_sha256"
+    return None
+
+
+def _trajectory_records(trajectory: Any, expected: Sequence[int],
+                        ) -> Tuple[Dict[int, Dict[str, Any]], Optional[Tuple[str, str]]]:
+    """Records keyed by their ``step`` field, and (status, reason) when they are not exactly the
+    planned steps once each, or when one payload is invalid."""
+    if not isinstance(trajectory, list):
+        return {}, ("CRASH", "child row has no trajectory list")
+    records: Dict[int, Dict[str, Any]] = {}
+    for record in trajectory:
+        step = record.get("step") if isinstance(record, dict) else None
+        if not isinstance(step, int) or isinstance(step, bool) or step in records:
+            return records, ("CRASH", f"trajectory step {step!r} is not a new integer")
+        records[step] = record
+    if sorted(records) != list(expected):
+        return records, ("CRASH", f"trajectory steps {sorted(records)} differ from the plan "
+                                  f"{list(expected)}")
+    for step in expected:
+        problem = traj_record_problem(records[step])
+        if problem:
+            return records, ("CRASH", f"step {step}: {problem}")
+    return records, None
+
+
+def traj_arm_rows(items: Sequence[Dict[str, Any]], *, returncode: int, stdout: str,
+                  stderr: str, identity: str, outcome: str) -> List[Dict[str, Any]]:
+    """The rows of one arm's child, one per planned step. The trajectory is mapped by the ``step``
+    field of each record, and only when the child passed every check: exit 0, status ok, the
+    campaign and the plan's arm/k/seq/kind/mode, a dataset hash, and exactly the planned steps
+    once each with valid payloads. Any other child gives every planned step a row with its status
+    (the child's own OOM, else CRASH) and the reason, so the verdict has no ok row to compare."""
+    first = items[0]
+    expected = sorted(item["step"] for item in items)
+    line = next((ln for ln in reversed(stdout.splitlines()) if ln.startswith("{")), None)
+    child: Dict[str, Any] = {}
+    failure: Optional[Tuple[str, str]] = None
+    if returncode != 0:
+        failure = ("CRASH", f"exit {returncode}: {stderr[-300:]}")
+    elif line is None:
+        failure = ("CRASH", f"no row on stdout: {stderr[-300:]}")
+    else:
+        try:
+            parsed = json.loads(line)
+        except ValueError:
+            parsed = None
+        if not isinstance(parsed, dict):
+            failure = ("CRASH", "child row is not a JSON object")
+        else:
+            child = parsed
+            failure = _child_problem(child, first, identity)
+    records: Dict[int, Dict[str, Any]] = {}
+    if failure is None:
+        records, failure = _trajectory_records(child.get("trajectory"), expected)
+    child_fields = {name: value for name, value in child.items() if name != "trajectory"}
+    rows: List[Dict[str, Any]] = []
+    for item in items:
+        base = {"arm": first["arm"], "k": first["k"], "seq": first["seq"], "kind": "traj",
+                "mode": "deterministic", "block": 0, "step": item["step"],
+                "outcome": outcome, "campaign_id": identity}
+        if failure is None:
+            rows.append({**child_fields, **base, **records[item["step"]], "status": "ok"})
+        else:
+            rows.append({**base, "dataset_sha256": child.get("dataset_sha256"),
+                         "status": failure[0], "error": failure[1]})
+    return rows
 
 
 def grad_digest(grads: Dict[str, Sequence[float]]) -> str:
@@ -875,7 +1035,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
 
     options = arm_options(args.arm, k=args.k)
     if args.deterministic:
-        torch.use_deterministic_algorithms(True, warn_only=True)
+        torch.use_deterministic_algorithms(True, warn_only=determinism_warn_only(args.kind))
     if args.math_attention:  # the math SDPA backend only: the others are not deterministic
         torch.backends.cuda.enable_flash_sdp(False)
         torch.backends.cuda.enable_mem_efficient_sdp(False)
@@ -981,8 +1141,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                     snapshots.append(counter.snapshot())
                     counter.reset()
                 if optimizer is not None:
-                    optimizer.step()
-                    trajectory.append(traj_record(step, losses, params))
+                    trajectory.append(trajectory_step(optimizer, step, losses, params))
             grad_tensors = {name: p.grad for name, p in sorted(params.items())
                             if p.grad is not None}
             grads = {name: g.detach().float().flatten().cpu().tolist()
@@ -1212,13 +1371,45 @@ def append_jsonl(path: Any, obj: Dict[str, Any]) -> None:
         handle.write(json.dumps(obj) + "\n")
 
 
+def _deadline(args: Any) -> Optional[float]:
+    """Wall-clock time after which no run starts, or None without ``--deadline-hours``."""
+    import time
+
+    return time.time() + args.deadline_hours * 3600 if args.deadline_hours else None
+
+
+def _admit_run(args: Any, *, deadline: Optional[float], gate: Sequence[str], done: int,
+               total: int, run: int, label: str, console: Any) -> bool:
+    """Whether the next run may start: the deadline has not passed and the gate exits 0. A
+    refusal is printed, and a gate refusal sets ``args.gate_refused``. ``run`` is the 1-based
+    plan position of the run and ``done`` the rows written so far. Shared by ``sweep`` and
+    ``traj``, so both refuse on the same conditions."""
+    import subprocess
+    import time
+
+    if deadline is not None and time.time() > deadline:
+        console.print(f"deadline reached, {done} of {total} runs done", markup=False)
+        return False
+    if gate:
+        checked = subprocess.run(list(gate), capture_output=True, text=True)
+        if checked.stdout.strip():
+            console.print(checked.stdout.strip(), markup=False)
+        if checked.returncode != 0:
+            # The card is not healthy (ticket 13: AC, clock, power limit): refuse the run
+            # instead of writing a row the verdict would have to throw away.
+            console.print(f"gate refused run {run} of {total} ({label}): "
+                          f"{checked.stderr.strip()[-300:]}", markup=False)
+            args.gate_refused = True
+            return False
+    return True
+
+
 def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  # pragma: no cover
     """Run each plan item in a fresh process inside an ``ArmWatch``. Appends every row to
     ``<out>/rows.jsonl`` and every arm record, void ones included, to
     ``<out>/arm_records.jsonl``."""
     import subprocess
     import sys
-    import time
     from pathlib import Path
 
     from rich.console import Console
@@ -1229,27 +1420,16 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     rows: List[Dict[str, Any]] = []
-    deadline = time.time() + args.deadline_hours * 3600 if args.deadline_hours else None
+    deadline = _deadline(args)
     gate = list(getattr(args, "gate", None) or ())
     identity = campaign_identity(source=args.source, cache=args.cache,
                                  tokenizer=args.tokenizer, lora_r=args.lora_r,
                                  lora_targets=args.lora_targets, steps=args.steps)
     for index, item in enumerate(plan):
-        if deadline is not None and time.time() > deadline:
-            console.print(f"deadline reached, {len(rows)} of {len(plan)} runs done", markup=False)
+        if not _admit_run(args, deadline=deadline, gate=gate, done=len(rows), total=len(plan),
+                          run=index + 1, label=f"{item['arm']} k={item['k']} S={item['seq']}",
+                          console=console):
             break
-        if gate:
-            checked = subprocess.run(gate, capture_output=True, text=True)
-            if checked.stdout.strip():
-                console.print(checked.stdout.strip(), markup=False)
-            if checked.returncode != 0:
-                # The card is not healthy (ticket 13: AC, clock, power limit): refuse the run
-                # instead of writing a row the verdict would have to throw away.
-                console.print(f"gate refused run {index + 1} of {len(plan)} "
-                              f"({item['arm']} k={item['k']} S={item['seq']}): "
-                              f"{checked.stderr.strip()[-300:]}", markup=False)
-                args.gate_refused = True
-                break
         command = [sys.executable, __file__, *child_run_args(args, item)]
         number = run_number(item, index)
         kwargs = arm_watch_kwargs(args, arm=item["arm"], round_number=number // 2 + 1,
@@ -1279,39 +1459,42 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
     return rows
 
 
-def traj_sweep(args: Any,  # pragma: no cover
-               plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def traj_sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """One ``run`` child per arm: the child takes every AdamW step on one model, so the whole
-    trajectory lives in one process. Its per-step records fan out into one row per (arm, step),
-    appended to ``<out>/rows.jsonl`` with the arm's outcome and the campaign identity."""
+    trajectory lives in one process. Before each arm the same gate and deadline checks as
+    ``sweep`` apply; a refused arm writes no rows, so its verdict is missing. Its per-step records
+    fan out into one row per (arm, step), appended to ``<out>/rows.jsonl``."""
     import subprocess
     import sys
+    from pathlib import Path
+
+    from rich.console import Console
 
     from benchmarks.harness.arm_validity import ArmWatch
 
+    console = Console()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     identity = campaign_identity(source=args.source, cache=args.cache, tokenizer=args.tokenizer,
                                  lora_r=args.lora_r, lora_targets=args.lora_targets,
                                  steps=args.steps)
+    deadline = _deadline(args)
+    gate = list(getattr(args, "gate", None) or ())
     rows: List[Dict[str, Any]] = []
     for number, arm in enumerate(dict.fromkeys(item["arm"] for item in plan)):
-        first = next(item for item in plan if item["arm"] == arm)
+        items = [item for item in plan if item["arm"] == arm]
+        first = items[0]
+        if not _admit_run(args, deadline=deadline, gate=gate, done=len(rows), total=len(plan),
+                          run=plan.index(first) + 1,
+                          label=f"{arm} k={first['k']} S={first['seq']}", console=console):
+            break
         command = [sys.executable, __file__, *child_run_args(args, first)]
         with ArmWatch(**arm_watch_kwargs(args, arm=arm, round_number=1, run=number + 1)) as watch:
             proc = subprocess.run(command, capture_output=True, text=True)
-        line = next((ln for ln in reversed(proc.stdout.splitlines()) if ln.startswith("{")), None)
-        child = json.loads(line) if line else {
-            "arm": arm, "k": first["k"], "seq": first["seq"], "kind": "traj",
-            "mode": "deterministic", "status": "CRASH", "error": proc.stderr[-300:]}
-        if child.get("campaign_id", identity) != identity:
-            raise RuntimeError(f"campaign_id mismatch on arm {arm}: child "
-                               f"{child.get('campaign_id')!r}, sweep {identity!r}")
-        steps = child.pop("trajectory", [])
-        for item in (i for i in plan if i["arm"] == arm):
-            record = steps[item["step"]] if item["step"] < len(steps) else {"status": "CRASH"}
-            row = {**child, **record, "step": item["step"], "block": 0,
-                   "outcome": watch.record["outcome"], "campaign_id": identity}
+        arm_rows = traj_arm_rows(items, returncode=proc.returncode, stdout=proc.stdout,
+                                 stderr=proc.stderr, identity=identity,
+                                 outcome=watch.record["outcome"])
+        for row in arm_rows:
             rows.append(row)
             append_jsonl(out / "rows.jsonl", row)
         watch.record["campaign_id"] = identity
@@ -1338,6 +1521,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         if name == "traj":
             p.add_argument("--k", type=int, default=2)
             p.add_argument("--seq", type=int, default=64)
+            p.add_argument("--math-attention", action="store_true",
+                           help="SDPA math backend only in every child run (traj is strict "
+                                "deterministic either way)")
         p.add_argument("--lora-r", type=int, default=16)
         p.add_argument("--lora-targets", type=parse_lora_targets, default=DEFAULT_LORA_TARGETS,
                        help="comma-separated module names; default: the Kanana list")
@@ -1389,10 +1575,18 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="SDPA math backend only in every child run")
     args = parser.parse_args(argv)
     if args.command == "run":
+        if args.kind == "traj":
+            problem = traj_argument_problem(steps=args.steps, k=args.k, seq=args.seq)
+            if problem:
+                parser.error(problem)
         print(json.dumps(run_one(args)))
         return 0
     if args.command == "ds-bits" and any(k > A0_MAX_K for k in args.ladder_ks):
         parser.error(f"ds-bits requires A0, which is only available at k<={A0_MAX_K}")
+    if args.command == "traj":
+        problem = traj_argument_problem(steps=args.steps, k=args.k, seq=args.seq)
+        if problem:
+            parser.error(problem)
     plan = {"speed": lambda: speed_plan(blocks=args.blocks),
             "abba": lambda: abba_plan(blocks=args.blocks, start_block=args.start_block),
             "bits": lambda: bit_plan(seq=args.seq, ks=args.ladder_ks), "profile": profile_plan,
@@ -1413,7 +1607,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         if not plan:
             parser.error("--arms selects no arm of this ladder")
     if args.command == "traj":
-        verdict = traj_verdict(traj_sweep(args, plan))
+        verdict = traj_verdict(traj_sweep(args, plan), plan)
         (Path(args.out) / "traj-verdict.json").write_text(json.dumps(verdict, indent=2),
                                                           encoding="utf-8")
         Console().print(f"traj: {verdict['verdict']}, first difference "
