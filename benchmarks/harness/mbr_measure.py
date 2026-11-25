@@ -11,9 +11,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import os
 import statistics
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64), (64, 512))
 BIT_LADDER: Tuple[int, ...] = (1, 2, 4, 8)
@@ -320,6 +322,8 @@ def decoupled_segmented_bit_plan(*, seq: int = 64,
     whether D's drift was its forward's grouped native GEMM. A0 is the plain reference; the
     default cell is k=2 on S=64.
     """
+    if any(k > A0_MAX_K for k in ks):
+        raise ValueError(f"ds-bits requires A0, which is only available at k<={A0_MAX_K}")
     return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits",
              "deterministic": True}
             for k in ks for arm in ("A0", DECOUPLED_SEGMENTED_ARM)]
@@ -458,11 +462,12 @@ def grad_digest(grads: Dict[str, Sequence[float]]) -> str:
 
 
 def _against_reference(rows: Sequence[Dict[str, Any]],
-                       same: Callable[[Dict[str, Any], Dict[str, Any]], bool],
+                       same: Callable[[Dict[str, Any], Dict[str, Any]], Union[bool, str]],
                        ) -> Dict[Tuple[int, str], str]:
     """``equal`` / ``differs`` per (k, arm) by ``same(base_row, row)``, where the base is the
     reference arm of that k (``reference_arm``). A row that did not finish keeps its status (OOM,
-    CRASH); a k without an ok reference row says ``no A0`` (k <= 8) or ``no C`` (above it)."""
+    CRASH); a k without an ok reference row says ``no A0`` (k <= 8) or ``no C`` (above it). A
+    string returned by ``same`` is the reason the pair has no verdict."""
     ref = {r["k"]: r for r in rows
            if r["arm"] == reference_arm(r["k"]) and r.get("status") == "ok"}
     out: Dict[Tuple[int, str], str] = {}
@@ -476,20 +481,49 @@ def _against_reference(rows: Sequence[Dict[str, Any]],
         elif row.get("status") != "ok":
             out[(row["k"], row["arm"])] = row.get("status", "?")
         else:
-            out[(row["k"], row["arm"])] = "equal" if same(base, row) else "differs"
+            verdict = same(base, row)
+            if isinstance(verdict, str):
+                out[(row["k"], row["arm"])] = f"no verdict: {verdict}"
+            else:
+                out[(row["k"], row["arm"])] = "equal" if verdict else "differs"
     return out
 
 
 def ladder_verdict(rows: Sequence[Dict[str, Any]]) -> Dict[Tuple[int, str], str]:
     """Verdict per (k, arm) from the gradient digest and the loss, against the reference arm of
-    the same k (A0 at k <= 8, C above it)."""
-    return _against_reference(rows, lambda base, row: base["grad_sha256"] == row["grad_sha256"]
-                              and base["loss"] == row["loss"])
+    the same k (A0 at k <= 8, C above it). A row without a digest or a finite loss has no
+    verdict, so two missing digests never count as equal."""
+    def same(base: Dict[str, Any], row: Dict[str, Any]) -> Union[bool, str]:
+        if not all(_finite(r.get("loss")) for r in (base, row)):
+            return "missing_loss"
+        if not all(_is_digest(r.get("grad_sha256")) for r in (base, row)):
+            return "missing_digest"
+        return base["grad_sha256"] == row["grad_sha256"] and base["loss"] == row["loss"]
+
+    return _against_reference(rows, same)
+
+
+def _is_digest(value: Any) -> bool:
+    return isinstance(value, str) and bool(value)
 
 
 def tensor_file_name(arm: str, k: int, seq: int) -> str:
     """Name of the saved loss and LoRA grads of one bits run, under ``<out>/tensors``."""
     return f"{arm}-k{k}-s{seq}.pt"
+
+
+def contained_tensor(folder: Any, name: Any) -> Optional[Path]:
+    """The file ``name`` under ``folder`` when its real path stays inside ``folder`` and it is a
+    file; None otherwise. Names from a row are never trusted as paths."""
+    if not isinstance(name, str) or not name:
+        return None
+    root = os.path.realpath(folder)
+    path = os.path.realpath(os.path.join(root, name))
+    try:
+        inside = os.path.commonpath([root, path]) == root
+    except ValueError:
+        return None
+    return Path(path) if inside and os.path.isfile(path) else None
 
 
 def bit_tensor_dir(out: Any) -> Path:
@@ -505,12 +539,86 @@ def save_bit_tensors(path: Path, *, losses: Sequence[Any], grads: Dict[str, Any]
                 "grads": {name: grad.detach().cpu() for name, grad in grads.items()}}, path)
 
 
-def tensors_equal(ref: Dict[str, Any], other: Dict[str, Any]) -> bool:
-    """``torch.equal`` on the loss and on every LoRA grad; the grad names must match. A NaN
-    counts as different, because ``torch.equal`` never calls NaN equal to NaN."""
+def _moonlight_lora_name(layer: int, proj: str, side: str) -> str:
+    return f"base_model.model.model.layers.{layer}.self_attn.{proj}.lora_{side}.default.weight"
+
+
+# Moonlight-16B-A3B 2a9a177f, 27 decoder layers, the four rank-16 MLA LoRA targets: the 216 LoRA
+# names and shapes. The post-arena ``analyze.py`` imports it as ``GRAD_SHAPES``.
+MOONLIGHT_PROJECTION_DIMS: Dict[str, Tuple[int, int]] = {
+    "q_proj": (2048, 3072), "kv_a_proj_with_mqa": (2048, 576),
+    "kv_b_proj": (512, 4096), "o_proj": (2048, 2048)}
+MOONLIGHT_GRAD_SHAPES: Dict[str, List[int]] = {
+    _moonlight_lora_name(layer, proj, side): list(shape)
+    for layer in range(27) for proj, (width, out) in MOONLIGHT_PROJECTION_DIMS.items()
+    for side, shape in (("A", (16, width)), ("B", (out, 16)))
+}
+
+
+def load_grad_manifest(path: Path) -> Optional[Dict[str, List[int]]]:
+    """A campaign's checked-in LoRA manifest, only when it equals ``MOONLIGHT_GRAD_SHAPES`` in
+    every name and shape; None when the file is missing, unreadable or different."""
+    try:
+        manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return manifest if manifest == MOONLIGHT_GRAD_SHAPES else None
+
+
+def payload_report(payload: Any, *, shapes: Mapping[str, Sequence[int]], k: int,
+                   row: Mapping[str, Any]) -> Dict[str, Any]:
+    """Whether a saved bits payload may be compared with its ``row``. ``shapes`` is the
+    authoritative LoRA manifest: every name must be present with that shape and no other name
+    may be. The loss must be a float64 vector of length ``k`` that sums to the row's loss, and the
+    gradients must hash to the row's ``grad_sha256`` under ``grad_digest``. ``reasons`` is empty
+    only when all of this holds; an empty manifest is never complete."""
     import torch
 
-    if sorted(ref["grads"]) != sorted(other["grads"]):
+    body = payload if isinstance(payload, dict) else {}
+    grads = body.get("grads") if isinstance(body.get("grads"), dict) else {}
+    loss = body.get("loss")
+    names, expected = set(grads), set(shapes)
+    missing = sorted(expected - names)
+    unexpected = sorted(map(str, names - expected))
+    invalid = sorted(name for name in names & expected if not (
+        isinstance(grads[name], torch.Tensor) and tuple(grads[name].shape) == tuple(shapes[name])
+        and grads[name].dtype == torch.float32 and grads[name].layout == torch.strided))
+    covered = bool(expected) and not (missing or unexpected or invalid)
+    reasons = []
+    if not expected:
+        reasons.append("no_expected_grads")
+    if not covered and expected:
+        reasons.append("invalid_gradient_coverage")
+    if (not isinstance(loss, torch.Tensor) or tuple(loss.shape) != (k,)
+            or loss.dtype != torch.float64 or loss.layout != torch.strided):
+        reasons.append("invalid_loss_tensor")
+    elif not _finite(row.get("loss")):
+        reasons.append("missing_row_loss")
+    elif float(sum(loss.tolist())) != row["loss"]:
+        reasons.append("row_loss_mismatch")
+    digest = row.get("grad_sha256")
+    if not isinstance(digest, str) or not digest:
+        reasons.append("missing_digest")
+    elif covered:
+        flat = {name: grads[name].detach().float().flatten().tolist() for name in grads}
+        if grad_digest(flat) != digest:
+            reasons.append("digest_mismatch")
+    return {"grad_count": len(names), "missing_grad_names": missing,
+            "unexpected_grad_names": unexpected, "invalid_grad_tensors": invalid,
+            "reasons": reasons}
+
+
+def _finite(value: Any) -> bool:
+    return type(value) in (int, float) and math.isfinite(value)
+
+
+def tensors_equal(ref: Dict[str, Any], other: Dict[str, Any]) -> bool:
+    """``torch.equal`` on the loss and on every LoRA grad; the grad names must match. A NaN
+    counts as different, because ``torch.equal`` never calls NaN equal to NaN. An empty grad set
+    is never equal to anything."""
+    import torch
+
+    if not ref["grads"] or sorted(ref["grads"]) != sorted(other["grads"]):
         return False
     if not torch.equal(ref["loss"], other["loss"]):
         return False
@@ -518,25 +626,47 @@ def tensors_equal(ref: Dict[str, Any], other: Dict[str, Any]) -> bool:
 
 
 def tensor_ladder_verdict(rows: Sequence[Dict[str, Any]], *, tensor_dir: Path,
+                          manifest: Optional[Mapping[str, Sequence[int]]] = None,
                           ) -> Dict[Tuple[int, str], str]:
     """Verdict per (k, arm) by ``torch.equal`` on the saved tensors, against the reference arm of
-    the same k (A0 at k <= 8, C above it). The reference file of each k loads once."""
+    the same k (A0 at k <= 8, C above it). A payload is compared only when ``payload_report``
+    binds it to its row, its manifest and digest; otherwise the pair says ``no verdict`` and
+    names the reasons. ``manifest`` is the authoritative LoRA manifest for every row. Without it
+    no payload is complete, so no pair gets ``equal``; a row's self-declared ``grad_shapes`` is
+    never the manifest. The reference file of each k loads once."""
+    import pickle
+
     import torch
 
     folder = Path(tensor_dir)
-    base_cache: Dict[str, Dict[str, Any]] = {}
+    loaded: Dict[str, Any] = {}
 
-    def base_tensors(row: Dict[str, Any]) -> Dict[str, Any]:
-        name = row["tensor_file"]
-        if name not in base_cache:
-            base_cache[name] = torch.load(folder / name, weights_only=True)
-        return base_cache[name]
+    def checked(row: Dict[str, Any]) -> Tuple[Any, List[str]]:
+        name = row.get("tensor_file")
+        path = contained_tensor(folder, name)
+        if path is None:
+            return None, ["missing_tensor_file"]
+        if name != tensor_file_name(row.get("arm"), row["k"], row.get("seq")):
+            return None, ["tensor_file_name"]
+        if name not in loaded:
+            try:
+                loaded[name] = torch.load(path, weights_only=True)
+            except (RuntimeError, OSError, EOFError, ValueError, pickle.UnpicklingError):
+                return None, ["unreadable_tensor_file"]
+        shapes = {} if manifest is None else manifest
+        report = payload_report(loaded[name], shapes=shapes, k=row["k"], row=row)
+        return loaded[name], report["reasons"]
 
-    def other_tensors(row: Dict[str, Any]) -> Dict[str, Any]:
-        return torch.load(folder / row["tensor_file"], weights_only=True)
+    def same(base: Dict[str, Any], row: Dict[str, Any]) -> Union[bool, str]:
+        base_payload, base_reasons = checked(base)
+        other_payload, other_reasons = checked(row)
+        reasons = [f"base:{reason}" for reason in base_reasons]
+        reasons += [f"row:{reason}" for reason in other_reasons]
+        if reasons:
+            return ", ".join(reasons)
+        return tensors_equal(base_payload, other_payload)
 
-    return _against_reference(rows, lambda base, row: tensors_equal(base_tensors(base),
-                                                                    other_tensors(row)))
+    return _against_reference(rows, same)
 
 
 def parse_nvml_used(samples: Sequence[str]) -> int:
@@ -606,6 +736,15 @@ def environment_record(lookup: Callable[[str], Any], *, git_sha: Any, ptxas: Any
     return {"versions": {name: lookup(name) or "unknown" for name in _TRACKED},
             "git_sha": git_sha or "unknown", "ptxas": ptxas or "unknown",
             "alloc_conf": alloc_conf or "default"}
+
+
+def campaign_identity(*, source: str, cache: str, tokenizer: Optional[str], lora_r: int,
+                      lora_targets: Sequence[str], steps: int) -> str:
+    """Digest of the model, cache and recipe a campaign runs with. Every row of one campaign
+    carries it, and a resumed or replacement run must present the same one."""
+    payload = {"source": source, "cache": cache, "tokenizer": tokenizer or source,
+               "lora_r": lora_r, "lora_targets": list(lora_targets), "steps": steps}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
 def direct_io_record(*, requested: bool, actual: bool) -> Dict[str, bool]:
@@ -805,6 +944,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                     requested=True,
                     actual=all(r.direct for r in getattr(runtime, "expert_readers", ()))),
                 "environment": _environment()}
+            if args.kind == "bits":  # the live manifest: every trainable LoRA name and shape
+                out["grad_shapes"] = {name: list(p.shape) for name, p in sorted(params.items())}
             if counted:
                 from benchmarks.harness import mbr_count
 
@@ -834,6 +975,9 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     sampler: Any = _NvmlSampler() if cuda else _Null()
     with (sampler if cuda else _NullContext()):
         result = run_guarded(work, peaks=peaks, is_oom=_is_cuda_oom)
+    result["campaign_id"] = campaign_identity(
+        source=args.source, cache=args.cache, tokenizer=args.tokenizer, lora_r=args.lora_r,
+        lora_targets=args.lora_targets, steps=args.steps)
     return make_row(arm=args.arm, k=args.k, seq=args.seq, kind=args.kind,
                     deterministic=args.deterministic, result=result,
                     dataset_sha256=data["sha256"])
@@ -1015,27 +1159,34 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
     import time
     from pathlib import Path
 
+    from rich.console import Console
+
     from benchmarks.harness.arm_validity import ArmWatch
 
+    console = Console()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     rows: List[Dict[str, Any]] = []
     deadline = time.time() + args.deadline_hours * 3600 if args.deadline_hours else None
     gate = list(getattr(args, "gate", None) or ())
+    identity = campaign_identity(source=args.source, cache=args.cache,
+                                 tokenizer=args.tokenizer, lora_r=args.lora_r,
+                                 lora_targets=args.lora_targets, steps=args.steps)
     for index, item in enumerate(plan):
         if deadline is not None and time.time() > deadline:
-            print(f"deadline reached, {len(rows)} of {len(plan)} runs done", flush=True)
+            console.print(f"deadline reached, {len(rows)} of {len(plan)} runs done", markup=False)
             break
         if gate:
             checked = subprocess.run(gate, capture_output=True, text=True)
             if checked.stdout.strip():
-                print(checked.stdout.strip(), flush=True)
+                console.print(checked.stdout.strip(), markup=False)
             if checked.returncode != 0:
                 # The card is not healthy (ticket 13: AC, clock, power limit): refuse the run
                 # instead of writing a row the verdict would have to throw away.
-                print(f"gate refused run {index + 1} of {len(plan)} "
-                      f"({item['arm']} k={item['k']} S={item['seq']}): "
-                      f"{checked.stderr.strip()[-300:]}", flush=True)
+                console.print(f"gate refused run {index + 1} of {len(plan)} "
+                              f"({item['arm']} k={item['k']} S={item['seq']}): "
+                              f"{checked.stderr.strip()[-300:]}", markup=False)
+                args.gate_refused = True
                 break
         command = [sys.executable, __file__, *child_run_args(args, item)]
         number = run_number(item, index)
@@ -1047,10 +1198,20 @@ def sweep(args: Any, plan: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:  #
         row = json.loads(line) if line else {
             "arm": item["arm"], "k": item["k"], "seq": item["seq"], "kind": item["kind"],
             "mode": "deterministic" if item["deterministic"] else "normal",
-            "status": "CRASH", "error": proc.stderr[-300:]}
+            "status": "CRASH", "error": proc.stderr[-300:], "campaign_id": identity}
         row["block"] = item["block"]
         row["outcome"] = watch.record["outcome"]
+        if getattr(args, "require_complete", False):
+            row["run"] = number + 1
+            if proc.returncode != 0:
+                row["status"] = "CRASH"
+                row["exit_code"] = proc.returncode
+        if row.get("campaign_id") != identity:
+            raise RuntimeError(f"campaign_id mismatch on run {number + 1}: child "
+                               f"{row.get('campaign_id')!r}, sweep {identity!r}")
+        row["campaign_id"] = identity
         rows.append(row)
+        watch.record["campaign_id"] = identity
         append_jsonl(out / "rows.jsonl", row)
         append_jsonl(out / "arm_records.jsonl", watch.record)
     return rows
@@ -1080,6 +1241,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--gate", nargs="+", default=None, metavar="CMD",
                            help="command checked before every run; a non-zero exit refuses the "
                                 "run and stops the sweep (ticket 13: AC, clock, power limit)")
+        if name in ("bits", "ceg-speed", "lever-bits", "ds-bits"):
+            p.add_argument("--require-complete", action="store_true",
+                           help="fail on a truncated sweep or unsuccessful bit run")
         p.add_argument("--tokenizer", default=None, help="default: the --source folder")
         p.add_argument("--device", choices=("auto", "cpu"), default="auto")
         p.add_argument("--label", default=DEFAULT_LABEL,
@@ -1118,6 +1282,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     if args.command == "run":
         print(json.dumps(run_one(args)))
         return 0
+    if args.command == "ds-bits" and any(k > A0_MAX_K for k in args.ladder_ks):
+        parser.error(f"ds-bits requires A0, which is only available at k<={A0_MAX_K}")
     plan = {"speed": lambda: speed_plan(blocks=args.blocks),
             "abba": lambda: abba_plan(blocks=args.blocks, start_block=args.start_block),
             "bits": lambda: bit_plan(seq=args.seq, ks=args.ladder_ks), "profile": profile_plan,
@@ -1138,15 +1304,43 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     rows = sweep(args, plan)
     (Path(args.out) / "summary.md").write_text(markdown_table(summarize_rows(rows)),
                                                  encoding="utf-8")
+    if getattr(args, "gate_refused", False):
+        return 1
+    if args.command in ("bits", "lever-bits", "ds-bits", "speed") and len(rows) != len(plan):
+        Console(stderr=True).print(f"Incomplete sweep: {len(rows)} of {len(plan)} rows written.")
+        return 1
+    if getattr(args, "require_complete", False):
+        stderr = Console(stderr=True)
+        if len(rows) != len(plan) or not plan:
+            stderr.print(f"Incomplete sweep: {len(rows)} of {len(plan)} rows written.")
+            return 1
+        if args.command != "ceg-speed":
+            for item, row in zip(plan, rows):
+                name = tensor_file_name(item["arm"], item["k"], item["seq"])
+                if (row.get("status") != "ok" or row.get("outcome") != "ok"
+                        or row.get("tensor_file") != name
+                        or not (bit_tensor_dir(args.out) / name).is_file()):
+                    stderr.print(f"Bit run unsuccessful or missing tensor: {name}.")
+                    return 1
     if args.command in ("bits", "lever-bits", "ds-bits"):
-        digests = ladder_verdict(rows)
-        verdicts = tensor_ladder_verdict(rows, tensor_dir=bit_tensor_dir(args.out))
+        bound = [row if row.get("outcome") == "ok" else dict(row, status="void") for row in rows]
+        digests = ladder_verdict(bound)
+        verdicts = tensor_ladder_verdict(bound, tensor_dir=bit_tensor_dir(args.out),
+                                         manifest=MOONLIGHT_GRAD_SHAPES)
         console = Console()
         for (k, arm), verdict in sorted(verdicts.items()):
             console.print(f"k={k} {arm}: {verdict} (digest {digests.get((k, arm))})")
         (Path(args.out) / "bits-verdict.json").write_text(
             json.dumps({f"k{k}-{arm}": v for (k, arm), v in sorted(verdicts.items())}, indent=2),
             encoding="utf-8")
+        unbound = [f"k{k}-{arm}" for (k, arm), v in verdicts.items()
+                   if v not in ("equal", "differs")]
+        unbound += [f"k{row['k']}-{row['arm']}" for row in bound
+                    if row["arm"] == reference_arm(row["k"]) and row.get("status") != "ok"]
+        if unbound:
+            Console(stderr=True).print(
+                f"No bits verdict, provenance refused: {', '.join(unbound)}.")
+            return 1
     if args.command.startswith("lever-"):
         gates = {lever: lever_gate(rows, lever=lever, previous=before)
                  for lever, before in LEVER_PREVIOUS.items()}

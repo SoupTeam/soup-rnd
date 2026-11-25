@@ -511,19 +511,27 @@ def test_a_nan_grad_counts_as_different_even_against_itself() -> None:
     assert not mm.tensors_equal(nan_run, nan_run)
 
 
-def test_tensor_ladder_verdict_reads_saved_tensors_and_compares_each_arm_to_a0(tmp_path) -> None:
+def _saved_bits_row(tmp_path, arm: str, k: int, grad: list, *, seq: int = 64) -> dict:
+    """A bits row bound to its saved payload: loss total, digest of the saved grad and manifest."""
     import torch
 
+    name = mm.tensor_file_name(arm, k, seq)
+    payload = {"loss": torch.tensor([2.0] + [0.0] * (k - 1), dtype=torch.float64),
+               "grads": {"w": torch.tensor(grad)}}
+    torch.save(payload, tmp_path / name)
+    flat = {"w": payload["grads"]["w"].float().flatten().tolist()}
+    return {"arm": arm, "k": k, "seq": seq, "status": "ok", "tensor_file": name, "loss": 2.0,
+            "grad_sha256": mm.grad_digest(flat), "grad_shapes": {"w": [len(grad)]}}
+
+
+def test_tensor_ladder_verdict_reads_saved_tensors_and_compares_each_arm_to_a0(tmp_path) -> None:
     def save(arm: str, k: int, grad: list) -> dict:
-        name = mm.tensor_file_name(arm, k, 64)
-        torch.save({"loss": torch.tensor([2.0], dtype=torch.float64),
-                    "grads": {"w": torch.tensor(grad)}}, tmp_path / name)
-        return {"arm": arm, "k": k, "seq": 64, "status": "ok", "tensor_file": name}
+        return _saved_bits_row(tmp_path, arm, k, grad)
 
     rows = [save("A0", 1, [1.0, 2.0]), save("C", 1, [1.0, 2.0]),
             save("E", 1, [1.0, 2.0000002]), {"arm": "F", "k": 1, "seq": 64, "status": "OOM"},
             save("C", 2, [0.5, 0.5])]
-    out = mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path)
+    out = mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path, manifest={"w": [2]})
     assert out[(1, "C")] == "equal"
     assert out[(1, "E")] == "differs"
     assert out[(1, "F")] == "OOM"
@@ -538,22 +546,242 @@ def test_a_failed_a0_row_leaves_its_k_without_a_reference(tmp_path) -> None:
                 "grads": {"w": torch.tensor([1.0])}}, tmp_path / name)
     rows = [{"arm": "A0", "k": 1, "seq": 64, "status": "OOM"},
             {"arm": "C", "k": 1, "seq": 64, "status": "ok", "tensor_file": name}]
-    assert mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path)[(1, "C")] == "no A0"
+    assert mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path,
+                                    manifest={"w": [1]})[(1, "C")] == "no A0"
 
 
 def test_tensor_ladder_verdict_at_k64_reads_the_saved_c_tensors(tmp_path) -> None:
-    import torch
-
     def save(arm: str, grad: list) -> dict:
-        name = mm.tensor_file_name(arm, 64, 64)
-        torch.save({"loss": torch.tensor([2.0], dtype=torch.float64),
-                    "grads": {"w": torch.tensor(grad)}}, tmp_path / name)
-        return {"arm": arm, "k": 64, "seq": 64, "status": "ok", "tensor_file": name}
+        return _saved_bits_row(tmp_path, arm, 64, grad)
 
     rows = [save("C", [1.0, 2.0]), save("E", [1.0, 2.0])]
-    assert mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path) == {(64, "E"): "equal"}
+    manifest = {"w": [2]}
+    assert mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path,
+                                    manifest=manifest) == {(64, "E"): "equal"}
     assert mm.tensor_ladder_verdict(rows[:1] + [
-        dict(rows[1], status="OOM")], tensor_dir=tmp_path)[(64, "E")] == "OOM"
+        dict(rows[1], status="OOM")], tensor_dir=tmp_path, manifest=manifest)[(64, "E")] == "OOM"
+
+
+def _archived_bits_row(tmp_path, arm: str, k: int, grad: list, *, seq: int = 64) -> dict:
+    """A bits row as the archived campaigns wrote it: no ``grad_shapes``, only the digest."""
+    row = _saved_bits_row(tmp_path, arm, k, grad, seq=seq)
+    return {name: value for name, value in row.items() if name != "grad_shapes"}
+
+
+MANIFEST_2 = {"w": [2]}
+
+
+def test_an_explicit_manifest_gives_verdicts_for_archived_rows_bound_to_their_digests(
+        tmp_path) -> None:
+    rows = [_archived_bits_row(tmp_path, "A0", 1, [1.0, 2.0]),
+            _archived_bits_row(tmp_path, "C", 1, [1.0, 2.0]),
+            _archived_bits_row(tmp_path, "E", 1, [1.0, 2.0000002])]
+    out = mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path, manifest=MANIFEST_2)
+    assert out == {(1, "C"): "equal", (1, "E"): "differs"}
+
+
+def test_an_explicit_manifest_still_refuses_a_payload_that_fails_its_row_digest(tmp_path) -> None:
+    base = _archived_bits_row(tmp_path, "A0", 1, [1.0, 2.0])
+    other = _archived_bits_row(tmp_path, "E", 1, [1.0, 3.0])
+    other["grad_sha256"] = base["grad_sha256"]
+    out = mm.tensor_ladder_verdict([base, other], tensor_dir=tmp_path, manifest=MANIFEST_2)
+    assert out == {(1, "E"): "no verdict: row:digest_mismatch"}
+
+
+def test_a_mismatched_manifest_gives_no_verdict(tmp_path) -> None:
+    rows = [_archived_bits_row(tmp_path, "A0", 1, [1.0, 2.0]),
+            _archived_bits_row(tmp_path, "C", 1, [1.0, 2.0])]
+    wrong_shape = mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path, manifest={"w": [3]})
+    missing_name = mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path,
+                                            manifest={"w": [2], "v": [2]})
+    no_manifest = mm.tensor_ladder_verdict(rows, tensor_dir=tmp_path, manifest={})
+    reason = "no verdict: base:invalid_gradient_coverage"
+    assert wrong_shape[(1, "C")].startswith(reason), wrong_shape
+    assert missing_name[(1, "C")].startswith(reason), missing_name
+    assert no_manifest[(1, "C")] == "no verdict: base:no_expected_grads, row:no_expected_grads"
+
+
+def test_a_row_cannot_borrow_a_payload_under_another_arms_file_name(tmp_path) -> None:
+    good = _saved_bits_row(tmp_path, "A0", 1, [1.0, 2.0])
+    borrowed = dict(good, arm="E", grad_sha256="0" * 64)
+    out = mm.tensor_ladder_verdict([good, borrowed], tensor_dir=tmp_path, manifest={"w": [2]})
+    assert out == {(1, "E"): "no verdict: row:tensor_file_name"}, out
+
+
+def test_each_row_is_checked_against_its_own_digest_not_a_cached_one(tmp_path) -> None:
+    base = _saved_bits_row(tmp_path, "A0", 1, [1.0, 2.0])
+    first = _saved_bits_row(tmp_path, "E", 1, [1.0, 2.0])
+    second = dict(first, grad_sha256="0" * 64)
+    out = mm.tensor_ladder_verdict([base, first, second], tensor_dir=tmp_path,
+                                   manifest={"w": [2]})
+    assert out == {(1, "E"): "no verdict: row:digest_mismatch"}, out
+
+
+def test_a_tensor_path_that_leaves_the_folder_is_never_read(tmp_path) -> None:
+    import shutil
+
+    folder = tmp_path / "tensors"
+    folder.mkdir()
+    base = _saved_bits_row(folder, "A0", 1, [1.0, 2.0])
+    shutil.copy(folder / base["tensor_file"], tmp_path / "escape.pt")
+    escaped = dict(base, arm="E", tensor_file="../escape.pt")
+    out = mm.tensor_ladder_verdict([base, escaped], tensor_dir=folder, manifest={"w": [2]})
+    assert out == {(1, "E"): "no verdict: row:missing_tensor_file"}, out
+    assert mm.contained_tensor(folder, "../escape.pt") is None
+    inside = mm.contained_tensor(folder, base["tensor_file"])
+    assert inside == (folder / base["tensor_file"]).resolve()
+
+
+def test_two_missing_digests_or_losses_never_read_as_equal() -> None:
+    row = {"arm": "A0", "k": 1, "seq": 64, "status": "ok", "grad_sha256": "", "loss": 1.0}
+    empty = mm.ladder_verdict([row, dict(row, arm="E")])
+    assert empty == {(1, "E"): "no verdict: missing_digest"}, empty
+    no_loss = {"arm": "E", "k": 1, "seq": 64, "status": "ok", "grad_sha256": "x"}
+    assert mm.ladder_verdict([dict(row, grad_sha256="x", loss=None), no_loss]) == {
+        (1, "E"): "no verdict: missing_loss"}
+    no_digest = {"arm": "E", "k": 1, "seq": 64, "status": "ok", "loss": 1.0}
+    assert mm.ladder_verdict([row, no_digest]) == {(1, "E"): "no verdict: missing_digest"}
+
+
+def test_the_sweep_reports_through_a_rich_console_not_print() -> None:
+    import ast
+    import inspect
+
+    calls = [node.lineno for node in ast.walk(ast.parse(inspect.getsource(mm.sweep)))
+             if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "print"]
+    assert calls == []
+
+
+def test_an_incomplete_deadline_stop_fails_a_required_sweep(tmp_path, monkeypatch, capsys):
+    import time
+
+    clock = iter([0.0] + [1e9] * 100)
+    monkeypatch.setattr(time, "time", lambda: next(clock))
+    argv = ["ceg-speed", "--source", "s", "--cache", "c", "--out", str(tmp_path),
+            "--deadline-hours", "1", "--require-complete"]
+    assert mm.main(argv) == 1
+    assert "deadline reached, 0 of" in capsys.readouterr().out
+    assert not (tmp_path / "rows.jsonl").exists()
+
+
+@pytest.mark.parametrize("command", ["bits", "speed"])
+def test_an_incomplete_deadline_stop_fails_a_bits_or_speed_sweep_without_the_flag(
+        tmp_path, monkeypatch, capsys, command):
+    import time
+
+    clock = iter([0.0] + [1e9] * 100)
+    monkeypatch.setattr(time, "time", lambda: next(clock))
+    argv = [command, "--source", "s", "--cache", "c", "--out", str(tmp_path),
+            "--deadline-hours", "1"]
+    assert mm.main(argv) == 1
+    assert "deadline reached, 0 of" in capsys.readouterr().out
+    assert not (tmp_path / "bits-verdict.json").exists()
+
+
+def test_a_required_bits_sweep_without_tensors_exits_nonzero(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(mm, "sweep", lambda args, plan: [
+        dict(item, status="ok", outcome="ok", grad_sha256="same", loss=1.0, step_seconds=1.0,
+             tensor_file=None) for item in plan])
+    argv = ["bits", "--source", "s", "--cache", "c", "--out", str(tmp_path), "--require-complete"]
+    assert mm.main(argv) == 1
+    assert "Bit run unsuccessful or missing tensor" in capsys.readouterr().err
+    assert not (tmp_path / "bits-verdict.json").exists()
+
+
+@pytest.mark.parametrize("command", ["bits", "lever-bits", "ds-bits"])
+def test_an_incomplete_bits_sweep_fails_without_the_flag(tmp_path, monkeypatch, capsys, command):
+    monkeypatch.setattr(mm, "sweep", lambda args, plan: [])
+    argv = [command, "--source", "s", "--cache", "c", "--out", str(tmp_path), "--ladder-ks", "1"]
+    assert mm.main(argv) == 1
+    assert "Incomplete sweep: 0 of" in capsys.readouterr().err
+
+
+def test_a_void_bits_row_without_the_flag_gets_no_equal(tmp_path, monkeypatch):
+    import json
+
+    import torch
+
+    payload = {"loss": torch.tensor([2.0], dtype=torch.float64),
+               "grads": {"w": torch.tensor([1.0, 2.0])}}
+    digest = mm.grad_digest({"w": [1.0, 2.0]})
+    monkeypatch.setattr(mm, "MOONLIGHT_GRAD_SHAPES", {"w": [2]})
+
+    def fake_sweep(args, plan):
+        tensors = mm.bit_tensor_dir(args.out)
+        tensors.mkdir(parents=True, exist_ok=True)
+        rows = []
+        for item in plan:
+            name = mm.tensor_file_name(item["arm"], item["k"], item["seq"])
+            torch.save(payload, tensors / name)
+            rows.append(dict(item, status="ok", loss=2.0, grad_sha256=digest, step_seconds=1.0,
+                             tensor_file=name,
+                             outcome="void" if item["arm"] == "C" else "ok"))
+        return rows
+
+    monkeypatch.setattr(mm, "sweep", fake_sweep)
+    out = tmp_path / "out"
+    argv = ["bits", "--source", "s", "--cache", "c", "--out", str(out), "--ladder-ks", "1"]
+    assert mm.main(argv) == 1
+    verdicts = json.loads((out / "bits-verdict.json").read_text(encoding="utf-8"))
+    assert verdicts["k1-C"] == "void", verdicts
+    assert verdicts["k1-B0"] == "equal", verdicts
+
+
+def test_a_void_reference_row_in_a_reference_only_bits_run_fails_without_the_flag(
+        tmp_path, monkeypatch, capsys):
+    import torch
+
+    payload = {"loss": torch.tensor([2.0], dtype=torch.float64),
+               "grads": {"w": torch.tensor([1.0, 2.0])}}
+    monkeypatch.setattr(mm, "MOONLIGHT_GRAD_SHAPES", {"w": [2]})
+
+    def fake_sweep(args, plan):
+        tensors = mm.bit_tensor_dir(args.out)
+        tensors.mkdir(parents=True, exist_ok=True)
+        rows = []
+        for item in plan:
+            name = mm.tensor_file_name(item["arm"], item["k"], item["seq"])
+            torch.save(payload, tensors / name)
+            rows.append(dict(item, status="ok", loss=2.0, grad_sha256=mm.grad_digest(
+                {"w": [1.0, 2.0]}), step_seconds=1.0, tensor_file=name, outcome="void"))
+        return rows
+
+    monkeypatch.setattr(mm, "sweep", fake_sweep)
+    out = tmp_path / "out"
+    argv = ["bits", "--source", "s", "--cache", "c", "--out", str(out), "--ladder-ks", "1",
+            "--arms", "A0"]
+    assert mm.main(argv) == 1
+    assert "k1-A0" in capsys.readouterr().err
+
+
+def test_the_moonlight_manifest_is_the_post_arena_grad_shapes() -> None:
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    path = root / "benchmarks" / "mbr-moonlight-post-arena-20261125" / "analyze.py"
+    spec = importlib.util.spec_from_file_location("mbr_post_arena_analyze", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    assert len(mm.MOONLIGHT_GRAD_SHAPES) == 216
+    assert mm.MOONLIGHT_GRAD_SHAPES == {name: list(shape)
+                                        for name, shape in module.GRAD_SHAPES.items()}
+
+
+def test_load_grad_manifest_accepts_only_the_exact_authoritative_manifest(tmp_path) -> None:
+    import json
+
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(mm.MOONLIGHT_GRAD_SHAPES), encoding="utf-8")
+    assert mm.load_grad_manifest(good) == mm.MOONLIGHT_GRAD_SHAPES
+    changed = dict(mm.MOONLIGHT_GRAD_SHAPES)
+    changed[next(iter(changed))] = [1, 1]
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps(changed), encoding="utf-8")
+    assert mm.load_grad_manifest(bad) is None
+    assert mm.load_grad_manifest(tmp_path / "missing.json") is None
 
 
 def test_digest_ladder_verdict_and_tensor_verdict_share_the_a0_rule() -> None:
@@ -657,6 +885,19 @@ def test_a_refused_gate_stops_the_sweep_before_any_run(tmp_path) -> None:
              "deterministic": False}]
     assert mm.sweep(args, plan) == []
     assert not (tmp_path / "rows.jsonl").exists()
+
+
+def test_a_refused_gate_on_a_plain_sweep_exits_nonzero(tmp_path, capsys) -> None:
+    import sys
+
+    refuse = tmp_path / "refuse_gate.py"
+    refuse.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    out = tmp_path / "speed"
+    argv = ["speed", "--source", "s", "--cache", "c", "--out", str(out),
+            "--gate", sys.executable, str(refuse)]
+    assert mm.main(argv) == 1
+    assert "gate refused run 1 of" in capsys.readouterr().out
+    assert not (out / "rows.jsonl").exists()
 
 
 def test_the_segmented_arm_stays_out_of_the_bits_ladders() -> None:
@@ -909,9 +1150,9 @@ def test_the_ceg_and_ds_commands_reach_their_plans(monkeypatch: pytest.MonkeyPat
     assert seen["command"] == "ceg-speed"
     assert seen["arms"][:6] == ["C", "E", "G", "G", "E", "C"]
     assert seen["kind"] == {"speed"}
-    assert mm.main(["ds-bits", *base]) == 0
+    assert mm.main(["ds-bits", *base]) == 1
     assert seen["command"] == "ds-bits"
     assert seen["arms"] == ["A0", "DS"]
     assert seen["kind"] == {"bits"}
-    assert mm.main(["ds-bits", "--arms", "DS", *base]) == 0
+    assert mm.main(["ds-bits", "--arms", "DS", *base]) == 1
     assert seen["arms"] == ["DS"]
