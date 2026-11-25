@@ -849,3 +849,67 @@ def test_the_run_command_takes_count_and_hands_it_to_run_one(monkeypatch: pytest
     assert mm.main(base + ["--count"]) == 0
     assert seen["count"] is True
     assert '"count": true' in capsys.readouterr().out
+
+
+# ---- ticket 17: G against E and C after the arena, and the D+segmented diagnostic cell ----
+def test_the_ceg_speed_plan_is_c_e_g_g_e_c_on_the_two_k8_windows() -> None:
+    assert mm.CEG_WINDOWS == ((8, 64), (8, 512))
+    plan = mm.ceg_speed_plan(blocks=1)
+    for window in mm.CEG_WINDOWS:
+        assert [p["arm"] for p in plan if (p["k"], p["seq"]) == window] == \
+            ["C", "E", "G", "G", "E", "C"]
+    assert len(plan) == 6 * len(mm.CEG_WINDOWS)
+    assert all(p["kind"] == "speed" and p["deterministic"] is False for p in plan)
+
+
+def test_the_ceg_plan_runs_five_blocks_and_keeps_every_hand_centred() -> None:
+    """Every hand sits at the block centre (mean position 5.5 of 12), so host drift cancels."""
+    plan = mm.ceg_speed_plan(blocks=5)
+    assert len(plan) == 60
+    assert {p["block"] for p in plan} == set(range(5))
+    first_block = plan[:6 * len(mm.CEG_WINDOWS)]
+    positions: dict = {}
+    for position, item in enumerate(first_block):
+        positions.setdefault(item["arm"], []).append(position)
+    assert {arm: sum(at) / len(at) for arm, at in positions.items()} == \
+        {"C": 5.5, "E": 5.5, "G": 5.5}
+
+
+def test_the_decoupled_segmented_arm_keeps_d_step_options_and_switches_the_gemm() -> None:
+    assert mm.DECOUPLED_SEGMENTED_ARM == "DS"
+    assert mm.arm_options("DS", k=2) == mm.arm_options("D", k=2)
+    assert mm.arm_runtime("DS") == {"expert_gemm": "segmented", "async_lease": False,
+                                    "fast_row_gather": False, "expert_loader": "async_lease"}
+    assert mm.parse_arm_list("DS") == ("DS",)
+    assert "DS" not in mm.ladder_arms(2)
+
+
+def test_the_ds_bit_plan_is_a0_against_decoupled_segmented_in_deterministic_mode() -> None:
+    plan = mm.decoupled_segmented_bit_plan(seq=64, ks=(2,))
+    assert [p["arm"] for p in plan] == ["A0", "DS"]
+    assert all(p["k"] == 2 and p["seq"] == 64 and p["kind"] == "bits"
+               and p["deterministic"] for p in plan)
+    assert mm.decoupled_segmented_bit_plan(seq=64) == \
+        mm.decoupled_segmented_bit_plan(seq=64, ks=(2,))
+
+
+def test_the_ceg_and_ds_commands_reach_their_plans(monkeypatch: pytest.MonkeyPatch,
+                                                  tmp_path) -> None:
+    seen = {}
+
+    def fake_sweep(args: argparse.Namespace, plan: list) -> list:
+        seen["command"] = args.command
+        seen["arms"] = [item["arm"] for item in plan]
+        seen["kind"] = {item["kind"] for item in plan}
+        return []
+
+    monkeypatch.setattr(mm, "sweep", fake_sweep)
+    base = ["--source", "s", "--cache", "c", "--out", str(tmp_path)]
+    assert mm.main(["ceg-speed", "--blocks", "1", *base]) == 0
+    assert seen["command"] == "ceg-speed"
+    assert seen["arms"][:6] == ["C", "E", "G", "G", "E", "C"]
+    assert seen["kind"] == {"speed"}
+    assert mm.main(["ds-bits", *base]) == 0
+    assert seen["command"] == "ds-bits"
+    assert seen["arms"] == ["A0", "DS"]
+    assert seen["kind"] == {"bits"}
