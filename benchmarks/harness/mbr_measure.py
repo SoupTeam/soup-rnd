@@ -44,7 +44,7 @@ def parse_k_list(text: str) -> Tuple[int, ...]:
 def parse_arm_list(text: str) -> Tuple[str, ...]:
     """Comma-separated arm names, each a known arm."""
     names = tuple(part.strip() for part in text.split(",") if part.strip())
-    known = ("A0", "B0", "C", SEGMENTED_ARM, *LEVER_ARMS)
+    known = ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, *LEVER_ARMS)
     if not names or any(name not in known for name in names):
         raise argparse.ArgumentTypeError(f"--arms takes names of {', '.join(known)}")
     return names
@@ -135,13 +135,16 @@ def take_window(input_ids: Sequence[Sequence[int]], *, k: int) -> List[List[int]
 def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
     """``L2LStep.run`` keywords of an arm: A0 plain L2L, B0 route-preserving MBR, C B0 plus the
     ordered backward (the exact GEMM joins C with ticket 02), D C's decoupled sibling."""
-    if arm not in ("A0", "B0", "C", SEGMENTED_ARM, *LEVER_ARMS):
+    if arm not in ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, *LEVER_ARMS):
         raise ValueError(f"unknown arm {arm!r}")
     if arm in ("A0", "B0", "C") and arm not in arms_for(k=k):
         raise ValueError(f"arm {arm} does not exist at k={k} (A0 only at k<={A0_MAX_K})")
     if arm == "A0":
         return {}
-    if arm == DECOUPLED_ARM:  # C's step without the ordered backward; the subwindow orders it
+    if arm in (DECOUPLED_ARM, DECOUPLED_SEGMENTED_ARM):
+        # C's step without the ordered backward; the subwindow orders it. DS is D with the
+        # segmented native GEMM, the diagnostic that separates D's forward drift from its
+        # backward's (ticket 17).
         return {"route_preserving_mbr": True, "mbr_group_size": k,
                 "mbr_decoupled_subwindow": True}
     options: Dict[str, Any] = {"route_preserving_mbr": True, "mbr_group_size": k}
@@ -183,6 +186,14 @@ VRAM_TOLERANCE_BYTES = 64 * 2**20  # reserved and NVML wobble; allocated is comp
 # Ticket 06: decoupled MBR. It is C's sibling: the same route-preserving step without the
 # ordered backward, with ``mbr_decoupled_subwindow`` doing the ordered recompute itself.
 DECOUPLED_ARM, DECOUPLED_PREVIOUS = "D", "C"
+# Ticket 17: D with ``expert_gemm="segmented"``. D's forward is C's grouped native GEMM, whose
+# row-count kernel choice is the forward divergence (ticket 14); segmented keeps the reference
+# row count. If DS equals A0, the drift was the forward, not D's own decoupled backward. A
+# diagnostic arm: it is not part of the lever stack and stays out of every ladder.
+DECOUPLED_SEGMENTED_ARM = "DS"
+DECOUPLED_SEGMENTED_RUNTIME: Dict[str, Any] = {"expert_gemm": "segmented", "async_lease": False,
+                                               "fast_row_gather": False,
+                                               "expert_loader": "async_lease"}
 # The three windows that fit 4 GiB for C; (64,512) is the large-window case of the switch.
 DECOUPLED_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64))
 DECOUPLED_MIN_WINDOWS = 2  # the local gate of ticket 06 asks for two of the three fitting ones
@@ -207,6 +218,8 @@ def arm_runtime(arm: str) -> Dict[str, Any]:
     which loader feeds the expert pool (``async_lease`` unless the arm is H)."""
     if arm == SEGMENTED_ARM:
         return dict(SEGMENTED_RUNTIME)
+    if arm == DECOUPLED_SEGMENTED_ARM:
+        return dict(DECOUPLED_SEGMENTED_RUNTIME)
     return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
                                      "fast_row_gather": False,
                                      "expert_loader": "async_lease"}))
@@ -277,6 +290,40 @@ def esc_speed_plan(*, blocks: int = 5, start_block: int = 0) -> List[Dict[str, A
             for block in range(start_block, start_block + blocks)
             for position, (k, seq, arm) in enumerate(
                 (k, seq, arm) for k, seq in ESC_WINDOWS for arm in ESC_HANDS)]
+
+
+# Ticket 17: G (E + async_lease + fast_row_gather) against E and C on the two k=8 windows.
+# The palindrome A-B-C-C-B-A with the three hands in the roles C, E, G.
+CEG_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512))
+CEG_HANDS: Tuple[str, ...] = ("C", "E", "G", "G", "E", "C")
+
+
+def ceg_speed_plan(*, blocks: int = 5, start_block: int = 0) -> List[Dict[str, Any]]:
+    """Normal-mode C-E-G-G-E-C blocks over the two windows (ticket 17).
+
+    Six hands per window, five blocks: 60 runs. Every hand sits at the block centre, so a drift
+    of the host cancels between hands. ``start_block`` resumes after a gate refusal, like
+    ``esc_speed_plan``.
+    """
+    per_block = len(CEG_WINDOWS) * len(CEG_HANDS)
+    return [{"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
+             "deterministic": False, "index": block * per_block + position}
+            for block in range(start_block, start_block + blocks)
+            for position, (k, seq, arm) in enumerate(
+                (k, seq, arm) for k, seq in CEG_WINDOWS for arm in CEG_HANDS)]
+
+
+def decoupled_segmented_bit_plan(*, seq: int = 64,
+                                 ks: Sequence[int] = (2,)) -> List[Dict[str, Any]]:
+    """Deterministic A0-DS pairs at ``ks`` for the D+segmented diagnostic (ticket 17).
+
+    DS keeps D's decoupled step and switches the expert GEMM to segmented, so the cell answers
+    whether D's drift was its forward's grouped native GEMM. A0 is the plain reference; the
+    default cell is k=2 on S=64.
+    """
+    return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits",
+             "deterministic": True}
+            for k in ks for arm in ("A0", DECOUPLED_SEGMENTED_ARM)]
 
 
 def large_window_enabled(*, previous_fits: bool) -> bool:
@@ -1018,7 +1065,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("run", "speed", "bits", "profile", "lever-speed", "lever-bits", "abba",
-                 "loader-speed", "decoupled-speed", "seg-speed", "esc-speed"):
+                 "loader-speed", "decoupled-speed", "seg-speed", "esc-speed", "ceg-speed",
+                 "ds-bits"):
         p = sub.add_parser(name)
         p.add_argument("--source", required=True)
         p.add_argument("--cache", required=True)
@@ -1053,15 +1101,16 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--count", action="store_true",
                            help="count the routed-expert F.linear calls of every step into the row")
         if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed",
-                    "seg-speed", "esc-speed"):
+                    "seg-speed", "esc-speed", "ceg-speed"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
-        if name in ("abba", "esc-speed"):
+        if name in ("abba", "esc-speed", "ceg-speed"):
             p.add_argument("--start-block", type=int, default=0,
                            help="first block number, to resume a pilot in the same folder")
-        if name in ("bits", "lever-bits"):
+        if name in ("bits", "lever-bits", "ds-bits"):
             p.add_argument("--seq", type=int, default=64)
-            p.add_argument("--ladder-ks", type=parse_k_list, default=BIT_LADDER,
-                           help="comma-separated k values (default: 1,2,4,8)")
+            p.add_argument("--ladder-ks", type=parse_k_list,
+                           default=(2,) if name == "ds-bits" else BIT_LADDER,
+                           help="comma-separated k values (default: 1,2,4,8; 2 for ds-bits)")
             p.add_argument("--arms", type=parse_arm_list, default=None,
                            help="comma-separated arms only (default: every arm of each k)")
             p.add_argument("--math-attention", action="store_true",
@@ -1079,6 +1128,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             "seg-speed": lambda: segmented_speed_plan(blocks=args.blocks),
             "esc-speed": lambda: esc_speed_plan(blocks=args.blocks,
                                                start_block=args.start_block),
+            "ceg-speed": lambda: ceg_speed_plan(blocks=args.blocks,
+                                                start_block=args.start_block),
+            "ds-bits": lambda: decoupled_segmented_bit_plan(seq=args.seq, ks=args.ladder_ks),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
     if args.command in ("bits", "lever-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]
@@ -1087,7 +1139,7 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
     rows = sweep(args, plan)
     (Path(args.out) / "summary.md").write_text(markdown_table(summarize_rows(rows)),
                                                  encoding="utf-8")
-    if args.command in ("bits", "lever-bits"):
+    if args.command in ("bits", "lever-bits", "ds-bits"):
         digests = ladder_verdict(rows)
         verdicts = tensor_ladder_verdict(rows, tensor_dir=bit_tensor_dir(args.out))
         console = Console()
