@@ -400,6 +400,75 @@ def test_trainer_state_carries_the_oracle_switch() -> None:
     ) is None
 
 
+def test_trainer_state_refuses_the_oracle_without_route_preserving_mbr() -> None:
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState
+
+    with pytest.raises(ValueError, match="routing_oracle requires route_preserving_mbr"):
+        L2LState(runtime=None, dtype=torch.float32, effective_k=2, routing_oracle=True)
+
+
+def test_run_without_the_flag_builds_no_oracle(make_rig: Any, monkeypatch: Any) -> None:
+    import torch
+
+    from soup_cli.trainer import l2l_trainer
+    from soup_cli.utils import routing_oracle
+
+    def refuse(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("an Oracle was built on a run without l2l_routing_oracle")
+
+    monkeypatch.setattr(routing_oracle, "DeepseekRoutingOracle", refuse)
+    rig = make_rig(k=1, rows=1, seq=4)
+    ids = fixture.moe_batch(rig.config, seed=0, rows=1, seq=4)["input_ids"]
+    state = l2l_trainer.L2LState(
+        runtime=rig.runtime,
+        dtype=torch.float32,
+        has_dropout=False,
+        stepper=rig.stepper,
+        store=rig.store,
+    )
+    state.calls_by_shape[(1, 4)] = l2l_step.capture_layer_call(rig.model, ids)
+    try:
+        losses, _counters = l2l_trainer.run_window(state, rig.model, [ids], [ids], 4, "cpu")
+    finally:
+        rig.close()
+    assert len(losses) == 1
+    assert state._routing_oracle is None
+
+
+def test_oracle_host_buffers_reserve_from_the_state_budget_and_grow(make_rig: Any) -> None:
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _oracle_for
+    from soup_cli.utils.host_memory_budget import HostMemoryBudget
+
+    rig = make_rig(k=1, rows=1, seq=4)
+    budget = HostMemoryBudget(10**9)
+    state = L2LState(
+        runtime=None,
+        dtype=torch.float32,
+        host_budget=budget,
+        route_preserving_mbr=True,
+        routing_oracle=True,
+    )
+    oracle = _oracle_for(state, rig.model)
+    try:
+        oracle.begin_step([(1, 4, rig.config.hidden_size)])
+        small = oracle.host_bytes()["host_reserved_bytes"]
+        assert budget.used_bytes == small > 0
+        oracle.end_step()
+        oracle.begin_step([(1, 8, rig.config.hidden_size)])
+        large = oracle.host_bytes()["host_reserved_bytes"]
+        assert large > small
+        assert budget.used_bytes == large
+        oracle.end_step()
+    finally:
+        state.close()
+        rig.close()
+    assert budget.used_bytes == 0
+
+
 def test_oracle_requires_route_preserving_mbr_and_a_frozen_router(
     make_rig: Any,
 ) -> None:

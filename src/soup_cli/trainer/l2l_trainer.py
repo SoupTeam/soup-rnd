@@ -218,6 +218,11 @@ class L2LState:
             )
         ):
             raise ValueError("budgeted MoE routing requires a resolved memory_plan")
+        if self.routing_oracle and not self.route_preserving_mbr:
+            raise ValueError(
+                "routing_oracle requires route_preserving_mbr=True: the Oracle replays the "
+                "route-preserving MBR forward's router choices"
+            )
         if self.memory_plan is not None:
             if self.host_budget is None:
                 raise ValueError("an L2L memory_plan requires an explicit host_budget")
@@ -715,7 +720,9 @@ def _oracle_for(state: L2LState, model: Any) -> Any:
     if state._routing_oracle is None:
         from soup_cli.utils.routing_oracle import DeepseekRoutingOracle
 
-        state._routing_oracle = DeepseekRoutingOracle(model, pin=None)
+        state._routing_oracle = DeepseekRoutingOracle(
+            model, host_budget=state.host_budget, pin=None
+        )
     return state._routing_oracle
 
 

@@ -144,6 +144,27 @@ def test_routing_oracle_requires_mbr_and_is_recorded_for_resume(tmp_path, monkey
         validate_resume(tmp_path / "out", replace(recipe, routing_oracle=False))
 
 
+def test_validate_resume_rejects_a_routing_oracle_switch(tmp_path, monkeypatch):
+    from soup_cli.utils.l2l_recipe import resolve_l2l_recipe, validate_resume, write_recipe
+
+    monkeypatch.chdir(tmp_path)
+    mbr = {
+        "l2l_two_read_experts": True,
+        "l2l_grouped_expert_routes": True,
+        "l2l_route_preserving_mbr": True,
+    }
+    write_recipe(tmp_path / "out", resolve_l2l_recipe(_tcfg(**mbr)))
+    with pytest.raises(ValueError, match="routing_oracle=False"):
+        validate_resume(
+            tmp_path / "out", resolve_l2l_recipe(_tcfg(**mbr, l2l_routing_oracle=True))
+        )
+
+
+def test_routing_oracle_is_off_by_default_in_the_config():
+    tcfg = _tcfg()
+    assert tcfg.l2l_routing_oracle is False
+
+
 def test_resume_refuses_a_changed_mbr_recipe(tmp_path, monkeypatch):
     from soup_cli.utils.l2l_recipe import resolve_l2l_recipe, validate_resume, write_recipe
 
