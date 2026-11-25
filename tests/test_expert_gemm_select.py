@@ -81,12 +81,24 @@ def test_lt_fused_context_never_falls_back_to_native(
     assert built == []  # the extension is not even built
 
 
-def test_native_is_the_default_and_patches_nothing() -> None:
+def test_lt_fused_is_the_default_and_refuses_without_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert DEFAULT_EXPERT_GEMM == "lt-fused"
+    no_cuda = GemmEnvironment(
+        torch_version="2.14.0", cuda_available=False, capability=None, toolchain_error=None
+    )
+    monkeypatch.setattr(expert_gemm, "detect_environment", lambda: no_cuda)
+    with pytest.raises(ExactGemmUnavailableError, match="needs CUDA"):
+        with expert_gemm_context():
+            pass
+
+
+def test_native_patches_nothing() -> None:
     import torch.nn.functional as functional
 
     from soup_cli.utils import expert_stream, l2l_step
 
-    assert DEFAULT_EXPERT_GEMM == "native"
     assert EXPERT_GEMM_CHOICES == ("native", "segmented", "lt-fused")
     before = (
         functional.linear,
@@ -96,7 +108,7 @@ def test_native_is_the_default_and_patches_nothing() -> None:
         expert_stream.streamed_experts_class().forward,
         l2l_step._route_preserving_deepseek_forward,
     )
-    with expert_gemm_context() as default, expert_gemm_context("native") as named:
+    with expert_gemm_context("native") as named:
         during = (
             functional.linear,
             torch.Tensor.__mul__,
@@ -105,7 +117,7 @@ def test_native_is_the_default_and_patches_nothing() -> None:
             expert_stream.streamed_experts_class().forward,
             l2l_step._route_preserving_deepseek_forward,
         )
-        assert default is None and named is None
+        assert named is None
     assert all(a is b for a, b in zip(before, during))
 
 
