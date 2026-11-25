@@ -191,9 +191,8 @@ DECOUPLED_ARM, DECOUPLED_PREVIOUS = "D", "C"
 # row count. If DS equals A0, the drift was the forward, not D's own decoupled backward. A
 # diagnostic arm: it is not part of the lever stack and stays out of every ladder.
 DECOUPLED_SEGMENTED_ARM = "DS"
-DECOUPLED_SEGMENTED_RUNTIME: Dict[str, Any] = {"expert_gemm": "segmented", "async_lease": False,
-                                               "fast_row_gather": False,
-                                               "expert_loader": "async_lease"}
+DECOUPLED_SEGMENTED_RUNTIME: Dict[str, Any] = {**LEVER_ARMS[DECOUPLED_ARM],
+                                               "expert_gemm": "segmented"}
 # The three windows that fit 4 GiB for C; (64,512) is the large-window case of the switch.
 DECOUPLED_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64))
 DECOUPLED_MIN_WINDOWS = 2  # the local gate of ticket 06 asks for two of the three fitting ones
