@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import types
+from pathlib import Path
 from typing import Any, Callable, List
 
 import pytest
@@ -332,67 +333,151 @@ def test_the_harness_choices_and_dispatch_follow_the_src_module(
     assert calls[-1] == ("lt-fused", {"backend": "backend", "streams": 2})
 
 
-def test_a_skipped_expert_forward_leaves_stale_captures_out_of_the_next_group(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("reverse", [False, True])
+def test_join_uses_only_its_own_group_in_micro_batch_order(
+    monkeypatch: pytest.MonkeyPatch, reverse: bool,
 ) -> None:
-    """Decoupled R1 (ticket 06) forwards a layer with the experts skipped, so its captures are
-    never consumed. The next joined group must read its own trailing captures and still fail on
-    a mismatch inside them (ticket 17: segmented under the decoupled backward)."""
     import torch
 
-    from soup_cli.utils import expert_stream, l2l_step
+    from soup_cli.utils import expert_stream
 
     cls = expert_stream.streamed_experts_class()
     called: List[int] = []
-    monkeypatch.setattr(cls, "forward",
-                        lambda self, hidden, top_k_index, top_k_weights: called.append(
-                            int(hidden.shape[0])))
-    monkeypatch.setattr(l2l_step, "_route_preserving_deepseek_forward",
-                        lambda module, captured, hidden, *args, **kwargs: "captured")
-    fake = lambda sizes: types.SimpleNamespace(layer_idx=0, _mbr_group_sizes=sizes)  # noqa: E731
-    with segmented_expert_gemm():
-        def capture(rows: int) -> None:  # the patched name, installed by the context above
-            l2l_step._route_preserving_deepseek_forward(
-                None, [{"expert_input": torch.zeros(rows, 8)}], torch.zeros(rows, 8))
-        for rows in (3, 3):  # two skipped R1 captures, no expert call consumed them
-            capture(rows)
-        capture(2)
-        capture(1)
-        assert cls.forward(fake([2, 1]), torch.zeros(3, 8), None, None) is None
-        # The stale entries did not survive the group: a per-micro-batch call reads its own one.
-        capture(2)
-        assert cls.forward(fake(None), torch.zeros(2, 8), None, None) is None
-        # The group's own captures are still checked: a real boundary mismatch raises.
-        capture(2)
-        capture(2)
-        with pytest.raises(RuntimeError, match="micro-batch order"):
-            cls.forward(fake([2, 1]), torch.zeros(3, 8), None, None)
-    assert called == [3, 2]
+
+    def forward(self, hidden, *args) -> None:
+        plan = list(expert_stream._grouped_expert_routes(
+            torch.ones(1, 1, hidden.shape[0], dtype=torch.bool),
+        ))
+        assert plan[0][2].tolist() == [0, 1, 2, 3, 4, 5]
+        called.append(hidden.shape[0])
+
+    monkeypatch.setattr(cls, "forward", forward)
+    hidden = torch.zeros(6, 8)
+    sizes = [3, 2, 1]
+    # The buffer carries an earlier group; start marks the new group's build boundary.
+    captured = [{"expert_input": torch.zeros(rows, 8)}
+                for rows in [9, *(reversed(sizes) if reverse else sizes)]]
+    owner = types.SimpleNamespace(
+        layer_idx=0, _mbr_group_sizes=sizes, _mbr_group_capture=(hidden, captured, 1, reverse),
+    )
+    with segmented_expert_gemm() as state:
+        cls.forward(owner, hidden, None, None)
+        assert state.plans[0, 0] == [3, 2, 1]
+    assert called == [6]
 
 
 def test_empty_or_mismatched_group_sizes_fail_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
     """A joined group names its micro-batches; empty or different boundaries must not pass."""
     import torch
 
-    from soup_cli.utils import expert_stream, l2l_step
+    from soup_cli.utils import expert_stream
 
     cls = expert_stream.streamed_experts_class()
     called: List[int] = []
     monkeypatch.setattr(cls, "forward",
                         lambda self, hidden, top_k_index, top_k_weights: called.append(
                             int(hidden.shape[0])))
-    monkeypatch.setattr(l2l_step, "_route_preserving_deepseek_forward",
-                        lambda module, captured, hidden, *args, **kwargs: "captured")
     fake = lambda sizes: types.SimpleNamespace(layer_idx=0, _mbr_group_sizes=sizes)  # noqa: E731
     with segmented_expert_gemm():
         for sizes in ([], [2, 1], [1, 1, 1]):
             with pytest.raises(RuntimeError, match="group sizes"):
                 cls.forward(fake(sizes), torch.zeros(4, 8), None, None)
-        l2l_step._route_preserving_deepseek_forward(
-            None, [{"expert_input": torch.zeros(3, 8)}], torch.zeros(3, 8))
-        l2l_step._route_preserving_deepseek_forward(
-            None, [{"expert_input": torch.zeros(2, 8)}], torch.zeros(2, 8))
-        with pytest.raises(RuntimeError, match="micro-batch order"):
-            cls.forward(fake([4, 1]), torch.zeros(5, 8), None, None)
-        assert cls.forward(fake([3, 2]), torch.zeros(5, 8), None, None) is None
-    assert called == [5]
+        with pytest.raises(RuntimeError, match="no matching group capture"):
+            cls.forward(fake([3, 2]), torch.zeros(5, 8), None, None)
+    assert not called
+
+
+@pytest.mark.parametrize(
+    "captures,sizes,reverse,foreign",
+    [
+        ((9, 2, 1), (2, 1), False, False),
+        ((2, 1, 3), (3, 2, 1), False, False),
+        ((2, 1, 3), (3, 2, 1), True, False),
+        ((2, 1), (2, 1), False, "input"),
+        ((2, 1), (2, 1), False, "buffer"),
+    ],
+    ids=["stale-in-group", "permuted", "not-the-reverse", "foreign-input", "foreign-buffer"],
+)
+def test_join_rejects_captures_not_belonging_to_its_rows(
+    monkeypatch: pytest.MonkeyPatch, captures, sizes, reverse, foreign
+) -> None:
+    import torch
+
+    from soup_cli.utils import expert_stream
+
+    cls = expert_stream.streamed_experts_class()
+    monkeypatch.setattr(cls, "forward", lambda *args: None)
+    monkeypatch.setattr(
+        l2l_step, "_route_preserving_deepseek_forward",
+        lambda module, buffer, hidden: buffer.append({"expert_input": hidden}),
+    )
+    captured = []
+    hidden = torch.zeros(sum(sizes), 8)
+    owner = types.SimpleNamespace(
+        layer_idx=0, _mbr_group_sizes=list(sizes),
+        _mbr_group_capture=(hidden.clone() if foreign == "input" else hidden,
+                            captured, 0, reverse),
+    )
+    with segmented_expert_gemm():
+        capture_buffer = [] if foreign == "buffer" else captured
+        for count in captures:
+            l2l_step._route_preserving_deepseek_forward(
+                None, capture_buffer, torch.zeros(count, 8),
+            )
+        with pytest.raises(RuntimeError, match="captur"):
+            cls.forward(owner, hidden, None, None)
+
+
+def test_plain_expert_forward_immediately_after_ds_captures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import torch
+
+    from soup_cli.utils import expert_stream
+
+    cls = expert_stream.streamed_experts_class()
+    called = []
+    monkeypatch.setattr(cls, "forward", lambda *args: called.append(True))
+    monkeypatch.setattr(
+        l2l_step, "_route_preserving_deepseek_forward",
+        lambda module, buffer, hidden, **kw: buffer.append({"expert_input": hidden}),
+    )
+    with segmented_expert_gemm():
+        for r1 in (True, False):
+            l2l_step._route_preserving_deepseek_forward(
+                None, [], torch.zeros(9, 8), skip_shared_experts=r1,
+            )
+        cls.forward(types.SimpleNamespace(layer_idx=0), torch.zeros(3, 8), None, None)
+    assert called == [True]
+
+
+@_REQUIRES_TRAINING_FLOOR
+def test_ds_backward_uses_its_own_segments_then_plain_l2l_is_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from soup_cli.utils import expert_stream
+    from tests import test_decoupled_mbr_cpu as cpu
+
+    cls = expert_stream.streamed_experts_class()
+    original = cls.backward_from_inputs
+    segments = []
+
+    def backward(self, *args, segment_counts, **kwargs):
+        segments.append(tuple(segment_counts))
+        return original(self, *args, segment_counts=segment_counts, **kwargs)
+
+    monkeypatch.setattr(cls, "backward_from_inputs", backward)
+    rig = cpu.build_rig(tmp_path, "ds-capture-lifetime", k=2)
+    try:
+        ids = cpu.window(rig, 2)
+        base = cpu.run_window(rig, ids, decoupled=False)
+        with segmented_expert_gemm() as state:
+            ds = cpu.run_window(rig, ids, decoupled=True)
+            assert state.linear_rows > 0
+            plain = cpu.run_window(rig, ids, decoupled=False)
+        assert segments and all(counts == tuple(item.numel() for item in ids)
+                                for counts in segments)
+        assert cpu.differing(base, ds)[0] == []
+        assert cpu.differing(base, plain)[0] == []
+    finally:
+        rig.close()

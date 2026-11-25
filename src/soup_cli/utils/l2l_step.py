@@ -994,11 +994,15 @@ class L2LStep:
                 # Row counts of the joined micro-batches in micro-batch order, for hooks that
                 # split the joined call (the call order of the micro-batches may be reversed).
                 experts._mbr_group_sizes = list(sizes)
+                experts._mbr_group_capture = (
+                    joined_hidden, captured, first_record, reverse_graph_order
+                )
                 try:
                     joined_output = experts(joined_hidden, joined_ids, joined_weights)
                 finally:
                     experts._mbr_materialize_recompute = previous_materialize
                     experts._mbr_group_sizes = None
+                    experts._mbr_group_capture = None
                 unique_experts_by_group.append(len(experts.last_trace))
                 if joined_output.shape != joined_hidden.shape:
                     raise RuntimeError(

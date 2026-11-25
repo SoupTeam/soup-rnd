@@ -12,7 +12,8 @@ GEMM goes through a cuBLASLt call forced onto the kernel native cuBLAS picks for
 ``a0_exact_lt``). ``lt-fused`` raises when it cannot run exactly; it never falls back to native
 (ADR 0002).
 
-The segmented plan hooks the MBR capture, ``StreamedExperts.forward``, and the route walkers, so
+The segmented plan reads the MBR group capture from ``StreamedExperts.forward`` and hooks the
+route walkers, so
 the harness modes ``segmented``, ``lt-merged`` and ``padded`` build on the same plan.
 """
 
@@ -270,8 +271,8 @@ def segmented_expert_gemm(
     Works with the two-read expert node
     (``WeightedFrozenExpert``): its forward and backward are keyed by ``(layer, expert)``.
 
-    Hooks: the MBR capture (micro-batch sizes), ``StreamedExperts.forward`` (layer, boundaries)
-    and the route walkers (per-expert token indices, giving the plan).
+    The MBR step attaches its capture buffer and group start to the joined expert call.
+    The route walkers use the verified boundaries to plan each expert's token rows.
 
     ``segment_linear(flat, weight, bias, counts)`` replaces the per-segment ``F.linear`` calls
     (``lt-merged`` passes one that merges same-kernel segments); it must return the rows of every
@@ -280,60 +281,42 @@ def segmented_expert_gemm(
     import torch
     import torch.nn.functional as functional
 
-    from soup_cli.utils import expert_stream, l2l_step
+    from soup_cli.utils import expert_stream
 
     state = state if state is not None else SegmentState()
-    pending: List[int] = []
     active: Dict[str, Any] = {"layer": None, "boundaries": None}
 
     original_linear = functional.linear
     original_mul = torch.Tensor.__mul__
-    original_capture = l2l_step._route_preserving_deepseek_forward
     original_grouped = expert_stream._grouped_expert_routes
     original_default = expert_stream._default_expert_routes
     experts_class = expert_stream.streamed_experts_class()
     original_forward = experts_class.forward
 
-    def capture(module: Any, captured: Any, hidden_states: Any, *args: Any, **kwargs: Any) -> Any:
-        result = original_capture(module, captured, hidden_states, *args, **kwargs)
-        pending.append(int(captured[-1]["expert_input"].shape[0]))
-        return result
-
     def experts_forward(self: Any, hidden_states: Any, top_k_index: Any, top_k_weights: Any) -> Any:
-        # the micro-batch sizes in micro-batch order: set by the step, or the call order seen
         declared = getattr(self, "_mbr_group_sizes", None)
-        seen = [int(size) for size in pending]
-        pending.clear()
+        if declared is None:
+            # An ordinary call and its nodes must not use an earlier joined plan for this layer.
+            for key in [key for key in state.plans if key[0] == self.layer_idx]:
+                del state.plans[key]
+            return original_forward(self, hidden_states, top_k_index, top_k_weights)
+        sizes = list(declared)
         rows = int(hidden_states.shape[0])
-        if declared is not None:
-            sizes = [int(size) for size in declared]
-            if not sizes:
-                raise RuntimeError(
-                    f"empty _mbr_group_sizes: group sizes of layer {self.layer_idx} are unset"
-                )
-        else:
-            sizes = list(seen)
-        if any(size <= 0 for size in sizes):
-            raise RuntimeError(f"group sizes {sizes} are not positive row counts")
-        if sizes and sum(sizes) != rows:
+        if not sizes or any(size <= 0 for size in sizes) or sum(sizes) != rows:
+            raise RuntimeError(f"group sizes {sizes} do not cover the group's {rows} rows")
+        capture = getattr(self, "_mbr_group_capture", None)
+        if capture is None or capture[0] is not hidden_states:
+            raise RuntimeError("joined expert input has no matching group capture")
+        _, buffer, start, reverse = capture
+        seen = [int(row["expert_input"].shape[0]) for row in buffer[start:]]
+        if reverse:
+            seen.reverse()
+        if sizes != seen:
             raise RuntimeError(
-                f"group sizes {sizes} cover {sum(sizes)} rows, the group has {rows}"
+                f"micro-batch order {sizes} does not match the captured group sizes {seen}"
             )
-        if declared is not None and seen:
-            # Only the captures of this group count: the joined call's own forwards are the last
-            # ``len(sizes)`` entries. A decoupled phase R1 (ticket 06) runs a layer forward with
-            # the routed experts skipped, so its captures are never consumed by an expert call
-            # and sit in front of the group's own. Older entries are stale, not a boundary
-            # mismatch (ticket 17 runs ``expert_gemm="segmented"`` under the decoupled backward).
-            group_seen = seen[-len(sizes):]
-            if sorted(sizes) != sorted(group_seen):
-                raise RuntimeError(
-                    f"micro-batch order {sizes} does not match the captured group sizes "
-                    f"{group_seen}"
-                )
-        if sizes:
-            active["layer"] = self.layer_idx
-            active["boundaries"] = torch.tensor(sizes, device=hidden_states.device).cumsum(0)[:-1]
+        active["layer"] = self.layer_idx
+        active["boundaries"] = torch.tensor(sizes, device=hidden_states.device).cumsum(0)[:-1]
         try:
             return original_forward(self, hidden_states, top_k_index, top_k_weights)
         finally:
@@ -409,7 +392,6 @@ def segmented_expert_gemm(
         # so its bits do not depend on the segments, and the per-segment route-weight reduction
         # is done by expert_vjp. Only the autograd backward needs it cut.
         torch.Tensor.__mul__ = mul  # type: ignore[method-assign]
-    l2l_step._route_preserving_deepseek_forward = capture
     expert_stream._grouped_expert_routes = grouped_routes
     expert_stream._default_expert_routes = walker(original_default)
     experts_class.forward = experts_forward
@@ -429,7 +411,6 @@ def segmented_expert_gemm(
     finally:
         functional.linear = original_linear  # type: ignore[assignment]
         torch.Tensor.__mul__ = original_mul  # type: ignore[method-assign]
-        l2l_step._route_preserving_deepseek_forward = original_capture
         expert_stream._grouped_expert_routes = original_grouped
         expert_stream._default_expert_routes = original_default
         experts_class.forward = original_forward

@@ -128,23 +128,20 @@ def test_segmented_keeps_the_native_linear_and_splits_the_expert_calls() -> None
 
     from soup_cli.utils import expert_stream, l2l_step
 
-    before = (
-        functional.linear, torch.Tensor.__mul__,
-        expert_stream._grouped_expert_routes, l2l_step._route_preserving_deepseek_forward,
-    )
-    with expert_gemm_context("segmented") as state:
-        during = (
+    def hooks() -> tuple:
+        return (
             functional.linear, torch.Tensor.__mul__,
-            expert_stream._grouped_expert_routes, l2l_step._route_preserving_deepseek_forward,
+            expert_stream._grouped_expert_routes, expert_stream.streamed_experts_class().forward,
         )
+
+    before = hooks()
+    capture = l2l_step._route_preserving_deepseek_forward
+    with expert_gemm_context("segmented") as state:
         assert isinstance(state, expert_gemm.SegmentState)
         assert state.plans == {}
-        assert all(a is not b for a, b in zip(before, during))
-    after = (
-        functional.linear, torch.Tensor.__mul__,
-        expert_stream._grouped_expert_routes, l2l_step._route_preserving_deepseek_forward,
-    )
-    assert all(a is b for a, b in zip(before, after))
+        assert all(a is not b for a, b in zip(before, hooks()))
+        assert l2l_step._route_preserving_deepseek_forward is capture
+    assert all(a is b for a, b in zip(before, hooks()))
 
 
 def test_detect_environment_reports_this_machine() -> None:
