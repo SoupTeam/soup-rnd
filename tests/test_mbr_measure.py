@@ -1396,10 +1396,10 @@ def _stub_children(monkeypatch, reply, *, gate_code: int = 0) -> list:
 
 
 def _child(command, *, trajectory: list, status: str = "ok", campaign: str = IDENTITY,
-           error: str = "", drop: tuple = ()) -> str:
+           error: str = "", drop: tuple = (), **fields) -> str:
     row = {"arm": command[command.index("--arm") + 1], "k": 2, "seq": 64, "kind": "traj",
            "mode": "deterministic", "status": status, "campaign_id": campaign,
-           "dataset_sha256": DATASET, "trajectory": trajectory}
+           "dataset_sha256": DATASET, "trajectory": trajectory, **fields}
     if error:
         row["error"] = error
     for key in drop:
@@ -1497,3 +1497,43 @@ def test_traj_stops_before_the_arm_that_starts_past_the_deadline(monkeypatch, tm
     assert launched == ["A0"]
     rows = _read_rows(tmp_path)
     assert len(rows) == 3 and {r["arm"] for r in rows} == {"A0"}
+
+
+@pytest.mark.parametrize("field, wrong, crash", [("arm", "G", True), ("k", 4, True),
+                                                 ("dataset_sha256", "cd" * 32, False)])
+def test_traj_sweep_refuses_a_child_whose_arm_k_or_dataset_differs_from_the_plan(
+        monkeypatch, tmp_path, stub_watch, field, wrong, crash) -> None:
+    def reply(cmd):
+        off_plan = cmd[cmd.index("--arm") + 1] == "A0"
+        extra = {field: wrong} if off_plan else {}
+        return 0, _child(cmd, trajectory=_good_trajectory(), **extra), ""
+
+    _stub_children(monkeypatch, reply)
+    assert mm.main(_traj_argv(tmp_path)) == 1
+    verdict = json.loads((tmp_path / "traj-verdict.json").read_text())["verdict"]
+    assert verdict.startswith("no verdict") and verdict != "equal"
+    if crash:
+        assert "CRASH" in {r["status"] for r in _read_rows(tmp_path)}
+
+
+def test_traj_sweep_gives_crash_rows_when_a_child_returns_fewer_steps_than_asked(
+        monkeypatch, tmp_path, stub_watch) -> None:
+    _stub_children(monkeypatch,
+                   lambda cmd: (0, _child(cmd, trajectory=_good_trajectory(steps=2)), ""))
+    assert mm.main(_traj_argv(tmp_path, "--steps", "3")) == 1
+    rows = _read_rows(tmp_path)
+    assert len(rows) == 6 and {r["status"] for r in rows} == {"CRASH"}
+    verdict = json.loads((tmp_path / "traj-verdict.json").read_text())["verdict"]
+    assert verdict.startswith("no verdict")
+
+
+def test_run_refuses_traj_dimensions_it_cannot_measure_before_running(
+        monkeypatch, tmp_path) -> None:
+    called: list = []
+    monkeypatch.setattr(mm, "run_one", lambda args: called.append(args) or {})
+    argv = ["run", "--arm", "A0", "--k", "9", "--seq", "64", "--kind", "traj", "--steps", "1",
+            "--source", "s", "--cache", "c", "--out", str(tmp_path)]
+    with pytest.raises(SystemExit) as refused:
+        mm.main(argv)
+    assert refused.value.code == 2
+    assert called == []
