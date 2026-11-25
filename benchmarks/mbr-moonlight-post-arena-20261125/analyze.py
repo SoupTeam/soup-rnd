@@ -133,6 +133,7 @@ def bits_report(root: Path, stored_root: Path) -> Dict[str, Any]:
     crosses: List[Dict[str, Any]] = []
     missing: List[str] = []
     shas: Dict[str, Dict[str, List[str]]] = {}
+    seqs: Dict[str, int] = {}
     fresh: Dict[Tuple[str, str, int], Path] = {}
     for folder, arms in BIT_FOLDERS.items():
         path = root / "bits" / folder
@@ -142,6 +143,7 @@ def bits_report(root: Path, stored_root: Path) -> Dict[str, Any]:
         rows = [row for row in _read_jsonl(path / "rows.jsonl")
                 if row.get("outcome", "ok") == "ok"]
         seq = 512 if folder.startswith("s512") else 64
+        seqs[folder] = seq
         shas[folder] = {}
         for row in rows:
             if row.get("dataset_sha256"):
@@ -189,7 +191,8 @@ def bits_report(root: Path, stored_root: Path) -> Dict[str, Any]:
                       "stored": str(stored_d)})
         crosses.append(cross)
     expected = expected_dataset_shas()
-    agrees = {folder: {key: (int(key) in expected and values == [expected[int(key)]])
+    agrees = {folder: {key: values == [expected[seqs[folder]]] if seqs[folder] in expected
+                       else None
                        for key, values in per.items()}
               for folder, per in shas.items()}
     return {"cells": cells, "crosses": crosses, "missing_folders": missing,
@@ -340,6 +343,7 @@ def _bit_result_lines(cells: Sequence[Dict[str, Any]]) -> List[str]:
             f"(deterministic): {verdict}, loss equal {cell['loss_equal']}, "
             f"grads differing {cell['grads_differing']} / {cell['grad_total']}, "
             f"max abs {cell['max_abs_diff']:.2e}, dataset_sha {cell['dataset_sha256'][:8]}")
+    return lines
 
 
 def main(argv: object = None) -> int:
