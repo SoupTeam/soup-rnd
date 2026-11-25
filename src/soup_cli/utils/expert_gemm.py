@@ -319,10 +319,18 @@ def segmented_expert_gemm(
             raise RuntimeError(
                 f"group sizes {sizes} cover {sum(sizes)} rows, the group has {rows}"
             )
-        if declared is not None and seen and sorted(sizes) != sorted(seen):
-            raise RuntimeError(
-                f"micro-batch order {sizes} does not match the captured group sizes {seen}"
-            )
+        if declared is not None and seen:
+            # Only the captures of this group count: the joined call's own forwards are the last
+            # ``len(sizes)`` entries. A decoupled phase R1 (ticket 06) runs a layer forward with
+            # the routed experts skipped, so its captures are never consumed by an expert call
+            # and sit in front of the group's own. Older entries are stale, not a boundary
+            # mismatch (ticket 17 runs ``expert_gemm="segmented"`` under the decoupled backward).
+            group_seen = seen[-len(sizes):]
+            if sorted(sizes) != sorted(group_seen):
+                raise RuntimeError(
+                    f"micro-batch order {sizes} does not match the captured group sizes "
+                    f"{group_seen}"
+                )
         if sizes:
             active["layer"] = self.layer_idx
             active["boundaries"] = torch.tensor(sizes, device=hidden_states.device).cumsum(0)[:-1]
