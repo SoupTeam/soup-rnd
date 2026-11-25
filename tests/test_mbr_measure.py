@@ -1116,6 +1116,19 @@ def test_the_ceg_plan_runs_five_blocks_and_keeps_every_hand_centred() -> None:
         {"C": 5.5, "E": 5.5, "G": 5.5}
 
 
+def test_the_ceg_speed_plan_takes_a_windows_keyword_and_keeps_the_default() -> None:
+    plan = mm.ceg_speed_plan(blocks=5, windows=((64, 64),))
+    assert len(plan) == 30
+    assert {p["block"] for p in plan} == set(range(5))
+    assert {(p["k"], p["seq"]) for p in plan} == {(64, 64)}
+    for block in range(5):
+        arms = [p["arm"] for p in plan if p["block"] == block]
+        assert arms == ["C", "E", "G", "G", "E", "C"]
+    default = mm.ceg_speed_plan(blocks=5)
+    assert len(default) == 60
+    assert {(p["k"], p["seq"]) for p in default} == {(8, 64), (8, 512)}
+
+
 def test_the_decoupled_segmented_arm_keeps_d_step_options_and_switches_the_gemm() -> None:
     assert mm.DECOUPLED_SEGMENTED_ARM == "DS"
     assert mm.arm_options("DS", k=2) == mm.arm_options("D", k=2)

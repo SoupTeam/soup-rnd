@@ -43,6 +43,18 @@ def parse_k_list(text: str) -> Tuple[int, ...]:
     return ks
 
 
+def parse_ceg_windows(text: str) -> Tuple[Tuple[int, int], ...]:
+    """Comma-separated ``KxSEQ`` windows, e.g. ``8x64,64x64``; every k and seq positive."""
+    try:
+        windows = tuple(tuple(int(n) for n in part.strip().split("x"))
+                        for part in text.split(",") if part.strip())
+    except ValueError:
+        windows = ()
+    if not windows or any(len(w) != 2 or min(w) < 1 for w in windows):
+        raise argparse.ArgumentTypeError("--windows takes KxSEQ pairs, e.g. 8x64,64x64")
+    return windows
+
+
 def parse_arm_list(text: str) -> Tuple[str, ...]:
     """Comma-separated arm names, each a known arm."""
     names = tuple(part.strip() for part in text.split(",") if part.strip())
@@ -299,19 +311,20 @@ CEG_WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512))
 CEG_HANDS: Tuple[str, ...] = ("C", "E", "G", "G", "E", "C")
 
 
-def ceg_speed_plan(*, blocks: int = 5, start_block: int = 0) -> List[Dict[str, Any]]:
-    """Normal-mode C-E-G-G-E-C blocks over the two windows (ticket 17).
+def ceg_speed_plan(*, blocks: int = 5, start_block: int = 0,
+                   windows: Sequence[Tuple[int, int]] = CEG_WINDOWS) -> List[Dict[str, Any]]:
+    """Normal-mode C-E-G-G-E-C blocks over ``windows`` (ticket 17).
 
-    Six hands per window, five blocks: 60 runs. Every hand sits at the block centre, so a drift
-    of the host cancels between hands. ``start_block`` resumes after a gate refusal, like
-    ``esc_speed_plan``.
+    Six hands per window, five blocks: 60 runs on the default windows. Every hand sits at the
+    block centre, so a drift of the host cancels between hands. ``start_block`` resumes after a
+    gate refusal, like ``esc_speed_plan``.
     """
-    per_block = len(CEG_WINDOWS) * len(CEG_HANDS)
+    per_block = len(windows) * len(CEG_HANDS)
     return [{"arm": arm, "k": k, "seq": seq, "block": block, "kind": "speed",
              "deterministic": False, "index": block * per_block + position}
             for block in range(start_block, start_block + blocks)
             for position, (k, seq, arm) in enumerate(
-                (k, seq, arm) for k, seq in CEG_WINDOWS for arm in CEG_HANDS)]
+                (k, seq, arm) for k, seq in windows for arm in CEG_HANDS)]
 
 
 def decoupled_segmented_bit_plan(*, seq: int = 64,
@@ -1269,6 +1282,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
         if name in ("abba", "esc-speed", "ceg-speed"):
             p.add_argument("--start-block", type=int, default=0,
                            help="first block number, to resume a pilot in the same folder")
+        if name == "ceg-speed":
+            p.add_argument("--windows", type=parse_ceg_windows, default=CEG_WINDOWS,
+                           help="comma-separated KxSEQ windows (default: 8x64,8x512)")
         if name in ("bits", "lever-bits", "ds-bits"):
             p.add_argument("--seq", type=int, default=64)
             p.add_argument("--ladder-ks", type=parse_k_list,
@@ -1294,7 +1310,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             "esc-speed": lambda: esc_speed_plan(blocks=args.blocks,
                                                start_block=args.start_block),
             "ceg-speed": lambda: ceg_speed_plan(blocks=args.blocks,
-                                                start_block=args.start_block),
+                                                start_block=args.start_block,
+                                                 windows=args.windows),
             "ds-bits": lambda: decoupled_segmented_bit_plan(seq=args.seq, ks=args.ladder_ks),
             "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks)}[args.command]()
     if args.command in ("bits", "lever-bits", "ds-bits") and args.arms is not None:
