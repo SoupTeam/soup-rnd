@@ -13,6 +13,7 @@ from __future__ import annotations
 import functools
 import math
 import threading
+import time
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from types import MethodType
@@ -144,6 +145,46 @@ def expert_allocation_budget(plan: ExpertBufferPlan, *, device: str) -> int:
     reserve, not an assumption that every allocator configuration fits it.
     """
     return plan.weight_bytes + (32 * 2**20 if str(device).startswith("cuda") else 0)
+
+
+#: Phases of one expert lease that the opt-in timers split. ``lease`` is the whole lease;
+#: the other four are wall-clock parts of it. The lease body's own compute is in none of them.
+LEASE_PHASES = ("disk_read", "host_copy", "dequant", "wait", "lease")
+_LEASE_TIMERS_ON = False
+_LEASE_TOTALS: Dict[str, float] = dict.fromkeys(LEASE_PHASES, 0.0)
+
+
+@contextmanager
+def lease_timers() -> Iterator[None]:
+    """Turn the lease phase timers on inside the block; off again after it. Off by default."""
+    global _LEASE_TIMERS_ON
+    previous, _LEASE_TIMERS_ON = _LEASE_TIMERS_ON, True
+    try:
+        yield
+    finally:
+        _LEASE_TIMERS_ON = previous
+
+
+@contextmanager
+def lease_phase(phase: str) -> Iterator[None]:
+    """Add the wall-clock seconds of the block to ``phase`` while the timers are on."""
+    if phase not in _LEASE_TOTALS:
+        raise ValueError(f"unknown lease phase {phase!r}")
+    if not _LEASE_TIMERS_ON:
+        yield
+        return
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        _LEASE_TOTALS[phase] += time.perf_counter() - start
+
+
+def take_lease_timers() -> Dict[str, float]:
+    """Seconds per phase since the last take, then every total back to zero."""
+    global _LEASE_TOTALS
+    totals, _LEASE_TOTALS = _LEASE_TOTALS, dict.fromkeys(LEASE_PHASES, 0.0)
+    return totals
 
 
 class ExpertBufferPool:
@@ -397,7 +438,8 @@ class ExpertBufferPool:
         """Wait for the last H2D copy that reads the pinned staging region (``async_lease``)."""
         event = self._h2d_event
         if event is not None:
-            event.synchronize()
+            with lease_phase("wait"):
+                event.synchronize()
             self._h2d_event = None
 
     def _mark_staging_busy(self) -> None:
@@ -418,11 +460,14 @@ class ExpertBufferPool:
             key = expert_key(expert, part)
             spec = self._specs.get(part)
             if spec is None:
-                self._buffers[part].copy_(host[key], non_blocking=False)
+                with lease_phase("host_copy"):
+                    self._buffers[part].copy_(host[key], non_blocking=False)
                 continue
             for idx, name in enumerate(quant_sidecar_keys(key, spec)):
-                self._buffers[f"{part}:{idx}"].copy_(host[name], non_blocking=False)
-            self._dequantize(part, spec)
+                with lease_phase("host_copy"):
+                    self._buffers[f"{part}:{idx}"].copy_(host[name], non_blocking=False)
+            with lease_phase("dequant"):
+                self._dequantize(part, spec)
 
     def _load(
         self,
@@ -438,11 +483,11 @@ class ExpertBufferPool:
             if self.transfer == "packed":
                 self._load_packed(reader, expert)
             else:
-                host = (
-                    self._stream.read_host(reader, expert, self._stream_staging)
-                    if self._stream is not None
-                    else self._read_host(reader, expert)
-                )
+                if self._stream is not None:
+                    with lease_phase("disk_read"):
+                        host = self._stream.read_host(reader, expert, self._stream_staging)
+                else:
+                    host = self._read_host(reader, expert)
                 if self._stream is not None:
                     self.last_lease_bytes = reader.stored_bytes(expert)
                 self._copy_host(expert, host)
@@ -472,13 +517,16 @@ class ExpertBufferPool:
             # The compiled stream is the reader: it fills the pinned block with one sequence,
             # then the pool copies it to the arena once exactly like the Python packed path.
             self._wait_staging_free()
-            self._stream.read(reader, expert, self._pinned.data_ptr())
+            with lease_phase("disk_read"):
+                self._stream.read(reader, expert, self._pinned.data_ptr())
             self.last_lease_bytes = reader.stored_bytes(expert)
-            self._arena[: self._packed_bytes].copy_(self._pinned, non_blocking=True)
+            with lease_phase("host_copy"):
+                self._arena[: self._packed_bytes].copy_(self._pinned, non_blocking=True)
             self._mark_staging_busy()
             self.h2d_copies += 1
             for part in EXPERT_PARTS:
-                self._dequantize(part, self._specs[part])
+                with lease_phase("dequant"):
+                    self._dequantize(part, self._specs[part])
             return
 
         self._wait_staging_free()
@@ -486,7 +534,8 @@ class ExpertBufferPool:
         key = self._host_key(reader, expert)
         block = self._host_cache.get(key) if self._host_cache is not None else None
         if block is not None:
-            region.copy_(block)
+            with lease_phase("host_copy"):
+                region.copy_(block)
         else:
             host = self._read_host(reader, expert)
             stored = {}
@@ -494,15 +543,19 @@ class ExpertBufferPool:
                 names = quant_sidecar_keys(expert_key(expert, part), self._specs[part])
                 for idx, name in enumerate(names):
                     stored[f"{part}:{idx}"] = host[name]
-            pack_into(region, self._packed_rows, stored)
+            with lease_phase("host_copy"):
+                pack_into(region, self._packed_rows, stored)
             if self._host_cache is not None:
-                self._host_cache.put(key, region)
+                with lease_phase("host_copy"):
+                    self._host_cache.put(key, region)
         # One copy for every stored component; the arena's dequantised part is rebuilt below.
-        self._arena[: self._packed_bytes].copy_(region, non_blocking=True)
+        with lease_phase("host_copy"):
+            self._arena[: self._packed_bytes].copy_(region, non_blocking=True)
         self._mark_staging_busy()
         self.h2d_copies += 1
         for part in EXPERT_PARTS:
-            self._dequantize(part, self._specs[part])
+            with lease_phase("dequant"):
+                self._dequantize(part, self._specs[part])
 
     # ------------------------------------------------------------------ prefetch
     def _cached(self, reader: ExpertShardReader, expert: int) -> bool:
@@ -567,14 +620,17 @@ class ExpertBufferPool:
             pending, self._pending = self._pending, None
         if pending is not None:
             if pending[0] is reader and pending[1] == expert:
-                host, nbytes = pending[2].result()  # raises the background read's error here
+                with lease_phase("disk_read"):
+                    host, nbytes = pending[2].result()  # raises the background read's error here
                 self.prefetch_hits += 1
                 self.last_lease_bytes = nbytes
                 return host
             self._pending = pending
-            self._discard_pending()
+            with lease_phase("wait"):
+                self._discard_pending()
         before = reader.bytes_read
-        host = reader.read_host(expert, self._staging)
+        with lease_phase("disk_read"):
+            host = reader.read_host(expert, self._staging)
         self.last_lease_bytes = reader.bytes_read - before
         return host
 
@@ -638,19 +694,21 @@ class ExpertBufferPool:
         try:
             self.validate_reader(reader)
             failed = False
-            try:
-                self._load(reader, expert, phase=phase, layer_idx=layer_idx)
-                yield self._buffers[GATE_UP], self._buffers[DOWN]
-            except BaseException:
-                failed = True
-                self._discard_pending()  # the worker may be reading through this handle
-                reader.close()
-                raise
-            finally:
-                if failed:
-                    self._synchronize()      # an error keeps the full wait
-                else:
-                    self._lease_end()
+            with lease_phase("lease"):
+                try:
+                    self._load(reader, expert, phase=phase, layer_idx=layer_idx)
+                    yield self._buffers[GATE_UP], self._buffers[DOWN]
+                except BaseException:
+                    failed = True
+                    self._discard_pending()  # the worker may be reading through this handle
+                    reader.close()
+                    raise
+                finally:
+                    with lease_phase("wait"):
+                        if failed:
+                            self._synchronize()      # an error keeps the full wait
+                        else:
+                            self._lease_end()
         finally:
             self._lock.release()
 

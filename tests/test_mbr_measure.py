@@ -1141,6 +1141,95 @@ def test_the_run_command_takes_count_and_hands_it_to_run_one(monkeypatch: pytest
     assert '"count": true' in capsys.readouterr().out
 
 
+def test_the_run_command_host_cache_defaults_to_zero_and_hands_it_to_run_one(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = {}
+
+    def fake_run_one(args: argparse.Namespace) -> dict:
+        seen["host_cache_bytes"] = args.host_cache_bytes
+        return {}
+
+    monkeypatch.setattr(mm, "run_one", fake_run_one)
+    base = ["run", "--arm", "G", "--k", "8", "--seq", "64", "--kind", "speed",
+            "--source", "s", "--cache", "c", "--out", "o"]
+    assert mm.main(base) == 0
+    assert seen["host_cache_bytes"] == 0
+    assert mm.main(base + ["--host-cache-bytes", "1048576"]) == 0
+    assert seen["host_cache_bytes"] == 1048576
+
+
+def test_host_cache_kwargs_reach_build_streamed_model_only_when_the_budget_is_positive() -> None:
+    assert mm.host_cache_kwargs(0) == {}
+    assert mm.host_cache_kwargs(1048576) == {"expert_host_cache_bytes": 1048576}
+
+
+def test_a_negative_or_fractional_host_cache_is_refused_at_parse_time(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture) -> None:
+    monkeypatch.setattr(mm, "run_one", lambda args: pytest.fail("run_one must not start"))
+    base = ["run", "--arm", "G", "--k", "8", "--seq", "64", "--kind", "speed",
+            "--source", "s", "--cache", "c", "--out", "o"]
+    for bad in ("-1", "1.5", "abc"):
+        with pytest.raises(SystemExit) as refused:
+            mm.main(base + ["--host-cache-bytes", bad])
+        assert refused.value.code == 2
+        assert "non-negative integer" in capsys.readouterr().err
+
+
+def test_host_cache_stats_reach_the_row_only_when_the_cache_is_on() -> None:
+    class FakePool:
+        def stats(self) -> dict:
+            return {"fetches": 9, "host_cache": {"budget_bytes": 1048576, "payload_bytes": 4096,
+                                                  "entries": 2, "hits": 5, "misses": 3,
+                                                  "rejected": 1}}
+
+    class FakeRuntime:
+        expert_pool = FakePool()
+
+    assert mm.host_cache_record(0, FakeRuntime()) == {}
+    assert mm.host_cache_record(1048576, FakeRuntime()) == {"host_cache_stats": {
+        "budget_bytes": 1048576, "payload_bytes": 4096, "entries": 2, "hits": 5, "misses": 3,
+        "rejected": 1}}
+
+
+def test_lever_bits_passes_host_cache_bytes_to_every_child_run(tmp_path, monkeypatch) -> None:
+    seen = {}
+    monkeypatch.setattr(mm, "sweep", lambda args, plan: seen.update(args=args, plan=list(plan))
+                        or [])
+    base = ["lever-bits", "--source", "s", "--cache", "c", "--out", str(tmp_path),
+            "--ladder-ks", "1"]
+    mm.main(base + ["--host-cache-bytes", "1048576"])
+    assert seen["plan"], "the sweep must get a plan"
+    for item in seen["plan"]:
+        argv = mm.child_run_args(seen["args"], item)
+        assert argv[argv.index("--host-cache-bytes") + 1] == "1048576"
+
+
+def test_lever_bits_without_the_flag_keeps_the_plan_and_the_child_argv(tmp_path,
+                                                                      monkeypatch) -> None:
+    seen = {}
+    monkeypatch.setattr(mm, "sweep", lambda args, plan: seen.update(args=args, plan=list(plan))
+                        or [])
+    mm.main(["lever-bits", "--source", "s", "--cache", "c", "--out", str(tmp_path),
+             "--ladder-ks", "1"])
+    assert seen["plan"] == mm.lever_bit_plan(seq=64, ks=(1,))
+    argv = mm.child_run_args(seen["args"], seen["plan"][0])
+    assert argv == ["run", "--arm", "A0", "--k", "1", "--seq", "64", "--kind", "bits",
+                    "--source", "s", "--cache", "c", "--steps", "4", "--out", str(tmp_path),
+                    "--device", "auto", "--lora-r", "16",
+                    "--lora-targets", "q_proj,kv_b_proj,o_proj", "--deterministic"]
+
+
+def test_lever_bits_refuses_a_negative_host_cache_at_parse_time(
+        tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(mm, "sweep", lambda args, plan: pytest.fail("sweep must not start"))
+    base = ["lever-bits", "--source", "s", "--cache", "c", "--out", str(tmp_path)]
+    for bad in ("-1", "1.5", "abc"):
+        with pytest.raises(SystemExit) as refused:
+            mm.main(base + ["--host-cache-bytes", bad])
+        assert refused.value.code == 2
+        assert "non-negative integer" in capsys.readouterr().err
+
+
 # ---- ticket 17: G against E and C after the arena, and the D+segmented diagnostic cell ----
 def test_the_ceg_speed_plan_is_c_e_g_g_e_c_on_the_two_k8_windows() -> None:
     assert mm.CEG_WINDOWS == ((8, 64), (8, 512))
@@ -1756,3 +1845,262 @@ def test_other_arms_keep_the_original_config_object(arm: str) -> None:
     out = mm.oracle_config_for_arm(mm.arm_options(arm, k=8), config)
     assert out is config
     assert out.aux_loss_alpha == 0.001 and out.router_aux_loss_coef == 0.01
+
+
+def _trace_event(name: str, device: str, start: float, end: float, self_us: float = 0.0,
+                 annotation: bool = False):
+    return SimpleNamespace(
+        name=name, device_type=f"DeviceType.{device}",
+        time_range=SimpleNamespace(start=start, end=end), self_cpu_time_total=self_us,
+        is_user_annotation=annotation)
+
+
+def test_cpu_self_time_is_summed_by_name_inside_the_step_window() -> None:
+    events = [
+        _trace_event(mm.STEP_RANGE, "CPU", 0, 100),
+        _trace_event("aten::mm", "CPU", 0, 20, 20),
+        _trace_event("aten::add", "CPU", 20, 30, 10),
+        _trace_event("aten::mm", "CPU", 30, 50, 15),
+        _trace_event("aten::copy_", "CPU", 200, 300, 100),
+        _trace_event("aten::mm", "CUDA", 5, 18),
+    ]
+    out = mm.cpu_gpu_summary(events)
+    assert out["cpu_self_top"] == [
+        {"name": "aten::mm", "calls": 2, "self_seconds": pytest.approx(35e-6)},
+        {"name": "aten::add", "calls": 1, "self_seconds": pytest.approx(10e-6)},
+    ]
+
+
+def test_a_gpu_gap_is_attributed_to_the_cpu_op_running_before_it() -> None:
+    events = [
+        _trace_event(mm.STEP_RANGE, "CPU", 0, 100),
+        _trace_event("aten::mm", "CPU", 0, 20, 20),
+        _trace_event("Python: forward", "CPU", 50, 90, 5),
+        _trace_event("aten::mm", "CUDA", 5, 18),
+        _trace_event("aten::mm", "CUDA", 40, 60),
+        _trace_event("aten::mm", "CUDA", 62, 70),
+    ]
+    out = mm.cpu_gpu_summary(events)
+    assert out["gaps"] == {"count": 2, "seconds": pytest.approx(24e-6)}
+    assert out["gpu_busy_seconds"] == pytest.approx(41e-6)
+    assert out["gap_top"] == [
+        {"op": "aten::mm", "gaps": 1, "gap_seconds": pytest.approx(22e-6)},
+        {"op": "Python: forward", "gaps": 1, "gap_seconds": pytest.approx(2e-6)},
+    ]
+
+
+def test_cuda_user_annotations_and_host_runtime_calls_are_not_gpu_busy() -> None:
+    events = [
+        _trace_event(mm.STEP_RANGE, "CPU", 0, 100),
+        _trace_event(mm.STEP_RANGE, "CUDA", 0, 100, annotation=True),
+        _trace_event("cudaLaunchKernel", "CPU", 5, 40),
+        _trace_event("aten::mm", "CUDA", 10, 30),
+        _trace_event("aten::mm", "CUDA", 50, 60),
+    ]
+    out = mm.cpu_gpu_summary(events)
+    assert out["gpu_busy_seconds"] == pytest.approx(30e-6)
+    assert out["gaps"] == {"count": 1, "seconds": pytest.approx(20e-6)}
+
+
+def test_an_empty_gap_list_gives_no_gap_rows() -> None:
+    events = [
+        _trace_event(mm.STEP_RANGE, "CPU", 0, 100),
+        _trace_event("aten::mm", "CPU", 0, 100, 10),
+        _trace_event("aten::mm", "CUDA", 0, 100),
+    ]
+    out = mm.cpu_gpu_summary(events)
+    assert out["gaps"] == {"count": 0, "seconds": 0.0}
+    assert out["gap_top"] == []
+
+
+def test_a_gap_with_no_cpu_op_running_is_labelled_not_dropped() -> None:
+    events = [
+        _trace_event(mm.STEP_RANGE, "CPU", 0, 100),
+        _trace_event("aten::mm", "CUDA", 0, 10),
+        _trace_event("aten::mm", "CUDA", 30, 40),
+    ]
+    out = mm.cpu_gpu_summary(events)
+    assert out["gap_top"] == [
+        {"op": mm.NO_CPU_OP, "gaps": 1, "gap_seconds": pytest.approx(20e-6)}]
+
+
+def test_top_lists_are_capped_at_fifteen_entries() -> None:
+    events = [_trace_event(mm.STEP_RANGE, "CPU", 0, 1000)]
+    for index in range(20):
+        start = 10 + index * 40
+        events.append(_trace_event(f"aten::op{index:02d}", "CPU", start, start + 20, 1 + index))
+        events.append(_trace_event("aten::mm", "CUDA", start, start + 10))
+    out = mm.cpu_gpu_summary(events)
+    assert len(out["cpu_self_top"]) == 15
+    assert len(out["gap_top"]) == 15
+    assert out["cpu_self_top"][0]["name"] == "aten::op19"
+
+
+def test_a_trace_without_the_step_range_is_refused() -> None:
+    with pytest.raises(ValueError, match=mm.STEP_RANGE):
+        mm.cpu_gpu_summary([_trace_event("aten::mm", "CPU", 0, 10, 10)])
+
+
+# ---- lease timers: opt-in seconds per phase of the expert lease (expert_stream) ----
+@pytest.fixture
+def fake_clock(monkeypatch):
+    from soup_cli.utils import expert_stream
+
+    ticks: list = []
+    monkeypatch.setattr(expert_stream, "time", SimpleNamespace(perf_counter=lambda: ticks.pop(0)))
+    return ticks
+
+
+def test_lease_timers_are_off_by_default_and_never_read_the_clock(monkeypatch) -> None:
+    from soup_cli.utils import expert_stream
+
+    def no_clock() -> float:
+        raise AssertionError("clock read while the lease timers are off")
+
+    monkeypatch.setattr(expert_stream, "time", SimpleNamespace(perf_counter=no_clock))
+    with expert_stream.lease_phase("disk_read"):
+        pass
+    assert expert_stream.take_lease_timers() == dict.fromkeys(expert_stream.LEASE_PHASES, 0.0)
+
+
+def test_enabled_timers_add_each_phase_its_own_wall_clock(fake_clock) -> None:
+    from soup_cli.utils import expert_stream as es
+
+    fake_clock.extend([10.0, 10.5, 20.0, 23.0, 30.0, 31.25])
+    with es.lease_timers():
+        with es.lease_phase("disk_read"):
+            pass
+        with es.lease_phase("dequant"):
+            pass
+        with es.lease_phase("disk_read"):
+            pass
+    totals = es.take_lease_timers()
+    assert totals["disk_read"] == pytest.approx(0.5 + 1.25)
+    assert totals["dequant"] == pytest.approx(3.0)
+    assert totals["host_copy"] == totals["wait"] == totals["lease"] == 0.0
+
+
+def test_timers_switch_off_again_when_their_block_ends(monkeypatch) -> None:
+    from soup_cli.utils import expert_stream as es
+
+    with es.lease_timers():
+        pass
+
+    def no_clock() -> float:
+        raise AssertionError("clock read after the lease timers were switched off")
+
+    monkeypatch.setattr(es, "time", SimpleNamespace(perf_counter=no_clock))
+    with es.lease_phase("wait"):
+        pass
+    assert es.take_lease_timers()["wait"] == 0.0
+
+
+def test_take_returns_the_totals_and_resets_them(fake_clock) -> None:
+    from soup_cli.utils import expert_stream as es
+
+    fake_clock.extend([0.0, 2.0])
+    with es.lease_timers():
+        with es.lease_phase("wait"):
+            pass
+    assert es.take_lease_timers()["wait"] == 2.0
+    assert es.take_lease_timers() == dict.fromkeys(es.LEASE_PHASES, 0.0)
+
+
+def test_an_unknown_lease_phase_is_refused() -> None:
+    from soup_cli.utils import expert_stream as es
+
+    with pytest.raises(ValueError, match="unknown lease phase"):
+        with es.lease_phase("gemm"):
+            pass
+
+
+def test_the_lease_timer_step_enables_timers_around_its_one_step_only(fake_clock) -> None:
+    from soup_cli.utils import expert_stream as es
+
+    class Chunk:
+        shape = (1, 5)
+
+        def clone(self) -> "Chunk":
+            return self
+
+    class Stepper:
+        def run(self, ids, store, n_items, labels, **options) -> list:
+            with es.lease_phase("disk_read"):
+                pass
+            return []
+
+    fake_clock.extend([1.0, 4.0])
+    totals = mm._lease_timer_step(Stepper(), None, [Chunk()], {})
+    assert totals["disk_read"] == pytest.approx(3.0)
+    assert totals["dequant"] == 0.0
+
+
+def test_the_run_command_takes_lease_timers_and_writes_them_into_the_row(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture) -> None:
+    seen = {}
+
+    def fake_run_one(args: argparse.Namespace) -> dict:
+        seen["lease_timers"] = args.lease_timers
+        row = {"arm": args.arm}
+        if args.lease_timers:
+            row["lease_timers"] = {"disk_read": 0.5}
+        return row
+
+    monkeypatch.setattr(mm, "run_one", fake_run_one)
+    base = ["run", "--arm", "C", "--k", "8", "--seq", "64", "--kind", "speed",
+            "--source", "s", "--cache", "c", "--out", "o"]
+    assert mm.main(base) == 0
+    assert seen["lease_timers"] is False
+    assert "lease_timers" not in capsys.readouterr().out
+    assert mm.main(base + ["--lease-timers"]) == 0
+    assert seen["lease_timers"] is True
+    assert '"lease_timers": {"disk_read": 0.5}' in capsys.readouterr().out
+
+
+# ---- arm GP: G's lever settings plus expert_prefetch=True, C's step options ----
+def test_gp_takes_the_lever_settings_of_g_plus_expert_prefetch() -> None:
+    assert mm.arm_runtime("GP") == {**mm.arm_runtime("G"), "expert_prefetch": True}
+    assert mm.arm_runtime("GP") == {"expert_gemm": "lt-fused", "async_lease": True,
+                                    "fast_row_gather": True, "expert_loader": "async_lease",
+                                    "expert_prefetch": True}
+
+
+def test_g_has_no_expert_prefetch() -> None:
+    assert "expert_prefetch" not in mm.arm_runtime("G")
+    assert mm.arm_runtime("G").get("expert_prefetch", False) is False
+
+
+def test_gp_has_g_step_options_at_every_k() -> None:
+    for k in (8, 64):
+        assert mm.arm_options("GP", k=k) == mm.arm_options("G", k=k)
+
+
+def test_parse_arm_list_accepts_gp() -> None:
+    assert mm.parse_arm_list("GP") == ("GP",)
+    assert mm.parse_arm_list("G,GP") == ("G", "GP")
+
+
+def test_no_plan_ladder_or_lever_table_lists_gp() -> None:
+    plans = [
+        mm.speed_plan(), mm.profile_plan(), mm.bit_plan(seq=64), mm.lever_bit_plan(seq=64),
+        mm.lever_speed_plan(), mm.traj_plan(), mm.loader_speed_plan(), mm.decoupled_speed_plan(),
+        mm.segmented_speed_plan(), mm.esc_speed_plan(), mm.ceg_speed_plan(),
+        mm.decoupled_segmented_bit_plan(), mm.abba_plan(blocks=1),
+    ]
+    arms = {row["arm"] for plan in plans for row in plan}
+    assert "GP" not in arms
+    assert "GP" not in mm.LEVER_ARMS and "GP" not in mm.LEVER_PREVIOUS
+    assert "GP" not in mm.ladder_arms(8) and "GP" not in mm.ladder_arms(64)
+    assert "GP" not in mm.arms_for(k=8)
+
+
+def test_run_one_passes_the_runtime_expert_prefetch_flag_to_the_streamed_model() -> None:
+    import ast
+    import inspect
+
+    calls = [node for node in ast.walk(ast.parse(inspect.getsource(mm.run_one)))
+             if isinstance(node, ast.Call)
+             and getattr(node.func, "id", None) == "build_streamed_model"]
+    assert len(calls) == 1
+    keywords = {kw.arg: ast.unparse(kw.value) for kw in calls[0].keywords}
+    assert keywords["expert_prefetch"] == "runtime_levers.get('expert_prefetch', False)"

@@ -9,6 +9,7 @@ driver calls these around ``L2LStep.run``.
 from __future__ import annotations
 
 import argparse
+import bisect
 import copy
 import hashlib
 import json
@@ -17,7 +18,7 @@ import os
 import statistics
 import struct
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 WINDOWS: Tuple[Tuple[int, int], ...] = ((8, 64), (8, 512), (64, 64), (64, 512))
 BIT_LADDER: Tuple[int, ...] = (1, 2, 4, 8)
@@ -60,11 +61,34 @@ def parse_ceg_windows(text: str) -> Tuple[Tuple[int, int], ...]:
     return windows
 
 
+def parse_host_cache_bytes(text: str) -> int:
+    """The expert host cache budget in bytes: a non-negative integer, 0 meaning off."""
+    try:
+        value = int(text)
+    except ValueError:
+        value = -1
+    if value < 0:
+        raise argparse.ArgumentTypeError("--host-cache-bytes takes a non-negative integer of bytes")
+    return value
+
+
+def host_cache_kwargs(host_cache_bytes: int) -> Dict[str, int]:
+    """``build_streamed_model`` keywords of the expert host cache: none when the budget is 0."""
+    return {"expert_host_cache_bytes": host_cache_bytes} if host_cache_bytes else {}
+
+
+def host_cache_record(host_cache_bytes: int, runtime: Any) -> Dict[str, Any]:
+    """The packed host cache's stats for a result row; nothing when the budget is 0."""
+    if not host_cache_bytes:
+        return {}
+    return {"host_cache_stats": runtime.expert_pool.stats()["host_cache"]}
+
+
 def parse_arm_list(text: str) -> Tuple[str, ...]:
     """Comma-separated arm names, each a known arm."""
     names = tuple(part.strip() for part in text.split(",") if part.strip())
     known = ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, ORACLE_ARM, GO_ARM,
-             *LEVER_ARMS)
+             PREFETCH_ARM, *LEVER_ARMS)
     if not names or any(name not in known for name in names):
         raise argparse.ArgumentTypeError(f"--arms takes names of {', '.join(known)}")
     return names
@@ -156,7 +180,7 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
     """``L2LStep.run`` keywords of an arm: A0 plain L2L, B0 route-preserving MBR, C B0 plus the
     ordered backward (the exact GEMM joins C with ticket 02), D C's decoupled sibling."""
     if arm not in ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, ORACLE_ARM,
-                   GO_ARM, *LEVER_ARMS):
+                   GO_ARM, PREFETCH_ARM, *LEVER_ARMS):
         raise ValueError(f"unknown arm {arm!r}")
     if arm in ("A0", "B0", "C") and arm not in arms_for(k=k):
         raise ValueError(f"arm {arm} does not exist at k={k} (A0 only at k<={A0_MAX_K})")
@@ -169,7 +193,7 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
         return {"route_preserving_mbr": True, "mbr_group_size": k,
                 "mbr_decoupled_subwindow": True}
     options: Dict[str, Any] = {"route_preserving_mbr": True, "mbr_group_size": k}
-    if arm in ("C", SEGMENTED_ARM, ORACLE_ARM, GO_ARM) or arm in LEVER_ARMS:
+    if arm in ("C", SEGMENTED_ARM, ORACLE_ARM, GO_ARM, PREFETCH_ARM) or arm in LEVER_ARMS:
         options["mbr_ordered_backward"] = True
     if arm in (ORACLE_ARM, GO_ARM):
         options[ROUTING_ORACLE_KEY] = True
@@ -186,6 +210,9 @@ ROUTING_ORACLE_KEY = "routing_oracle"
 # It is not in ``LEVER_ARMS``, ``LEVER_PREVIOUS`` or any plan: the ladders and campaigns do not
 # change. ``run_one`` makes its Oracle like O's.
 GO_ARM = "GO"
+# Arm GP: G's lever settings with ``expert_prefetch=True`` passed to ``build_streamed_model``.
+# Same rule as GO: not in ``LEVER_ARMS``, ``LEVER_PREVIOUS`` or any plan.
+PREFETCH_ARM = "GP"
 
 
 def make_routing_oracle(options: Mapping[str, Any], make: Callable[[], Any]) -> Any:
@@ -293,6 +320,8 @@ def arm_runtime(arm: str) -> Dict[str, Any]:
         return dict(SEGMENTED_RUNTIME)
     if arm == GO_ARM:
         return arm_runtime("G")
+    if arm == PREFETCH_ARM:
+        return {**arm_runtime("G"), "expert_prefetch": True}
     if arm == DECOUPLED_SEGMENTED_ARM:
         return dict(DECOUPLED_SEGMENTED_RUNTIME)
     return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
@@ -1179,7 +1208,9 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 seed=0, quant="nf4" if cuda else "none", double_quant=False, tier="ram",
                 read_ahead=1, two_read_experts=True, grouped_expert_routes=True,
                 expert_loader=runtime_levers["expert_loader"],
-                **({"expert_transfer": "packed"} if cuda else {}))
+                expert_prefetch=runtime_levers.get("expert_prefetch", False),
+                **({"expert_transfer": "packed"} if cuda else {}),
+                **host_cache_kwargs(getattr(args, "host_cache_bytes", 0)))
         oracle = None
         try:
             model.train()
@@ -1265,8 +1296,13 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             # lt-fused reports visits on the fused path and its algorithm table; segmented only
             # reports its counters, and native has no plan at all.
             out.update(gemm_plan_record(gemm_state.get("plan")))
+            out.update(host_cache_record(getattr(args, "host_cache_bytes", 0), runtime))
             if getattr(args, "trace", False):
                 out["trace"] = _trace_step(stepper, store, ids, step_kwargs, cuda)
+            if getattr(args, "cpu_trace", False):
+                out["cpu_trace"] = _cpu_trace_step(stepper, store, ids, step_kwargs, cuda)
+            if getattr(args, "lease_timers", False):
+                out["lease_timers"] = _lease_timer_step(stepper, store, ids, step_kwargs)
             if args.profile:
                 out["phases"] = _profile_step(stepper, store, ids, step_kwargs, cuda)
             return out
@@ -1283,9 +1319,12 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     result["campaign_id"] = campaign_identity(
         source=args.source, cache=args.cache, tokenizer=args.tokenizer, lora_r=args.lora_r,
         lora_targets=args.lora_targets, steps=args.steps)
-    return make_row(arm=args.arm, k=args.k, seq=args.seq, kind=args.kind,
-                    deterministic=args.deterministic, result=result,
-                    dataset_sha256=data["sha256"])
+    row = make_row(arm=args.arm, k=args.k, seq=args.seq, kind=args.kind,
+                   deterministic=args.deterministic, result=result,
+                   dataset_sha256=data["sha256"])
+    if getattr(args, "host_cache_bytes", 0):
+        row["host_cache_bytes"] = args.host_cache_bytes
+    return row
 
 
 def gemm_plan_record(plan: Any) -> Dict[str, Any]:
@@ -1328,6 +1367,22 @@ def _environment() -> Dict[str, Any]:  # pragma: no cover - needs the host's too
     ptxas = run(["ptxas", "--version"]) if shutil.which("ptxas") else None
     return environment_record(lookup, git_sha=run(["git", "rev-parse", "HEAD"]), ptxas=ptxas,
                               alloc_conf=os.environ.get("PYTORCH_CUDA_ALLOC_CONF"))
+
+
+def _lease_timer_step(stepper: Any, store: Any, ids: List[Any],
+                      options: Dict[str, Any]) -> Dict[str, float]:  # pragma: no cover - model
+    """One extra step with the expert lease timers on: seconds per phase of ``expert_stream``.
+
+    It runs after the timed steps and after the gradient digest, so no timed step and no digest
+    sees the timers. The totals are taken before and after, so only this step is counted."""
+    from soup_cli.utils.expert_stream import lease_timers, take_lease_timers
+    from soup_cli.utils.l2l_step import label_tokens
+
+    take_lease_timers()
+    with lease_timers():
+        stepper.run(ids, store, n_items=label_tokens(ids), labels=[i.clone() for i in ids],
+                    **options)
+    return take_lease_timers()
 
 
 def _profile_step(stepper: Any, store: Any, ids: List[Any], options: Dict[str, Any],
@@ -1378,6 +1433,131 @@ def _trace_step(stepper: Any, store: Any, ids: List[Any], options: Dict[str, Any
     return mbr_trace.step_summary(list(profiler.events()), wall)
 
 
+STEP_RANGE = "mbr_step"
+NO_CPU_OP = "(no CPU op running)"
+CPU_GPU_TOP = 15
+
+
+def _on_device(event: Any, kind: str) -> bool:
+    return str(getattr(event, "device_type", "")).endswith(kind)
+
+
+def _merged(intervals: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    merged: List[Tuple[float, float]] = []
+    for start, end in sorted(intervals):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def cpu_gpu_summary(events: Iterable[Any], *, step_name: str = STEP_RANGE,
+                    top: int = CPU_GPU_TOP) -> Dict[str, Any]:
+    """Host and device attribution of one step, from ``torch.profiler`` ``FunctionEvent``-likes.
+
+    The window is the CPU range ``step_name``. CPU self time is summed by op name over the CPU
+    events inside the window. GPU busy is the union of device-side CUDA events (kernels, copies).
+    CUDA user annotations (``record_function`` ranges mirrored on the device) are skipped, as in
+    torch's ``profiler_util``, and so are host runtime calls, which are CPU-typed. A GPU gap is the
+    idle time between two merged kernel segments inside the window (leading and trailing idle is
+    not a gap). Each gap is charged to the innermost CPU op that started before the gap and was
+    still running at its start, or to ``NO_CPU_OP``.
+    Times are microseconds in the trace and seconds in the summary."""
+    events = list(events)
+    steps = [e for e in events if e.name == step_name and _on_device(e, "CPU")]
+    if not steps:
+        raise ValueError(f"no CPU range named {step_name!r} in the trace")
+    window = steps[0].time_range
+    begin, finish = float(window.start), float(window.end)
+
+    cpu: List[Tuple[float, float, str]] = []
+    self_us: Dict[str, float] = {}
+    calls: Dict[str, int] = {}
+    for event in events:
+        if event.name == step_name or not _on_device(event, "CPU"):
+            continue
+        span = event.time_range
+        if float(span.start) < begin or float(span.end) > finish:
+            continue
+        name = str(event.name)
+        cpu.append((float(span.start), float(span.end), name))
+        self_us[name] = self_us.get(name, 0.0) + float(
+            getattr(event, "self_cpu_time_total", 0.0) or 0.0)
+        calls[name] = calls.get(name, 0) + 1
+
+    kernels = []
+    for event in events:
+        if not _on_device(event, "CUDA") or getattr(event, "is_user_annotation", False):
+            continue
+        span = event.time_range
+        start, end = max(begin, float(span.start)), min(finish, float(span.end))
+        if end > start:
+            kernels.append((start, end))
+    busy = _merged(kernels)
+    gaps = [(busy[i][1], busy[i + 1][0]) for i in range(len(busy) - 1)]
+
+    cpu.sort()
+    starts = [start for start, _, _ in cpu]
+    reach: List[float] = []
+    furthest = float("-inf")
+    for _, end, _ in cpu:
+        furthest = max(furthest, end)
+        reach.append(furthest)
+
+    def running_at(moment: float) -> str:
+        index = bisect.bisect_left(starts, moment) - 1
+        while index >= 0 and reach[index] >= moment:
+            if cpu[index][1] >= moment:
+                return cpu[index][2]
+            index -= 1
+        return NO_CPU_OP
+
+    by_op: Dict[str, List[float]] = {}
+    for gap_start, gap_end in gaps:
+        entry = by_op.setdefault(running_at(gap_start), [0, 0.0])
+        entry[0] += 1
+        entry[1] += (gap_end - gap_start) / 1e6
+
+    cpu_top = sorted(self_us, key=lambda name: (-self_us[name], name))[:top]
+    gap_top = sorted(by_op, key=lambda op: (-by_op[op][1], op))[:top]
+    return {
+        "window_seconds": (finish - begin) / 1e6,
+        "gpu_busy_seconds": sum(end - start for start, end in busy) / 1e6,
+        "cpu_self_top": [{"name": name, "calls": calls[name], "self_seconds": self_us[name] / 1e6}
+                         for name in cpu_top],
+        "gaps": {"count": len(gaps), "seconds": sum(end - start for start, end in gaps) / 1e6},
+        "gap_top": [{"op": op, "gaps": by_op[op][0], "gap_seconds": by_op[op][1]}
+                    for op in gap_top],
+    }
+
+
+def _cpu_trace_step(stepper: Any, store: Any, ids: List[Any], options: Dict[str, Any],
+                    cuda: bool) -> Dict[str, Any]:  # pragma: no cover - needs the model
+    """One step under ``torch.profiler`` with CPU and CUDA activities, the step wrapped in a
+    ``record_function`` range, summarised by ``cpu_gpu_summary``. Instrumented: not a speed number.
+    """
+    import time
+
+    import torch
+    from torch.profiler import ProfilerActivity, profile, record_function
+
+    from soup_cli.utils.l2l_step import label_tokens
+
+    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA] if cuda else [ProfilerActivity.CPU]
+    if cuda:
+        torch.cuda.synchronize()
+    with profile(activities=activities) as profiler:
+        started = time.perf_counter()
+        with record_function(STEP_RANGE):
+            stepper.run(ids, store, n_items=label_tokens(ids), labels=[i.clone() for i in ids],
+                        **options)
+        if cuda:
+            torch.cuda.synchronize()
+        wall = time.perf_counter() - started
+    return {"wall_seconds": wall, **cpu_gpu_summary(profiler.events())}
+
+
 class _NullContext:
     def __enter__(self) -> None:
         return None
@@ -1405,6 +1585,8 @@ def child_run_args(args: Any, item: Dict[str, Any]) -> List[str]:
         argv.append("--count")
     if getattr(args, "math_attention", False):
         argv.append("--math-attention")
+    if getattr(args, "host_cache_bytes", 0):
+        argv += ["--host-cache-bytes", str(args.host_cache_bytes)]
     return argv
 
 
@@ -1637,8 +1819,17 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--trace", action="store_true",
                            help="one CUDA-only torch-profiler step for the device timeline, "
                                 "written into the row")
+            p.add_argument("--cpu-trace", action="store_true",
+                           help="one CPU+CUDA torch-profiler step with host attribution of the "
+                                "GPU gaps, summarised into the row (no raw events)")
             p.add_argument("--count", action="store_true",
                            help="count the routed-expert F.linear calls of every step into the row")
+            p.add_argument("--lease-timers", action="store_true",
+                           help="one extra step with the expert lease timers on: seconds per "
+                                "phase (disk read, host copy, dequant, wait) under lease_timers")
+            p.add_argument("--host-cache-bytes", type=parse_host_cache_bytes, default=0,
+                           help="expert host cache budget in bytes (needs the packed transfer, "
+                                "CUDA); 0 leaves it off")
         if name in ("speed", "lever-speed", "loader-speed", "abba", "decoupled-speed",
                     "seg-speed", "esc-speed", "ceg-speed"):
             p.add_argument("--blocks", type=int, default=1 if name == "lever-speed" else 5)
@@ -1657,6 +1848,10 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                            help="comma-separated arms only (default: every arm of each k)")
             p.add_argument("--math-attention", action="store_true",
                            help="SDPA math backend only in every child run")
+        if name == "lever-bits":
+            p.add_argument("--host-cache-bytes", type=parse_host_cache_bytes, default=0,
+                           help="expert host cache budget in bytes for every child run (needs "
+                                "the packed transfer, CUDA); 0 leaves it off")
     args = parser.parse_args(argv)
     if args.command == "run":
         if args.kind == "traj":
