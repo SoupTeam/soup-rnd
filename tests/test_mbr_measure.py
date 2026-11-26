@@ -9,6 +9,7 @@ import struct
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -44,6 +45,48 @@ def test_bits_reference_is_a0_through_k8_and_c_above_it() -> None:
     assert [mm.reference_arm(k) for k in (1, 2, 4, 8)] == ["A0"] * 4
     assert mm.reference_arm(64) == "C"
     assert mm.reference_arm(16) == "C"
+
+
+def test_default_bit_plan_is_the_a0_b0_c_ladder_at_every_k() -> None:
+    rows = mm.bit_plan(seq=64)
+    assert [(r["k"], r["arm"]) for r in rows] == [
+        (1, "A0"), (1, "B0"), (1, "C"), (2, "A0"), (2, "B0"), (2, "C"),
+        (4, "A0"), (4, "B0"), (4, "C"), (8, "A0"), (8, "B0"), (8, "C")]
+    assert all(r["seq"] == 64 and r["block"] == 0 and r["kind"] == "bits"
+               and r["deterministic"] is True for r in rows)
+
+
+def test_bit_plan_with_arms_gives_those_arms_at_each_k() -> None:
+    rows = mm.bit_plan(seq=64, ks=(1, 2, 4, 8), arms=("A0", "O"))
+    assert [(r["k"], r["arm"]) for r in rows] == [
+        (1, "A0"), (1, "O"), (2, "A0"), (2, "O"), (4, "A0"), (4, "O"), (8, "A0"), (8, "O")]
+
+
+def test_bit_plan_with_arms_drops_a0_above_k8_and_keeps_o() -> None:
+    rows = mm.bit_plan(seq=64, ks=(8, 64), arms=("A0", "O"))
+    assert [(r["k"], r["arm"]) for r in rows] == [(8, "A0"), (8, "O"), (64, "O")]
+
+
+def test_dropped_arms_names_a0_above_k8_only() -> None:
+    assert mm.dropped_arms(ks=(1, 8, 64), arms=("A0", "O")) == [(64, "A0")]
+    assert mm.dropped_arms(ks=(1, 2, 4, 8), arms=("A0", "O")) == []
+    assert mm.dropped_arms(ks=(64,), arms=("O",)) == []
+
+
+def test_lever_bits_with_arms_a0_and_o_plans_o_rows(tmp_path, monkeypatch, capsys) -> None:
+    planned = []
+
+    def fake_sweep(args, plan):
+        planned.extend(plan)
+        return []
+
+    monkeypatch.setattr(mm, "sweep", fake_sweep)
+    mm.main(["lever-bits", "--source", "unused", "--cache", str(tmp_path / "cache"),
+             "--out", str(tmp_path), "--arms", "A0,O", "--ladder-ks", "1,2,4,8,64"])
+    assert [(item["k"], item["arm"]) for item in planned] == [
+        (1, "A0"), (1, "O"), (2, "A0"), (2, "O"), (4, "A0"), (4, "O"),
+        (8, "A0"), (8, "O"), (64, "O")]
+    assert "k=64" in capsys.readouterr().err
 
 
 def test_every_report_row_carries_the_mode() -> None:
@@ -1177,6 +1220,65 @@ def test_the_ceg_and_ds_commands_reach_their_plans(monkeypatch: pytest.MonkeyPat
     assert seen["arms"] == ["DS"]
 
 
+# ---- arm GO: G's lever settings, C's step options, and the routing Oracle of arm O ----
+def test_go_takes_the_lever_settings_of_g_exactly() -> None:
+    assert mm.arm_runtime("GO") == mm.arm_runtime("G")
+    assert mm.arm_runtime("GO") == {"expert_gemm": "lt-fused", "async_lease": True,
+                                    "fast_row_gather": True, "expert_loader": "async_lease"}
+
+
+def test_go_has_c_step_options_and_the_oracle_marker_at_every_k() -> None:
+    for k in (8, 64):
+        assert mm.arm_options("GO", k=k) == {**mm.arm_options("C", k=k),
+                                             mm.ROUTING_ORACLE_KEY: True}
+    assert mm.arm_options("GO", k=8) == {"route_preserving_mbr": True, "mbr_group_size": 8,
+                                         "mbr_ordered_backward": True, "routing_oracle": True}
+
+
+def test_g_stays_without_the_oracle_marker_and_makes_no_oracle() -> None:
+    assert mm.ROUTING_ORACLE_KEY not in mm.arm_options("G", k=8)
+    assert mm.arm_options("G", k=8) == mm.arm_options("C", k=8)
+    made = []
+    assert mm.make_routing_oracle(mm.arm_options("G", k=8), lambda: made.append(1)) is None
+    assert made == []
+
+
+def test_o_keeps_its_step_options_marker_and_native_levers() -> None:
+    assert mm.arm_options("O", k=8) == {"route_preserving_mbr": True, "mbr_group_size": 8,
+                                        "mbr_ordered_backward": True, "routing_oracle": True}
+    assert mm.arm_runtime("O") == mm.arm_runtime("C")
+
+
+def test_parse_arm_list_accepts_go() -> None:
+    assert mm.parse_arm_list("GO") == ("GO",)
+    assert mm.parse_arm_list("G, GO") == ("G", "GO")
+
+
+def test_go_is_in_no_lever_table_ladder_or_plan() -> None:
+    assert "GO" not in mm.LEVER_ARMS and "GO" not in mm.LEVER_PREVIOUS
+    assert "GO" not in mm.ladder_arms(8) and "GO" not in mm.ladder_arms(64)
+    assert "GO" not in mm.arms_for(k=8)
+    assert "GO" not in {item["arm"] for item in mm.lever_bit_plan(seq=64)}
+
+
+def test_go_makes_its_oracle_with_the_zeroed_aux_config_and_c_step_kwargs() -> None:
+    options = mm.arm_options("GO", k=8)
+    made = []
+
+    def make() -> str:
+        made.append(True)
+        return "oracle"
+
+    oracle = mm.make_routing_oracle(options, make)
+    assert oracle == "oracle" and made == [True]
+    config = SimpleNamespace(aux_loss_alpha=0.01, router_aux_loss_coef=0.5)
+    safe = mm.oracle_config_for_arm(options, config)
+    assert safe is not config and safe.aux_loss_alpha == 0 and safe.router_aux_loss_coef is None
+    assert config.aux_loss_alpha == 0.01
+    step = mm.routing_step_options(options, oracle)
+    assert step == {**mm.arm_options("C", k=8), mm.ROUTING_ORACLE_KEY: "oracle"}
+
+
 def test_traj_plan_is_a0_then_g_for_each_step_at_fixed_k_and_seq() -> None:
     plan = mm.traj_plan(steps=3, k=2, seq=64)
     assert len(plan) == 2 * 3
@@ -1537,3 +1639,120 @@ def test_run_refuses_traj_dimensions_it_cannot_measure_before_running(
         mm.main(argv)
     assert refused.value.code == 2
     assert called == []
+
+
+class _FakeOracle:
+    def __init__(self) -> None:
+        self.closed = 0
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def test_arm_o_is_the_c_options_plus_the_routing_oracle_marker() -> None:
+    c_options = mm.arm_options("C", k=8)
+    assert mm.arm_options("O", k=8) == {"route_preserving_mbr": True, "mbr_group_size": 8,
+                                        "mbr_ordered_backward": True, "routing_oracle": True}
+    assert mm.arm_options("O", k=8) == {**c_options, "routing_oracle": True}
+    assert mm.arm_options("O", k=64) == {"route_preserving_mbr": True, "mbr_group_size": 64,
+                                         "mbr_ordered_backward": True, "routing_oracle": True}
+
+
+def test_arm_o_runs_with_the_runtime_levers_of_c() -> None:
+    assert mm.arm_runtime("O") == mm.arm_runtime("C")
+    assert "O" not in mm.LEVER_ARMS
+
+
+def test_arms_for_and_the_ladder_do_not_name_arm_o() -> None:
+    assert mm.arms_for(k=8) == ("A0", "B0", "C")
+    assert mm.arms_for(k=64) == ("B0", "C")
+    assert mm.ladder_arms(8) == ("A0", "C", "E", "F", "G", "H", "D")
+    assert mm.ladder_arms(64) == ("C", "E", "F", "G", "H", "D")
+
+
+def test_no_existing_plan_names_arm_o() -> None:
+    plans = [
+        mm.speed_plan(), mm.profile_plan(), mm.bit_plan(seq=64), mm.lever_bit_plan(seq=64),
+        mm.lever_speed_plan(), mm.traj_plan(), mm.loader_speed_plan(), mm.decoupled_speed_plan(),
+        mm.segmented_speed_plan(), mm.esc_speed_plan(), mm.ceg_speed_plan(),
+        mm.decoupled_segmented_bit_plan(),
+    ]
+    arms = {row["arm"] for plan in plans for row in plan}
+    assert "O" not in arms and {"A0", "B0", "C"} <= arms
+
+
+def test_the_cli_accepts_arm_o_next_to_c() -> None:
+    assert mm.parse_arm_list("C,O") == ("C", "O")
+
+
+def test_arm_o_creates_one_oracle_and_its_step_options_carry_it() -> None:
+    made: list = []
+
+    def make() -> _FakeOracle:
+        made.append(_FakeOracle())
+        return made[-1]
+
+    options = mm.arm_options("O", k=8)
+    oracle = mm.make_routing_oracle(options, make)
+    assert oracle is made[0] and len(made) == 1
+    step = mm.routing_step_options(options, oracle)
+    assert step["routing_oracle"] is oracle
+    assert "routing_oracle" in step and step["mbr_ordered_backward"] is True
+    assert step == {"route_preserving_mbr": True, "mbr_group_size": 8,
+                    "mbr_ordered_backward": True, "routing_oracle": oracle}
+    mm.close_routing_oracle(oracle)
+    assert oracle.closed == 1
+
+
+@pytest.mark.parametrize("arm", ["A0", "B0", "C", "S", "D", "DS", "E", "H"])
+def test_other_arms_never_create_an_oracle_and_pass_no_oracle(arm: str) -> None:
+    made: list = []
+
+    def make() -> _FakeOracle:
+        made.append(_FakeOracle())
+        return made[-1]
+
+    options = mm.arm_options(arm, k=8)
+    assert mm.make_routing_oracle(options, make) is None and made == []
+    assert mm.routing_step_options(options, None) == options
+    assert "routing_oracle" not in mm.routing_step_options(options, None)
+    mm.close_routing_oracle(None)
+
+
+def test_oracle_safe_config_zeroes_aux_loss_alpha_and_router_coef() -> None:
+    config = SimpleNamespace(aux_loss_alpha=0.001, router_aux_loss_coef=0.01,
+                             model_type="deepseek_v3")
+    safe = mm.oracle_safe_config(config)
+    assert safe.aux_loss_alpha == 0
+    assert safe.router_aux_loss_coef is None
+    assert safe.model_type == "deepseek_v3"
+
+
+def test_oracle_safe_config_does_not_mutate_its_input() -> None:
+    config = SimpleNamespace(aux_loss_alpha=0.001, router_aux_loss_coef=0.01)
+    safe = mm.oracle_safe_config(config)
+    assert safe is not config
+    assert config.aux_loss_alpha == 0.001 and config.router_aux_loss_coef == 0.01
+
+
+def test_oracle_safe_config_does_not_add_absent_fields() -> None:
+    config = SimpleNamespace(aux_loss_alpha=0.001)
+    safe = mm.oracle_safe_config(config)
+    assert safe.aux_loss_alpha == 0
+    assert not hasattr(safe, "router_aux_loss_coef")
+
+
+def test_arm_o_gets_the_oracle_safe_config() -> None:
+    config = SimpleNamespace(aux_loss_alpha=0.001, router_aux_loss_coef=None)
+    out = mm.oracle_config_for_arm(mm.arm_options("O", k=8), config)
+    assert out is not config
+    assert out.aux_loss_alpha == 0
+    assert config.aux_loss_alpha == 0.001
+
+
+@pytest.mark.parametrize("arm", ["A0", "C", "B0", "S", "D", "DS", "E", "H"])
+def test_other_arms_keep_the_original_config_object(arm: str) -> None:
+    config = SimpleNamespace(aux_loss_alpha=0.001, router_aux_loss_coef=0.01)
+    out = mm.oracle_config_for_arm(mm.arm_options(arm, k=8), config)
+    assert out is config
+    assert out.aux_loss_alpha == 0.001 and out.router_aux_loss_coef == 0.01

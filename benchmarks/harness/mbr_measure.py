@@ -9,6 +9,7 @@ driver calls these around ``L2LStep.run``.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -62,7 +63,8 @@ def parse_ceg_windows(text: str) -> Tuple[Tuple[int, int], ...]:
 def parse_arm_list(text: str) -> Tuple[str, ...]:
     """Comma-separated arm names, each a known arm."""
     names = tuple(part.strip() for part in text.split(",") if part.strip())
-    known = ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, *LEVER_ARMS)
+    known = ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, ORACLE_ARM, GO_ARM,
+             *LEVER_ARMS)
     if not names or any(name not in known for name in names):
         raise argparse.ArgumentTypeError(f"--arms takes names of {', '.join(known)}")
     return names
@@ -153,7 +155,8 @@ def take_window(input_ids: Sequence[Sequence[int]], *, k: int) -> List[List[int]
 def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
     """``L2LStep.run`` keywords of an arm: A0 plain L2L, B0 route-preserving MBR, C B0 plus the
     ordered backward (the exact GEMM joins C with ticket 02), D C's decoupled sibling."""
-    if arm not in ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, *LEVER_ARMS):
+    if arm not in ("A0", "B0", "C", SEGMENTED_ARM, DECOUPLED_SEGMENTED_ARM, ORACLE_ARM,
+                   GO_ARM, *LEVER_ARMS):
         raise ValueError(f"unknown arm {arm!r}")
     if arm in ("A0", "B0", "C") and arm not in arms_for(k=k):
         raise ValueError(f"arm {arm} does not exist at k={k} (A0 only at k<={A0_MAX_K})")
@@ -166,9 +169,62 @@ def arm_options(arm: str, *, k: int) -> Dict[str, Any]:
         return {"route_preserving_mbr": True, "mbr_group_size": k,
                 "mbr_decoupled_subwindow": True}
     options: Dict[str, Any] = {"route_preserving_mbr": True, "mbr_group_size": k}
-    if arm in ("C", SEGMENTED_ARM) or arm in LEVER_ARMS:
+    if arm in ("C", SEGMENTED_ARM, ORACLE_ARM, GO_ARM) or arm in LEVER_ARMS:
         options["mbr_ordered_backward"] = True
+    if arm in (ORACLE_ARM, GO_ARM):
+        options[ROUTING_ORACLE_KEY] = True
     return options
+
+
+# Arm O: C plus the routing Oracle. Its MBR recompute replays the router choices of the
+# route-preserving forward. ``ROUTING_ORACLE_KEY`` is a marker, not an ``L2LStep.run`` keyword:
+# ``run_one`` makes the Oracle once per run and passes it as ``routing_oracle=``. O is not in
+# ``LEVER_ARMS`` or any plan, so the ladders and the existing campaigns do not change.
+ORACLE_ARM, ORACLE_PREVIOUS = "O", "C"
+ROUTING_ORACLE_KEY = "routing_oracle"
+# Arm GO: G's lever settings (``arm_runtime``) with C's step options and arm O's Oracle marker.
+# It is not in ``LEVER_ARMS``, ``LEVER_PREVIOUS`` or any plan: the ladders and campaigns do not
+# change. ``run_one`` makes its Oracle like O's.
+GO_ARM = "GO"
+
+
+def make_routing_oracle(options: Mapping[str, Any], make: Callable[[], Any]) -> Any:
+    """The routing Oracle of an arm whose options carry the marker, made by ``make``; else None."""
+    return make() if options.get(ROUTING_ORACLE_KEY) else None
+
+
+def routing_step_options(options: Mapping[str, Any], oracle: Any) -> Dict[str, Any]:
+    """``L2LStep.run`` keywords of an arm: its options without the marker, plus ``routing_oracle``
+    when an Oracle was made. An arm without the marker gets its options back unchanged."""
+    step = {name: value for name, value in options.items() if name != ROUTING_ORACLE_KEY}
+    if oracle is not None:
+        step[ROUTING_ORACLE_KEY] = oracle
+    return step
+
+
+def close_routing_oracle(oracle: Any) -> None:
+    """Close the Oracle of a run; a run without one has nothing to close."""
+    if oracle is not None:
+        oracle.close()
+
+
+def oracle_safe_config(config: Any) -> Any:
+    """A copy of ``config`` the routing Oracle accepts: ``aux_loss_alpha`` 0 and
+    ``router_aux_loss_coef`` None. Moonlight's ``aux_loss_alpha`` is never read by
+    ``modeling_deepseek.py``, so zeroing it changes no forward value. A field the config does not
+    have stays absent, and the input is not mutated."""
+    safe = copy.copy(config)
+    if hasattr(safe, "aux_loss_alpha"):
+        safe.aux_loss_alpha = 0
+    if hasattr(safe, "router_aux_loss_coef"):
+        safe.router_aux_loss_coef = None
+    return safe
+
+
+def oracle_config_for_arm(options: Mapping[str, Any], config: Any) -> Any:
+    """The config an arm's model carries into the Oracle: the oracle-safe copy for arm O (the
+    arm whose options carry the Oracle marker), the same object for every other arm."""
+    return oracle_safe_config(config) if options.get(ROUTING_ORACLE_KEY) else config
 
 
 # Lever arms of ticket 02, each stacked on the one before: C is B0 plus the ordered backward, E
@@ -235,6 +291,8 @@ def arm_runtime(arm: str) -> Dict[str, Any]:
     which loader feeds the expert pool (``async_lease`` unless the arm is H)."""
     if arm == SEGMENTED_ARM:
         return dict(SEGMENTED_RUNTIME)
+    if arm == GO_ARM:
+        return arm_runtime("G")
     if arm == DECOUPLED_SEGMENTED_ARM:
         return dict(DECOUPLED_SEGMENTED_RUNTIME)
     return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
@@ -466,10 +524,22 @@ def profile_plan() -> List[Dict[str, Any]]:
              "profile": True} for k, seq in WINDOWS for arm in arms_for(k=k)]
 
 
-def bit_plan(*, seq: int, ks: Sequence[int] = BIT_LADDER) -> List[Dict[str, Any]]:
-    """Deterministic-mode ladder over ``ks`` (default k = 1, 2, 4, 8) for the arms of each k."""
+def bit_plan(*, seq: int, ks: Sequence[int] = BIT_LADDER,
+             arms: Optional[Sequence[str]] = None) -> List[Dict[str, Any]]:
+    """Deterministic-mode ladder over ``ks`` (default k = 1, 2, 4, 8) for the arms of each k.
+
+    With ``arms``, each k runs those arms in the given order, except A0 above ``A0_MAX_K``
+    (``dropped_arms`` names those). Without it, the plan is ``arms_for`` at each k."""
+    if arms is None:
+        return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits",
+                 "deterministic": True} for k in ks for arm in arms_for(k=k)]
     return [{"arm": arm, "k": k, "seq": seq, "block": 0, "kind": "bits", "deterministic": True}
-            for k in ks for arm in arms_for(k=k)]
+            for k in ks for arm in arms if not (arm == "A0" and k > A0_MAX_K)]
+
+
+def dropped_arms(*, ks: Sequence[int], arms: Sequence[str]) -> List[Tuple[int, str]]:
+    """The (k, arm) pairs ``bit_plan`` drops for ``arms``: A0 at each k above ``A0_MAX_K``."""
+    return [(k, arm) for k in ks for arm in arms if arm == "A0" and k > A0_MAX_K]
 
 
 def traj_plan(*, steps: int = 8, k: int = 2, seq: int = 64) -> List[Dict[str, Any]]:
@@ -1029,9 +1099,10 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     from transformers import AutoTokenizer
 
     from soup_cli.utils.l2l_activations import ActivationStore
-    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call, label_tokens
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call, label_tokens, model_parts
     from soup_cli.utils.layer_shard import read_shard_index
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
+    from soup_cli.utils.routing_oracle import DeepseekRoutingOracle
 
     options = arm_options(args.arm, k=args.k)
     if args.deterministic:
@@ -1109,11 +1180,23 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 read_ahead=1, two_read_experts=True, grouped_expert_routes=True,
                 expert_loader=runtime_levers["expert_loader"],
                 **({"expert_transfer": "packed"} if cuda else {}))
+        oracle = None
         try:
             model.train()
+            # Arm O only: the Oracle refuses a non-zero aux-loss field, and Moonlight's
+            # aux_loss_alpha is inert, so the Oracle reads a zeroed copy of the config. A0 and
+            # the other arms keep the loaded config object.
+            if options.get(ROUTING_ORACLE_KEY):
+                causal, _owner = model_parts(model)
+                causal.config = oracle_config_for_arm(options, causal.config)
             ids = [torch.tensor([r], device=device) for r in take_window(data["input_ids"],
                                                                            k=args.k)]
             stepper = L2LStep(model, runtime, capture_layer_call(model, ids[0]))
+            # The Oracle patches the gates, so it is made after the capture pass, which calls
+            # them (the trainer makes it lazily on the first step). One per run, arm O only.
+            oracle = make_routing_oracle(
+                options, lambda: DeepseekRoutingOracle(model, host_budget=None, pin=None))
+            step_kwargs = routing_step_options(options, oracle)
             store = ActivationStore(
                 n_layers=len(stepper.layers), k=args.k,
                 chunk_shape=(1, args.seq, int(stepper.causal.config.hidden_size)),
@@ -1133,7 +1216,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                     torch.cuda.synchronize()
                 started = time.perf_counter()
                 losses = stepper.run(ids, store, n_items=label_tokens(ids),
-                                     labels=[i.clone() for i in ids], **options)
+                                     labels=[i.clone() for i in ids], **step_kwargs)
                 if cuda:
                     torch.cuda.synchronize()
                 seconds.append(time.perf_counter() - started)
@@ -1183,11 +1266,12 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             # reports its counters, and native has no plan at all.
             out.update(gemm_plan_record(gemm_state.get("plan")))
             if getattr(args, "trace", False):
-                out["trace"] = _trace_step(stepper, store, ids, options, cuda)
+                out["trace"] = _trace_step(stepper, store, ids, step_kwargs, cuda)
             if args.profile:
-                out["phases"] = _profile_step(stepper, store, ids, options, cuda)
+                out["phases"] = _profile_step(stepper, store, ids, step_kwargs, cuda)
             return out
         finally:
+            close_routing_oracle(oracle)
             runtime.close()
 
     class _Null:
@@ -1589,7 +1673,8 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             parser.error(problem)
     plan = {"speed": lambda: speed_plan(blocks=args.blocks),
             "abba": lambda: abba_plan(blocks=args.blocks, start_block=args.start_block),
-            "bits": lambda: bit_plan(seq=args.seq, ks=args.ladder_ks), "profile": profile_plan,
+            "bits": lambda: bit_plan(seq=args.seq, ks=args.ladder_ks, arms=args.arms),
+            "profile": profile_plan,
             "lever-speed": lambda: lever_speed_plan(blocks=args.blocks),
             "loader-speed": lambda: loader_speed_plan(blocks=args.blocks),
             "decoupled-speed": lambda: decoupled_speed_plan(blocks=args.blocks),
@@ -1600,12 +1685,20 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                                                 start_block=args.start_block,
                                                  windows=args.windows),
             "ds-bits": lambda: decoupled_segmented_bit_plan(seq=args.seq, ks=args.ladder_ks),
-            "lever-bits": lambda: lever_bit_plan(seq=args.seq, ks=args.ladder_ks),
+            "lever-bits": lambda: (
+                lever_bit_plan(seq=args.seq, ks=args.ladder_ks) if args.arms is None
+                else bit_plan(seq=args.seq, ks=args.ladder_ks, arms=args.arms)),
             "traj": lambda: traj_plan(steps=args.steps, k=args.k, seq=args.seq)}[args.command]()
     if args.command in ("bits", "lever-bits", "ds-bits") and args.arms is not None:
         plan = [item for item in plan if item["arm"] in args.arms]
         if not plan:
             parser.error("--arms selects no arm of this ladder")
+    if args.command in ("bits", "lever-bits") and args.arms is not None:
+        dropped = dropped_arms(ks=args.ladder_ks, arms=args.arms)
+        if dropped:
+            described = ", ".join(f"{arm} at k={k}" for k, arm in dropped)
+            Console(stderr=True).print(
+                f"Dropped {described}: A0 exists only at k<={A0_MAX_K}.")
     if args.command == "traj":
         verdict = traj_verdict(traj_sweep(args, plan), plan)
         (Path(args.out) / "traj-verdict.json").write_text(json.dumps(verdict, indent=2),
