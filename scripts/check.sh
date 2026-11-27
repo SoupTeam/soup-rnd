@@ -9,6 +9,7 @@
 # path is a finding, not a silent pass.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+export PYTHONPATH="$PWD/src:$PWD${PYTHONPATH:+:$PYTHONPATH}"
 
 if [ "$#" -eq 0 ]; then
   echo "usage: scripts/check.sh <path>... (source paths for ruff, test paths for pytest)" >&2
