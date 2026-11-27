@@ -1250,6 +1250,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             optimizer = (torch.optim.AdamW(list(params.values()), lr=TRAJ_LR, betas=TRAJ_BETAS)
                          if args.kind == "traj" else None)
             trajectory: List[Dict[str, Any]] = []
+            warm_logical_bytes = None
             for step in range(args.steps):
                 for p in params.values():
                     p.grad = None
@@ -1261,6 +1262,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 if cuda:
                     torch.cuda.synchronize()
                 seconds.append(time.perf_counter() - started)
+                if step == 0 and getattr(runtime, "expert_pool", None) is not None:
+                    warm_logical_bytes = runtime.expert_pool.stats()["logical_bytes_read"]
                 if counted:
                     snapshots.append(counter.snapshot())
                     counter.reset()
@@ -1309,6 +1312,11 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             # reports its counters, and native has no plan at all.
             out.update(gemm_plan_record(gemm_state.get("plan")))
             out.update(host_cache_record(getattr(args, "host_cache_bytes", 0), runtime))
+            if getattr(runtime, "expert_pool", None) is not None:
+                total_bytes = runtime.expert_pool.stats()["logical_bytes_read"]
+                out["expert_logical_bytes_read"] = total_bytes
+                if warm_logical_bytes is not None:
+                    out["expert_logical_bytes_read_after_warmup"] = total_bytes - warm_logical_bytes
             if route_log is not None:
                 out["route_visits"] = route_visits
             if getattr(args, "data_offset", 0):
