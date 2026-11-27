@@ -126,7 +126,7 @@ def test_selected_expert_reads_only_its_spans(tmp_path, monkeypatch):
     try:
         result = reader.read_host(7, staging)
         assert set(result) == {"7.gate_up", "7.down"}
-        assert len(calls) == 2
+        assert 1 <= len(calls) <= 2
         assert reader.bytes_read == (6 * 4 + 4 * 3) * 4
         # Sector alignment can overlap a neighbour's bytes; no other tensor is fetched.
         assert sum(size for _, size in calls) <= reader.max_span

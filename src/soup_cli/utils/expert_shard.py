@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 GATE_UP = "gate_up"
 DOWN = "down"
@@ -341,14 +341,22 @@ class ExpertShardReader:
         handle = self._open()
         out: Dict[str, Any] = {}
         cursor = 0
-        for tensor_name, entry in self._entries[expert]:
+        blocks: List[List[Any]] = []
+        for tensor_name, entry in sorted(self._entries[expert], key=lambda item: item[1].start):
             lo, hi = aligned_span(entry.start, entry.end)
+            if blocks and lo <= blocks[-1][1]:
+                blocks[-1][1] = max(blocks[-1][1], hi)
+                blocks[-1][2].append((tensor_name, entry))
+            else:
+                blocks.append([lo, hi, [(tensor_name, entry)]])
+        for lo, hi, members in blocks:
             region = staging[cursor : cursor + hi - lo]
             read_range_into(handle, lo, region, min(hi, self._size) - lo)
-            raw = region[entry.start - lo : entry.end - lo]
-            out[tensor_name] = raw.view(_stored_torch_dtype(entry.dtype)).view(entry.shape)
+            for tensor_name, entry in members:
+                raw = region[entry.start - lo : entry.end - lo]
+                out[tensor_name] = raw.view(_stored_torch_dtype(entry.dtype)).view(entry.shape)
+                self.bytes_read += entry.nbytes
             cursor += hi - lo
-            self.bytes_read += entry.nbytes
         self.fetches += 1
         return out
 
