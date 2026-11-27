@@ -1212,6 +1212,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 read_ahead=1, two_read_experts=True, grouped_expert_routes=True,
                 expert_loader=runtime_levers["expert_loader"],
                 expert_prefetch=runtime_levers.get("expert_prefetch", False),
+                expert_prefetch_staging=getattr(args, "prefetch_staging", 1),
                 **({"expert_transfer": "packed"} if cuda else {}),
                 **host_cache_kwargs(getattr(args, "host_cache_bytes", 0)))
         oracle = None
@@ -1223,7 +1224,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             if options.get(ROUTING_ORACLE_KEY):
                 causal, _owner = model_parts(model)
                 causal.config = oracle_config_for_arm(options, causal.config)
-            ids = [torch.tensor([r], device=device) for r in take_window(data["input_ids"],
+            window_rows = data["input_ids"][args.data_offset:]
+            ids = [torch.tensor([r], device=device) for r in take_window(window_rows,
                                                                            k=args.k)]
             stepper = L2LStep(model, runtime, capture_layer_call(model, ids[0]))
             # The Oracle patches the gates, so it is made after the capture pass, which calls
@@ -1305,6 +1307,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             out.update(host_cache_record(getattr(args, "host_cache_bytes", 0), runtime))
             if route_log is not None:
                 out["route_visits"] = route_visits
+            if getattr(args, "data_offset", 0):
+                out["data_offset"] = args.data_offset
             if getattr(args, "trace", False):
                 out["trace"] = _trace_step(stepper, store, ids, step_kwargs, cuda)
             if getattr(args, "cpu_trace", False):
@@ -1845,6 +1849,10 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
             p.add_argument("--route-trace", action="store_true",
                            help="count the tokens routed to each expert at each layer and step "
                                 "into the row as route_visits (off: no field)")
+            p.add_argument("--prefetch-staging", type=int, choices=(1, 2), default=1,
+                           help="expert prefetch staging slots; 2 needs arm GP")
+            p.add_argument("--data-offset", type=int, default=0,
+                           help="first MBPP row of the window (0: the default batch)")
             p.add_argument("--lease-timers", action="store_true",
                            help="one extra step with the expert lease timers on: seconds per "
                                 "phase (disk read, host copy, dequant, wait) under lease_timers")
