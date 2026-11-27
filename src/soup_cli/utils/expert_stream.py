@@ -148,8 +148,9 @@ def expert_allocation_budget(plan: ExpertBufferPlan, *, device: str) -> int:
 
 
 #: Phases of one expert lease that the opt-in timers split. ``lease`` is the whole lease;
-#: the other four are wall-clock parts of it. The lease body's own compute is in none of them.
-LEASE_PHASES = ("disk_read", "host_copy", "dequant", "wait", "lease")
+#: the others are wall-clock parts of it. The lease body's own compute is in none of them.
+#: ``pack`` is the host-to-pinned pack of the packed path, ``arena_copy`` its pinned-to-arena H2D.
+LEASE_PHASES = ("disk_read", "host_copy", "dequant", "wait", "lease", "pack", "arena_copy")
 _LEASE_TIMERS_ON = False
 _LEASE_TOTALS: Dict[str, float] = dict.fromkeys(LEASE_PHASES, 0.0)
 
@@ -553,19 +554,20 @@ class ExpertBufferPool:
             with lease_phase("host_copy"):
                 region.copy_(block)
         else:
-            host = self._read_host(reader, expert)
+            with lease_phase("disk_read"):
+                host = self._read_host(reader, expert)
             stored = {}
             for part in EXPERT_PARTS:
                 names = quant_sidecar_keys(expert_key(expert, part), self._specs[part])
                 for idx, name in enumerate(names):
                     stored[f"{part}:{idx}"] = host[name]
-            with lease_phase("host_copy"):
+            with lease_phase("pack"):
                 pack_into(region, self._packed_rows, stored)
             if self._host_cache is not None:
                 with lease_phase("host_copy"):
                     self._host_cache.put(key, region)
         # One copy for every stored component; the arena's dequantised part is rebuilt below.
-        with lease_phase("host_copy"):
+        with lease_phase("arena_copy"):
             self._arena[: self._packed_bytes].copy_(region, non_blocking=True)
         self._mark_staging_busy()
         self.h2d_copies += 1
