@@ -1102,6 +1102,32 @@ def _grouped_expert_routes(expert_mask: Any) -> Iterator[Tuple[int, Any, Any]]:
         raise ValueError("grouped expert routes omitted nonzero coordinates")
 
 
+_ROUTE_LOG: Optional[Dict[Tuple[int, int], int]] = None
+
+
+@contextmanager
+def route_visit_log() -> Iterator[Dict[Tuple[int, int], int]]:
+    """Accumulate ``(layer, expert) -> tokens routed`` from every streamed forward in the block."""
+    global _ROUTE_LOG
+    previous = _ROUTE_LOG
+    _ROUTE_LOG = {}
+    try:
+        yield _ROUTE_LOG
+    finally:
+        _ROUTE_LOG = previous
+
+
+def route_visit_counts(top_k_rows: Sequence[Sequence[int]], num_experts: int) -> Dict[int, int]:
+    """Tokens routed to each expert: one count per (token, top-k slot) pair, zeros omitted."""
+    counts: Dict[int, int] = {}
+    for row in top_k_rows:
+        for expert in row:
+            if not 0 <= expert < num_experts:
+                raise ValueError("routing contains an expert outside the reader")
+            counts[expert] = counts.get(expert, 0) + 1
+    return counts
+
+
 def _build_streamed_experts_class() -> Any:
     import torch
     import torch.nn as nn
@@ -1464,6 +1490,13 @@ def _build_streamed_experts_class() -> Any:
                     top_k_index.min().item() < 0 or top_k_index.max().item() >= self.num_experts
                 ):
                     raise ValueError("routing contains an expert outside the reader")
+                recompute = _active_scope()
+                if _ROUTE_LOG is not None and not (recompute is not None and recompute.replay):
+                    for expert, count in route_visit_counts(
+                        top_k_index.tolist(), self.num_experts
+                    ).items():
+                        key = (self.layer_idx, expert)
+                        _ROUTE_LOG[key] = _ROUTE_LOG.get(key, 0) + count
                 final_hidden_states = torch.zeros_like(hidden_states)
                 expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
                 expert_mask = expert_mask.permute(2, 1, 0)

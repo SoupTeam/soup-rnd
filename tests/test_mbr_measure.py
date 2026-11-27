@@ -1114,6 +1114,44 @@ def test_the_run_command_takes_trace_and_hands_it_to_run_one(monkeypatch: pytest
     assert seen["trace"] is False
 
 
+def test_the_run_child_forwards_route_trace_only_when_asked() -> None:
+    args = argparse.Namespace(source="s", cache="c", steps=3, out="o", device="auto", lora_r=16,
+                              lora_targets=("q_proj",), tokenizer=None)
+    item = {"arm": "G", "k": 8, "seq": 64, "kind": "speed", "deterministic": False}
+    assert "--route-trace" not in mm.child_run_args(args, item)
+    args.route_trace = True
+    assert "--route-trace" in mm.child_run_args(args, item)
+
+
+def test_the_run_command_takes_route_trace_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = {}
+
+    def fake_run_one(args: argparse.Namespace) -> dict:
+        seen["route_trace"] = args.route_trace
+        return {"arm": args.arm, "k": args.k, "seq": args.seq}
+
+    monkeypatch.setattr(mm, "run_one", fake_run_one)
+    base = ["run", "--arm", "G", "--k", "8", "--seq", "64", "--kind", "speed",
+            "--source", "s", "--cache", "c", "--out", "o"]
+    assert mm.main(base) == 0
+    assert seen["route_trace"] is False
+    assert mm.main(base + ["--route-trace"]) == 0
+    assert seen["route_trace"] is True
+
+
+def test_route_visits_drain_one_row_per_nonzero_expert_per_step() -> None:
+    log = {(3, 5): 2, (0, 1): 4, (0, 7): 0}
+    rows = mm.drain_route_visits(log, step=2)
+    assert rows == [[2, 0, 1, 4], [2, 3, 5, 2]]
+    assert log == {}
+
+
+def test_a_row_without_route_trace_has_no_route_visits_field() -> None:
+    row = mm.make_row(arm="G", k=8, seq=64, kind="speed", deterministic=False,
+                      result={"fused_visits": {}}, dataset_sha256="d")
+    assert "route_visits" not in row
+
+
 def test_the_run_child_forwards_count_only_when_asked() -> None:
     args = argparse.Namespace(source="s", cache="c", steps=3, out="o", device="auto", lora_r=16,
                               lora_targets=("q_proj",), tokenizer=None)

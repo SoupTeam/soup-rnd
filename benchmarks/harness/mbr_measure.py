@@ -1173,6 +1173,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             fast_row_gather_context,
         )
         from soup_cli.utils.expert_gemm import expert_gemm_context
+        from soup_cli.utils.expert_stream import route_visit_log
 
         # The counter wraps the module-level ``F.linear`` before the expert-GEMM context captures
         # it: ``segmented`` keeps the reference it finds and calls it once per segment, so a count
@@ -1192,11 +1193,13 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 levers.enter_context(async_lease_context(runtime_levers["async_lease"]))
                 gemm_state["plan"] = levers.enter_context(
                     expert_gemm_context(runtime_levers["expert_gemm"]))
-                return build_and_run(counter)
+                route_log = (levers.enter_context(route_visit_log())
+                             if getattr(args, "route_trace", False) else None)
+                return build_and_run(counter, route_log)
         finally:
             torch.nn.functional.linear = original_linear
 
-    def build_and_run(counter: Any = None) -> Dict[str, Any]:
+    def build_and_run(counter: Any = None, route_log: Any = None) -> Dict[str, Any]:
         index = read_shard_index(args.cache)
         lora = LoraConfig(r=args.lora_r, lora_alpha=2 * args.lora_r, lora_dropout=0.0,
                           bias="none", target_modules=list(args.lora_targets),
@@ -1237,6 +1240,7 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             losses: List[Any] = []
             counted = counter is not None
             snapshots: List[Dict[str, Any]] = []
+            route_visits: List[List[int]] = []
             optimizer = (torch.optim.AdamW(list(params.values()), lr=TRAJ_LR, betas=TRAJ_BETAS)
                          if args.kind == "traj" else None)
             trajectory: List[Dict[str, Any]] = []
@@ -1254,6 +1258,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 if counted:
                     snapshots.append(counter.snapshot())
                     counter.reset()
+                if route_log is not None:
+                    route_visits.extend(drain_route_visits(route_log, step))
                 if optimizer is not None:
                     trajectory.append(trajectory_step(optimizer, step, losses, params))
             grad_tensors = {name: p.grad for name, p in sorted(params.items())
@@ -1297,6 +1303,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
             # reports its counters, and native has no plan at all.
             out.update(gemm_plan_record(gemm_state.get("plan")))
             out.update(host_cache_record(getattr(args, "host_cache_bytes", 0), runtime))
+            if route_log is not None:
+                out["route_visits"] = route_visits
             if getattr(args, "trace", False):
                 out["trace"] = _trace_step(stepper, store, ids, step_kwargs, cuda)
             if getattr(args, "cpu_trace", False):
@@ -1325,6 +1333,14 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
     if getattr(args, "host_cache_bytes", 0):
         row["host_cache_bytes"] = args.host_cache_bytes
     return row
+
+
+def drain_route_visits(log: Dict[Tuple[int, int], int], step: int) -> List[List[int]]:
+    """``[step, layer, expert, count]`` for every expert counted in ``log``, then clears it."""
+    rows = [[step, layer, expert, count]
+            for (layer, expert), count in sorted(log.items()) if count > 0]
+    log.clear()
+    return rows
 
 
 def gemm_plan_record(plan: Any) -> Dict[str, Any]:
@@ -1583,6 +1599,8 @@ def child_run_args(args: Any, item: Dict[str, Any]) -> List[str]:
         argv.append("--trace")
     if getattr(args, "count", False):
         argv.append("--count")
+    if getattr(args, "route_trace", False):
+        argv.append("--route-trace")
     if getattr(args, "math_attention", False):
         argv.append("--math-attention")
     if getattr(args, "host_cache_bytes", 0):
@@ -1824,6 +1842,9 @@ def main(argv: Any = None) -> int:  # pragma: no cover - thin CLI
                                 "GPU gaps, summarised into the row (no raw events)")
             p.add_argument("--count", action="store_true",
                            help="count the routed-expert F.linear calls of every step into the row")
+            p.add_argument("--route-trace", action="store_true",
+                           help="count the tokens routed to each expert at each layer and step "
+                                "into the row as route_visits (off: no field)")
             p.add_argument("--lease-timers", action="store_true",
                            help="one extra step with the expert lease timers on: seconds per "
                                 "phase (disk read, host copy, dequant, wait) under lease_timers")
