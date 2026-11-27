@@ -153,7 +153,8 @@ def direct_backward(
         with ctx.owner.pool.lease(
             ctx.owner.reader, ctx.expert, phase="backward_dX", layer_idx=ctx.owner.layer_idx
         ) as (gate_up, down):
-            ctx.owner.pool.prefetch(ctx.owner.reader, ctx.hint_prev)
+            for hint in ctx.hint_prev:
+                ctx.owner.pool.prefetch(ctx.owner.reader, hint)
             with torch.autocast(ctx.device_type, enabled=False):
                 grad_hidden, grad_weights = expert_vjp(
                     hidden.detach(), weights.detach(), gate_up, down, grad_out, counts,
@@ -212,7 +213,7 @@ def fused_node(
     }
 
     def forward(ctx: Any, hidden: Any, weights: Any, owner: Any, expert: int, replay: bool,
-                nxt: Any = None, prv: Any = None) -> Any:
+                nxt: Any = (), prv: Any = ()) -> Any:
         device_type = hidden.device.type
         counts = plan_for((owner.layer_idx, expert), int(hidden.shape[0]))
         silu = silu_owners.get(id(owner))
@@ -234,7 +235,8 @@ def fused_node(
         with owner.pool.lease(
             owner.reader, expert, phase=phase, layer_idx=owner.layer_idx
         ) as (gate_up, down):
-            owner.pool.prefetch(owner.reader, nxt)
+            for hint in nxt:
+                owner.pool.prefetch(owner.reader, hint)
             if fused.usable(hidden, gate_up, down) and fused.ensure(counts, gate_up, down):
                 stats["fused_forward"] += 1
                 return fused.backend.expert_forward(hidden, weights, gate_up, down, counts)
@@ -254,7 +256,8 @@ def fused_node(
         with ctx.owner.pool.lease(
             ctx.owner.reader, ctx.expert, phase="backward_dX", layer_idx=ctx.owner.layer_idx
         ) as (gate_up, down):
-            ctx.owner.pool.prefetch(ctx.owner.reader, ctx.hint_prev)
+            for hint in ctx.hint_prev:
+                ctx.owner.pool.prefetch(ctx.owner.reader, hint)
             if fused.usable(hidden, gate_up, down) and fused.ensure(counts, gate_up, down):
                 grad_hidden, grad_weights = fused.backend.expert_backward(
                     hidden.detach(), weights.detach(), gate_up, down, grad_out, counts,

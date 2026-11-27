@@ -221,12 +221,17 @@ class ExpertBufferPool:
         transfer: str = "sync",
         host_cache_bytes: int = 0,
         prefetch: bool = False,
+        prefetch_staging: int = 1,
         stream: Optional[Any] = None,
     ) -> None:
-        """``prefetch`` (off by default) adds a second host staging buffer and one worker
-        thread. ``prefetch(reader, expert)`` then reads the named expert in the background
-        while the current one computes; a ``lease`` for that expert uses the bytes, any other
-        lease discards them and reads synchronously. One read is in flight at a time.
+        """``prefetch`` (off by default) adds host staging buffers and one worker thread.
+        ``prefetch(reader, expert)`` then reads the named expert in the background while the
+        current one computes; a ``lease`` for that expert uses the bytes. With one slot any
+        other lease discards them and reads synchronously. ``prefetch_staging`` (1 or 2, needs
+        ``prefetch``) is the number of staging slots: with 2, two reads may be pending at once,
+        each in its own slot, and a lease for another expert keeps them. The one worker runs
+        the reads in order, because the readers share one file handle. A slot is reused only
+        after the lease that consumed it has copied its bytes out.
 
         ``transfer="packed"`` (CUDA, NF4 in both matrices) stages each expert's stored
         components in one pinned block and copies it to the arena once instead of once per
@@ -263,6 +268,14 @@ class ExpertBufferPool:
             raise ValueError("host_cache_bytes needs transfer='packed'")
         if type(prefetch) is not bool:
             raise ValueError("prefetch must be a bool")
+        if (
+            isinstance(prefetch_staging, bool)
+            or not isinstance(prefetch_staging, int)
+            or prefetch_staging not in (1, 2)
+        ):
+            raise ValueError("prefetch_staging must be 1 or 2")
+        if prefetch_staging == 2 and not prefetch:
+            raise ValueError("prefetch_staging=2 needs prefetch=True")
         stream_packed = getattr(stream, "packed_bytes", None) if stream is not None else None
         if stream is not None:
             if (
@@ -326,10 +339,13 @@ class ExpertBufferPool:
         #: Prefetch state. ``prefetch_enabled`` may be switched at run time; it has an effect
         #: only on a pool built with ``prefetch=True`` (the staging and the worker exist).
         self.prefetch_enabled = prefetch
-        self._prefetch_staging_owner = self._prefetch_staging = None
+        self.prefetch_staging = prefetch_staging
+        self._prefetch_slot_owners: list = []
+        self._prefetch_slots: list = []
         self._prefetch_executor: Any = None
         self._prefetch_lock = threading.Lock()
-        self._pending: Optional[Tuple[Any, int, Any]] = None
+        #: Pending background reads, oldest first: (reader, expert, future, slot index).
+        self._pending: list = []
         self.prefetch_hits = 0
         self.prefetch_discards = 0
         #: Stored bytes the latest lease took from its reader (0 for a host-cache hit).
@@ -365,10 +381,10 @@ class ExpertBufferPool:
             for name, value in tables.items():
                 self._buffers[name].copy_(value, non_blocking=False)
             self._staging_owner, self._staging = aligned_staging(reader.max_span)
-            if prefetch:
-                self._prefetch_staging_owner, self._prefetch_staging = aligned_staging(
-                    reader.max_span
-                )
+            for _ in range(prefetch_staging if prefetch else 0):
+                owner, slot = aligned_staging(reader.max_span)
+                self._prefetch_slot_owners.append(owner)
+                self._prefetch_slots.append(slot)
             if transfer == "packed":
                 self._pinned = torch.empty(self._packed_bytes, dtype=torch.uint8, pin_memory=True)
             self._synchronize()
@@ -385,7 +401,7 @@ class ExpertBufferPool:
         except BaseException:
             self._buffers.clear()
             self._arena = self._staging_owner = self._staging = self._pinned = None
-            self._prefetch_staging_owner = self._prefetch_staging = None
+            self._prefetch_slot_owners = self._prefetch_slots = []
             self._stream_staging_owner = self._stream_staging = None
             self._closed = True
             raise
@@ -563,51 +579,63 @@ class ExpertBufferPool:
             self._host_key(reader, expert)
         )
 
-    def _read_background(self, reader: ExpertShardReader, expert: int) -> Tuple[Any, int]:
+    def _read_background(
+        self, reader: ExpertShardReader, expert: int, slot: int
+    ) -> Tuple[Any, int]:
         before = reader.bytes_read
-        host = reader.read_host(expert, self._prefetch_staging)
+        host = reader.read_host(expert, self._prefetch_slots[slot])
         return host, reader.bytes_read - before
 
+    def _drop(self, entry: Tuple[Any, int, Any, int]) -> None:
+        """Wait for one read in flight (it owns the reader and its slot) and drop its bytes."""
+        self.prefetch_discards += 1
+        try:
+            entry[2].result()
+        except BaseException:  # noqa: BLE001 - nobody asked for these bytes
+            pass
+
     def _discard_pending(self) -> None:
-        """Wait for the read in flight (it owns the reader and the staging) and drop it."""
+        """Wait for every read in flight and drop them all."""
         with self._prefetch_lock:
-            pending, self._pending = self._pending, None
-        if pending is not None:
-            self.prefetch_discards += 1
-            try:
-                pending[2].result()
-            except BaseException:  # noqa: BLE001 - nobody asked for these bytes
-                pass
+            pending, self._pending = self._pending, []
+        for entry in pending:
+            self._drop(entry)
 
     def prefetch(self, reader: ExpertShardReader, expert: int) -> None:
         """Start reading ``expert`` in the background; a hint, never required.
 
         Does nothing when prefetch is off, the pool is closed, the expert is already in the
-        host cache, or the same read is already pending. A pending read of another expert is
-        waited for and dropped first, so at most one read is ever in flight.
+        host cache, or the same read is already pending. With every slot busy, the oldest
+        pending read is waited for and dropped to free its slot. With one slot that is the
+        only pending read, so at most one read is ever pending, as before.
         """
         if (
             not self.prefetch_enabled
-            or self._prefetch_staging is None
+            or not self._prefetch_slots
             or self._closed
             or expert is None
             or self._cached(reader, expert)
         ):
             return
         with self._prefetch_lock:
-            pending = self._pending
-            if pending is not None and pending[0] is reader and pending[1] == expert:
+            if any(entry[0] is reader and entry[1] == expert for entry in self._pending):
                 return
-        self._discard_pending()
+            busy = {entry[3] for entry in self._pending}
+            free = [index for index in range(len(self._prefetch_slots)) if index not in busy]
+            oldest = None if free else self._pending.pop(0)
+        if oldest is not None:
+            self._drop(oldest)
+            free = [oldest[3]]
         if self._prefetch_executor is None:
             from concurrent.futures import ThreadPoolExecutor
 
             self._prefetch_executor = ThreadPoolExecutor(
                 max_workers=1, thread_name_prefix="expert-prefetch"
             )
-        future = self._prefetch_executor.submit(self._read_background, reader, expert)
+        slot = free[0]
+        future = self._prefetch_executor.submit(self._read_background, reader, expert, slot)
         with self._prefetch_lock:
-            self._pending = (reader, expert, future)
+            self._pending.append((reader, expert, future, slot))
 
     def _read_host(self, reader: ExpertShardReader, expert: int) -> Dict[str, Any]:
         """The expert's stored tensors on the host: the prefetched bytes, or a direct read.
@@ -617,17 +645,31 @@ class ExpertBufferPool:
         ``last_lease_bytes`` is set to what the reader read for this lease.
         """
         with self._prefetch_lock:
-            pending, self._pending = self._pending, None
-        if pending is not None:
-            if pending[0] is reader and pending[1] == expert:
-                with lease_phase("disk_read"):
-                    host, nbytes = pending[2].result()  # raises the background read's error here
-                self.prefetch_hits += 1
-                self.last_lease_bytes = nbytes
-                return host
-            self._pending = pending
+            pending = list(self._pending)
+        hit = next((e for e in pending if e[0] is reader and e[1] == expert), None)
+        if hit is not None:
+            with self._prefetch_lock:
+                self._pending = [entry for entry in self._pending if entry is not hit]
+            with lease_phase("disk_read"):
+                host, nbytes = hit[2].result()  # raises the background read's error here
+            self.prefetch_hits += 1
+            self.last_lease_bytes = nbytes
+            return host
+        if pending and len(self._prefetch_slots) == 1:
+            with self._prefetch_lock:
+                self._pending = []
             with lease_phase("wait"):
-                self._discard_pending()
+                for entry in pending:
+                    self._drop(entry)
+        elif pending:
+            # Two slots: the other reads keep their bytes for a later lease. They still own the
+            # reader's handle until they finish, so wait for them before the direct read below.
+            with lease_phase("wait"):
+                for entry in pending:
+                    try:
+                        entry[2].result()
+                    except BaseException:  # noqa: BLE001 - reported by the lease that asks
+                        pass
         before = reader.bytes_read
         with lease_phase("disk_read"):
             host = reader.read_host(expert, self._staging)
@@ -731,7 +773,8 @@ class ExpertBufferPool:
             "transfer": self.transfer,
             "h2d_copies": self.h2d_copies,
             "prefetch": {
-                "enabled": bool(self.prefetch_enabled and self._prefetch_staging is not None),
+                "enabled": bool(self.prefetch_enabled and self._prefetch_slots),
+                "staging": self.prefetch_staging,
                 "hits": self.prefetch_hits,
                 "discards": self.prefetch_discards,
             },
@@ -760,7 +803,7 @@ class ExpertBufferPool:
                 if self._prefetch_executor is not None:
                     self._prefetch_executor.shutdown(wait=True)
                     self._prefetch_executor = None
-                self._prefetch_staging_owner = self._prefetch_staging = None
+                self._prefetch_slot_owners = self._prefetch_slots = []
                 self._stream_staging_owner = self._stream_staging = None
                 if self._stream is not None:
                     close_stream = getattr(self._stream, "close", None)
@@ -1084,7 +1127,7 @@ def _build_streamed_experts_class() -> Any:
 
         @staticmethod
         def forward(
-            ctx: Any, hidden: Any, owner: Any, expert: int, nxt: Any = None, prv: Any = None
+            ctx: Any, hidden: Any, owner: Any, expert: int, nxt: Any = (), prv: Any = ()
         ) -> Any:
             ctx.owner = owner
             ctx.act_fn = owner.act_fn
@@ -1098,7 +1141,8 @@ def _build_streamed_experts_class() -> Any:
             }
             ctx.save_for_backward(hidden)
             with owner.pool.lease(owner.reader, expert) as (gate_up, down):
-                owner.pool.prefetch(owner.reader, nxt)
+                for hint in nxt:
+                    owner.pool.prefetch(owner.reader, hint)
                 return expert_mlp(hidden, gate_up, down, owner.act_fn)
 
         @staticmethod
@@ -1110,7 +1154,8 @@ def _build_streamed_experts_class() -> Any:
             _validate_training_activation(ctx.act_fn)
             (hidden,) = ctx.saved_tensors
             with ctx.owner.pool.lease(ctx.owner.reader, ctx.expert) as (gate_up, down):
-                ctx.owner.pool.prefetch(ctx.owner.reader, ctx.hint_prev)
+                for hint in ctx.hint_prev:
+                    ctx.owner.pool.prefetch(ctx.owner.reader, hint)
                 local = hidden.detach().requires_grad_(True)
                 # Only the recompute replays the forward's autocast state. The VJP itself runs
                 # in the caller's backward state, as eager autograd does, so a backward inside
@@ -1135,7 +1180,7 @@ def _build_streamed_experts_class() -> Any:
         @staticmethod
         def forward(
             ctx: Any, hidden: Any, weights: Any, owner: Any, expert: int, replay: bool,
-            nxt: Any = None, prv: Any = None,
+            nxt: Any = (), prv: Any = (),
         ) -> Any:
             ctx.owner = owner
             ctx.act_fn = owner.act_fn
@@ -1160,7 +1205,8 @@ def _build_streamed_experts_class() -> Any:
                 phase=phase,
                 layer_idx=owner.layer_idx,
             ) as (gate_up, down):
-                owner.pool.prefetch(owner.reader, nxt)
+                for hint in nxt:
+                    owner.pool.prefetch(owner.reader, hint)
                 return expert_mlp(hidden, gate_up, down, owner.act_fn) * weights
 
         @staticmethod
@@ -1180,7 +1226,8 @@ def _build_streamed_experts_class() -> Any:
                 phase="backward_dX",
                 layer_idx=ctx.owner.layer_idx,
             ) as (gate_up, down):
-                ctx.owner.pool.prefetch(ctx.owner.reader, ctx.hint_prev)
+                for hint in ctx.hint_prev:
+                    ctx.owner.pool.prefetch(ctx.owner.reader, hint)
                 local_hidden = hidden.detach().requires_grad_(need_hidden)
                 local_weights = weights.detach().requires_grad_(need_weights)
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
@@ -1430,15 +1477,25 @@ def _build_streamed_experts_class() -> Any:
                 replay = (
                     scope is not None and scope.replay and not self._mbr_materialize_recompute
                 )
-                # A hint names the next expert of this visit order (and the previous one for the
-                # backward). Hints never cross a layer: the next layer's routes are unknown.
+                # A hint names the next expert of this visit order, and the one after it when the
+                # pool has two staging slots (the previous ones for the backward). Hints never
+                # cross a layer: the next layer's routes are unknown.
                 hinting = bool(self.pool.prefetch_enabled)
+                depth = self.pool.prefetch_staging if hinting else 0
                 visit = list(routes) if hinting else None
                 for position, (expert, top_k_pos, token_idx) in enumerate(
                     visit if hinting else routes
                 ):
-                    nxt = visit[position + 1][0] if hinting and position + 1 < len(visit) else None
-                    prv = visit[position - 1][0] if hinting and position > 0 else None
+                    nxt = tuple(
+                        visit[position + step][0]
+                        for step in range(1, depth + 1)
+                        if position + step < len(visit)
+                    )
+                    prv = tuple(
+                        visit[position - step][0]
+                        for step in range(1, depth + 1)
+                        if position - step >= 0
+                    )
                     row = {
                         "layer": self.layer_idx, "expert": expert,
                         "token_routes": token_idx.numel(),
