@@ -22,7 +22,7 @@ import pytest
 import torch
 
 from benchmarks.harness import b13_moe_fixture as fixture
-from soup_cli.utils.layer_stream_runtime import build_streamed_model
+from soup_cli.utils import layer_stream_runtime
 from tests.test_b13_moe_runtime import (
     build_moe_streamed,
     grads_differ,
@@ -67,16 +67,26 @@ def _weights_of(pool: Any, reader: Any, expert: int) -> Any:
         return gate_up.clone(), down.clone()
 
 
-def test_default_is_one_staging_slot():
-    default = inspect.signature(build_streamed_model).parameters["expert_prefetch_staging"]
-    assert default.default == 1
+def test_default_is_prefetch_with_two_staging_slots():
+    for name in ("build_streamed_model", "install_streaming"):
+        params = inspect.signature(getattr(layer_stream_runtime, name)).parameters
+        assert params["expert_prefetch"].default is None
+        assert params["expert_prefetch_staging"].default is None
 
 
-def test_default_pool_has_one_slot(build):
-    moe = build("def", expert_prefetch=True)
+def test_default_pool_prefetches_with_two_slots(build):
+    moe = build("def")
     pool = moe.runtime.expert_pool
+    assert pool.prefetch_enabled is True
+    assert pool.prefetch_staging == 2
+    assert pool.stats()["prefetch"]["staging"] == 2
+
+
+def test_explicit_prefetch_off_keeps_one_slot_and_no_prefetch(build):
+    moe = build("off", expert_prefetch=False)
+    pool = moe.runtime.expert_pool
+    assert pool.prefetch_enabled is False
     assert pool.prefetch_staging == 1
-    assert pool.stats()["prefetch"]["staging"] == 1
 
 
 @pytest.mark.parametrize("bad", [0, 3, True, "2", 2.0])
@@ -87,7 +97,7 @@ def test_refuses_any_staging_count_other_than_one_or_two(build, bad):
 
 def test_two_slots_need_prefetch_on(build):
     with pytest.raises(ValueError, match="prefetch_staging=2 needs prefetch"):
-        build("off", expert_prefetch_staging=2)
+        build("off", expert_prefetch=False, expert_prefetch_staging=2)
 
 
 def test_two_slots_keep_two_reads_pending_and_both_hit(build):

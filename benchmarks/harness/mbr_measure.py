@@ -210,7 +210,8 @@ ROUTING_ORACLE_KEY = "routing_oracle"
 # It is not in ``LEVER_ARMS``, ``LEVER_PREVIOUS`` or any plan: the ladders and campaigns do not
 # change. ``run_one`` makes its Oracle like O's.
 GO_ARM = "GO"
-# Arm GP: G's lever settings with ``expert_prefetch=True`` passed to ``build_streamed_model``.
+# Arm GP: G's lever settings with ``expert_prefetch=True`` and two staging slots passed to
+# ``build_streamed_model``. Arm G passes ``expert_prefetch=False`` and one slot explicitly.
 # Same rule as GO: not in ``LEVER_ARMS``, ``LEVER_PREVIOUS`` or any plan.
 PREFETCH_ARM = "GP"
 
@@ -318,10 +319,12 @@ def arm_runtime(arm: str) -> Dict[str, Any]:
     which loader feeds the expert pool (``async_lease`` unless the arm is H)."""
     if arm == SEGMENTED_ARM:
         return dict(SEGMENTED_RUNTIME)
+    if arm == "G":
+        return {**LEVER_ARMS["G"], "expert_prefetch": False, "expert_prefetch_staging": 1}
     if arm == GO_ARM:
         return arm_runtime("G")
     if arm == PREFETCH_ARM:
-        return {**arm_runtime("G"), "expert_prefetch": True}
+        return {**arm_runtime("G"), "expert_prefetch": True, "expert_prefetch_staging": 2}
     if arm == DECOUPLED_SEGMENTED_ARM:
         return dict(DECOUPLED_SEGMENTED_RUNTIME)
     return dict(LEVER_ARMS.get(arm, {"expert_gemm": "native", "async_lease": False,
@@ -1212,7 +1215,8 @@ def run_one(args: Any) -> Dict[str, Any]:  # pragma: no cover - needs the model 
                 read_ahead=1, two_read_experts=True, grouped_expert_routes=True,
                 expert_loader=runtime_levers["expert_loader"],
                 expert_prefetch=runtime_levers.get("expert_prefetch", False),
-                expert_prefetch_staging=getattr(args, "prefetch_staging", 1),
+                expert_prefetch_staging=runtime_levers.get(
+                    "expert_prefetch_staging", getattr(args, "prefetch_staging", 1)),
                 **({"expert_transfer": "packed"} if cuda else {}),
                 **host_cache_kwargs(getattr(args, "host_cache_bytes", 0)))
         oracle = None

@@ -3823,6 +3823,19 @@ def _is_default_staging(value: Any) -> bool:
     return type(value) is int and value == 1
 
 
+def _resolve_expert_prefetch(
+    prefetch: Optional[bool], staging: Any, *, per_expert: bool, loader: str,
+) -> Tuple[bool, Any]:
+    """``None`` is the default: prefetch on with two staging slots for a per-expert cache read
+    by the ``async_lease`` loader, off with one slot otherwise. Explicit values pass through, so
+    a fused cache or the compiled loader still refuses an explicit prefetch."""
+    if prefetch is None:
+        prefetch = per_expert and loader == "async_lease"
+    if staging is None:
+        staging = 2 if prefetch else 1
+    return prefetch, staging
+
+
 def _prepare_expert_streaming(
     layers: Any, shard_dir: str, index: Any, *, device: str, codes: Optional[Mapping[str, Any]],
     two_reads: bool = False, grouped_expert_routes: bool = False,
@@ -3990,9 +4003,9 @@ def install_streaming(
     grouped_expert_routes: bool = False,
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
-    expert_prefetch: bool = False,
+    expert_prefetch: Optional[bool] = None,
     expert_loader: str = "async_lease",
-    expert_prefetch_staging: int = 1,
+    expert_prefetch_staging: Optional[int] = None,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -4008,12 +4021,14 @@ def install_streaming(
     ``expert_host_cache_bytes`` (packed only) additionally keeps whole packed blocks in RAM up
     to that many bytes; a hit reads nothing from the experts file. See ``ExpertBufferPool``.
 
-    ``expert_prefetch`` (same caches, off by default) reads the next hit expert of a layer on
-    a worker thread while the current one computes, in the forward and the backward. The bytes,
-    the order and the numbers are unchanged. API switch, no config field.
+    ``expert_prefetch`` (same caches, on by default, ``None`` resolves to it) reads the next hit
+    expert of a layer on a worker thread while the current one computes, in the forward and the
+    backward. The bytes, the order and the numbers are unchanged. Off for fused caches and the
+    ``cpp_async_2slot`` loader. API switch, no config field.
 
-    ``expert_prefetch_staging`` (1 by default, or 2; 2 needs ``expert_prefetch``) gives the
-    prefetch two staging slots, so two reads may be pending. See ``ExpertBufferPool``.
+    ``expert_prefetch_staging`` (``None`` by default: 2 with prefetch, 1 without; or 1 or 2 by
+    hand; 2 needs ``expert_prefetch``) gives the prefetch two staging slots, so two reads may be
+    pending. See ``ExpertBufferPool``.
 
     ``expert_loader`` (``"async_lease"`` by default) is the selected loader arm; with
     ``"cpp_async_2slot"`` the pool reads through the compiled stream and the readers' own
@@ -4113,8 +4128,13 @@ def install_streaming(
     expert_pool = source = handle = None
     expert_readers: Tuple[Any, ...] = ()
     context_fns: List[Any] = [None] * len(layers)
+    per_expert = getattr(index, "expert_layout", "") == "per_expert"
+    expert_prefetch, expert_prefetch_staging = _resolve_expert_prefetch(
+        expert_prefetch, expert_prefetch_staging,
+        per_expert=per_expert, loader=expert_loader,
+    )
     try:
-        if getattr(index, "expert_layout", "") == "per_expert":
+        if per_expert:
             expert_pool, expert_readers = _prepare_expert_streaming(
                 layers, shard_dir, index, device=device, codes=codes,
                 two_reads=two_read_experts, grouped_expert_routes=grouped_expert_routes,
@@ -4766,9 +4786,9 @@ def build_streamed_model(
     grouped_expert_routes: bool = False,
     expert_transfer: str = "sync",
     expert_host_cache_bytes: int = 0,
-    expert_prefetch: bool = False,
+    expert_prefetch: Optional[bool] = None,
     expert_loader: str = "async_lease",
-    expert_prefetch_staging: int = 1,
+    expert_prefetch_staging: Optional[int] = None,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -4837,11 +4857,8 @@ def build_streamed_model(
                 {"expert_host_cache_bytes": expert_host_cache_bytes}
                 if expert_host_cache_bytes else {}
             ),
-            **({"expert_prefetch": True} if expert_prefetch else {}),
-            **(
-                {"expert_prefetch_staging": expert_prefetch_staging}
-                if not _is_default_staging(expert_prefetch_staging) else {}
-            ),
+            expert_prefetch=expert_prefetch,
+            expert_prefetch_staging=expert_prefetch_staging,
             **({"expert_loader": expert_loader} if expert_loader != "async_lease" else {}),
         )
     except BaseException:

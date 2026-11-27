@@ -322,7 +322,8 @@ def test_lever_arms_stack_on_the_ordered_arm() -> None:
                                    "fast_row_gather": False, "expert_loader": "async_lease"}
     assert mm.arm_runtime("F")["async_lease"] and not mm.arm_runtime("F")["fast_row_gather"]
     assert mm.arm_runtime("G") == {"expert_gemm": "lt-fused", "async_lease": True,
-                                   "fast_row_gather": True, "expert_loader": "async_lease"}
+                                   "fast_row_gather": True, "expert_loader": "async_lease",
+                                   "expert_prefetch": False, "expert_prefetch_staging": 1}
     assert mm.arm_runtime("A0") == mm.arm_runtime("B0") == mm.arm_runtime("C")
 
 
@@ -1351,7 +1352,8 @@ def test_the_ceg_and_ds_commands_reach_their_plans(monkeypatch: pytest.MonkeyPat
 def test_go_takes_the_lever_settings_of_g_exactly() -> None:
     assert mm.arm_runtime("GO") == mm.arm_runtime("G")
     assert mm.arm_runtime("GO") == {"expert_gemm": "lt-fused", "async_lease": True,
-                                    "fast_row_gather": True, "expert_loader": "async_lease"}
+                                    "fast_row_gather": True, "expert_loader": "async_lease",
+                                    "expert_prefetch": False, "expert_prefetch_staging": 1}
 
 
 def test_go_has_c_step_options_and_the_oracle_marker_at_every_k() -> None:
@@ -2097,15 +2099,16 @@ def test_the_run_command_takes_lease_timers_and_writes_them_into_the_row(
 
 # ---- arm GP: G's lever settings plus expert_prefetch=True, C's step options ----
 def test_gp_takes_the_lever_settings_of_g_plus_expert_prefetch() -> None:
-    assert mm.arm_runtime("GP") == {**mm.arm_runtime("G"), "expert_prefetch": True}
+    assert mm.arm_runtime("GP") == {**mm.arm_runtime("G"), "expert_prefetch": True,
+                                    "expert_prefetch_staging": 2}
     assert mm.arm_runtime("GP") == {"expert_gemm": "lt-fused", "async_lease": True,
                                     "fast_row_gather": True, "expert_loader": "async_lease",
-                                    "expert_prefetch": True}
+                                    "expert_prefetch": True, "expert_prefetch_staging": 2}
 
 
 def test_g_has_no_expert_prefetch() -> None:
-    assert "expert_prefetch" not in mm.arm_runtime("G")
-    assert mm.arm_runtime("G").get("expert_prefetch", False) is False
+    assert mm.arm_runtime("G")["expert_prefetch"] is False
+    assert mm.arm_runtime("G")["expert_prefetch_staging"] == 1
 
 
 def test_gp_has_g_step_options_at_every_k() -> None:

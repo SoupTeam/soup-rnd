@@ -757,7 +757,7 @@ def main() -> None:
             grouped_expert_routes=True,
             expert_transfer=args.expert_transfer,
             expert_host_cache_bytes=expert_host_cache_bytes,
-            **({"expert_prefetch": True} if args.expert_prefetch else {}),
+            expert_prefetch=bool(args.expert_prefetch),
         )
     model.train()
     causal, owner = model_parts(model)

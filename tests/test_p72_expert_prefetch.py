@@ -277,11 +277,11 @@ def test_a_failed_background_read_raises_in_the_lease_that_asked_for_that_expert
 
 
 # ==========================================================================
-# off by default, and no thread outlives the runtime
+# off when asked, and no thread outlives the runtime
 # ==========================================================================
-def test_prefetch_is_off_by_default_and_starts_no_thread(build):
+def test_prefetch_off_when_asked_and_starts_no_thread(build):
     before = _workers()
-    moe = build("i", grouped_expert_routes=True)
+    moe = build("i", grouped_expert_routes=True, expert_prefetch=False)
     log = ReadLog(moe.model)
     run_moe_pass(moe.model, _batch(build))
     assert moe.runtime.expert_pool.prefetch_enabled is False
